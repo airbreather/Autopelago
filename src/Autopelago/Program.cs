@@ -1,11 +1,12 @@
 ﻿using Autopelago;
+using Autopelago.ArchipelagoClient;
 
 using Console = Colorful.Console;
 
 await Helper.ConfigureAwaitFalse();
 
-AutopelagoGame game = new();
-await game.StartAsync(args[0], ushort.Parse(args[1]), args[2], args.ElementAtOrDefault(3));
+ArchipelagoClient game = new();
+await game.ConnectAsync(args[0], ushort.Parse(args[1]), args[2], args[3], args.ElementAtOrDefault(4));
 
 Console.WriteLine("Game started.");
 

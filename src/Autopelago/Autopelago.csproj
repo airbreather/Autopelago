@@ -9,8 +9,11 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="Archipelago.MultiClient.Net" Version="5.0.6" />
     <PackageReference Include="Colorful.Console" Version="1.2.15" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="../Autopelago.ArchipelagoClient/Autopelago.ArchipelagoClient.csproj" />
   </ItemGroup>
 
 </Project>

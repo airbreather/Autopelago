@@ -2,7 +2,7 @@ using System.Runtime.CompilerServices;
 
 namespace Autopelago;
 
-internal static class Helper
+public static class Helper
 {
     public static GetOffSyncContextAwaitableAndAwaiter ConfigureAwaitFalse() => default;
 
