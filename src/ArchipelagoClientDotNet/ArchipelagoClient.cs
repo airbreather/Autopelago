@@ -116,7 +116,7 @@ public sealed class ArchipelagoClient(string server, ushort port) : IDisposable
             // TODO: cache result on disk by checksum so we don't always need to do this.
             GetDataPackagePacketModel[] getDataPackage = [new() { Games = roomInfo.Games }];
             await WriteNextAsync(getDataPackage, MessageWriter, cancellationToken);
-            await ProcessNextMessageAsync(cancellationToken);
+            _ = await ProcessNextMessageAsync(cancellationToken);
             CancellationToken fullStreamReadToken = _cts.Token;
             _ = Task.Run(async () =>
             {

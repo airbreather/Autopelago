@@ -1,4 +1,3 @@
-using System.Collections.Frozen;
 using System.Collections.Immutable;
 using System.Diagnostics.CodeAnalysis;
 using System.Text.Json;
@@ -6,6 +5,13 @@ using System.Text.Json.Nodes;
 using System.Text.Json.Serialization;
 
 namespace ArchipelagoClientDotNet;
+
+public enum ArchipelagoSlotType
+{
+    Spectator,
+    Player,
+    Group,
+}
 
 [Flags]
 public enum ArchipelagoItemFlags
@@ -276,24 +282,18 @@ public sealed record PlayerModel
     public required string Name { get; init; }
 }
 
-[JsonPolymorphic(TypeDiscriminatorPropertyName = "type")]
-[JsonDerivedType(typeof(SpectatorSlotModel), 0b00)]
-[JsonDerivedType(typeof(PlayerSlotModel), 0b01)]
-[JsonDerivedType(typeof(GroupSlotModel), 0b10)]
-public abstract record SlotModel
+public sealed record SlotModel
 {
     public string Class => "Slot";
 
     public required string Name { get; init; }
 
     public required string Game { get; init; }
-}
 
-public sealed record SpectatorSlotModel : SlotModel { }
-public sealed record PlayerSlotModel : SlotModel { }
-public sealed record GroupSlotModel : SlotModel
-{
-    public required FrozenSet<int> GroupMembers { get; init; }
+    public required ArchipelagoSlotType Type { get; init; }
+
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]
+    public ImmutableArray<int>? GroupMembers { get; init; }
 }
 
 public sealed record VersionModel
