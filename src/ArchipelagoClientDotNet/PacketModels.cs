@@ -43,6 +43,7 @@ public enum ArchipelagoItemsHandlingFlags
 [JsonDerivedType(typeof(ConnectionRefusedPacketModel), "ConnectionRefused")]
 [JsonDerivedType(typeof(ReceivedItemsPacketModel), "ReceivedItems")]
 [JsonDerivedType(typeof(PrintJSONPacketModel), "PrintJSON")]
+[JsonDerivedType(typeof(SayPacketModel), "Say")]
 public record ArchipelagoPacketModel
 {
     [JsonExtensionData]
@@ -240,6 +241,11 @@ public sealed record CollectPrintJSONPacketModel : PrintJSONPacketModel
 public sealed record CountdownPrintJSONPacketModel : PrintJSONPacketModel
 {
     public required int Countdown { get; init; }
+}
+
+public sealed record SayPacketModel : ArchipelagoPacketModel
+{
+    public required string Text { get; init; }
 }
 
 public sealed record PlayerModel

@@ -3,10 +3,15 @@
 await Helper.ConfigureAwaitFalse();
 
 using ArchipelagoClient client = new(args[0], ushort.Parse(args[1]));
-client.AnyPacketReceived += OnAnyPacketReceivedAsync;
-ValueTask OnAnyPacketReceivedAsync(object? sender, ArchipelagoPacketModel packet, CancellationToken cancellationToken)
+client.PrintJSONPacketReceived += OnPrintJSONPacketReceived;
+ValueTask OnPrintJSONPacketReceived(object? sender, PrintJSONPacketModel packet, CancellationToken cancellationToken)
 {
-    Console.WriteLine(packet.GetType().Name);
+    foreach (JSONMessagePartModel part in packet.Data)
+    {
+        Console.Write(part.Text);
+    }
+
+    Console.WriteLine();
     return ValueTask.CompletedTask;
 }
 
@@ -16,16 +21,30 @@ if (!await client.TryConnectAsync(args[2], args[3], args.ElementAtOrDefault(4)))
     return 1;
 }
 
-TaskCompletionSource tcs = new(TaskCreationOptions.RunContinuationsAsynchronously);
-Console.CancelKeyPress += (_, args) =>
+int x = 0;
+Console.CancelKeyPress += async (sender, args) =>
 {
     args.Cancel = true;
-    tcs.TrySetResult();
+    if (Interlocked.CompareExchange(ref x, 1, 0) != 0)
+    {
+        return;
+    }
+
+    await client.StopAsync();
+    Environment.Exit(0);
 };
 
-await tcs.Task;
-Console.WriteLine("Exiting gracefully.");
-await client.StopAsync();
-Console.WriteLine("done");
+while (Console.ReadLine() is string line)
+{
+    if (Volatile.Read(ref x) != 0)
+    {
+        continue;
+    }
+
+    await client.SendAsync(new[] { new SayPacketModel
+    {
+        Text = line,
+    }});
+}
 
 return 0;
