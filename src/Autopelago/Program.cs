@@ -3,6 +3,22 @@
 await Helper.ConfigureAwaitFalse();
 
 using ArchipelagoClient client = new(args[0], ushort.Parse(args[1]));
+client.DataPackagePacketReceived += OnDataPackagePacketReceived;
+
+ValueTask OnDataPackagePacketReceived(object? sender, DataPackagePacketModel dataPackage, CancellationToken cancellationToken)
+{
+    foreach ((string game, GameDataModel gameData) in dataPackage.Data.Games)
+    {
+        Console.WriteLine($"data for {game}:");
+        Console.WriteLine($"checksum: {gameData.Checksum}");
+        Console.WriteLine($"some of its items: {string.Join(Environment.NewLine, gameData.ItemNameToId.OrderBy(x => x.Value).Take(15).Select(kvp => $"    {kvp.Key} -> {kvp.Value}").Prepend(""))}");
+        Console.WriteLine($"some of its locations: {string.Join(Environment.NewLine, gameData.LocationNameToId.OrderBy(x => x.Value).Take(15).Select(kvp => $"    {kvp.Key} -> {kvp.Value}").Prepend(""))}");
+        Console.WriteLine();
+    }
+
+    return ValueTask.CompletedTask;
+}
+
 client.PrintJSONPacketReceived += OnPrintJSONPacketReceived;
 ValueTask OnPrintJSONPacketReceived(object? sender, PrintJSONPacketModel packet, CancellationToken cancellationToken)
 {

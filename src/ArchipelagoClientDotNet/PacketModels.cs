@@ -38,6 +38,8 @@ public enum ArchipelagoItemsHandlingFlags
 
 [JsonPolymorphic(TypeDiscriminatorPropertyName = "cmd", IgnoreUnrecognizedTypeDiscriminators = true, UnknownDerivedTypeHandling = JsonUnknownDerivedTypeHandling.FallBackToNearestAncestor)]
 [JsonDerivedType(typeof(RoomInfoPacketModel), "RoomInfo")]
+[JsonDerivedType(typeof(GetDataPackagePacketModel), "GetDataPackage")]
+[JsonDerivedType(typeof(DataPackagePacketModel), "DataPackage")]
 [JsonDerivedType(typeof(ConnectPacketModel), "Connect")]
 [JsonDerivedType(typeof(ConnectedPacketModel), "Connected")]
 [JsonDerivedType(typeof(ConnectionRefusedPacketModel), "ConnectionRefused")]
@@ -56,7 +58,7 @@ public sealed record RoomInfoPacketModel : ArchipelagoPacketModel
 
     public required VersionModel GeneratorVersion { get; init; }
 
-    public required string[] Tags { get; init; }
+    public required ImmutableArray<string> Tags { get; init; }
 
     public required bool Password { get; init; }
 
@@ -64,11 +66,24 @@ public sealed record RoomInfoPacketModel : ArchipelagoPacketModel
 
     public required int LocationCheckPoints { get; init; }
 
-    public required string[] Games { get; init; }
+    public required ImmutableArray<string> Games { get; init; }
+
+    public Dictionary<string, string> DatapackageChecksums { get; init; } = [];
 
     public required string SeedName { get; init; }
 
     public required double Time { get; init; }
+}
+
+public sealed record GetDataPackagePacketModel : ArchipelagoPacketModel
+{
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]
+    public ImmutableArray<string> Games { get; init; }
+}
+
+public sealed record DataPackagePacketModel : ArchipelagoPacketModel
+{
+    public required DataPackageModel Data { get; init; }
 }
 
 public sealed record ConnectPacketModel : ArchipelagoPacketModel
@@ -102,16 +117,16 @@ public sealed record ConnectedPacketModel : ArchipelagoPacketModel
 
     public required ImmutableArray<long> CheckedLocations { get; init; }
 
-    public Dictionary<string, JsonElement> SlotData { get; } = [];
+    public Dictionary<string, JsonElement> SlotData { get; init; } = [];
 
-    public Dictionary<int, SlotModel> SlotInfo { get; } = [];
+    public Dictionary<int, SlotModel> SlotInfo { get; init; } = [];
 
     public required int HintPoints { get; init; }
 }
 
 public sealed record ConnectionRefusedPacketModel : ArchipelagoPacketModel
 {
-    public string[] Errors { get; init; } = [];
+    public ImmutableArray<string> Errors { get; init; } = [];
 }
 
 public sealed record ReceivedItemsPacketModel : ArchipelagoPacketModel
@@ -302,6 +317,24 @@ public sealed record VersionModel
     public required int Minor { get; init; }
 
     public required int Build { get; init; }
+}
+
+public sealed record DataPackageModel
+{
+    public string Class => "DataPackage";
+
+    public Dictionary<string, GameDataModel> Games { get; init; } = [];
+}
+
+public sealed record GameDataModel
+{
+    public string Class => "GameData";
+
+    public Dictionary<string, long> ItemNameToId { get; init; } = [];
+
+    public Dictionary<string, long> LocationNameToId { get; init; } = [];
+
+    public required string Checksum { get; init; }
 }
 
 public sealed record ItemModel

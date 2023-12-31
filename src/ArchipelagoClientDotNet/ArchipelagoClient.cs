@@ -26,6 +26,8 @@ public sealed class ArchipelagoClient(string server, ushort port) : IDisposable
 
     private readonly AsyncEvent<RoomInfoPacketModel> _roomInfoPacketReceivedEvent = new();
 
+    private readonly AsyncEvent<DataPackagePacketModel> _dataPackagePacketReceivedEvent = new();
+
     private readonly AsyncEvent<ConnectedPacketModel> _connectedPacketReceivedEvent = new();
 
     private readonly AsyncEvent<ConnectionRefusedPacketModel> _connectionRefusedPacketReceivedEvent = new();
@@ -56,6 +58,12 @@ public sealed class ArchipelagoClient(string server, ushort port) : IDisposable
     {
         add => _roomInfoPacketReceivedEvent.Add(value);
         remove => _roomInfoPacketReceivedEvent.Remove(value);
+    }
+
+    public event AsyncEventHandler<DataPackagePacketModel> DataPackagePacketReceived
+    {
+        add => _dataPackagePacketReceivedEvent.Add(value);
+        remove => _dataPackagePacketReceivedEvent.Remove(value);
     }
 
     public event AsyncEventHandler<ConnectedPacketModel> ConnectedPacketReceived
@@ -100,6 +108,9 @@ public sealed class ArchipelagoClient(string server, ushort port) : IDisposable
             MessageReader = _socket.UsePipeReader(cancellationToken: _cts.Token);
             MessageWriter = _socket.UsePipeWriter(cancellationToken: _cts.Token);
 
+            await ProcessNextMessageAsync(cancellationToken);
+            GetDataPackagePacketModel getDataPackagePacket = new();
+            await WriteNextAsync(new[] { getDataPackagePacket }, MessageWriter, cancellationToken);
             await ProcessNextMessageAsync(cancellationToken);
             CancellationToken fullStreamReadToken = _cts.Token;
             _ = Task.Run(async () =>
@@ -213,7 +224,7 @@ public sealed class ArchipelagoClient(string server, ushort port) : IDisposable
                 throw new OperationCanceledException("Stream was canceled before reading a full JSON object", ex);
             }
 
-            pipeReader.AdvanceTo(buffer.Start, buffer.GetPosition(jsonReader.BytesConsumed));
+            pipeReader.AdvanceTo(buffer.Start, buffer.End);
             result = default;
             return false;
         }
@@ -264,6 +275,7 @@ public sealed class ArchipelagoClient(string server, ushort port) : IDisposable
             await (next switch
             {
                 RoomInfoPacketModel roomInfo => _roomInfoPacketReceivedEvent.InvokeAsync(this, roomInfo, cancellationToken),
+                DataPackagePacketModel dataPackage => _dataPackagePacketReceivedEvent.InvokeAsync(this, dataPackage, cancellationToken),
                 ConnectedPacketModel connected => _connectedPacketReceivedEvent.InvokeAsync(this, connected, cancellationToken),
                 ConnectionRefusedPacketModel connectionRefused => _connectionRefusedPacketReceivedEvent.InvokeAsync(this, connectionRefused, cancellationToken),
                 ReceivedItemsPacketModel receivedItems => _receivedItemsPacketReceivedEvent.InvokeAsync(this, receivedItems, cancellationToken),
