@@ -5,7 +5,7 @@ VisualStudioVersion = 17.0.31903.59
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Autopelago", "src/Autopelago/Autopelago.csproj", "{B71F5847-C00D-4514-95F5-E0484A3D6DBF}"
 EndProject
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Autopelago.ArchipelagoClient", "src/Autopelago.ArchipelagoClient/Autopelago.ArchipelagoClient.csproj", "{16A9858E-6C1B-4523-B375-FFE177F54C97}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "ArchipelagoClientDotNet", "src/ArchipelagoClientDotNet/ArchipelagoClientDotNet.csproj", "{16A9858E-6C1B-4523-B375-FFE177F54C97}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution

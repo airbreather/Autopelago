@@ -1,6 +1,6 @@
 using System.Buffers;
 
-namespace Autopelago.ArchipelagoClient;
+namespace ArchipelagoClientDotNet;
 
 public sealed class AsyncEvent<T>
 {

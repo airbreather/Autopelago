@@ -1,14 +1,14 @@
-﻿using Autopelago;
-using Autopelago.ArchipelagoClient;
+﻿using ArchipelagoClientDotNet;
 
 using Console = Colorful.Console;
 
 await Helper.ConfigureAwaitFalse();
 
-ArchipelagoClient game = new();
-await game.ConnectAsync(args[0], ushort.Parse(args[1]), args[2], args[3], args.ElementAtOrDefault(4));
+using ArchipelagoRawClient rawClient = new(args[0], ushort.Parse(args[1]));
+ArchipelagoProtocolClient protocolClient = new(rawClient);
 
-Console.WriteLine("Game started.");
+await rawClient.StartAsync();
+await protocolClient.ConnectAsync(args[2], args[3], args.ElementAtOrDefault(4));
 
 TaskCompletionSource tcs = new(TaskCreationOptions.RunContinuationsAsynchronously);
 Console.CancelKeyPress += (_, args) =>
