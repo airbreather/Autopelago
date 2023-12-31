@@ -48,13 +48,20 @@ public sealed class AsyncEvent<T>
         }
 
         return singleHandler is null
-            ? Multi(handlers, sender, args, cancellationToken)
+            ? Multi(new(handlers, 0, handlerCount), sender, args, cancellationToken)
             : singleHandler(sender, args, cancellationToken);
-        static async ValueTask Multi(AsyncEventHandler<T>[] handlers, object? sender, T args, CancellationToken cancellationToken)
+        static async ValueTask Multi(ArraySegment<AsyncEventHandler<T>> handlers, object? sender, T args, CancellationToken cancellationToken)
         {
-            foreach (AsyncEventHandler<T> handler in handlers)
+            try
             {
-                await handler(sender, args, cancellationToken);
+                foreach (AsyncEventHandler<T> handler in handlers)
+                {
+                    await handler(sender, args, cancellationToken);
+                }
+            }
+            finally
+            {
+                ArrayPool<AsyncEventHandler<T>>.Shared.Return(handlers.Array!, clearArray: true);
             }
         }
     }
