@@ -1,5 +1,4 @@
 using System.Buffers;
-using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
 using System.IO.Pipelines;
 using System.Net.WebSockets;
@@ -30,6 +29,10 @@ public sealed class ArchipelagoClient(string server, ushort port) : IDisposable
     private readonly AsyncEvent<ConnectedPacketModel> _connectedPacketReceivedEvent = new();
 
     private readonly AsyncEvent<ConnectionRefusedPacketModel> _connectionRefusedPacketReceivedEvent = new();
+
+    private readonly AsyncEvent<ReceivedItemsPacketModel> _receivedItemsPacketReceivedEvent = new();
+
+    private readonly AsyncEvent<PrintJSONPacketModel> _printJSONPacketReceivedEvent = new();
 
     private readonly ClientWebSocket _socket = new();
 
@@ -65,6 +68,18 @@ public sealed class ArchipelagoClient(string server, ushort port) : IDisposable
     {
         add => _connectionRefusedPacketReceivedEvent.Add(value);
         remove => _connectionRefusedPacketReceivedEvent.Remove(value);
+    }
+
+    public event AsyncEventHandler<ReceivedItemsPacketModel> ReceivedItemsPacketReceived
+    {
+        add => _receivedItemsPacketReceivedEvent.Add(value);
+        remove => _receivedItemsPacketReceivedEvent.Remove(value);
+    }
+
+    public event AsyncEventHandler<PrintJSONPacketModel> PrintJSONPacketReceived
+    {
+        add => _printJSONPacketReceivedEvent.Add(value);
+        remove => _printJSONPacketReceivedEvent.Remove(value);
     }
 
     public PipeReader? MessageReader { get; private set; }
@@ -110,7 +125,7 @@ public sealed class ArchipelagoClient(string server, ushort port) : IDisposable
 
         TaskCompletionSource<bool> resultTcs = new(TaskCreationOptions.RunContinuationsAsynchronously);
         AnyPacketReceived += OnAnyPacketReceivedAsync;
-        await WriteNextAsync([connectPacket], MessageWriter, cancellationToken);
+        await WriteNextAsync(new[] { connectPacket }, MessageWriter, cancellationToken);
         ValueTask OnAnyPacketReceivedAsync(object? sender, ArchipelagoPacketModel packet, CancellationToken cancellationToken)
         {
             AnyPacketReceived -= OnAnyPacketReceivedAsync;
@@ -132,7 +147,21 @@ public sealed class ArchipelagoClient(string server, ushort port) : IDisposable
             return ValueTask.CompletedTask;
         }
 
-        return await resultTcs.Task;
+        return Running = await resultTcs.Task;
+    }
+
+    public async ValueTask SendAsync(ReadOnlyMemory<ArchipelagoPacketModel> packets, CancellationToken cancellationToken = default)
+    {
+        ThrowIfDisposed();
+
+        if (!(MessageWriter is PipeWriter writer && Running))
+        {
+            throw new InvalidOperationException("Not connected.");
+        }
+
+        await Helper.ConfigureAwaitFalse();
+
+        await WriteNextAsync(packets, writer, cancellationToken);
     }
 
     public async ValueTask StopAsync(CancellationToken cancellationToken = default)
@@ -147,8 +176,8 @@ public sealed class ArchipelagoClient(string server, ushort port) : IDisposable
             MessageReader = null;
             MessageWriter = null;
 
-            await _cts.CancelAsync();
             await _socket.CloseAsync(WebSocketCloseStatus.NormalClosure, "", cancellationToken);
+            await _cts.CancelAsync();
             _cts = new();
         }
     }
@@ -198,7 +227,7 @@ public sealed class ArchipelagoClient(string server, ushort port) : IDisposable
         return true;
     }
 
-    private static async ValueTask WriteNextAsync(ArchipelagoPacketModel[] values, PipeWriter writer, CancellationToken cancellationToken)
+    private static async ValueTask WriteNextAsync(ReadOnlyMemory<ArchipelagoPacketModel> values, PipeWriter writer, CancellationToken cancellationToken)
     {
         await JsonSerializer.SerializeAsync(writer.AsStream(true), values, s_jsonSerializerOptions, cancellationToken);
     }
@@ -213,9 +242,18 @@ public sealed class ArchipelagoClient(string server, ushort port) : IDisposable
         ArchipelagoPacketModel[]? responsePacket;
         while (true)
         {
-            if (TryDeserialize(reader, await reader.ReadAsync(cancellationToken), out responsePacket))
+            ReadResult readResult = await reader.ReadAsync(cancellationToken);
+            if (TryDeserialize(reader, readResult, out responsePacket))
             {
                 break;
+            }
+        }
+
+        for (int i = 0; i < responsePacket.Length; i++)
+        {
+            if (responsePacket[i] is PrintJSONPacketModel printJSON)
+            {
+                responsePacket[i] = printJSON.ToBestDerivedType(s_jsonSerializerOptions);
             }
         }
 
@@ -228,7 +266,9 @@ public sealed class ArchipelagoClient(string server, ushort port) : IDisposable
                 RoomInfoPacketModel roomInfo => _roomInfoPacketReceivedEvent.InvokeAsync(this, roomInfo, cancellationToken),
                 ConnectedPacketModel connected => _connectedPacketReceivedEvent.InvokeAsync(this, connected, cancellationToken),
                 ConnectionRefusedPacketModel connectionRefused => _connectionRefusedPacketReceivedEvent.InvokeAsync(this, connectionRefused, cancellationToken),
-                _ => ValueTask.CompletedTask,
+                ReceivedItemsPacketModel receivedItems => _receivedItemsPacketReceivedEvent.InvokeAsync(this, receivedItems, cancellationToken),
+                PrintJSONPacketModel printJSON => _printJSONPacketReceivedEvent.InvokeAsync(this, printJSON, cancellationToken),
+                _ => new(Task.Run(() => Console.WriteLine("UNRECOGNIZED"))),
             });
         }
     }

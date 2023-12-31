@@ -1,6 +1,4 @@
-﻿using System.Text;
-using System.Text.Json;
-using ArchipelagoClientDotNet;
+﻿using ArchipelagoClientDotNet;
 
 await Helper.ConfigureAwaitFalse();
 
@@ -8,12 +6,15 @@ using ArchipelagoClient client = new(args[0], ushort.Parse(args[1]));
 client.AnyPacketReceived += OnAnyPacketReceivedAsync;
 ValueTask OnAnyPacketReceivedAsync(object? sender, ArchipelagoPacketModel packet, CancellationToken cancellationToken)
 {
-    Console.WriteLine($"received {Encoding.UTF8.GetString(JsonSerializer.SerializeToUtf8Bytes(packet))}");
-    Console.WriteLine();
+    Console.WriteLine(packet.GetType().Name);
     return ValueTask.CompletedTask;
 }
 
-await client.TryConnectAsync(args[2], args[3], args.ElementAtOrDefault(4));
+if (!await client.TryConnectAsync(args[2], args[3], args.ElementAtOrDefault(4)))
+{
+    Console.Error.WriteLine("oh no, we failed to connect.");
+    return 1;
+}
 
 TaskCompletionSource tcs = new(TaskCreationOptions.RunContinuationsAsynchronously);
 Console.CancelKeyPress += (_, args) =>
@@ -26,3 +27,5 @@ await tcs.Task;
 Console.WriteLine("Exiting gracefully.");
 await client.StopAsync();
 Console.WriteLine("done");
+
+return 0;
