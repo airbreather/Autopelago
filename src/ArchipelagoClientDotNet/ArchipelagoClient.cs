@@ -36,7 +36,7 @@ public sealed class ArchipelagoClient(string server, ushort port) : IDisposable
 
     private readonly AsyncEvent<PrintJSONPacketModel> _printJSONPacketReceivedEvent = new();
 
-    private readonly ClientWebSocket _socket = new();
+    private readonly ClientWebSocket _socket = new() { Options = { DangerousDeflateOptions = new() } };
 
     private CancellationTokenSource _cts = new();
 
