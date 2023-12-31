@@ -108,16 +108,21 @@ public sealed class ArchipelagoClient(string server, ushort port) : IDisposable
             MessageReader = _socket.UsePipeReader(cancellationToken: _cts.Token);
             MessageWriter = _socket.UsePipeWriter(cancellationToken: _cts.Token);
 
-            await ProcessNextMessageAsync(cancellationToken);
-            GetDataPackagePacketModel getDataPackagePacket = new();
-            await WriteNextAsync(new[] { getDataPackagePacket }, MessageWriter, cancellationToken);
+            if (await ProcessNextMessageAsync(cancellationToken) is not [RoomInfoPacketModel roomInfo])
+            {
+                throw new InvalidDataException("Protocol error: expected 'RoomInfo' right away.");
+            }
+
+            // TODO: cache result on disk by checksum so we don't always need to do this.
+            GetDataPackagePacketModel[] getDataPackage = [new() { Games = roomInfo.Games }];
+            await WriteNextAsync(getDataPackage, MessageWriter, cancellationToken);
             await ProcessNextMessageAsync(cancellationToken);
             CancellationToken fullStreamReadToken = _cts.Token;
             _ = Task.Run(async () =>
             {
                 while (true)
                 {
-                    await ProcessNextMessageAsync(fullStreamReadToken);
+                    _ = await ProcessNextMessageAsync(fullStreamReadToken);
                 }
             }, fullStreamReadToken);
         }
@@ -243,7 +248,7 @@ public sealed class ArchipelagoClient(string server, ushort port) : IDisposable
         await JsonSerializer.SerializeAsync(writer.AsStream(true), values, s_jsonSerializerOptions, cancellationToken);
     }
 
-    private async ValueTask ProcessNextMessageAsync(CancellationToken cancellationToken)
+    private async ValueTask<ArchipelagoPacketModel[]> ProcessNextMessageAsync(CancellationToken cancellationToken)
     {
         if (MessageReader is not PipeReader reader)
         {
@@ -283,6 +288,8 @@ public sealed class ArchipelagoClient(string server, ushort port) : IDisposable
                 _ => new(Task.Run(() => Console.WriteLine("UNRECOGNIZED"))),
             });
         }
+
+        return responsePacket;
     }
 
     private void ThrowIfDisposed()
