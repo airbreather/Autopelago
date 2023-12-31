@@ -94,83 +94,71 @@ public sealed class ArchipelagoClient(string server, ushort port) : IDisposable
 
     public PipeWriter? MessageWriter { get; private set; }
 
-    public bool Running { get; private set; }
-
     public async ValueTask<bool> TryConnectAsync(string game, string slot, string? password = null, CancellationToken cancellationToken = default)
     {
         ThrowIfDisposed();
 
+        if (MessageReader is not null || MessageWriter is not null)
+        {
+            throw new InvalidOperationException("TryConnectAsync is a one-shot in this client.");
+        }
+
         await Helper.ConfigureAwaitFalse();
 
-        if (MessageReader is null || MessageWriter is null)
+        await _socket.ConnectAsync(new Uri($"ws://{server}:{port}"), cancellationToken);
+        MessageReader = _socket.UsePipeReader(cancellationToken: _cts.Token);
+        MessageWriter = _socket.UsePipeWriter(cancellationToken: _cts.Token);
+
+        if (await ProcessNextMessageAsync(cancellationToken) is not [RoomInfoPacketModel roomInfo])
         {
-            await _socket.ConnectAsync(new Uri($"ws://{server}:{port}"), cancellationToken);
-            MessageReader = _socket.UsePipeReader(cancellationToken: _cts.Token);
-            MessageWriter = _socket.UsePipeWriter(cancellationToken: _cts.Token);
-
-            if (await ProcessNextMessageAsync(cancellationToken) is not [RoomInfoPacketModel roomInfo])
-            {
-                throw new InvalidDataException("Protocol error: expected 'RoomInfo' right away.");
-            }
-
-            // TODO: cache result on disk by checksum so we don't always need to do this.
-            GetDataPackagePacketModel[] getDataPackage = [new() { Games = roomInfo.Games }];
-            await WriteNextAsync(getDataPackage, MessageWriter, cancellationToken);
-            _ = await ProcessNextMessageAsync(cancellationToken);
-            CancellationToken fullStreamReadToken = _cts.Token;
-            _ = Task.Run(async () =>
-            {
-                while (true)
-                {
-                    _ = await ProcessNextMessageAsync(fullStreamReadToken);
-                }
-            }, fullStreamReadToken);
+            throw new InvalidDataException("Protocol error: expected 'RoomInfo' right away.");
         }
 
-        ConnectPacketModel connectPacket = new()
+        // TODO: cache result on disk by checksum so we don't always need to do this.
+        GetDataPackagePacketModel[] getDataPackage = [new() { Games = roomInfo.Games }];
+        await WriteNextAsync(getDataPackage, MessageWriter, cancellationToken);
+        _ = await ProcessNextMessageAsync(cancellationToken);
+
+        ConnectPacketModel[] connectPacket =
+        [
+            new()
+            {
+                Game = game,
+                Name = slot,
+                Password = password,
+                Uuid = Guid.NewGuid(),
+                ItemsHandling = ArchipelagoItemsHandlingFlags.All,
+                SlotData = true,
+                Tags = [],
+                Version = new(s_archipelagoVersion),
+            },
+        ];
+
+        await WriteNextAsync(connectPacket, MessageWriter, cancellationToken);
+        bool result = await ProcessNextMessageAsync(cancellationToken) switch
         {
-            Game = game,
-            Name = slot,
-            Password = password,
-            Uuid = Guid.NewGuid(),
-            ItemsHandling = ArchipelagoItemsHandlingFlags.All,
-            SlotData = true,
-            Tags = [],
-            Version = new(s_archipelagoVersion),
+            [ConnectedPacketModel, ..] => true,
+            [ConnectionRefusedPacketModel, ..] => false,
+            _ => throw new InvalidDataException("Protocol error: received something other than 'Connected' or 'ConnectionRefused' immediately after we sent a 'Connect'..."),
         };
 
-        TaskCompletionSource<bool> resultTcs = new(TaskCreationOptions.RunContinuationsAsynchronously);
-        AnyPacketReceived += OnAnyPacketReceivedAsync;
-        await WriteNextAsync(new[] { connectPacket }, MessageWriter, cancellationToken);
-        ValueTask OnAnyPacketReceivedAsync(object? sender, ArchipelagoPacketModel packet, CancellationToken cancellationToken)
+        _ = Task.Run(async () =>
         {
-            AnyPacketReceived -= OnAnyPacketReceivedAsync;
-            switch (packet)
+            await Helper.ConfigureAwaitFalse();
+            while (!_cts.Token.IsCancellationRequested)
             {
-                case ConnectedPacketModel:
-                    resultTcs.SetResult(true);
-                    break;
-
-                case ConnectionRefusedPacketModel:
-                    resultTcs.SetResult(false);
-                    break;
-
-                default:
-                    resultTcs.SetException(new InvalidDataException("Protocol error: received something other than 'Connected' or 'ConnectionRefused' immediately after we sent a 'Connect'..."));
-                    break;
+                await ProcessNextMessageAsync(_cts.Token);
             }
+        });
 
-            return ValueTask.CompletedTask;
-        }
-
-        return Running = await resultTcs.Task;
+        return result;
     }
 
     public async ValueTask SendAsync(ReadOnlyMemory<ArchipelagoPacketModel> packets, CancellationToken cancellationToken = default)
     {
         ThrowIfDisposed();
 
-        if (!(MessageWriter is PipeWriter writer && Running))
+        if (MessageWriter is not PipeWriter writer)
         {
             throw new InvalidOperationException("Not connected.");
         }
@@ -186,9 +174,8 @@ public sealed class ArchipelagoClient(string server, ushort port) : IDisposable
 
         await Helper.ConfigureAwaitFalse();
 
-        if (Running)
+        if (_socket.State == WebSocketState.Open)
         {
-            Running = false;
             MessageReader = null;
             MessageWriter = null;
 
