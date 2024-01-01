@@ -6,6 +6,15 @@ using System.Text.Json.Serialization;
 
 namespace ArchipelagoClientDotNet;
 
+public enum ArchipelagoClientStatus
+{
+    Unknown = 0,
+    Connected = 5,
+    Ready = 10,
+    Playing = 20,
+    Goal = 30,
+}
+
 public enum ArchipelagoSlotType
 {
     Spectator,
@@ -54,6 +63,7 @@ public enum ArchipelagoItemsHandlingFlags
 [JsonDerivedType(typeof(SayPacketModel), "Say")]
 [JsonDerivedType(typeof(LocationChecksPacketModel), "LocationChecks")]
 [JsonDerivedType(typeof(RoomUpdatePacketModel), "RoomUpdate")]
+[JsonDerivedType(typeof(StatusUpdatePacketModel), "StatusUpdate")]
 public record ArchipelagoPacketModel
 {
     [JsonExtensionData]
@@ -287,6 +297,11 @@ public sealed record RoomUpdatePacketModel : ArchipelagoPacketModel
     public Dictionary<int, SlotModel> SlotInfo { get; init; } = [];
 
     public int? HintPoints { get; init; }
+}
+
+public sealed record StatusUpdatePacketModel : ArchipelagoPacketModel
+{
+    public required ArchipelagoClientStatus Status { get; init; }
 }
 
 public sealed record PlayerModel

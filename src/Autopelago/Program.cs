@@ -149,26 +149,31 @@ _ = Task.Run(async () =>
     }
 });
 
+await client.StatusUpdateAsync(ArchipelagoClientStatus.Playing);
+
 int nextMod = 0;
 bool reportedBlocked = false;
+bool completedGoal = false;
 Task nextDelay = Task.Delay(TimeSpan.FromSeconds(30));
 while (true)
 {
     await nextDelay;
     nextDelay = Task.Delay(TimeSpan.FromSeconds(30));
     long? location = null;
+    bool attemptGoalCompletion;
     int currRoll = -1, currDC, sentLocationsCount, accessibleLocationsCount, accessibleUnsentLocationsCount;
     await lck.WaitAsync();
     try
     {
+        attemptGoalCompletion = !completedGoal && myProgressionItemsReceived.Count == 40;
         sentLocationsCount = allMyLocations!.Length - myLocationsNotYetSent!.Count;
         currDC = myProgressionItemsReceived.Count switch
         {
-            < 4 => 5,
-            < 10 => 10,
+            < 4 => 8,
+            < 10 => 12,
             < 20 => 15,
             < 40 => 18,
-            _ => 20,
+            _ => 25,
         };
         ArraySegment<long> accessibleLocations = new(allMyLocations!, 0, myProgressionItemsReceived.Count switch
         {
@@ -191,6 +196,24 @@ while (true)
     finally
     {
         lck.Release();
+    }
+
+    if (attemptGoalCompletion)
+    {
+        if (currRoll + (nextMod / 10) < currDC)
+        {
+            await client.SayAsync($"FAIL.  DC: {currDC} (based on {myProgressionItemsReceived.Count} of 40 progression items received).  Roll: 1d20 ({currRoll}) + {nextMod / 10}.");
+            ++nextMod;
+        }
+        else
+        {
+            await client.SayAsync($"PASS.  DC: {currDC} (based on {myProgressionItemsReceived.Count} of 40 progression items received).  Roll: 1d20 ({currRoll}) + {nextMod / 10}.");
+            await client.SayAsync("I've completed my goal!  Wrapping up now...");
+            await client.StatusUpdateAsync(ArchipelagoClientStatus.Goal);
+            completedGoal = true;
+        }
+
+        continue;
     }
 
     if (accessibleUnsentLocationsCount < 1)

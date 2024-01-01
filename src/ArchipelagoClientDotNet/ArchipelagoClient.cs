@@ -185,6 +185,13 @@ public sealed partial class ArchipelagoClient(string server, ushort port) : IDis
         await WriteNextAsync(locationChecks, cancellationToken);
     }
 
+    public async ValueTask StatusUpdateAsync(ArchipelagoClientStatus status, CancellationToken cancellationToken = default)
+    {
+        await Helper.ConfigureAwaitFalse();
+        StatusUpdatePacketModel[] statusUpdate = [ new() { Status = status } ];
+        await WriteNextAsync(statusUpdate, cancellationToken);
+    }
+
     public async ValueTask StopAsync(CancellationToken cancellationToken = default)
     {
         ObjectDisposedException.ThrowIf(_disposed, this);
