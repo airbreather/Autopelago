@@ -1,11 +1,11 @@
 ﻿using System.Collections.Frozen;
 using System.Collections.Immutable;
+
 using ArchipelagoClientDotNet;
 
 await Helper.ConfigureAwaitFalse();
 
 using SemaphoreSlim lck = new(1, 1);
-
 using ArchipelagoClient client = new(args[0], ushort.Parse(args[1]));
 
 FrozenDictionary<int, string>? playerNames = null;
@@ -141,12 +141,12 @@ Console.CancelKeyPress += async (sender, args) =>
 };
 
 int nextMod = 0;
-Random r = new();
+bool reportedBlocked = false;
 while (true)
 {
     await Task.Delay(TimeSpan.FromSeconds(30));
     long? location = null;
-    int currRoll = r.Next(1, 21), currDC, sentLocationsCount, accessibleLocationsCount = 0, accessibleUnsentLocationsCount = 0;
+    int currRoll = -1, currDC, sentLocationsCount, accessibleLocationsCount, accessibleUnsentLocationsCount;
     await lck.WaitAsync();
     try
     {
@@ -159,22 +159,22 @@ while (true)
             < 40 => 18,
             _ => 20,
         };
-        if (currRoll + (nextMod / 10) >= currDC)
+        ArraySegment<long> accessibleLocations = new(allMyLocations!, 0, myProgressionItemsReceived.Count switch
         {
-            ArraySegment<long> accessibleLocations = new(allMyLocations!, 0, myProgressionItemsReceived.Count switch
-            {
-                < 4 => 15,
-                < 10 => 30,
-                < 20 => 50,
-                < 40 => 100,
-                _ => 200,
-            });
-            accessibleLocationsCount = accessibleLocations.Count;
-            long[] accessibleUnsentLocations = accessibleLocations.Where(myLocationsNotYetSent!.Contains).ToArray();
-            accessibleUnsentLocationsCount = accessibleUnsentLocations.Length;
-            location = accessibleUnsentLocations.Length == 0
+            < 4 => 15,
+            < 10 => 30,
+            < 20 => 50,
+            < 40 => 100,
+            _ => 200,
+        });
+        accessibleLocationsCount = accessibleLocations.Count;
+        long[] accessibleUnsentLocations = accessibleLocations.Where(myLocationsNotYetSent!.Contains).ToArray();
+        accessibleUnsentLocationsCount = accessibleUnsentLocations.Length;
+        if (accessibleUnsentLocationsCount > 0 && (currRoll = Random.Shared.Next(1, 21)) + (nextMod / 10) >= currDC)
+        {
+            location = accessibleUnsentLocations.Length < 1
                 ? -1
-                : accessibleUnsentLocations[r.Next(accessibleUnsentLocations.Length)];
+                : accessibleUnsentLocations[Random.Shared.Next(accessibleUnsentLocations.Length)];
         }
     }
     finally
@@ -182,22 +182,28 @@ while (true)
         lck.Release();
     }
 
+    if (accessibleUnsentLocationsCount < 1)
+    {
+        if (!reportedBlocked)
+        {
+            await client.SayAsync($"None of the {accessibleLocationsCount} accessible checks (based on {myProgressionItemsReceived.Count} of 40 progression items received) may be sent right now.  Waiting to become unblocked...");
+            reportedBlocked = true;
+        }
+
+        continue;
+    }
+
+    reportedBlocked = false;
     switch (location)
     {
         case null:
-            await client.SayAsync($"FAIL.  DC: {currDC} (based on {myProgressionItemsReceived.Count} of 40 progression item(s) found).  Roll: 1d20 ({currRoll}) + {nextMod / 10}.");
-            ++nextMod;
-            break;
-
-        case -1:
-            await client.SayAsync($"PASS.  DC: {currDC} (based on {myProgressionItemsReceived.Count} of 40 progression item(s) found).  Roll: 1d20 ({currRoll}) + {nextMod / 10}.");
-            await client.SayAsync($"{accessibleUnsentLocationsCount} of the {accessibleLocationsCount} accessible location(s) (based on {myProgressionItemsReceived.Count} of 40 progression item(s) found) may be sent.");
+            await client.SayAsync($"FAIL.  DC: {currDC} (based on {myProgressionItemsReceived.Count} of 40 progression items received).  Roll: 1d20 ({currRoll}) + {nextMod / 10}.");
             ++nextMod;
             break;
 
         case long val:
-            await client.SayAsync($"PASS.  DC: {currDC} (based on {myProgressionItemsReceived.Count} of 40 progression item(s) found).  Roll: 1d20 ({currRoll}) + {nextMod / 10}.");
-            await client.SayAsync($"{accessibleUnsentLocationsCount} of the {accessibleLocationsCount} accessible location(s) (based on {myProgressionItemsReceived.Count} of 40 progression item(s) found) may be sent.  Sending one now...");
+            await client.SayAsync($"PASS.  DC: {currDC} (based on {myProgressionItemsReceived.Count} of 40 progression items received).  Roll: 1d20 ({currRoll}) + {nextMod / 10}.");
+            await client.SayAsync($"{accessibleUnsentLocationsCount} of the {accessibleLocationsCount} accessible checks (based on {myProgressionItemsReceived.Count} of 40 progression items received) may be sent.  Sending one now...");
             nextMod = 0;
             await client.LocationChecksAsync(new[] { val });
             break;
