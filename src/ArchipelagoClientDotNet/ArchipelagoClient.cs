@@ -1,7 +1,5 @@
 using System.Buffers;
 using System.Collections.Immutable;
-using System.Diagnostics.CodeAnalysis;
-using System.IO.Pipelines;
 using System.Net.WebSockets;
 using System.Text.Json;
 using System.Text.RegularExpressions;
@@ -47,6 +45,8 @@ public sealed partial class ArchipelagoClient(string server, ushort port) : IDis
     private readonly SemaphoreSlim _writerLock = new(1, 1);
 
     private CancellationTokenSource _cts = new();
+
+    private bool _triedConnecting;
 
     private bool _disposed;
 
@@ -104,17 +104,16 @@ public sealed partial class ArchipelagoClient(string server, ushort port) : IDis
         remove => _roomUpdatePacketReceivedEvent.Remove(value);
     }
 
-    public PipeReader? MessageReader { get; private set; }
-
     public async ValueTask<bool> TryConnectAsync(string game, string slot, string? password = null, CancellationToken cancellationToken = default)
     {
-        ThrowIfDisposed();
+        ObjectDisposedException.ThrowIf(_disposed, this);
 
-        if (MessageReader is not null)
+        if (_triedConnecting)
         {
             throw new InvalidOperationException("TryConnectAsync is a one-shot in this client.");
         }
 
+        _triedConnecting = true;
         await Helper.ConfigureAwaitFalse();
 
         if (s_hasWebSocketSchemeRegex.IsMatch(server))
@@ -132,8 +131,6 @@ public sealed partial class ArchipelagoClient(string server, ushort port) : IDis
                 await _socket.ConnectAsync(new Uri($"ws://{server}:{port}"), cancellationToken);
             }
         }
-
-        MessageReader = _socket.UsePipeReader(cancellationToken: _cts.Token);
 
         if (await ProcessNextMessageAsync(cancellationToken) is not [RoomInfoPacketModel roomInfo])
         {
@@ -190,14 +187,12 @@ public sealed partial class ArchipelagoClient(string server, ushort port) : IDis
 
     public async ValueTask StopAsync(CancellationToken cancellationToken = default)
     {
-        ThrowIfDisposed();
+        ObjectDisposedException.ThrowIf(_disposed, this);
 
         await Helper.ConfigureAwaitFalse();
 
         if (_socket.State == WebSocketState.Open)
         {
-            MessageReader = null;
-
             await _socket.CloseAsync(WebSocketCloseStatus.NormalClosure, "", cancellationToken);
             await _cts.CancelAsync();
             _cts = new();
@@ -219,55 +214,44 @@ public sealed partial class ArchipelagoClient(string server, ushort port) : IDis
     [GeneratedRegex("^ws(?:s)?://", RegexOptions.Compiled | RegexOptions.CultureInvariant | RegexOptions.NonBacktracking)]
     private static partial Regex HasWebSocketSchemeRegex();
 
-    private static bool TryDeserialize(PipeReader pipeReader, in ReadResult pipeReadResult, [NotNullWhen(true)] out ArchipelagoPacketModel[]? result)
+    private static ArchipelagoPacketModel[] Deserialize(ReadOnlySequence<byte> buf)
     {
-        ReadOnlySequence<byte> buffer = pipeReadResult.Buffer;
-        Utf8JsonReader jsonReader = new(buffer);
-        try
-        {
-            result = JsonSerializer.Deserialize<ArchipelagoPacketModel[]>(ref jsonReader, s_jsonSerializerOptions);
-        }
-        catch (JsonException ex)
-        {
-            if (pipeReadResult.IsCompleted)
-            {
-                throw new EndOfStreamException("Stream ended before a full JSON object", ex);
-            }
-
-            if (pipeReadResult.IsCanceled)
-            {
-                throw new OperationCanceledException("Stream was canceled before reading a full JSON object", ex);
-            }
-
-            pipeReader.AdvanceTo(buffer.Start, buffer.End);
-            result = default;
-            return false;
-        }
-
-        pipeReader.AdvanceTo(buffer.GetPosition(jsonReader.BytesConsumed));
-        if (result is null)
-        {
-            throw new InvalidDataException("JSON object was somehow null.");
-        }
-
-        return true;
+        Utf8JsonReader jsonReader = new(buf);
+        return JsonSerializer.Deserialize<ArchipelagoPacketModel[]>(ref jsonReader, s_jsonSerializerOptions)!;
     }
 
     private async ValueTask<ArchipelagoPacketModel[]> ProcessNextMessageAsync(CancellationToken cancellationToken)
     {
-        if (MessageReader is not PipeReader reader)
+        ArchipelagoPacketModel[] responsePacket;
+        using (AFewDisposables extraDisposables = default)
         {
-            throw new InvalidOperationException("Must be running.");
-        }
+            using IMemoryOwner<byte> firstBufOwner = MemoryPool<byte>.Shared.Rent();
+            Memory<byte> fullFirstBuf = firstBufOwner.Memory;
+            ValueWebSocketReceiveResult prevReceiveResult = await _socket.ReceiveAsync(fullFirstBuf, cancellationToken);
+            ReadOnlyMemory<byte> firstBuf = fullFirstBuf[..prevReceiveResult.Count];
 
-        ArchipelagoPacketModel[]? responsePacket;
-        while (true)
-        {
-            ReadResult readResult = await reader.ReadAsync(cancellationToken);
-            if (TryDeserialize(reader, readResult, out responsePacket))
+            ReadOnlySequence<byte> buffer;
+            if (prevReceiveResult.EndOfMessage)
             {
-                break;
+                buffer = new(firstBuf);
             }
+            else
+            {
+                BasicSequenceSegment firstSegment = new(firstBuf);
+                BasicSequenceSegment lastSegmentSoFar = firstSegment;
+                while (!prevReceiveResult.EndOfMessage)
+                {
+                    IMemoryOwner<byte> nextBufOwner = MemoryPool<byte>.Shared.Rent();
+                    extraDisposables.Add(nextBufOwner);
+                    Memory<byte> fullNextBuf = nextBufOwner.Memory;
+                    prevReceiveResult = await _socket.ReceiveAsync(fullNextBuf, cancellationToken);
+                    lastSegmentSoFar = lastSegmentSoFar.Append(fullNextBuf[..prevReceiveResult.Count]);
+                }
+
+                buffer = new(firstSegment, 0, lastSegmentSoFar, prevReceiveResult.Count);
+            }
+
+            responsePacket = Deserialize(buffer);
         }
 
         for (int i = 0; i < responsePacket.Length; i++)
@@ -327,7 +311,7 @@ public sealed partial class ArchipelagoClient(string server, ushort port) : IDis
 
     private async ValueTask WriteNextAsync(ArchipelagoPacketModel[] values, CancellationToken cancellationToken)
     {
-        ThrowIfDisposed();
+        ObjectDisposedException.ThrowIf(_disposed, this);
 
         await Helper.ConfigureAwaitFalse();
 
@@ -339,14 +323,6 @@ public sealed partial class ArchipelagoClient(string server, ushort port) : IDis
         finally
         {
             _writerLock.Release();
-        }
-    }
-
-    private void ThrowIfDisposed()
-    {
-        if (_disposed)
-        {
-            throw new ObjectDisposedException(nameof(ArchipelagoClient));
         }
     }
 }
