@@ -175,7 +175,7 @@ await client.SayAsync($"Given the current settings, if I never got blocked, then
 await client.StatusUpdateAsync(ArchipelagoClientStatus.Playing);
 
 int nextMod = 0;
-bool reportedBlocked = false;
+int reportedBlocked = 0;
 bool completedGoal = false;
 Task nextDelay = Task.Delay(stepInterval);
 while (true)
@@ -225,12 +225,12 @@ while (true)
     {
         if (currRoll + (nextMod / 10) < currDC)
         {
-            await client.SayAsync($"FAIL.  DC: {currDC} (based on {myProgressionItemsReceived.Count} of 40 progression items received).  Roll: 1d20 ({currRoll}) + {nextMod / 10}.");
+            await client.SayAsync($"{currRoll}+{nextMod / 10} < {currDC} ({myProgressionItemsReceived.Count}/40)");
             ++nextMod;
         }
         else
         {
-            await client.SayAsync($"PASS.  DC: {currDC} (based on {myProgressionItemsReceived.Count} of 40 progression items received).  Roll: 1d20 ({currRoll}) + {nextMod / 10}.");
+            await client.SayAsync($"{currRoll}+{nextMod / 10} >= {currDC} ({myProgressionItemsReceived.Count}/40)");
             await client.SayAsync("I've completed my goal!  Wrapping up now...");
             await client.StatusUpdateAsync(ArchipelagoClientStatus.Goal);
             completedGoal = true;
@@ -241,26 +241,25 @@ while (true)
 
     if (accessibleUnsentLocationsCount < 1)
     {
-        if (!reportedBlocked)
+        if (reportedBlocked % 10 == 0)
         {
-            await client.SayAsync($"None of the {accessibleLocationsCount} accessible checks (based on {myProgressionItemsReceived.Count} of 40 progression items received) may be sent right now.  Waiting to become unblocked...");
-            reportedBlocked = true;
+            await client.SayAsync($"0/{accessibleLocationsCount} accessible checks ({myProgressionItemsReceived.Count}/40)");
         }
 
+        ++reportedBlocked;
         continue;
     }
 
-    reportedBlocked = false;
+    reportedBlocked = 0;
     switch (location)
     {
         case null:
-            await client.SayAsync($"FAIL.  DC: {currDC} (based on {myProgressionItemsReceived.Count} of 40 progression items received).  Roll: 1d20 ({currRoll}) + {nextMod / 10}.");
+            await client.SayAsync($"{currRoll}+{nextMod / 10} < {currDC} ({myProgressionItemsReceived.Count}/40)");
             ++nextMod;
             break;
 
         case long val:
-            await client.SayAsync($"PASS.  DC: {currDC} (based on {myProgressionItemsReceived.Count} of 40 progression items received).  Roll: 1d20 ({currRoll}) + {nextMod / 10}.");
-            await client.SayAsync($"{accessibleUnsentLocationsCount} of the {accessibleLocationsCount} accessible checks (based on {myProgressionItemsReceived.Count} of 40 progression items received) may be sent.  Sending one now...");
+            await client.SayAsync($"{currRoll}+{nextMod / 10} >= {currDC} ({myProgressionItemsReceived.Count}/40) -> {accessibleUnsentLocationsCount}/{accessibleLocationsCount} accessible");
             nextMod = 0;
             await client.LocationChecksAsync(new[] { val });
             break;
