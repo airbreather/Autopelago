@@ -22,6 +22,9 @@ HashSet<long>? myItemsNotYetReceived = null;
 long[]? allMyLocations = null;
 long[]? allMyItems = null;
 
+int numMyProgressionItemsNotYetReceived = 40;
+HashSet<long> myProgressionItemsReceived = [];
+
 client.DataPackagePacketReceived += OnDataPackagePacketReceived;
 ValueTask OnDataPackagePacketReceived(object? sender, DataPackagePacketModel dataPackage, CancellationToken cancellationToken)
 {
@@ -68,7 +71,14 @@ async ValueTask OnReceivedItemsPacketReceived(object? sender, ReceivedItemsPacke
     await lck.WaitAsync(cancellationToken);
     try
     {
-        myItemsNotYetReceived!.ExceptWith(receivedItems.Items.Select(i => i.Item));
+        foreach (ItemModel item in receivedItems.Items)
+        {
+            myItemsNotYetReceived!.Remove(item.Item);
+            if (item.Flags.HasFlag(ArchipelagoItemFlags.LogicalAdvancement) && myProgressionItemsReceived.Add(item.Item))
+            {
+                --numMyProgressionItemsNotYetReceived;
+            }
+        }
     }
     finally
     {
@@ -136,16 +146,29 @@ while (true)
 {
     await Task.Delay(5000);
     long? location = null;
-    int currRoll = r.Next(1, 21), currDC, foundItemCount, sentLocationsCount, accessibleLocationsCount = 0, accessibleUnsentLocationsCount = 0;
+    int currRoll = r.Next(1, 21), currDC, sentLocationsCount, accessibleLocationsCount = 0, accessibleUnsentLocationsCount = 0;
     await lck.WaitAsync();
     try
     {
-        foundItemCount = allMyItems!.Length - myItemsNotYetReceived!.Count;
         sentLocationsCount = allMyLocations!.Length - myLocationsNotYetSent!.Count;
-        currDC = FractionToDC(foundItemCount, allMyItems.Length);
+        currDC = myProgressionItemsReceived.Count switch
+        {
+            < 4 => 5,
+            < 10 => 10,
+            < 20 => 15,
+            < 40 => 18,
+            _ => 20,
+        };
         if (currRoll + (nextMod / 10) >= currDC)
         {
-            ArraySegment<long> accessibleLocations = AccessibleLocations();
+            ArraySegment<long> accessibleLocations = new(allMyLocations!, 0, myProgressionItemsReceived.Count switch
+            {
+                < 4 => 15,
+                < 10 => 30,
+                < 20 => 50,
+                < 40 => 100,
+                _ => 200,
+            });
             accessibleLocationsCount = accessibleLocations.Count;
             long[] accessibleUnsentLocations = accessibleLocations.Where(myLocationsNotYetSent!.Contains).ToArray();
             accessibleUnsentLocationsCount = accessibleUnsentLocations.Length;
@@ -162,38 +185,21 @@ while (true)
     switch (location)
     {
         case null:
-            await client.SayAsync($"FAIL.  DC: {currDC} (based on {foundItemCount} of {allMyItems.Length} item(s) found).  Roll: 1d20 ({currRoll}) + {nextMod / 10}.");
+            await client.SayAsync($"FAIL.  DC: {currDC} (based on {myProgressionItemsReceived.Count} of 40 progression item(s) found).  Roll: 1d20 ({currRoll}) + {nextMod / 10}.");
             ++nextMod;
             break;
 
         case -1:
-            await client.SayAsync($"PASS.  DC: {currDC} (based on {foundItemCount} of {allMyItems.Length} item(s) found).  Roll: 1d20 ({currRoll}) + {nextMod / 10}.");
-            await client.SayAsync($"{accessibleUnsentLocationsCount} of the {accessibleLocationsCount} accessible location(s) (based on {foundItemCount} of {allMyItems.Length} item(s) found) may be sent.");
+            await client.SayAsync($"PASS.  DC: {currDC} (based on {myProgressionItemsReceived.Count} of 40 progression item(s) found).  Roll: 1d20 ({currRoll}) + {nextMod / 10}.");
+            await client.SayAsync($"{accessibleUnsentLocationsCount} of the {accessibleLocationsCount} accessible location(s) (based on {myProgressionItemsReceived.Count} of 40 progression item(s) found) may be sent.");
             ++nextMod;
             break;
 
         case long val:
-            await client.SayAsync($"PASS.  DC: {currDC} (based on {foundItemCount} of {allMyItems.Length} item(s) found).  Roll: 1d20 ({currRoll}) + {nextMod / 10}.");
-            await client.SayAsync($"{accessibleUnsentLocationsCount} of the {accessibleLocationsCount} accessible location(s) (based on {foundItemCount} of {allMyItems.Length} item(s) found) may be sent.  Sending one now...");
+            await client.SayAsync($"PASS.  DC: {currDC} (based on {myProgressionItemsReceived.Count} of 40 progression item(s) found).  Roll: 1d20 ({currRoll}) + {nextMod / 10}.");
+            await client.SayAsync($"{accessibleUnsentLocationsCount} of the {accessibleLocationsCount} accessible location(s) (based on {myProgressionItemsReceived.Count} of 40 progression item(s) found) may be sent.  Sending one now...");
             nextMod = 0;
             await client.LocationChecksAsync(new[] { val });
             break;
     }
 }
-
-static int FractionToDC(int numerator, int denominator) => (numerator / (double)denominator) switch
-{
-    < 0.2 => 5,
-    < 0.5 => 10,
-    < 0.7 => 15,
-    < 0.9 => 18,
-    _ => 20,
-};
-ArraySegment<long> AccessibleLocations() => new(allMyLocations!, 0, (allMyItems!.Length - myItemsNotYetReceived!.Count) switch
-{
-    < 4 => 15,
-    < 10 => 30,
-    < 20 => 50,
-    < 40 => 100,
-    _ => 200,
-});
