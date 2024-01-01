@@ -4,12 +4,15 @@ using System.Diagnostics.CodeAnalysis;
 using System.IO.Pipelines;
 using System.Net.WebSockets;
 using System.Text.Json;
+using System.Text.RegularExpressions;
 
 namespace ArchipelagoClientDotNet;
 
-public sealed class ArchipelagoClient(string server, ushort port) : IDisposable
+public sealed partial class ArchipelagoClient(string server, ushort port) : IDisposable
 {
     private static readonly Version s_archipelagoVersion = new("0.4.3");
+
+    private static readonly Regex s_hasWebSocketSchemeRegex = HasWebSocketSchemeRegex();
 
     private static readonly JsonSerializerOptions s_jsonSerializerOptions = new()
     {
@@ -112,7 +115,22 @@ public sealed class ArchipelagoClient(string server, ushort port) : IDisposable
 
         await Helper.ConfigureAwaitFalse();
 
-        await _socket.ConnectAsync(new Uri($"ws://{server}:{port}"), cancellationToken);
+        if (s_hasWebSocketSchemeRegex.IsMatch(server))
+        {
+            await _socket.ConnectAsync(new Uri($"{server}:{port}"), cancellationToken);
+        }
+        else
+        {
+            try
+            {
+                await _socket.ConnectAsync(new Uri($"wss://{server}:{port}"), cancellationToken);
+            }
+            catch
+            {
+                await _socket.ConnectAsync(new Uri($"ws://{server}:{port}"), cancellationToken);
+            }
+        }
+
         MessageReader = _socket.UsePipeReader(cancellationToken: _cts.Token);
 
         if (await ProcessNextMessageAsync(cancellationToken) is not [RoomInfoPacketModel roomInfo])
@@ -194,6 +212,9 @@ public sealed class ArchipelagoClient(string server, ushort port) : IDisposable
         _socket.Dispose();
         _disposed = true;
     }
+
+    [GeneratedRegex("^ws(?:s)?://", RegexOptions.Compiled | RegexOptions.CultureInvariant | RegexOptions.NonBacktracking)]
+    private static partial Regex HasWebSocketSchemeRegex();
 
     private static bool TryDeserialize(PipeReader pipeReader, in ReadResult pipeReadResult, [NotNullWhen(true)] out ArchipelagoPacketModel[]? result)
     {
