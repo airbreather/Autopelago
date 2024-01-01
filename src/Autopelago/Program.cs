@@ -140,11 +140,22 @@ Console.CancelKeyPress += async (sender, args) =>
     Environment.Exit(0);
 };
 
+_ = Task.Run(async () =>
+{
+    await Helper.ConfigureAwaitFalse();
+    while (Console.ReadLine() is string line)
+    {
+        await client.SayAsync(line);
+    }
+});
+
 int nextMod = 0;
 bool reportedBlocked = false;
+Task nextDelay = Task.Delay(TimeSpan.FromSeconds(30));
 while (true)
 {
-    await Task.Delay(TimeSpan.FromSeconds(30));
+    await nextDelay;
+    nextDelay = Task.Delay(TimeSpan.FromSeconds(30));
     long? location = null;
     int currRoll = -1, currDC, sentLocationsCount, accessibleLocationsCount, accessibleUnsentLocationsCount;
     await lck.WaitAsync();

@@ -44,6 +44,8 @@ public sealed partial class ArchipelagoClient(string server, ushort port) : IDis
 
     private readonly ClientWebSocket _socket = new() { Options = { DangerousDeflateOptions = new() } };
 
+    private readonly SemaphoreSlim _writerLock = new(1, 1);
+
     private CancellationTokenSource _cts = new();
 
     private bool _disposed;
@@ -210,6 +212,7 @@ public sealed partial class ArchipelagoClient(string server, ushort port) : IDis
         }
 
         _socket.Dispose();
+        _writerLock.Dispose();
         _disposed = true;
     }
 
@@ -327,7 +330,16 @@ public sealed partial class ArchipelagoClient(string server, ushort port) : IDis
         ThrowIfDisposed();
 
         await Helper.ConfigureAwaitFalse();
-        await _socket.SendAsync(JsonSerializer.SerializeToUtf8Bytes(values, s_jsonSerializerOptions), WebSocketMessageType.Text, true, cancellationToken);
+
+        await _writerLock.WaitAsync(cancellationToken);
+        try
+        {
+            await _socket.SendAsync(JsonSerializer.SerializeToUtf8Bytes(values, s_jsonSerializerOptions), WebSocketMessageType.Text, true, cancellationToken);
+        }
+        finally
+        {
+            _writerLock.Release();
+        }
     }
 
     private void ThrowIfDisposed()
