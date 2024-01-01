@@ -37,6 +37,8 @@ public sealed class ArchipelagoClient(string server, ushort port) : IDisposable
 
     private readonly AsyncEvent<PrintJSONPacketModel> _printJSONPacketReceivedEvent = new();
 
+    private readonly AsyncEvent<RoomUpdatePacketModel> _roomUpdatePacketReceivedEvent = new();
+
     private readonly ClientWebSocket _socket = new() { Options = { DangerousDeflateOptions = new() } };
 
     private CancellationTokenSource _cts = new();
@@ -91,15 +93,19 @@ public sealed class ArchipelagoClient(string server, ushort port) : IDisposable
         remove => _printJSONPacketReceivedEvent.Remove(value);
     }
 
-    public PipeReader? MessageReader { get; private set; }
+    public event AsyncEventHandler<RoomUpdatePacketModel> RoomUpdatePacketReceived
+    {
+        add => _roomUpdatePacketReceivedEvent.Add(value);
+        remove => _roomUpdatePacketReceivedEvent.Remove(value);
+    }
 
-    public PipeWriter? MessageWriter { get; private set; }
+    public PipeReader? MessageReader { get; private set; }
 
     public async ValueTask<bool> TryConnectAsync(string game, string slot, string? password = null, CancellationToken cancellationToken = default)
     {
         ThrowIfDisposed();
 
-        if (MessageReader is not null || MessageWriter is not null)
+        if (MessageReader is not null)
         {
             throw new InvalidOperationException("TryConnectAsync is a one-shot in this client.");
         }
@@ -108,7 +114,6 @@ public sealed class ArchipelagoClient(string server, ushort port) : IDisposable
 
         await _socket.ConnectAsync(new Uri($"ws://{server}:{port}"), cancellationToken);
         MessageReader = _socket.UsePipeReader(cancellationToken: _cts.Token);
-        MessageWriter = _socket.UsePipeWriter(cancellationToken: _cts.Token);
 
         if (await ProcessNextMessageAsync(cancellationToken) is not [RoomInfoPacketModel roomInfo])
         {
@@ -156,6 +161,13 @@ public sealed class ArchipelagoClient(string server, ushort port) : IDisposable
         await WriteNextAsync(say, cancellationToken);
     }
 
+    public async ValueTask LocationChecksAsync(ReadOnlyMemory<long> locations, CancellationToken cancellationToken = default)
+    {
+        await Helper.ConfigureAwaitFalse();
+        LocationChecksPacketModel[] locationChecks = [ new() { Locations = locations } ];
+        await WriteNextAsync(locationChecks, cancellationToken);
+    }
+
     public async ValueTask StopAsync(CancellationToken cancellationToken = default)
     {
         ThrowIfDisposed();
@@ -165,7 +177,6 @@ public sealed class ArchipelagoClient(string server, ushort port) : IDisposable
         if (_socket.State == WebSocketState.Open)
         {
             MessageReader = null;
-            MessageWriter = null;
 
             await _socket.CloseAsync(WebSocketCloseStatus.NormalClosure, "", cancellationToken);
             await _cts.CancelAsync();
@@ -255,6 +266,7 @@ public sealed class ArchipelagoClient(string server, ushort port) : IDisposable
                 ConnectionRefusedPacketModel connectionRefused => _connectionRefusedPacketReceivedEvent.InvokeAsync(this, connectionRefused, cancellationToken),
                 ReceivedItemsPacketModel receivedItems => _receivedItemsPacketReceivedEvent.InvokeAsync(this, receivedItems, cancellationToken),
                 PrintJSONPacketModel printJSON => _printJSONPacketReceivedEvent.InvokeAsync(this, printJSON, cancellationToken),
+                RoomUpdatePacketModel roomUpdate => _roomUpdatePacketReceivedEvent.InvokeAsync(this, roomUpdate, cancellationToken),
                 _ => new(Task.Run(() => Console.WriteLine("UNRECOGNIZED"))),
             });
         }
@@ -289,14 +301,12 @@ public sealed class ArchipelagoClient(string server, ushort port) : IDisposable
         await WriteNextAsync(connect, cancellationToken);
     }
 
-    private async ValueTask WriteNextAsync(ReadOnlyMemory<ArchipelagoPacketModel> values, CancellationToken cancellationToken)
+    private async ValueTask WriteNextAsync(ArchipelagoPacketModel[] values, CancellationToken cancellationToken)
     {
-        if (MessageWriter is not { } writer)
-        {
-            throw new InvalidOperationException("Handshake was not successful.");
-        }
+        ThrowIfDisposed();
 
-        await JsonSerializer.SerializeAsync(writer.AsStream(true), values, s_jsonSerializerOptions, cancellationToken);
+        await Helper.ConfigureAwaitFalse();
+        await _socket.SendAsync(JsonSerializer.SerializeToUtf8Bytes(values, s_jsonSerializerOptions), WebSocketMessageType.Text, true, cancellationToken);
     }
 
     private void ThrowIfDisposed()

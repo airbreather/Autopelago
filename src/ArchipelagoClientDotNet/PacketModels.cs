@@ -52,6 +52,8 @@ public enum ArchipelagoItemsHandlingFlags
 [JsonDerivedType(typeof(ReceivedItemsPacketModel), "ReceivedItems")]
 [JsonDerivedType(typeof(PrintJSONPacketModel), "PrintJSON")]
 [JsonDerivedType(typeof(SayPacketModel), "Say")]
+[JsonDerivedType(typeof(LocationChecksPacketModel), "LocationChecks")]
+[JsonDerivedType(typeof(RoomUpdatePacketModel), "RoomUpdate")]
 public record ArchipelagoPacketModel
 {
     [JsonExtensionData]
@@ -269,6 +271,24 @@ public sealed record SayPacketModel : ArchipelagoPacketModel
     public required string Text { get; init; }
 }
 
+public sealed record LocationChecksPacketModel : ArchipelagoPacketModel
+{
+    public required ReadOnlyMemory<long> Locations { get; init; }
+}
+
+public sealed record RoomUpdatePacketModel : ArchipelagoPacketModel
+{
+    public ImmutableArray<PlayerModel>? Players { get; init; }
+
+    public ImmutableArray<long>? CheckedLocations { get; init; }
+
+    public Dictionary<string, JsonElement> SlotData { get; init; } = [];
+
+    public Dictionary<int, SlotModel> SlotInfo { get; init; } = [];
+
+    public int? HintPoints { get; init; }
+}
+
 public sealed record PlayerModel
 {
     public string Class => "Player";
@@ -350,47 +370,136 @@ public sealed record ItemModel
     public required ArchipelagoItemFlags Flags { get; init; }
 }
 
-[JsonPolymorphic(TypeDiscriminatorPropertyName = "type")]
-[JsonDerivedType(typeof(PlayerIdJSONMessagePartModel), "player_id")]
-[JsonDerivedType(typeof(PlayerNameJSONMessagePartModel), "player_name")]
-[JsonDerivedType(typeof(ItemIdJSONMessagePartModel), "item_id")]
-[JsonDerivedType(typeof(ItemNameJSONMessagePartModel), "item_name")]
-[JsonDerivedType(typeof(LocationIdJSONMessagePartModel), "location_id")]
-[JsonDerivedType(typeof(LocationNameJSONMessagePartModel), "location_name")]
-[JsonDerivedType(typeof(EntranceNameJSONMessagePartModel), "entrance_name")]
-[JsonDerivedType(typeof(ColorJSONMessagePartModel), "color")]
+[JsonConverter(typeof(JSONMessagePartModelConverter))]
 public record JSONMessagePartModel
 {
-    public string Text { get; init; } = "";
+    public required string Text { get; init; }
+
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]
+    public string? Type { get; init; } = null;
 }
 
-public sealed record PlayerIdJSONMessagePartModel : JSONMessagePartModel { }
-public sealed record PlayerNameJSONMessagePartModel : JSONMessagePartModel { }
+public sealed record PlayerIdJSONMessagePartModel : JSONMessagePartModel
+{
+    public PlayerIdJSONMessagePartModel() { Type = "player_id"; }
+}
+
+public sealed record PlayerNameJSONMessagePartModel : JSONMessagePartModel
+{
+    public PlayerNameJSONMessagePartModel() { Type = "player_name"; }
+}
+
 public sealed record ItemIdJSONMessagePartModel : JSONMessagePartModel
 {
+    public ItemIdJSONMessagePartModel() { Type = "item_id"; }
+
     public required int Player { get; init; }
     public required ArchipelagoItemFlags Flags { get; init; }
 }
 
 public sealed record ItemNameJSONMessagePartModel : JSONMessagePartModel
 {
+    public ItemNameJSONMessagePartModel() { Type = "item_name"; }
+
     public required int Player { get; init; }
     public required ArchipelagoItemFlags Flags { get; init; }
 }
 
 public sealed record LocationIdJSONMessagePartModel : JSONMessagePartModel
 {
+    public LocationIdJSONMessagePartModel() { Type = "location_id"; }
+
     public required int Player { get; init; }
 }
 
 public sealed record LocationNameJSONMessagePartModel : JSONMessagePartModel
 {
+    public LocationNameJSONMessagePartModel() { Type = "location_name"; }
+
     public required int Player { get; init; }
 }
 
-public sealed record EntranceNameJSONMessagePartModel : JSONMessagePartModel { }
+public sealed record EntranceNameJSONMessagePartModel : JSONMessagePartModel
+{
+    public EntranceNameJSONMessagePartModel() { Type = "entrance_name"; }
+}
 
 public sealed record ColorJSONMessagePartModel : JSONMessagePartModel
 {
+    public ColorJSONMessagePartModel() { Type = "color"; }
+
     public required string Color { get; init; } = "";
+}
+
+internal sealed class JSONMessagePartModelConverter : JsonConverter<JSONMessagePartModel>
+{
+    public override JSONMessagePartModel? Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
+    {
+        JsonElement element = JsonSerializer.Deserialize<JsonElement>(ref reader, options);
+        if (element.ValueKind != JsonValueKind.Object)
+        {
+            return null;
+        }
+
+        if (!(element.TryGetProperty("text"u8, out JsonElement textElement) && textElement.GetString() is string text))
+        {
+            return null;
+        }
+
+        if (!element.TryGetProperty("type"u8, out JsonElement typeElement))
+        {
+            return new() { Text = text };
+        }
+
+        return typeElement.GetString() switch
+        {
+            null => new() { Text = text },
+            "player_id" => new PlayerIdJSONMessagePartModel { Text = text },
+            "player_name" => new PlayerNameJSONMessagePartModel { Text = text },
+            "item_id" => new ItemIdJSONMessagePartModel { Text = text, Player = element.GetProperty("player"u8).GetInt32(), Flags = element.GetProperty("flags"u8).Deserialize<ArchipelagoItemFlags>(options) },
+            "item_name" => new ItemNameJSONMessagePartModel { Text = text, Player = element.GetProperty("player"u8).GetInt32(), Flags = element.GetProperty("flags"u8).Deserialize<ArchipelagoItemFlags>(options) },
+            "location_id" => new LocationIdJSONMessagePartModel { Text = text, Player = element.GetProperty("player"u8).GetInt32() },
+            "location_name" => new LocationNameJSONMessagePartModel { Text = text, Player = element.GetProperty("player"u8).GetInt32() },
+            "entrance_name" => new EntranceNameJSONMessagePartModel { Text = text },
+            "color" => new ColorJSONMessagePartModel { Text = text, Color = element.GetProperty("color"u8).GetString()! },
+            string type => new() { Text = text, Type = type },
+        };
+    }
+
+    public override void Write(Utf8JsonWriter writer, JSONMessagePartModel value, JsonSerializerOptions options)
+    {
+        writer.WriteStartObject();
+        writer.WriteString("text"u8, value.Text);
+        if (value.Type is string type)
+        {
+            writer.WriteString("type"u8, type);
+        }
+
+        switch (value)
+        {
+            case ItemIdJSONMessagePartModel itemId:
+                writer.WriteNumber("player"u8, itemId.Player);
+                writer.WriteNumber("flags"u8, (int)itemId.Flags);
+                break;
+
+            case ItemNameJSONMessagePartModel itemName:
+                writer.WriteNumber("player"u8, itemName.Player);
+                writer.WriteNumber("flags"u8, (int)itemName.Flags);
+                break;
+
+            case LocationIdJSONMessagePartModel locationId:
+                writer.WriteNumber("player"u8, locationId.Player);
+                break;
+
+            case LocationNameJSONMessagePartModel locationName:
+                writer.WriteNumber("player"u8, locationName.Player);
+                break;
+
+            case ColorJSONMessagePartModel color:
+                writer.WriteString("color"u8, color.Color);
+                break;
+        }
+
+        writer.WriteEndObject();
+    }
 }
