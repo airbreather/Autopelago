@@ -1,5 +1,7 @@
 ﻿using System.Collections.Frozen;
 using System.Collections.Immutable;
+using System.Runtime.CompilerServices;
+using System.Runtime.InteropServices;
 
 using ArchipelagoClientDotNet;
 
@@ -149,16 +151,37 @@ _ = Task.Run(async () =>
     }
 });
 
+GameSimulation sim = new(
+    totalItemCount: Math.Min(allMyItems!.Length, allMyLocations!.Length),
+    progressionItemCount: 40,
+    stepwiseDifficultyThresholds: [
+        (4, 5),
+        (10, 10),
+        (20, 12),
+        (40, 15),
+    ],
+    maxDC: 20,
+    failuresPerModifierIncrease: 10
+);
+
+TimeSpan stepInterval = TimeSpan.FromSeconds(30);
+const int Simulations = 1_000_000;
+long totalSteps = 0;
+Unsafe.SkipInit(out int seedSeed);
+Random.Shared.NextBytes(MemoryMarshal.AsBytes(MemoryMarshal.CreateSpan(ref seedSeed, 1)));
+Parallel.For(0, Simulations, i => Interlocked.Add(ref totalSteps, sim.Simulate(seedSeed + i)));
+await client.SayAsync($"Given the current settings, if I never got blocked, then I would be able to complete this game in approximately {(stepInterval * (totalSteps / (double)Simulations)).TotalMinutes:N2} minute(s) (seed: {seedSeed}).");
+
 await client.StatusUpdateAsync(ArchipelagoClientStatus.Playing);
 
 int nextMod = 0;
 bool reportedBlocked = false;
 bool completedGoal = false;
-Task nextDelay = Task.Delay(TimeSpan.FromSeconds(30));
+Task nextDelay = Task.Delay(stepInterval);
 while (true)
 {
     await nextDelay;
-    nextDelay = Task.Delay(TimeSpan.FromSeconds(30));
+    nextDelay = Task.Delay(stepInterval);
     long? location = null;
     bool attemptGoalCompletion;
     int currRoll = -1, currDC, sentLocationsCount, accessibleLocationsCount, accessibleUnsentLocationsCount;
@@ -169,11 +192,11 @@ while (true)
         sentLocationsCount = allMyLocations!.Length - myLocationsNotYetSent!.Count;
         currDC = myProgressionItemsReceived.Count switch
         {
-            < 4 => 8,
-            < 10 => 12,
-            < 20 => 15,
-            < 40 => 18,
-            _ => 25,
+            < 4 => 5,
+            < 10 => 10,
+            < 20 => 12,
+            < 40 => 15,
+            _ => 20,
         };
         ArraySegment<long> accessibleLocations = new(allMyLocations!, 0, myProgressionItemsReceived.Count switch
         {
