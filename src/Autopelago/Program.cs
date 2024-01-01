@@ -144,7 +144,7 @@ int nextMod = 0;
 Random r = new();
 while (true)
 {
-    await Task.Delay(5000);
+    await Task.Delay(TimeSpan.FromSeconds(30));
     long? location = null;
     int currRoll = r.Next(1, 21), currDC, sentLocationsCount, accessibleLocationsCount = 0, accessibleUnsentLocationsCount = 0;
     await lck.WaitAsync();
