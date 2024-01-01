@@ -1,0 +1,13 @@
+digraph simple {
+    a -> b -> c -> d -> e -> f
+    b -> g -> h -> e;
+
+    a [label="Start"];
+    b [label="8 rats"];
+    c [label="A"];
+    d [label="C"];
+    e [label="20 rats"];
+    f [label="E or F"];
+    g [label="B"];
+    h [label="D"];
+}
