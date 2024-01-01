@@ -1,4 +1,5 @@
 using System.Buffers;
+using System.Collections.Immutable;
 using System.Diagnostics.CodeAnalysis;
 using System.IO.Pipelines;
 using System.Net.WebSockets;
@@ -115,26 +116,20 @@ public sealed class ArchipelagoClient(string server, ushort port) : IDisposable
         }
 
         // TODO: cache result on disk by checksum so we don't always need to do this.
-        GetDataPackagePacketModel[] getDataPackage = [new() { Games = roomInfo.Games }];
-        await WriteNextAsync(getDataPackage, MessageWriter, cancellationToken);
+        await GetDataPackageAsync(roomInfo.Games, cancellationToken);
         _ = await ProcessNextMessageAsync(cancellationToken);
 
-        ConnectPacketModel[] connectPacket =
-        [
-            new()
-            {
-                Game = game,
-                Name = slot,
-                Password = password,
-                Uuid = Guid.NewGuid(),
-                ItemsHandling = ArchipelagoItemsHandlingFlags.All,
-                SlotData = true,
-                Tags = [],
-                Version = new(s_archipelagoVersion),
-            },
-        ];
+        await ConnectAsync(
+            game: game,
+            slot: slot,
+            password: password,
+            uuid: Guid.NewGuid(),
+            itemsHandling: ArchipelagoItemsHandlingFlags.All,
+            slotData: true,
+            tags: [],
+            version: new(s_archipelagoVersion),
+            cancellationToken: cancellationToken);
 
-        await WriteNextAsync(connectPacket, MessageWriter, cancellationToken);
         bool result = await ProcessNextMessageAsync(cancellationToken) switch
         {
             [ConnectedPacketModel, ..] => true,
@@ -154,18 +149,11 @@ public sealed class ArchipelagoClient(string server, ushort port) : IDisposable
         return result;
     }
 
-    public async ValueTask SendAsync(ReadOnlyMemory<ArchipelagoPacketModel> packets, CancellationToken cancellationToken = default)
+    public async ValueTask SayAsync(string text, CancellationToken cancellationToken = default)
     {
-        ThrowIfDisposed();
-
-        if (MessageWriter is not PipeWriter writer)
-        {
-            throw new InvalidOperationException("Not connected.");
-        }
-
         await Helper.ConfigureAwaitFalse();
-
-        await WriteNextAsync(packets, writer, cancellationToken);
+        SayPacketModel[] say = [ new() { Text = text } ];
+        await WriteNextAsync(say, cancellationToken);
     }
 
     public async ValueTask StopAsync(CancellationToken cancellationToken = default)
@@ -230,11 +218,6 @@ public sealed class ArchipelagoClient(string server, ushort port) : IDisposable
         return true;
     }
 
-    private static async ValueTask WriteNextAsync(ReadOnlyMemory<ArchipelagoPacketModel> values, PipeWriter writer, CancellationToken cancellationToken)
-    {
-        await JsonSerializer.SerializeAsync(writer.AsStream(true), values, s_jsonSerializerOptions, cancellationToken);
-    }
-
     private async ValueTask<ArchipelagoPacketModel[]> ProcessNextMessageAsync(CancellationToken cancellationToken)
     {
         if (MessageReader is not PipeReader reader)
@@ -277,6 +260,43 @@ public sealed class ArchipelagoClient(string server, ushort port) : IDisposable
         }
 
         return responsePacket;
+    }
+
+    private async ValueTask GetDataPackageAsync(ImmutableArray<string> games, CancellationToken cancellationToken)
+    {
+        await Helper.ConfigureAwaitFalse();
+        GetDataPackagePacketModel[] getDataPackage = [ new() { Games = games } ];
+        await WriteNextAsync(getDataPackage, cancellationToken);
+    }
+
+    private async ValueTask ConnectAsync(string game, string slot, string? password, Guid uuid, ArchipelagoItemsHandlingFlags itemsHandling, bool slotData, ImmutableArray<string> tags, VersionModel version, CancellationToken cancellationToken)
+    {
+        await Helper.ConfigureAwaitFalse();
+        ConnectPacketModel[] connect =
+        [
+            new()
+            {
+                Game = game,
+                Name = slot,
+                Password = password,
+                Uuid = uuid,
+                ItemsHandling = itemsHandling,
+                SlotData = slotData,
+                Tags = tags,
+                Version = version,
+            }
+        ];
+        await WriteNextAsync(connect, cancellationToken);
+    }
+
+    private async ValueTask WriteNextAsync(ReadOnlyMemory<ArchipelagoPacketModel> values, CancellationToken cancellationToken)
+    {
+        if (MessageWriter is not { } writer)
+        {
+            throw new InvalidOperationException("Handshake was not successful.");
+        }
+
+        await JsonSerializer.SerializeAsync(writer.AsStream(true), values, s_jsonSerializerOptions, cancellationToken);
     }
 
     private void ThrowIfDisposed()

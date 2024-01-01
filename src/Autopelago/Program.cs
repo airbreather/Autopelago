@@ -10,8 +10,8 @@ FrozenDictionary<long, string>? locationNamesById = null;
 FrozenDictionary<long, string>? itemNamesById = null;
 FrozenDictionary<string, long>? locationIdsByName = null;
 FrozenDictionary<string, long>? itemIdsByName = null;
-HashSet<long>? locationsToCheck = null;
-HashSet<long>? itemsToFind = null;
+HashSet<long>? locationsNotYetSent = null;
+HashSet<long>? itemsNotYetReceived = null;
 
 client.DataPackagePacketReceived += OnDataPackagePacketReceived;
 ValueTask OnDataPackagePacketReceived(object? sender, DataPackagePacketModel dataPackage, CancellationToken cancellationToken)
@@ -22,8 +22,8 @@ ValueTask OnDataPackagePacketReceived(object? sender, DataPackagePacketModel dat
         Environment.Exit(1);
     }
 
-    locationsToCheck = [..myGame.LocationNameToId.Values];
-    itemsToFind = [..myGame.ItemNameToId.Values];
+    locationsNotYetSent = [..myGame.LocationNameToId.Values];
+    itemsNotYetReceived = [..myGame.ItemNameToId.Values];
 
     locationIdsByName = myGame.LocationNameToId.ToFrozenDictionary();
     itemIdsByName = myGame.ItemNameToId.ToFrozenDictionary();
@@ -38,14 +38,14 @@ ValueTask OnDataPackagePacketReceived(object? sender, DataPackagePacketModel dat
 client.ConnectedPacketReceived += OnConnectedPacketReceived;
 ValueTask OnConnectedPacketReceived(object? sender, ConnectedPacketModel connected, CancellationToken cancellationToken)
 {
-    locationsToCheck!.ExceptWith(connected.CheckedLocations);
+    locationsNotYetSent!.ExceptWith(connected.CheckedLocations);
     return ValueTask.CompletedTask;
 }
 
 client.ReceivedItemsPacketReceived += OnReceivedItemsPacketReceived;
 ValueTask OnReceivedItemsPacketReceived(object? sender, ReceivedItemsPacketModel receivedItems, CancellationToken cancellationToken)
 {
-    itemsToFind!.ExceptWith(receivedItems.Items.Select(i => i.Item));
+    itemsNotYetReceived!.ExceptWith(receivedItems.Items.Select(i => i.Item));
     return ValueTask.CompletedTask;
 }
 
@@ -82,15 +82,10 @@ Console.CancelKeyPress += async (sender, args) =>
 
 while (Console.ReadLine() is string line)
 {
-    if (Volatile.Read(ref x) != 0)
+    if (Volatile.Read(ref x) == 0)
     {
-        continue;
+        await client.SayAsync(line);
     }
-
-    await client.SendAsync(new[] { new SayPacketModel
-    {
-        Text = line,
-    }});
 }
 
 return 0;
