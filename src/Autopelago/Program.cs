@@ -151,25 +151,50 @@ _ = Task.Run(async () =>
     }
 });
 
-GameSimulation sim = new(
-    totalItemCount: Math.Min(allMyItems!.Length, allMyLocations!.Length),
-    progressionItemCount: 40,
-    stepwiseDifficultyThresholds: [
-        (4, 5),
-        (10, 10),
-        (20, 12),
-        (40, 15),
-    ],
-    maxDC: 20,
-    failuresPerModifierIncrease: 10
-);
-
 TimeSpan stepInterval = TimeSpan.FromSeconds(30);
 const int Simulations = 1_000_000;
 long totalSteps = 0;
 Unsafe.SkipInit(out int seedSeed);
 Random.Shared.NextBytes(MemoryMarshal.AsBytes(MemoryMarshal.CreateSpan(ref seedSeed, 1)));
-Parallel.For(0, Simulations, i => Interlocked.Add(ref totalSteps, sim.Simulate(seedSeed + i)));
+Player player = new();
+GameDifficultySettings difficultySettings = new();
+await Parallel.ForAsync(0, Simulations, async (i, cancellationToken) =>
+{
+    await Helper.ConfigureAwaitFalse();
+
+    Game game = new(difficultySettings, i);
+    game.CompletedLocationCheck += OnCompletedLocationCheckAsync;
+
+    bool done = false;
+    long steps = 0;
+    while (!done)
+    {
+        ++steps;
+        await game.StepAsync(player, cancellationToken);
+    }
+
+    Interlocked.Add(ref totalSteps, steps);
+    async ValueTask OnCompletedLocationCheckAsync(object? sender, long locationId, CancellationToken cancellationToken)
+    {
+        Region region = Game.s_regionByLocation[locationId];
+        if (region == Region.TryingForGoal)
+        {
+            done = true;
+            return;
+        }
+
+        await game.ReceiveItemAsync(region switch
+        {
+            Region.A => ItemType.A,
+            Region.B => ItemType.B,
+            Region.C => ItemType.C,
+            Region.D => ItemType.D,
+            Region.E => ItemType.E,
+            Region.F => ItemType.F,
+            _ => ItemType.Normal,
+        }, cancellationToken);
+    }
+});
 await client.SayAsync($"Given the current settings, if I never got blocked, then I would be able to complete this game in approximately {(stepInterval * (totalSteps / (double)Simulations)).TotalMinutes:N2} minute(s) (seed: {seedSeed}).");
 
 await client.StatusUpdateAsync(ArchipelagoClientStatus.Playing);

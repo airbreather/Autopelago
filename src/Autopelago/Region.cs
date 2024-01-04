@@ -1,0 +1,21 @@
+public enum Region
+{
+    Traveling,
+    Before8Rats,
+    After8RatsBeforeA,
+    After8RatsBeforeB,
+    A,
+    B,
+    AfterABeforeC,
+    AfterBBeforeD,
+    C,
+    D,
+    AfterCBefore20Rats,
+    AfterDBefore20Rats,
+    After20RatsBeforeE,
+    After20RatsBeforeF,
+    E,
+    F,
+    TryingForGoal,
+    CompletedGoal,
+}
