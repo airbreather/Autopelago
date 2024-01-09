@@ -50,6 +50,8 @@ public sealed partial class ArchipelagoClient(string server, ushort port) : IDis
 
     private bool _disposed;
 
+    public bool NeedDataPackageForAllGames { get; set; }
+
     public event AsyncEventHandler<ReadOnlyMemory<ArchipelagoPacketModel>> PacketGroupReceived
     {
         add => _packetGroupReceivedEvent.Add(value);
@@ -138,7 +140,7 @@ public sealed partial class ArchipelagoClient(string server, ushort port) : IDis
         }
 
         // TODO: cache result on disk by checksum so we don't always need to do this.
-        await GetDataPackageAsync(roomInfo.Games, cancellationToken);
+        await GetDataPackageAsync(NeedDataPackageForAllGames ? default : roomInfo.Games, cancellationToken);
         _ = await ProcessNextMessageAsync(cancellationToken);
 
         await ConnectAsync(

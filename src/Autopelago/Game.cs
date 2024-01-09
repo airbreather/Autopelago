@@ -19,7 +19,7 @@ public sealed class Game(GameDifficultySettings difficultySettings, int seed)
     };
 
     // location IDs
-    private const long BASE_ID = 9000;
+    private const long BASE_ID = 300000;
 
     // "key item" locations
     private static readonly long s_locationGoal = BASE_ID;
@@ -113,8 +113,6 @@ public sealed class Game(GameDifficultySettings difficultySettings, int seed)
         from location in kvp.Value
         select (location, kvp.Key)
     ).ToDictionary();
-
-    private readonly SemaphoreSlim _syncRoot = new(1, 1);
 
     private readonly Random _random = new(seed);
 

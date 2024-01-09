@@ -27,6 +27,13 @@ long[]? allMyItems = null;
 int numMyProgressionItemsNotYetReceived = 40;
 HashSet<long> myProgressionItemsReceived = [];
 
+// if this is true, we'll just find gaps inside the existing item ranges and exit.
+if (false)
+{
+    client.NeedDataPackageForAllGames = true;
+    client.DataPackagePacketReceived += FindIdRangeGapsAndExit;
+}
+
 client.DataPackagePacketReceived += OnDataPackagePacketReceived;
 ValueTask OnDataPackagePacketReceived(object? sender, DataPackagePacketModel dataPackage, CancellationToken cancellationToken)
 {
@@ -289,4 +296,49 @@ while (true)
             await client.LocationChecksAsync(new[] { val });
             break;
     }
+}
+
+ValueTask FindIdRangeGapsAndExit(object? sender, DataPackagePacketModel dataPackage, CancellationToken cancellationToken)
+{
+    Dictionary<long, string> itemToGame = [];
+    Dictionary<long, string> locationToGame = [];
+    foreach ((string gameName, GameDataModel gameData) in dataPackage.Data.Games)
+    {
+        foreach (long itemId in gameData.ItemNameToId.Values)
+        {
+            if (!itemToGame.TryAdd(itemId, gameName))
+            {
+                Console.WriteLine($"'{gameName}' and '{itemToGame[itemId]}' both use item ID {itemId}");
+            }
+        }
+
+        foreach (long locationId in gameData.LocationNameToId.Values)
+        {
+            if (!locationToGame.TryAdd(locationId, gameName))
+            {
+                Console.WriteLine($"'{gameName}' and '{locationToGame[locationId]}' both use location ID {locationId}");
+            }
+        }
+    }
+
+    ImmutableArray<long> allItems = [..itemToGame.Keys.Where(k => k > 0).Order()];
+    for (int i = 1; i < allItems.Length; i++)
+    {
+        if (allItems[i] - allItems[i - 1] > 10000)
+        {
+            Console.WriteLine($"found a range of {allItems[i] - allItems[i - 1]} items from {allItems[i - 1]} to {allItems[i]}");
+        }
+    }
+
+    ImmutableArray<long> allLocations = [..locationToGame.Keys.Where(k => k > 0).Order()];
+    for (int i = 1; i < allLocations.Length; i++)
+    {
+        if (allLocations[i] - allLocations[i - 1] > 10000)
+        {
+            Console.WriteLine($"found a range of {allLocations[i] - allLocations[i - 1]} locations from {allLocations[i - 1]} to {allLocations[i]}");
+        }
+    }
+
+    Environment.Exit(0);
+    return ValueTask.CompletedTask;
 }
