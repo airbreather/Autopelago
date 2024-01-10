@@ -1,10 +1,12 @@
 public enum ItemType
 {
-    Normal,
+    Filler,
+    Rat,
     A,
     B,
     C,
     D,
     E,
     F,
+    Goal,
 }

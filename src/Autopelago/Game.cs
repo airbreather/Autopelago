@@ -22,38 +22,37 @@ public sealed class Game(GameDifficultySettings difficultySettings, int seed)
     private const long BASE_ID = 300000;
 
     // "key item" locations
-    private static readonly long s_locationGoal = BASE_ID;
-
-    private static readonly long s_locationA = s_locationGoal + 1;
-
-    private static readonly long s_locationB = s_locationA + 1;
-
-    private static readonly long s_locationC = s_locationB + 1;
-
-    private static readonly long s_locationD = s_locationC + 1;
-
-    private static readonly long s_locationE = s_locationD + 1;
-
-    private static readonly long s_locationF = s_locationE + 1;
-
-    // "non-key item" locations
-    private static readonly long[] s_locationsBefore8Rats = Enumerable.Range(1, s_numLocationsIn[Region.Before8Rats]).Select(id => s_locationF + id).ToArray();
+    private static readonly long[] s_locationsBefore8Rats = Enumerable.Range(0, s_numLocationsIn[Region.Before8Rats]).Select(id => BASE_ID + id).ToArray();
 
     private static readonly long[] s_locationsAfter8RatsBeforeA = Enumerable.Range(1, s_numLocationsIn[Region.After8RatsBeforeA]).Select(id => s_locationsBefore8Rats[^1] + id).ToArray();
 
     private static readonly long[] s_locationsAfter8RatsBeforeB = Enumerable.Range(1, s_numLocationsIn[Region.After8RatsBeforeB]).Select(id => s_locationsAfter8RatsBeforeA[^1] + id).ToArray();
 
-    private static readonly long[] s_locationsAfterABeforeC = Enumerable.Range(1, s_numLocationsIn[Region.AfterABeforeC]).Select(id => s_locationsAfter8RatsBeforeB[^1] + id).ToArray();
+    private static readonly long s_locationA = s_locationsAfter8RatsBeforeB[^1] + 1;
+
+    private static readonly long s_locationB = s_locationA + 1;
+
+    private static readonly long[] s_locationsAfterABeforeC = Enumerable.Range(1, s_numLocationsIn[Region.AfterABeforeC]).Select(id => s_locationB + id).ToArray();
 
     private static readonly long[] s_locationsAfterBBeforeD = Enumerable.Range(1, s_numLocationsIn[Region.AfterBBeforeD]).Select(id => s_locationsAfterABeforeC[^1] + id).ToArray();
 
-    private static readonly long[] s_locationsAfterCBefore20Rats = Enumerable.Range(1, s_numLocationsIn[Region.AfterCBefore20Rats]).Select(id => s_locationsAfterBBeforeD[^1] + id).ToArray();
+    private static readonly long s_locationC = s_locationsAfterBBeforeD[^1] + 1;
+
+    private static readonly long s_locationD = s_locationC + 1;
+
+    private static readonly long[] s_locationsAfterCBefore20Rats = Enumerable.Range(1, s_numLocationsIn[Region.AfterCBefore20Rats]).Select(id => s_locationD + id).ToArray();
 
     private static readonly long[] s_locationsAfterDBefore20Rats = Enumerable.Range(1, s_numLocationsIn[Region.AfterDBefore20Rats]).Select(id => s_locationsAfterCBefore20Rats[^1] + id).ToArray();
 
-    private static readonly long[] s_locationsAfter20RatsBeforeE = Enumerable.Range(1, s_numLocationsIn[Region.After20RatsBeforeE]).Select(id => s_locationsAfterDBefore20Rats[^1] + id).ToArray();
+    private static readonly long s_locationE = s_locationsAfterDBefore20Rats[^1] + 1;
+
+    private static readonly long s_locationF = s_locationE + 1;
+
+    private static readonly long[] s_locationsAfter20RatsBeforeE = Enumerable.Range(1, s_numLocationsIn[Region.After20RatsBeforeE]).Select(id => s_locationF + id).ToArray();
 
     private static readonly long[] s_locationsAfter20RatsBeforeF = Enumerable.Range(1, s_numLocationsIn[Region.After20RatsBeforeF]).Select(id => s_locationsAfter20RatsBeforeE[^1] + id).ToArray();
+
+    private static readonly long s_locationGoal = s_locationsAfter20RatsBeforeF[^1] + 1;
 
     private static readonly Dictionary<(Region S, Region T), int> s_regionDistances = ToComplete(ToUndirected(new()
     {
@@ -124,7 +123,7 @@ public sealed class Game(GameDifficultySettings difficultySettings, int seed)
 
     private readonly AsyncEvent<Region> _failedLocationCheckEvent = new();
 
-    private readonly HashSet<ItemType> _receivedItems = [];
+    private readonly Dictionary<long, ItemType> _receivedItems = [];
 
     private readonly Dictionary<Region, HashSet<long>> _remainingLocationsInRegion = s_locationsByRegion.ToDictionary(kvp => kvp.Key, kvp => kvp.Value.ToHashSet());
 
@@ -135,8 +134,6 @@ public sealed class Game(GameDifficultySettings difficultySettings, int seed)
     private Region? _destinationRegion;
 
     private int _travelStepsRemaining;
-
-    private int _numRats = 1;
 
     public event AsyncEventHandler<(Region From, Region To)> MovingToRegion
     {
@@ -162,11 +159,11 @@ public sealed class Game(GameDifficultySettings difficultySettings, int seed)
         remove => _failedLocationCheckEvent.Remove(value);
     }
 
-    public async ValueTask<bool> StepAsync(Player player, CancellationToken cancellationToken)
+    public async ValueTask<bool> StepAsync(Player player, CancellationToken cancellationToken = default)
     {
         await Helper.ConfigureAwaitFalse();
 
-        if (_currentRegion == Region.CompletedGoal)
+        if (_currentRegion == Region.CompletedGoal || _receivedItems.ContainsKey(s_locationGoal))
         {
             return false;
         }
@@ -191,12 +188,20 @@ public sealed class Game(GameDifficultySettings difficultySettings, int seed)
         return true;
     }
 
-    public async ValueTask ReceiveItemAsync(ItemType itemType, CancellationToken cancellationToken)
+    public void MarkLocationChecked(long locationId)
     {
-        await Helper.ConfigureAwaitFalse();
+        _remainingLocationsInRegion[s_regionByLocation[locationId]].Remove(locationId);
+    }
 
-        ++_numRats;
-        _receivedItems.Add(itemType);
+    public void ReceiveItem(long itemId, ItemType itemType)
+    {
+        if (!_receivedItems.TryAdd(itemId, itemType))
+        {
+            if (_receivedItems[itemId] != itemType)
+            {
+                throw new InvalidDataException("Item was received multiple times, with different ItemType values");
+            }
+        }
     }
 
     private static Dictionary<(Region S, Region T), int> ToComplete(Dictionary<Region, Dictionary<Region, bool>> g)
@@ -281,14 +286,16 @@ public sealed class Game(GameDifficultySettings difficultySettings, int seed)
 
     private Region DetermineNextRegion(Player player)
     {
+        int progCount = _receivedItems.Values.Count(i => i != ItemType.Filler);
+
         // ASSUMPTION: you don't need help to figure out what to do in Traveling or CompletedGoal.
         //
         // if the goal is open, then you should ALWAYS try for it.
-        if (_numRats >= 20 &&
-            _receivedItems.Overlaps([ItemType.E, ItemType.F]) &&
+        if (progCount >= 20 &&
+            _receivedItems.Values.Any(i => i is ItemType.E or ItemType.F) &&
             (
-                _receivedItems.IsSupersetOf([ItemType.A, ItemType.C]) ||
-                _receivedItems.IsSupersetOf([ItemType.B, ItemType.D])
+                (_receivedItems.ContainsValue(ItemType.A) && _receivedItems.ContainsValue(ItemType.C)) ||
+                (_receivedItems.ContainsValue(ItemType.B) && _receivedItems.ContainsValue(ItemType.D))
             ))
         {
             return Region.TryingForGoal;
@@ -306,7 +313,7 @@ public sealed class Game(GameDifficultySettings difficultySettings, int seed)
 
         HandleUnlockedRegion(Region.Before8Rats);
 
-        if (_numRats < 8)
+        if (progCount < 8)
         {
             return bestRegion;
         }
@@ -317,29 +324,29 @@ public sealed class Game(GameDifficultySettings difficultySettings, int seed)
         HandleUnlockedRegion(Region.B);
 
         bool receivedCOrD = false;
-        if (_receivedItems.Contains(ItemType.A))
+        if (_receivedItems.ContainsValue(ItemType.A))
         {
             HandleUnlockedRegion(Region.AfterABeforeC);
             HandleUnlockedRegion(Region.C);
-            if (_receivedItems.Contains(ItemType.C))
+            if (_receivedItems.ContainsValue(ItemType.C))
             {
                 HandleUnlockedRegion(Region.AfterCBefore20Rats);
                 receivedCOrD = true;
             }
         }
 
-        if (_receivedItems.Contains(ItemType.B))
+        if (_receivedItems.ContainsValue(ItemType.B))
         {
             HandleUnlockedRegion(Region.AfterBBeforeD);
             HandleUnlockedRegion(Region.D);
-            if (_receivedItems.Contains(ItemType.D))
+            if (_receivedItems.ContainsValue(ItemType.D))
             {
                 HandleUnlockedRegion(Region.AfterDBefore20Rats);
                 receivedCOrD = true;
             }
         }
 
-        if (receivedCOrD && _numRats >= 20)
+        if (receivedCOrD && progCount >= 20)
         {
             HandleUnlockedRegion(Region.After20RatsBeforeE);
             HandleUnlockedRegion(Region.E);

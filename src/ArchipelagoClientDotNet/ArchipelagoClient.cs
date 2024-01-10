@@ -8,7 +8,7 @@ namespace ArchipelagoClientDotNet;
 
 public sealed partial class ArchipelagoClient(string server, ushort port) : IDisposable
 {
-    private static readonly Version s_archipelagoVersion = new("0.4.3");
+    private static readonly Version s_archipelagoVersion = new("0.4.4");
 
     private static readonly Regex s_hasWebSocketSchemeRegex = HasWebSocketSchemeRegex();
 

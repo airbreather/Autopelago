@@ -24,8 +24,50 @@ HashSet<long>? myItemsNotYetReceived = null;
 long[]? allMyLocations = null;
 long[]? allMyItems = null;
 
-int numMyProgressionItemsNotYetReceived = 40;
-HashSet<long> myProgressionItemsReceived = [];
+Dictionary<string, ItemType> progressiveItemTypeByName = new()
+{
+    ["Set of Three Seashells"] = ItemType.Rat,
+    ["Chewed Bar of Soap"] = ItemType.Rat,
+    ["Refreshing Glass of Lemonade"] = ItemType.Rat,
+    ["Empty Snail Shell"] = ItemType.Rat,
+    ["Bag of Powdered Sugar"] = ItemType.Rat,
+    ["Half of a Worm"] = ItemType.Rat,
+    ["Loose Screw"] = ItemType.Rat,
+    ["Organic Apple Core"] = ItemType.Rat,
+    ["AAAAAA battery"] = ItemType.Rat,
+    ["Faux Dalmation-Skin Coat"] = ItemType.Rat,
+    ["Off-brand Soda Can"] = ItemType.Rat,
+    ["Generic Green Slime"] = ItemType.Rat,
+    ["Handful of Loose Marbles"] = ItemType.Rat,
+    ["Discarded Video Game Cartridge"] = ItemType.Rat,
+    ["Packet of Ketchup"] = ItemType.Rat,
+    ["An Entire Roast Chicken"] = ItemType.Rat,
+    ["Actual Lava Lamp"] = ItemType.Rat,
+    ["Soup with a Hair in it"] = ItemType.Rat,
+    ["Proof that Aliens Exist"] = ItemType.Rat,
+    ["Small chain of Islands"] = ItemType.Rat,
+    ["Pluto"] = ItemType.Rat,
+    ["Too Many Crabs"] = ItemType.Rat,
+    ["Oxford Comma"] = ItemType.Rat,
+    ["Printer Driver Disc"] = ItemType.Rat,
+    ["Ticket for the Off-broadway Musical Rats"] = ItemType.Rat,
+    ["Can of Spam"] = ItemType.Rat,
+    ["Human-sized Skateboard"] = ItemType.Rat,
+    ["Holographic Draw Four Card"] = ItemType.Rat,
+    ["Loose Staples"] = ItemType.Rat,
+    ["Beanie Baby in a Pot of Chili"] = ItemType.Rat,
+    ["Red Cape"] = ItemType.Rat,
+    ["Radio Controlled Car"] = ItemType.Rat,
+    ["Lovely Bunch of Coconuts"] = ItemType.Rat,
+    ["Dihydrogen Monoxide"] = ItemType.Rat,
+    ["Taco Salad that is Only Tacos"] = ItemType.A,
+    ["Blue Turtle Shell"] = ItemType.B,
+    ["Statue of David's Dog"] = ItemType.C,
+    ["Yesterday's Horoscope"] = ItemType.D,
+    ["Aggressive Post-it Notes"] = ItemType.E,
+    ["Cheesnado"] = ItemType.F,
+    ["Lockheed SR-71 Blackbird"] = ItemType.Goal,
+};
 
 // if this is true, we'll just find gaps inside the existing item ranges and exit.
 if (false)
@@ -33,6 +75,13 @@ if (false)
     client.NeedDataPackageForAllGames = true;
     client.DataPackagePacketReceived += FindIdRangeGapsAndExit;
 }
+
+TimeSpan stepInterval = TimeSpan.FromSeconds(2);
+Unsafe.SkipInit(out int seed);
+Random.Shared.NextBytes(MemoryMarshal.AsBytes(MemoryMarshal.CreateSpan(ref seed, 1)));
+Player player = new();
+GameDifficultySettings difficultySettings = new();
+Game game = new(difficultySettings, seed);
 
 client.DataPackagePacketReceived += OnDataPackagePacketReceived;
 ValueTask OnDataPackagePacketReceived(object? sender, DataPackagePacketModel dataPackage, CancellationToken cancellationToken)
@@ -69,7 +118,11 @@ client.ConnectedPacketReceived += OnConnectedPacketReceived;
 ValueTask OnConnectedPacketReceived(object? sender, ConnectedPacketModel connected, CancellationToken cancellationToken)
 {
     playerNames = connected.Players.ToFrozenDictionary(p => p.Slot, p => p.Name);
-    myLocationsNotYetSent!.ExceptWith(connected.CheckedLocations);
+    foreach (long locationId in connected.CheckedLocations)
+    {
+        game.MarkLocationChecked(locationId);
+    }
+
     return ValueTask.CompletedTask;
 }
 
@@ -82,11 +135,9 @@ async ValueTask OnReceivedItemsPacketReceived(object? sender, ReceivedItemsPacke
     {
         foreach (ItemModel item in receivedItems.Items)
         {
-            myItemsNotYetReceived!.Remove(item.Item);
-            if (item.Flags.HasFlag(ArchipelagoItemFlags.LogicalAdvancement) && myProgressionItemsReceived.Add(item.Item))
-            {
-                --numMyProgressionItemsNotYetReceived;
-            }
+            string name = myItemNamesById![item.Item];
+            bool isAdvancement = item.Flags.HasFlag(ArchipelagoItemFlags.LogicalAdvancement);
+            game.ReceiveItem(item.Item, isAdvancement ? progressiveItemTypeByName[name] : ItemType.Filler);
         }
     }
     finally
@@ -121,7 +172,10 @@ async ValueTask OnRoomUpdatePacketReceived(object? sender, RoomUpdatePacketModel
         await lck.WaitAsync(cancellationToken);
         try
         {
-            myLocationsNotYetSent!.ExceptWith(roomUpdate.CheckedLocations);
+            foreach (long locationId in checkedLocations)
+            {
+                game.MarkLocationChecked(locationId);
+            }
         }
         finally
         {
@@ -158,143 +212,36 @@ _ = Task.Run(async () =>
     }
 });
 
-TimeSpan stepInterval = TimeSpan.FromSeconds(30);
-const int Simulations = 1_000_000;
-long totalSteps = 0;
-Unsafe.SkipInit(out int seedSeed);
-Random.Shared.NextBytes(MemoryMarshal.AsBytes(MemoryMarshal.CreateSpan(ref seedSeed, 1)));
-Player player = new();
-GameDifficultySettings difficultySettings = new();
-await Parallel.ForAsync(0, Simulations, async (i, cancellationToken) =>
+game.CompletedLocationCheck += OnCompletedLocationCheckAsync;
+async ValueTask OnCompletedLocationCheckAsync(object? sender, long location, CancellationToken cancellationToken)
 {
     await Helper.ConfigureAwaitFalse();
-
-    Game game = new(difficultySettings, i);
-    game.CompletedLocationCheck += OnCompletedLocationCheckAsync;
-
-    bool done = false;
-    long steps = 0;
-    while (!done)
-    {
-        ++steps;
-        await game.StepAsync(player, cancellationToken);
-    }
-
-    Interlocked.Add(ref totalSteps, steps);
-    async ValueTask OnCompletedLocationCheckAsync(object? sender, long locationId, CancellationToken cancellationToken)
-    {
-        Region region = Game.s_regionByLocation[locationId];
-        if (region == Region.TryingForGoal)
-        {
-            done = true;
-            return;
-        }
-
-        await game.ReceiveItemAsync(region switch
-        {
-            Region.A => ItemType.A,
-            Region.B => ItemType.B,
-            Region.C => ItemType.C,
-            Region.D => ItemType.D,
-            Region.E => ItemType.E,
-            Region.F => ItemType.F,
-            _ => ItemType.Normal,
-        }, cancellationToken);
-    }
-});
-await client.SayAsync($"Given the current settings, if I never got blocked, then I would be able to complete this game in approximately {(stepInterval * (totalSteps / (double)Simulations)).TotalMinutes:N2} minute(s) (seed: {seedSeed}).");
+    await client.LocationChecksAsync(new[] { location }, cancellationToken);
+}
 
 await client.StatusUpdateAsync(ArchipelagoClientStatus.Playing);
 
-int nextMod = 0;
-int reportedBlocked = 0;
-bool completedGoal = false;
 Task nextDelay = Task.Delay(stepInterval);
 while (true)
 {
     await nextDelay;
     nextDelay = Task.Delay(stepInterval);
-    long? location = null;
-    bool attemptGoalCompletion;
-    int currRoll = -1, currDC, sentLocationsCount, accessibleLocationsCount, accessibleUnsentLocationsCount;
+    bool step;
     await lck.WaitAsync();
     try
     {
-        attemptGoalCompletion = !completedGoal && myProgressionItemsReceived.Count == 40;
-        sentLocationsCount = allMyLocations!.Length - myLocationsNotYetSent!.Count;
-        currDC = myProgressionItemsReceived.Count switch
-        {
-            < 4 => 5,
-            < 10 => 10,
-            < 20 => 12,
-            < 40 => 15,
-            _ => 20,
-        };
-        ArraySegment<long> accessibleLocations = new(allMyLocations!, 0, myProgressionItemsReceived.Count switch
-        {
-            < 4 => 15,
-            < 10 => 30,
-            < 20 => 50,
-            < 40 => 100,
-            _ => 200,
-        });
-        accessibleLocationsCount = accessibleLocations.Count;
-        long[] accessibleUnsentLocations = accessibleLocations.Where(myLocationsNotYetSent!.Contains).ToArray();
-        accessibleUnsentLocationsCount = accessibleUnsentLocations.Length;
-        if (accessibleUnsentLocationsCount > 0 && (currRoll = Random.Shared.Next(1, 21)) + (nextMod / 10) >= currDC)
-        {
-            location = accessibleUnsentLocations.Length < 1
-                ? -1
-                : accessibleUnsentLocations[Random.Shared.Next(accessibleUnsentLocations.Length)];
-        }
+        step = await game.StepAsync(player);
     }
     finally
     {
         lck.Release();
     }
 
-    if (attemptGoalCompletion)
+    if (!step)
     {
-        if (currRoll + (nextMod / 10) < currDC)
-        {
-            await client.SayAsync($"{currRoll}+{nextMod / 10} < {currDC} ({myProgressionItemsReceived.Count}/40)");
-            ++nextMod;
-        }
-        else
-        {
-            await client.SayAsync($"{currRoll}+{nextMod / 10} >= {currDC} ({myProgressionItemsReceived.Count}/40)");
-            await client.SayAsync("I've completed my goal!  Wrapping up now...");
-            await client.StatusUpdateAsync(ArchipelagoClientStatus.Goal);
-            completedGoal = true;
-        }
-
-        continue;
-    }
-
-    if (accessibleUnsentLocationsCount < 1)
-    {
-        if (reportedBlocked % 10 == 0)
-        {
-            await client.SayAsync($"0/{accessibleLocationsCount} accessible checks ({myProgressionItemsReceived.Count}/40)");
-        }
-
-        ++reportedBlocked;
-        continue;
-    }
-
-    reportedBlocked = 0;
-    switch (location)
-    {
-        case null:
-            await client.SayAsync($"{currRoll}+{nextMod / 10} < {currDC} ({myProgressionItemsReceived.Count}/40)");
-            ++nextMod;
-            break;
-
-        case long val:
-            await client.SayAsync($"{currRoll}+{nextMod / 10} >= {currDC} ({myProgressionItemsReceived.Count}/40) -> {accessibleUnsentLocationsCount}/{accessibleLocationsCount} accessible");
-            nextMod = 0;
-            await client.LocationChecksAsync(new[] { val });
-            break;
+        await client.SayAsync("I've completed my goal!  Wrapping up now...");
+        await client.StatusUpdateAsync(ArchipelagoClientStatus.Goal);
+        return 0;
     }
 }
 
