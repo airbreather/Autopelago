@@ -76,7 +76,7 @@ if (false)
     client.DataPackagePacketReceived += FindIdRangeGapsAndExit;
 }
 
-TimeSpan stepInterval = TimeSpan.FromSeconds(2);
+TimeSpan stepInterval = TimeSpan.FromSeconds(30);
 Unsafe.SkipInit(out int seed);
 Random.Shared.NextBytes(MemoryMarshal.AsBytes(MemoryMarshal.CreateSpan(ref seed, 1)));
 Player player = new();
