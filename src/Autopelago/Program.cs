@@ -1,5 +1,6 @@
 ﻿using System.Collections.Frozen;
 using System.Collections.Immutable;
+using System.Diagnostics;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 
@@ -7,7 +8,7 @@ using ArchipelagoClientDotNet;
 
 await Helper.ConfigureAwaitFalse();
 
-using SemaphoreSlim lck = new(1, 1);
+using SemaphoreSlim gameLock = new(1, 1);
 using ArchipelagoClient client = new(args[0], ushort.Parse(args[1]));
 
 FrozenDictionary<int, string>? playerNames = null;
@@ -130,7 +131,7 @@ client.ReceivedItemsPacketReceived += OnReceivedItemsPacketReceived;
 async ValueTask OnReceivedItemsPacketReceived(object? sender, ReceivedItemsPacketModel receivedItems, CancellationToken cancellationToken)
 {
     await Helper.ConfigureAwaitFalse();
-    await lck.WaitAsync(cancellationToken);
+    await gameLock.WaitAsync(cancellationToken);
     try
     {
         foreach (ItemModel item in receivedItems.Items)
@@ -142,7 +143,7 @@ async ValueTask OnReceivedItemsPacketReceived(object? sender, ReceivedItemsPacke
     }
     finally
     {
-        lck.Release();
+        gameLock.Release();
     }
 }
 
@@ -169,7 +170,7 @@ async ValueTask OnRoomUpdatePacketReceived(object? sender, RoomUpdatePacketModel
 {
     if (roomUpdate.CheckedLocations is ImmutableArray<long> checkedLocations)
     {
-        await lck.WaitAsync(cancellationToken);
+        await gameLock.WaitAsync(cancellationToken);
         try
         {
             foreach (long locationId in checkedLocations)
@@ -179,7 +180,7 @@ async ValueTask OnRoomUpdatePacketReceived(object? sender, RoomUpdatePacketModel
         }
         finally
         {
-            lck.Release();
+            gameLock.Release();
         }
     }
 }
@@ -219,31 +220,61 @@ async ValueTask OnCompletedLocationCheckAsync(object? sender, long location, Can
     await client.LocationChecksAsync(new[] { location }, cancellationToken);
 }
 
+game.MovingToRegion += OnMovingToRegionAsync;
+async ValueTask OnMovingToRegionAsync(object? sender, (Region From, Region To) args, CancellationToken cancellationToken)
+{
+    await Helper.ConfigureAwaitFalse();
+    await client.SayAsync($"Moving to {args.To}...", cancellationToken);
+}
+
+game.MovedToRegion += OnMovedToRegionAsync;
+async ValueTask OnMovedToRegionAsync(object? sender, Region region, CancellationToken cancellationToken)
+{
+    await Helper.ConfigureAwaitFalse();
+    await client.SayAsync($"Arrived at {region}.", cancellationToken);
+}
+
 await client.StatusUpdateAsync(ArchipelagoClientStatus.Playing);
 
 Task nextDelay = Task.Delay(stepInterval);
+long? reportedBlockedTime = null;
 while (true)
 {
     await nextDelay;
     nextDelay = Task.Delay(stepInterval);
     bool step;
-    await lck.WaitAsync();
+    await gameLock.WaitAsync();
     try
     {
         step = await game.StepAsync(player);
     }
     finally
     {
-        lck.Release();
+        gameLock.Release();
     }
 
-    if (!step)
+    if (game.IsCompleted)
     {
-        await client.SayAsync("I've completed my goal!  Wrapping up now...");
-        await client.StatusUpdateAsync(ArchipelagoClientStatus.Goal);
-        return 0;
+        break;
+    }
+
+    if (step)
+    {
+        reportedBlockedTime = null;
+    }
+    else
+    {
+        if (reportedBlockedTime is not { } ts || Stopwatch.GetElapsedTime(ts) > TimeSpan.FromMinutes(5))
+        {
+            await client.SayAsync("I have nothing to do right now...");
+            reportedBlockedTime = Stopwatch.GetTimestamp();
+        }
     }
 }
+
+await client.SayAsync("I've completed my goal!  Wrapping up now...");
+await client.StatusUpdateAsync(ArchipelagoClientStatus.Goal);
+return 0;
 
 ValueTask FindIdRangeGapsAndExit(object? sender, DataPackagePacketModel dataPackage, CancellationToken cancellationToken)
 {
@@ -289,3 +320,27 @@ ValueTask FindIdRangeGapsAndExit(object? sender, DataPackagePacketModel dataPack
     Environment.Exit(0);
     return ValueTask.CompletedTask;
 }
+
+/*
+async ValueTask<long> SimulateAsync(int seed, GameDifficultySettings difficultySettings, Player player)
+{
+    await Helper.ConfigureAwaitFalse();
+    long simulatedTotalStepCount = 0;
+    long locationGoal = Game.s_locationsByRegion[Region.TryingForGoal].Single();
+    await Parallel.ForAsync(0, 1_000_000, async (i, cancellationToken) =>
+    {
+        await Helper.ConfigureAwaitFalse();
+        Game simulatedGame = new(difficultySettings, seed + i);
+        HashSet<long> simulatedItemsNotYetReceived = [..allMyItems];
+        simulatedItemsNotYetReceived.Remove(locationGoal);
+
+        simulatedGame.CompletedLocationCheck += SimulatedOnCompletedLocationCheckAsync;
+        ValueTask SimulatedOnCompletedLocationCheckAsync(object? sender, long location, CancellationToken cancellationToken)
+        {
+            string name = myItemNamesById![location];
+            game.ReceiveItem(location, progressiveItemTypeByName.TryGetValue(name, out ItemType progressiveItemType) ? progressiveItemType : ItemType.Filler);
+            return ValueTask.CompletedTask;
+        }
+    });
+}
+*/

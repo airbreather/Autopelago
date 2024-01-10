@@ -135,6 +135,8 @@ public sealed class Game(GameDifficultySettings difficultySettings, int seed)
 
     private int _travelStepsRemaining;
 
+    public bool IsCompleted => _currentRegion == Region.CompletedGoal || _receivedItems.ContainsKey(s_locationGoal);
+
     public event AsyncEventHandler<(Region From, Region To)> MovingToRegion
     {
         add => _movingToRegionEvent.Add(value);
@@ -163,7 +165,7 @@ public sealed class Game(GameDifficultySettings difficultySettings, int seed)
     {
         await Helper.ConfigureAwaitFalse();
 
-        if (_currentRegion == Region.CompletedGoal || _receivedItems.ContainsKey(s_locationGoal))
+        if (IsCompleted)
         {
             return false;
         }
@@ -182,6 +184,11 @@ public sealed class Game(GameDifficultySettings difficultySettings, int seed)
             _destinationRegion = bestNextRegion;
             _currentRegion = Region.Traveling;
             return true;
+        }
+
+        if (_remainingLocationsInRegion[bestNextRegion].Count == 0)
+        {
+            return false;
         }
 
         await TryNextCheckAsync(player, cancellationToken);
