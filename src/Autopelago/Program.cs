@@ -191,6 +191,9 @@ if (!await client.TryConnectAsync(args[2], args[3], args.ElementAtOrDefault(4)))
     return 1;
 }
 
+long averageSteps = await CalculateAverageStepsAsync(seed, difficultySettings, player);
+await client.SayAsync($"With my current settings, a non-randomized playthrough would take {(stepInterval * averageSteps).TotalMinutes} minutes to complete.");
+
 int x = 0;
 Console.CancelKeyPress += async (sender, args) =>
 {
@@ -274,6 +277,7 @@ while (true)
 
 await client.SayAsync("I've completed my goal!  Wrapping up now...");
 await client.StatusUpdateAsync(ArchipelagoClientStatus.Goal);
+await client.StopAsync();
 return 0;
 
 ValueTask FindIdRangeGapsAndExit(object? sender, DataPackagePacketModel dataPackage, CancellationToken cancellationToken)
@@ -321,26 +325,40 @@ ValueTask FindIdRangeGapsAndExit(object? sender, DataPackagePacketModel dataPack
     return ValueTask.CompletedTask;
 }
 
-/*
-async ValueTask<long> SimulateAsync(int seed, GameDifficultySettings difficultySettings, Player player)
+async ValueTask<long> CalculateAverageStepsAsync(int seed, GameDifficultySettings difficultySettings, Player player)
 {
     await Helper.ConfigureAwaitFalse();
     long simulatedTotalStepCount = 0;
     long locationGoal = Game.s_locationsByRegion[Region.TryingForGoal].Single();
-    await Parallel.ForAsync(0, 1_000_000, async (i, cancellationToken) =>
+
+    const int SimulationCount = 100_000;
+    await Parallel.ForAsync(0, SimulationCount, async (i, cancellationToken) =>
     {
         await Helper.ConfigureAwaitFalse();
         Game simulatedGame = new(difficultySettings, seed + i);
-        HashSet<long> simulatedItemsNotYetReceived = [..allMyItems];
-        simulatedItemsNotYetReceived.Remove(locationGoal);
-
+        long? itemToSendBeforeNextStep = null;
         simulatedGame.CompletedLocationCheck += SimulatedOnCompletedLocationCheckAsync;
         ValueTask SimulatedOnCompletedLocationCheckAsync(object? sender, long location, CancellationToken cancellationToken)
         {
-            string name = myItemNamesById![location];
-            game.ReceiveItem(location, progressiveItemTypeByName.TryGetValue(name, out ItemType progressiveItemType) ? progressiveItemType : ItemType.Filler);
+            itemToSendBeforeNextStep = location;
             return ValueTask.CompletedTask;
         }
+
+        long currentGameStepCount = 0;
+        while (!simulatedGame.IsCompleted)
+        {
+            await simulatedGame.StepAsync(player, cancellationToken);
+            ++currentGameStepCount;
+            if (itemToSendBeforeNextStep is { } location)
+            {
+                itemToSendBeforeNextStep = null;
+                string name = myItemNamesById![location];
+                simulatedGame.ReceiveItem(location, progressiveItemTypeByName.TryGetValue(name, out ItemType progressiveItemType) ? progressiveItemType : ItemType.Filler);
+            }
+        }
+
+        Interlocked.Add(ref simulatedTotalStepCount, currentGameStepCount);
     });
+
+    return simulatedTotalStepCount / SimulationCount;
 }
-*/

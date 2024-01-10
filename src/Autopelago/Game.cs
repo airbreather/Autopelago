@@ -44,15 +44,15 @@ public sealed class Game(GameDifficultySettings difficultySettings, int seed)
 
     private static readonly long[] s_locationsAfterDBefore20Rats = Enumerable.Range(1, s_numLocationsIn[Region.AfterDBefore20Rats]).Select(id => s_locationsAfterCBefore20Rats[^1] + id).ToArray();
 
-    private static readonly long s_locationE = s_locationsAfterDBefore20Rats[^1] + 1;
-
-    private static readonly long s_locationF = s_locationE + 1;
-
-    private static readonly long[] s_locationsAfter20RatsBeforeE = Enumerable.Range(1, s_numLocationsIn[Region.After20RatsBeforeE]).Select(id => s_locationF + id).ToArray();
+    private static readonly long[] s_locationsAfter20RatsBeforeE = Enumerable.Range(1, s_numLocationsIn[Region.After20RatsBeforeE]).Select(id => s_locationsAfterDBefore20Rats[^1] + id).ToArray();
 
     private static readonly long[] s_locationsAfter20RatsBeforeF = Enumerable.Range(1, s_numLocationsIn[Region.After20RatsBeforeF]).Select(id => s_locationsAfter20RatsBeforeE[^1] + id).ToArray();
 
-    private static readonly long s_locationGoal = s_locationsAfter20RatsBeforeF[^1] + 1;
+    private static readonly long s_locationE = s_locationsAfter20RatsBeforeF[^1] + 1;
+
+    private static readonly long s_locationF = s_locationE + 1;
+
+    private static readonly long s_locationGoal = s_locationF + 1;
 
     private static readonly Dictionary<(Region S, Region T), int> s_regionDistances = ToComplete(ToUndirected(new()
     {
