@@ -125,7 +125,7 @@ public sealed class Game(GameDifficultySettings difficultySettings, int seed)
 
     private readonly Dictionary<long, ItemType> _receivedItems = [];
 
-    private readonly Dictionary<Region, HashSet<long>> _remainingLocationsInRegion = s_locationsByRegion.ToDictionary(kvp => kvp.Key, kvp => kvp.Value.ToHashSet());
+    private readonly Dictionary<Region, List<long>> _remainingLocationsInRegion = s_locationsByRegion.ToDictionary(kvp => kvp.Key, kvp => kvp.Value.Reverse().ToList());
 
     private int _numConsecutiveFailureAttempts;
 
@@ -265,10 +265,10 @@ public sealed class Game(GameDifficultySettings difficultySettings, int seed)
         }
 
         _numConsecutiveFailureAttempts = 0;
-        HashSet<long> remainingLocations = _remainingLocationsInRegion[_currentRegion];
-        long locationId = remainingLocations.ElementAt(_random.Next(remainingLocations.Count));
+        List<long> remainingLocations = _remainingLocationsInRegion[_currentRegion];
+        long locationId = remainingLocations[^1];
         await _completedLocationCheckEvent.InvokeAsync(this, locationId, cancellationToken);
-        remainingLocations.Remove(locationId);
+        remainingLocations.RemoveAt(remainingLocations.Count - 1);
     }
 
     private async ValueTask TravelStepAsync(Player player, CancellationToken cancellationToken)
