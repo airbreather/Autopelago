@@ -1,0 +1,10 @@
+{
+    "recommendations": [
+        "ms-dotnettools.csharp",
+        "EditorConfig.EditorConfig",
+        "Stephanvs.dot",
+        "DavidAnson.vscode-markdownlint",
+        "tintoy.msbuild-project-tools",
+        "pflannery.vscode-versionlens"
+    ]
+}
