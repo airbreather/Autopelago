@@ -9,7 +9,7 @@ using ArchipelagoClientDotNet;
 await Helper.ConfigureAwaitFalse();
 
 using SemaphoreSlim gameLock = new(1, 1);
-TimeSpan stepInterval = TimeSpan.FromSeconds(int.Parse(args[0]));
+TimeSpan stepInterval = TimeSpan.FromSeconds(double.Parse(args[0]));
 using ArchipelagoClient client = new(args[1], ushort.Parse(args[2]));
 
 FrozenDictionary<int, string>? playerNames = null;
@@ -217,31 +217,45 @@ _ = Task.Run(async () =>
 });
 
 game.CompletedLocationCheck += OnCompletedLocationCheckAsync;
-async ValueTask OnCompletedLocationCheckAsync(object? sender, long location, CancellationToken cancellationToken)
+async ValueTask OnCompletedLocationCheckAsync(object? sender, CompletedLocationCheckEventArgs args, CancellationToken cancellationToken)
 {
     await Helper.ConfigureAwaitFalse();
-    await client.LocationChecksAsync(new[] { location }, cancellationToken);
+    await client.LocationChecksAsync(new[] { args.Location }, cancellationToken);
 }
 
 game.FailedLocationCheck += OnFailedLocationCheckAsync;
-async ValueTask OnFailedLocationCheckAsync(object? sender, Region region, CancellationToken cancellationToken)
+async ValueTask OnFailedLocationCheckAsync(object? sender, FailedLocationCheckEventArgs args, CancellationToken cancellationToken)
 {
     await Helper.ConfigureAwaitFalse();
-    await client.SayAsync($"Failed a check in {region}.", cancellationToken);
+    await client.SayAsync($"failed a check ({myLocationNamesById![args.Location]})", cancellationToken);
 }
 
 game.MovingToRegion += OnMovingToRegionAsync;
-async ValueTask OnMovingToRegionAsync(object? sender, (Region From, Region To) args, CancellationToken cancellationToken)
+async ValueTask OnMovingToRegionAsync(object? sender, MovingToRegionEventArgs args, CancellationToken cancellationToken)
 {
+    if (args.TotalTravelSteps == 0)
+    {
+        // we'll immediately do a check, no need to communicate extra.
+        return;
+    }
+
     await Helper.ConfigureAwaitFalse();
-    await client.SayAsync($"Moving to {args.To}...", cancellationToken);
+
+    int actualTravelSteps = (args.TotalTravelSteps + player.MovementSpeed - 1) / player.MovementSpeed;
+    await client.SayAsync($"Moving to {args.TargetRegion} (travel time: {actualTravelSteps * stepInterval.TotalSeconds:N0}s)", cancellationToken);
 }
 
 game.MovedToRegion += OnMovedToRegionAsync;
-async ValueTask OnMovedToRegionAsync(object? sender, Region region, CancellationToken cancellationToken)
+async ValueTask OnMovedToRegionAsync(object? sender, MovedToRegionEventArgs args, CancellationToken cancellationToken)
 {
+    if (args.TotalTravelSteps == 0)
+    {
+        // we'll immediately do a check, no need to communicate extra.
+        return;
+    }
+
     await Helper.ConfigureAwaitFalse();
-    await client.SayAsync($"Arrived at {region}.", cancellationToken);
+    await client.SayAsync($"Arrived at {args.TargetRegion}.", cancellationToken);
 }
 
 await client.StatusUpdateAsync(ArchipelagoClientStatus.Playing);
@@ -345,9 +359,9 @@ async ValueTask<long> CalculateAverageStepsAsync(int seed, GameDifficultySetting
         Game simulatedGame = new(difficultySettings, seed + i);
         long? itemToSendBeforeNextStep = null;
         simulatedGame.CompletedLocationCheck += SimulatedOnCompletedLocationCheckAsync;
-        ValueTask SimulatedOnCompletedLocationCheckAsync(object? sender, long location, CancellationToken cancellationToken)
+        ValueTask SimulatedOnCompletedLocationCheckAsync(object? sender, CompletedLocationCheckEventArgs args, CancellationToken cancellationToken)
         {
-            itemToSendBeforeNextStep = location;
+            itemToSendBeforeNextStep = args.Location;
             return ValueTask.CompletedTask;
         }
 

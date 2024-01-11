@@ -2,6 +2,49 @@ using System.Runtime.InteropServices;
 
 using ArchipelagoClientDotNet;
 
+public abstract record GameStateUpdateEventArgs
+{
+    public required Player Player { get; init; }
+
+    public required GameDifficultySettings DifficultySettings { get; init; }
+}
+
+public sealed record MovingToRegionEventArgs : GameStateUpdateEventArgs
+{
+    public required Region SourceRegion { get; init; }
+
+    public required Region TargetRegion { get; init; }
+
+    public required int TotalTravelSteps { get; init; }
+}
+
+public sealed record MovedToRegionEventArgs : GameStateUpdateEventArgs
+{
+    public required Region SourceRegion { get; init; }
+
+    public required Region TargetRegion { get; init; }
+
+    public required int TotalTravelSteps { get; init; }
+}
+
+public sealed record CompletedLocationCheckEventArgs : GameStateUpdateEventArgs
+{
+    public required long Location { get; init; }
+
+    public required Region InRegion { get; init; }
+
+    public required int ConsecutiveFailureCountBeforeCheck { get; init; }
+}
+
+public sealed record FailedLocationCheckEventArgs : GameStateUpdateEventArgs
+{
+    public required long Location { get; init; }
+
+    public required Region InRegion { get; init; }
+
+    public required int ConsecutiveFailureCountBeforeCheck { get; init; }
+}
+
 public sealed class Game(GameDifficultySettings difficultySettings, int seed)
 {
     // "non-key item" location count tuning
@@ -115,21 +158,23 @@ public sealed class Game(GameDifficultySettings difficultySettings, int seed)
 
     private readonly Random _random = new(seed);
 
-    private readonly AsyncEvent<(Region From, Region To)> _movingToRegionEvent = new();
+    private readonly AsyncEvent<MovingToRegionEventArgs> _movingToRegionEvent = new();
 
-    private readonly AsyncEvent<Region> _movedToRegionEvent = new();
+    private readonly AsyncEvent<MovedToRegionEventArgs> _movedToRegionEvent = new();
 
-    private readonly AsyncEvent<long> _completedLocationCheckEvent = new();
+    private readonly AsyncEvent<CompletedLocationCheckEventArgs> _completedLocationCheckEvent = new();
 
-    private readonly AsyncEvent<Region> _failedLocationCheckEvent = new();
+    private readonly AsyncEvent<FailedLocationCheckEventArgs> _failedLocationCheckEvent = new();
 
     private readonly Dictionary<long, ItemType> _receivedItems = [];
 
     private readonly Dictionary<Region, List<long>> _remainingLocationsInRegion = s_locationsByRegion.ToDictionary(kvp => kvp.Key, kvp => kvp.Value.Reverse().ToList());
 
-    private int _numConsecutiveFailureAttempts;
+    private int _numConsecutiveFailures;
 
     private Region _currentRegion = Region.Before8Rats;
+
+    private Region? _sourceRegion;
 
     private Region? _destinationRegion;
 
@@ -137,25 +182,25 @@ public sealed class Game(GameDifficultySettings difficultySettings, int seed)
 
     public bool IsCompleted => _currentRegion == Region.CompletedGoal || _receivedItems.ContainsKey(s_locationGoal);
 
-    public event AsyncEventHandler<(Region From, Region To)> MovingToRegion
+    public event AsyncEventHandler<MovingToRegionEventArgs> MovingToRegion
     {
         add => _movingToRegionEvent.Add(value);
         remove => _movingToRegionEvent.Remove(value);
     }
 
-    public event AsyncEventHandler<Region> MovedToRegion
+    public event AsyncEventHandler<MovedToRegionEventArgs> MovedToRegion
     {
         add => _movedToRegionEvent.Add(value);
         remove => _movedToRegionEvent.Remove(value);
     }
 
-    public event AsyncEventHandler<long> CompletedLocationCheck
+    public event AsyncEventHandler<CompletedLocationCheckEventArgs> CompletedLocationCheck
     {
         add => _completedLocationCheckEvent.Add(value);
         remove => _completedLocationCheckEvent.Remove(value);
     }
 
-    public event AsyncEventHandler<Region> FailedLocationCheck
+    public event AsyncEventHandler<FailedLocationCheckEventArgs> FailedLocationCheck
     {
         add => _failedLocationCheckEvent.Add(value);
         remove => _failedLocationCheckEvent.Remove(value);
@@ -179,19 +224,21 @@ public sealed class Game(GameDifficultySettings difficultySettings, int seed)
         Region bestNextRegion = DetermineNextRegion(player);
         if (bestNextRegion != _currentRegion)
         {
-            await _movingToRegionEvent.InvokeAsync(this, (_currentRegion, bestNextRegion), cancellationToken);
             _travelStepsRemaining = s_regionDistances[(_currentRegion, bestNextRegion)];
+            _sourceRegion = _currentRegion;
+            _currentRegion = Region.Traveling;
+            await _movingToRegionEvent.InvokeAsync(this, new() { Player = player, DifficultySettings = difficultySettings, SourceRegion = _sourceRegion.Value, TargetRegion = bestNextRegion, TotalTravelSteps = _travelStepsRemaining }, cancellationToken);
             if (_travelStepsRemaining > 0)
             {
-                _currentRegion = Region.Traveling;
                 _destinationRegion = bestNextRegion;
                 await TravelStepAsync(player, cancellationToken);
                 return true;
             }
 
             _currentRegion = bestNextRegion;
+            await _movedToRegionEvent.InvokeAsync(this, new() { Player = player, DifficultySettings = difficultySettings, SourceRegion = _sourceRegion.Value, TargetRegion = bestNextRegion, TotalTravelSteps = _travelStepsRemaining }, cancellationToken);
+            _sourceRegion = null;
             _destinationRegion = null;
-            await _movedToRegionEvent.InvokeAsync(this, _currentRegion, cancellationToken);
         }
 
         if (_remainingLocationsInRegion[bestNextRegion].Count == 0)
@@ -226,7 +273,7 @@ public sealed class Game(GameDifficultySettings difficultySettings, int seed)
             from s in keys
             let ts = g[s]
             from t in keys
-            select ((s, t), s == t ? 0 : ts.TryGetValue(t, out bool w) ? w ? 1 : 0 : int.MaxValue / 2)
+            select ((s, t), s == t ? 0 : ts.TryGetValue(t, out bool w) ? w ? 4 : 0 : int.MaxValue / 2)
         ).ToDictionary();
         foreach (Region k in keys)
         {
@@ -264,18 +311,19 @@ public sealed class Game(GameDifficultySettings difficultySettings, int seed)
     {
         await Helper.ConfigureAwaitFalse();
 
+        List<long> remainingLocations = _remainingLocationsInRegion[_currentRegion];
+        long locationId = remainingLocations[^1];
+
         int roll = NextD20(player, player.DiceModifier[_currentRegion]);
         if (roll < difficultySettings.DifficultyClass[_currentRegion])
         {
-            ++_numConsecutiveFailureAttempts;
-            await _failedLocationCheckEvent.InvokeAsync(this, _currentRegion, cancellationToken);
+            await _failedLocationCheckEvent.InvokeAsync(this, new() { Player = player, DifficultySettings = difficultySettings, Location = locationId, InRegion = _currentRegion, ConsecutiveFailureCountBeforeCheck = _numConsecutiveFailures }, cancellationToken);
+            ++_numConsecutiveFailures;
             return;
         }
 
-        _numConsecutiveFailureAttempts = 0;
-        List<long> remainingLocations = _remainingLocationsInRegion[_currentRegion];
-        long locationId = remainingLocations[^1];
-        await _completedLocationCheckEvent.InvokeAsync(this, locationId, cancellationToken);
+        await _completedLocationCheckEvent.InvokeAsync(this, new() { Player = player, DifficultySettings = difficultySettings, Location = locationId, InRegion = _currentRegion, ConsecutiveFailureCountBeforeCheck = _numConsecutiveFailures }, cancellationToken);
+        _numConsecutiveFailures = 0;
         remainingLocations.RemoveAt(remainingLocations.Count - 1);
     }
 
@@ -291,12 +339,12 @@ public sealed class Game(GameDifficultySettings difficultySettings, int seed)
 
         _currentRegion = _destinationRegion!.Value;
         _travelStepsRemaining = 0;
-        await _movedToRegionEvent.InvokeAsync(this, _currentRegion, cancellationToken);
+        await _movedToRegionEvent.InvokeAsync(this, new() { Player = player, DifficultySettings = difficultySettings, SourceRegion = _sourceRegion!.Value, TargetRegion = _currentRegion, TotalTravelSteps = s_regionDistances[(_sourceRegion.Value, _currentRegion)] }, cancellationToken);
     }
 
     private int NextD20(Player player, int baseDiceModifier)
     {
-        return _random.Next(1, 21) + baseDiceModifier + _numConsecutiveFailureAttempts / player.ConsecutiveFailuresBeforeDiceModifierIncrement;
+        return _random.Next(1, 21) + baseDiceModifier + _numConsecutiveFailures / player.ConsecutiveFailuresBeforeDiceModifierIncrement;
     }
 
     private Region DetermineNextRegion(Player player)
