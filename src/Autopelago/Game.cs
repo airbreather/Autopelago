@@ -224,7 +224,7 @@ public sealed class Game(GameDifficultySettings difficultySettings, int seed)
         Region bestNextRegion = DetermineNextRegion(player);
         if (bestNextRegion != _currentRegion)
         {
-            _travelStepsRemaining = s_regionDistances[(_currentRegion, bestNextRegion)];
+            _travelStepsRemaining = s_regionDistances[(_currentRegion, bestNextRegion)] * difficultySettings.RegionChangeSteps;
             _sourceRegion = _currentRegion;
             _currentRegion = Region.Traveling;
             await _movingToRegionEvent.InvokeAsync(this, new() { Player = player, DifficultySettings = difficultySettings, SourceRegion = _sourceRegion.Value, TargetRegion = bestNextRegion, TotalTravelSteps = _travelStepsRemaining }, cancellationToken);
@@ -273,7 +273,7 @@ public sealed class Game(GameDifficultySettings difficultySettings, int seed)
             from s in keys
             let ts = g[s]
             from t in keys
-            select ((s, t), s == t ? 0 : ts.TryGetValue(t, out bool w) ? w ? 4 : 0 : int.MaxValue / 2)
+            select ((s, t), s == t ? 0 : ts.TryGetValue(t, out bool w) ? w ? 1 : 0 : int.MaxValue / 2)
         ).ToDictionary();
         foreach (Region k in keys)
         {
