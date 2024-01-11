@@ -7,7 +7,7 @@ using ArchipelagoClientDotNet;
 
 public sealed class ArchipelagoGameRunner : IDisposable
 {
-    private static readonly Dictionary<string, ItemType> progressiveItemTypeByName = new()
+    private static readonly Dictionary<string, ItemType> s_progressiveItemTypeByName = new()
     {
         ["Set of Three Seashells"] = ItemType.Rat,
         ["Chewed Bar of Soap"] = ItemType.Rat,
@@ -52,73 +52,94 @@ public sealed class ArchipelagoGameRunner : IDisposable
         ["Lockheed SR-71 Blackbird"] = ItemType.Goal,
     };
 
-    private readonly SemaphoreSlim gameLock = new(1, 1);
-    private readonly TimeSpan stepInterval;
-    private readonly int seed;
-    private readonly Player player = new();
-    private readonly GameDifficultySettings difficultySettings = new();
-    private readonly Game game;
-    private readonly ArchipelagoClient client;
-    private readonly string gameName;
-    private readonly string slot;
-    private readonly string? password;
+    private readonly SemaphoreSlim _gameLock = new(1, 1);
 
-    private FrozenDictionary<int, string>? playerNames = null;
-    private FrozenDictionary<long, string>? allLocationNamesById = null;
-    private FrozenDictionary<long, string>? allItemNamesById = null;
-    private FrozenDictionary<string, long>? allLocationIdsByName = null;
-    private FrozenDictionary<string, long>? allItemIdsByName = null;
-    private FrozenDictionary<long, string>? myLocationNamesById = null;
-    private FrozenDictionary<long, string>? myItemNamesById = null;
-    private FrozenDictionary<string, long>? myLocationIdsByName = null;
-    private FrozenDictionary<string, long>? myItemIdsByName = null;
-    private HashSet<long>? myLocationsNotYetSent = null;
-    private HashSet<long>? myItemsNotYetReceived = null;
-    private long[]? allMyLocations = null;
-    private long[]? allMyItems = null;
+    private readonly TimeSpan _stepInterval;
+
+    private readonly int _seed;
+
+    private readonly Player _player = new();
+
+    private readonly GameDifficultySettings _difficultySettings = new();
+
+    private readonly Game _game;
+
+    private readonly ArchipelagoClient _client;
+
+    private readonly string _gameName;
+
+    private readonly string _slot;
+
+    private readonly string? _password;
+
+    private FrozenDictionary<int, string>? _playerNames = null;
+
+    private FrozenDictionary<long, string>? _allLocationNamesById = null;
+
+    private FrozenDictionary<long, string>? _allItemNamesById = null;
+
+    private FrozenDictionary<string, long>? _allLocationIdsByName = null;
+
+    private FrozenDictionary<string, long>? _allItemIdsByName = null;
+
+    private FrozenDictionary<long, string>? _myLocationNamesById = null;
+
+    private FrozenDictionary<long, string>? _myItemNamesById = null;
+
+    private FrozenDictionary<string, long>? _myLocationIdsByName = null;
+
+    private FrozenDictionary<string, long>? _myItemIdsByName = null;
+
+    private HashSet<long>? _myLocationsNotYetSent = null;
+
+    private HashSet<long>? _myItemsNotYetReceived = null;
+
+    private long[]? _allMyLocations = null;
+
+    private long[]? _allMyItems = null;
 
     public ArchipelagoGameRunner(TimeSpan stepInterval, string server, ushort port, string gameName, string slot, string? password)
     {
-        this.stepInterval = stepInterval;
-        Random.Shared.NextBytes(MemoryMarshal.AsBytes(MemoryMarshal.CreateSpan(ref seed, 1)));
-        game = new(difficultySettings, seed);
-        client = new(server, port);
-        this.gameName = gameName;
-        this.slot = slot;
-        this.password = password;
+        this._stepInterval = stepInterval;
+        Random.Shared.NextBytes(MemoryMarshal.AsBytes(MemoryMarshal.CreateSpan(ref _seed, 1)));
+        _game = new(_difficultySettings, _seed);
+        _client = new(server, port);
+        this._gameName = gameName;
+        this._slot = slot;
+        this._password = password;
 
         // if this is true, we'll just find gaps inside the existing item ranges and exit.
         if (false)
         {
-            client.NeedDataPackageForAllGames = true;
-            client.DataPackagePacketReceived += FindIdRangeGapsAndExit;
+            _client.NeedDataPackageForAllGames = true;
+            _client.DataPackagePacketReceived += FindIdRangeGapsAndExit;
         }
 
-        client.DataPackagePacketReceived += OnDataPackagePacketReceived;
-        client.ConnectedPacketReceived += OnConnectedPacketReceived;
-        client.ReceivedItemsPacketReceived += OnReceivedItemsPacketReceived;
-        client.PrintJSONPacketReceived += OnPrintJSONPacketReceived;
-        client.RoomUpdatePacketReceived += OnRoomUpdatePacketReceived;
+        _client.DataPackagePacketReceived += OnDataPackagePacketReceived;
+        _client.ConnectedPacketReceived += OnConnectedPacketReceived;
+        _client.ReceivedItemsPacketReceived += OnReceivedItemsPacketReceived;
+        _client.PrintJSONPacketReceived += OnPrintJSONPacketReceived;
+        _client.RoomUpdatePacketReceived += OnRoomUpdatePacketReceived;
     }
 
     public async ValueTask<bool> TryRunGameAsync(CancellationToken cancellationToken)
     {
         await Helper.ConfigureAwaitFalse();
-        if (!await client.TryConnectAsync(gameName, slot, password, cancellationToken))
+        if (!await _client.TryConnectAsync(_gameName, _slot, _password, cancellationToken))
         {
             return false;
         }
 
-        long averageSteps = await CalculateAverageStepsAsync(seed, difficultySettings, player);
-        await client.SayAsync($"With my current settings, a non-randomized playthrough would take {(stepInterval * averageSteps).TotalMinutes:N2} minutes to complete.", cancellationToken);
+        long averageSteps = await CalculateAverageStepsAsync(_seed, _difficultySettings, _player);
+        await _client.SayAsync($"With my current settings, a non-randomized playthrough would take {(_stepInterval * averageSteps).TotalMinutes:N2} minutes to complete.", cancellationToken);
 
-        game.CompletedLocationCheck += OnCompletedLocationCheckAsync;
-        game.FailedLocationCheck += OnFailedLocationCheckAsync;
-        game.MovingToRegion += OnMovingToRegionAsync;
-        game.MovedToRegion += OnMovedToRegionAsync;
+        _game.CompletedLocationCheck += OnCompletedLocationCheckAsync;
+        _game.FailedLocationCheck += OnFailedLocationCheckAsync;
+        _game.MovingToRegion += OnMovingToRegionAsync;
+        _game.MovedToRegion += OnMovedToRegionAsync;
 
-        await client.StatusUpdateAsync(ArchipelagoClientStatus.Playing, cancellationToken);
-        Task nextDelay = Task.Delay(stepInterval, cancellationToken);
+        await _client.StatusUpdateAsync(ArchipelagoClientStatus.Playing, cancellationToken);
+        Task nextDelay = Task.Delay(_stepInterval, cancellationToken);
         long? reportedBlockedTime = null;
         try
         {
@@ -130,16 +151,16 @@ public sealed class ArchipelagoGameRunner : IDisposable
                 }
             }
 
-            await client.SayAsync("I've completed my goal!  Wrapping up now...", cancellationToken);
-            await client.StatusUpdateAsync(ArchipelagoClientStatus.Goal, cancellationToken);
-            await client.StopAsync(cancellationToken);
+            await _client.SayAsync("I've completed my goal!  Wrapping up now...", cancellationToken);
+            await _client.StatusUpdateAsync(ArchipelagoClientStatus.Goal, cancellationToken);
+            await _client.StopAsync(cancellationToken);
             return true;
         }
         catch (OperationCanceledException)
         {
         }
 
-        await client.StopAsync(CancellationToken.None);
+        await _client.StopAsync(CancellationToken.None);
         return false;
 
         async ValueTask<bool> OneStepAsync()
@@ -147,19 +168,19 @@ public sealed class ArchipelagoGameRunner : IDisposable
             await Helper.ConfigureAwaitFalse();
 
             await nextDelay;
-            nextDelay = Task.Delay(stepInterval, cancellationToken);
+            nextDelay = Task.Delay(_stepInterval, cancellationToken);
             bool step;
-            await gameLock.WaitAsync(cancellationToken);
+            await _gameLock.WaitAsync(cancellationToken);
             try
             {
-                step = await game.StepAsync(player, cancellationToken);
+                step = await _game.StepAsync(_player, cancellationToken);
             }
             finally
             {
-                gameLock.Release();
+                _gameLock.Release();
             }
 
-            if (game.IsCompleted)
+            if (_game.IsCompleted)
             {
                 return false;
             }
@@ -172,7 +193,7 @@ public sealed class ArchipelagoGameRunner : IDisposable
             {
                 if (reportedBlockedTime is not { } ts || Stopwatch.GetElapsedTime(ts) > TimeSpan.FromMinutes(5))
                 {
-                    await client.SayAsync("I have nothing to do right now...", cancellationToken);
+                    await _client.SayAsync("I have nothing to do right now...", cancellationToken);
                     reportedBlockedTime = Stopwatch.GetTimestamp();
                 }
             }
@@ -183,51 +204,51 @@ public sealed class ArchipelagoGameRunner : IDisposable
 
     public async ValueTask SayAsync(string line, CancellationToken cancellationToken)
     {
-        await client.SayAsync(line, cancellationToken);
+        await _client.SayAsync(line, cancellationToken);
     }
 
     public void Dispose()
     {
-        client.Dispose();
-        gameLock.Dispose();
+        _client.Dispose();
+        _gameLock.Dispose();
     }
 
     private ValueTask OnDataPackagePacketReceived(object? sender, DataPackagePacketModel dataPackage, CancellationToken cancellationToken)
     {
-        if (!dataPackage.Data.Games.TryGetValue(gameName, out GameDataModel? myGame))
+        if (!dataPackage.Data.Games.TryGetValue(_gameName, out GameDataModel? myGame))
         {
             Console.Error.WriteLine("oh no, my game isn't present.");
             Environment.Exit(1);
         }
 
-        allLocationIdsByName = dataPackage.Data.Games.Values.SelectMany(game => game.LocationNameToId).ToFrozenDictionary();
-        allItemIdsByName = dataPackage.Data.Games.Values.SelectMany(game => game.ItemNameToId).ToFrozenDictionary();
+        _allLocationIdsByName = dataPackage.Data.Games.Values.SelectMany(game => game.LocationNameToId).ToFrozenDictionary();
+        _allItemIdsByName = dataPackage.Data.Games.Values.SelectMany(game => game.ItemNameToId).ToFrozenDictionary();
 
-        allLocationNamesById = allLocationIdsByName.Select(kvp => KeyValuePair.Create(kvp.Value, kvp.Key)).ToFrozenDictionary();
-        allItemNamesById = allItemIdsByName.Select(kvp => KeyValuePair.Create(kvp.Value, kvp.Key)).ToFrozenDictionary();
+        _allLocationNamesById = _allLocationIdsByName.Select(kvp => KeyValuePair.Create(kvp.Value, kvp.Key)).ToFrozenDictionary();
+        _allItemNamesById = _allItemIdsByName.Select(kvp => KeyValuePair.Create(kvp.Value, kvp.Key)).ToFrozenDictionary();
 
-        allMyLocations = [..myGame.LocationNameToId.Values.Order()];
-        allMyItems = [..myGame.ItemNameToId.Values.Order()];
+        _allMyLocations = [..myGame.LocationNameToId.Values.Order()];
+        _allMyItems = [..myGame.ItemNameToId.Values.Order()];
 
-        myLocationsNotYetSent = [..allMyLocations];
-        myItemsNotYetReceived = [..allMyItems];
+        _myLocationsNotYetSent = [.._allMyLocations];
+        _myItemsNotYetReceived = [.._allMyItems];
 
-        myLocationIdsByName = myGame.LocationNameToId.ToFrozenDictionary();
-        myItemIdsByName = myGame.ItemNameToId.ToFrozenDictionary();
+        _myLocationIdsByName = myGame.LocationNameToId.ToFrozenDictionary();
+        _myItemIdsByName = myGame.ItemNameToId.ToFrozenDictionary();
 
-        myLocationNamesById = myGame.LocationNameToId.Select(kvp => KeyValuePair.Create(kvp.Value, kvp.Key)).ToFrozenDictionary();
-        myItemNamesById = myGame.ItemNameToId.Select(kvp => KeyValuePair.Create(kvp.Value, kvp.Key)).ToFrozenDictionary();
+        _myLocationNamesById = myGame.LocationNameToId.Select(kvp => KeyValuePair.Create(kvp.Value, kvp.Key)).ToFrozenDictionary();
+        _myItemNamesById = myGame.ItemNameToId.Select(kvp => KeyValuePair.Create(kvp.Value, kvp.Key)).ToFrozenDictionary();
 
-        Console.WriteLine($"Data initialized.  There are {myLocationNamesById.Count} location(s) and {myItemNamesById.Count} item(s).");
+        Console.WriteLine($"Data initialized.  There are {_myLocationNamesById.Count} location(s) and {_myItemNamesById.Count} item(s).");
         return ValueTask.CompletedTask;
     }
 
     private ValueTask OnConnectedPacketReceived(object? sender, ConnectedPacketModel connected, CancellationToken cancellationToken)
     {
-        playerNames = connected.Players.ToFrozenDictionary(p => p.Slot, p => p.Name);
+        _playerNames = connected.Players.ToFrozenDictionary(p => p.Slot, p => p.Name);
         foreach (long locationId in connected.CheckedLocations)
         {
-            game.MarkLocationChecked(locationId);
+            _game.MarkLocationChecked(locationId);
         }
 
         return ValueTask.CompletedTask;
@@ -236,19 +257,19 @@ public sealed class ArchipelagoGameRunner : IDisposable
     private async ValueTask OnReceivedItemsPacketReceived(object? sender, ReceivedItemsPacketModel receivedItems, CancellationToken cancellationToken)
     {
         await Helper.ConfigureAwaitFalse();
-        await gameLock.WaitAsync(cancellationToken);
+        await _gameLock.WaitAsync(cancellationToken);
         try
         {
             foreach (ItemModel item in receivedItems.Items)
             {
-                string name = myItemNamesById![item.Item];
+                string name = _myItemNamesById![item.Item];
                 bool isAdvancement = item.Flags.HasFlag(ArchipelagoItemFlags.LogicalAdvancement);
-                game.ReceiveItem(item.Item, isAdvancement ? progressiveItemTypeByName[name] : ItemType.Filler);
+                _game.ReceiveItem(item.Item, isAdvancement ? s_progressiveItemTypeByName[name] : ItemType.Filler);
             }
         }
         finally
         {
-            gameLock.Release();
+            _gameLock.Release();
         }
     }
 
@@ -258,9 +279,9 @@ public sealed class ArchipelagoGameRunner : IDisposable
         {
             Console.Write(part switch
             {
-                PlayerIdJSONMessagePartModel playerId => playerNames![int.Parse(playerId.Text)],
-                ItemIdJSONMessagePartModel itemId => allItemNamesById![long.Parse(itemId.Text)],
-                LocationIdJSONMessagePartModel locationId => allLocationNamesById![long.Parse(locationId.Text)],
+                PlayerIdJSONMessagePartModel playerId => _playerNames![int.Parse(playerId.Text)],
+                ItemIdJSONMessagePartModel itemId => _allItemNamesById![long.Parse(itemId.Text)],
+                LocationIdJSONMessagePartModel locationId => _allLocationNamesById![long.Parse(locationId.Text)],
                 _ => part.Text,
             });
         }
@@ -273,17 +294,17 @@ public sealed class ArchipelagoGameRunner : IDisposable
     {
         if (roomUpdate.CheckedLocations is ImmutableArray<long> checkedLocations)
         {
-            await gameLock.WaitAsync(cancellationToken);
+            await _gameLock.WaitAsync(cancellationToken);
             try
             {
                 foreach (long locationId in checkedLocations)
                 {
-                    game.MarkLocationChecked(locationId);
+                    _game.MarkLocationChecked(locationId);
                 }
             }
             finally
             {
-                gameLock.Release();
+                _gameLock.Release();
             }
         }
     }
@@ -291,13 +312,13 @@ public sealed class ArchipelagoGameRunner : IDisposable
     private async ValueTask OnCompletedLocationCheckAsync(object? sender, CompletedLocationCheckEventArgs args, CancellationToken cancellationToken)
     {
         await Helper.ConfigureAwaitFalse();
-        await client.LocationChecksAsync(new[] { args.Location }, cancellationToken);
+        await _client.LocationChecksAsync(new[] { args.Location }, cancellationToken);
     }
 
     private async ValueTask OnFailedLocationCheckAsync(object? sender, FailedLocationCheckEventArgs args, CancellationToken cancellationToken)
     {
         await Helper.ConfigureAwaitFalse();
-        await client.SayAsync($"failed a check ({myLocationNamesById![args.Location]})", cancellationToken);
+        await _client.SayAsync($"failed a check ({_myLocationNamesById![args.Location]})", cancellationToken);
     }
 
     private async ValueTask OnMovingToRegionAsync(object? sender, MovingToRegionEventArgs args, CancellationToken cancellationToken)
@@ -310,8 +331,8 @@ public sealed class ArchipelagoGameRunner : IDisposable
 
         await Helper.ConfigureAwaitFalse();
 
-        int actualTravelSteps = (args.TotalTravelSteps + player.MovementSpeed - 1) / player.MovementSpeed;
-        await client.SayAsync($"Moving to {args.TargetRegion} (travel time: {actualTravelSteps * stepInterval.TotalSeconds:N0}s)", cancellationToken);
+        int actualTravelSteps = (args.TotalTravelSteps + _player.MovementSpeed - 1) / _player.MovementSpeed;
+        await _client.SayAsync($"Moving to {args.TargetRegion} (travel time: {actualTravelSteps * _stepInterval.TotalSeconds:N0}s)", cancellationToken);
     }
 
     private async ValueTask OnMovedToRegionAsync(object? sender, MovedToRegionEventArgs args, CancellationToken cancellationToken)
@@ -323,7 +344,7 @@ public sealed class ArchipelagoGameRunner : IDisposable
         }
 
         await Helper.ConfigureAwaitFalse();
-        await client.SayAsync($"Arrived at {args.TargetRegion}.", cancellationToken);
+        await _client.SayAsync($"Arrived at {args.TargetRegion}.", cancellationToken);
     }
 
     private async ValueTask<long> CalculateAverageStepsAsync(int seed, GameDifficultySettings difficultySettings, Player player)
@@ -353,8 +374,8 @@ public sealed class ArchipelagoGameRunner : IDisposable
                 if (itemToSendBeforeNextStep is { } location)
                 {
                     itemToSendBeforeNextStep = null;
-                    string name = myItemNamesById![location];
-                    simulatedGame.ReceiveItem(location, progressiveItemTypeByName.TryGetValue(name, out ItemType progressiveItemType) ? progressiveItemType : ItemType.Filler);
+                    string name = _myItemNamesById![location];
+                    simulatedGame.ReceiveItem(location, s_progressiveItemTypeByName.TryGetValue(name, out ItemType progressiveItemType) ? progressiveItemType : ItemType.Filler);
                 }
             }
 
