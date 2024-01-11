@@ -3,23 +3,36 @@ using System.Runtime.InteropServices;
 
 using ArchipelagoClientDotNet;
 
+using YamlDotNet.Serialization;
+using YamlDotNet.Serialization.NamingConventions;
+
 await Helper.ConfigureAwaitFalse();
+
+string settingsYaml = await File.ReadAllTextAsync(args[0]);
+AutopelagoSettingsModel settings = new DeserializerBuilder()
+    .WithNamingConvention(CamelCaseNamingConvention.Instance)
+    .Build()
+    .Deserialize<AutopelagoSettingsModel>(settingsYaml);
 
 CancellationTokenSource cts = new();
 
-Unsafe.SkipInit(out int seed);
-Random.Shared.NextBytes(MemoryMarshal.AsBytes(MemoryMarshal.CreateSpan(ref seed, 1)));
-ArchipelagoGameRunner runner = new(
-    stepInterval: TimeSpan.FromSeconds(double.Parse(args[0])),
-    player: new(),
-    difficultySettings: new(),
-    seed: seed,
-    server: args[1],
-    port: ushort.Parse(args[2]),
-    gameName: args[3],
-    slot: args[4],
-    password: args.ElementAtOrDefault(5)
-);
+List<ArchipelagoGameRunner> runners = [];
+foreach (AutopelagoPlayerSettingsModel slot in settings.Slots)
+{
+    Unsafe.SkipInit(out int seed);
+    Random.Shared.NextBytes(MemoryMarshal.AsBytes(MemoryMarshal.CreateSpan(ref seed, 1)));
+    runners.Add(new(
+        stepInterval: TimeSpan.FromSeconds(slot.OverriddenSettings?.SecondsPerGameStep ?? settings.DefaultSettings.SecondsPerGameStep),
+        player: new(),
+        difficultySettings: new(),
+        seed: seed,
+        server: settings.Server,
+        port: settings.Port,
+        gameName: settings.GameName,
+        slot: slot.Name,
+        password: slot.Password
+    ));
+}
 
 Console.CancelKeyPress += async (sender, args) =>
 {
@@ -27,15 +40,6 @@ Console.CancelKeyPress += async (sender, args) =>
     await cts.CancelAsync();
 };
 
-_ = Task.Run(async () =>
-{
-    await Helper.ConfigureAwaitFalse();
-    while (Console.ReadLine() is string line)
-    {
-        await runner.SayAsync(line, cts.Token);
-    }
-});
-
-return await runner.TryRunGameAsync(cts.Token)
+return (await Task.WhenAll(runners.Select(r => r.TryRunGameAsync(cts.Token)))).All(x => x)
     ? 0
     : 1;

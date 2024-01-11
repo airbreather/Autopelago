@@ -71,7 +71,9 @@ public sealed class ArchipelagoGameRunner : IDisposable
 
     private readonly string? _password;
 
-    private FrozenDictionary<int, string>? _playerNames = null;
+    private FrozenDictionary<int, string>? _playerNamesBySlot = null;
+
+    private FrozenDictionary<string, int>? _playerSlotsByName = null;
 
     private FrozenDictionary<long, string>? _allLocationNamesById = null;
 
@@ -246,7 +248,8 @@ public sealed class ArchipelagoGameRunner : IDisposable
 
     private ValueTask OnConnectedPacketReceived(object? sender, ConnectedPacketModel connected, CancellationToken cancellationToken)
     {
-        _playerNames = connected.Players.ToFrozenDictionary(p => p.Slot, p => p.Name);
+        _playerNamesBySlot = connected.Players.ToFrozenDictionary(p => p.Slot, p => p.Name);
+        _playerSlotsByName = connected.Players.ToFrozenDictionary(p => p.Name, p => p.Slot);
         foreach (long locationId in connected.CheckedLocations)
         {
             _game.MarkLocationChecked(locationId);
@@ -280,7 +283,7 @@ public sealed class ArchipelagoGameRunner : IDisposable
         {
             Console.Write(part switch
             {
-                PlayerIdJSONMessagePartModel playerId => _playerNames![int.Parse(playerId.Text)],
+                PlayerIdJSONMessagePartModel playerId => _playerNamesBySlot![int.Parse(playerId.Text)],
                 ItemIdJSONMessagePartModel itemId => _allItemNamesById![long.Parse(itemId.Text)],
                 LocationIdJSONMessagePartModel locationId => _allLocationNamesById![long.Parse(locationId.Text)],
                 _ => part.Text,

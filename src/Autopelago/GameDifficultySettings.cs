@@ -1,6 +1,6 @@
 public sealed record GameDifficultySettings
 {
-    public int RegionChangeSteps { get; init; } = 4;
+    public int RegionChangeSteps { get; init; } = 3500;
 
     public Dictionary<Region, int> DifficultyClass { get; } = new()
     {
