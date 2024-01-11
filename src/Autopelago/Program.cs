@@ -87,7 +87,7 @@ Game game = new(difficultySettings, seed);
 client.DataPackagePacketReceived += OnDataPackagePacketReceived;
 ValueTask OnDataPackagePacketReceived(object? sender, DataPackagePacketModel dataPackage, CancellationToken cancellationToken)
 {
-    if (!dataPackage.Data.Games.TryGetValue(args[2], out GameDataModel? myGame))
+    if (!dataPackage.Data.Games.TryGetValue(args[3], out GameDataModel? myGame))
     {
         Console.Error.WriteLine("oh no, my game isn't present.");
         Environment.Exit(1);
@@ -192,7 +192,7 @@ if (!await client.TryConnectAsync(args[3], args[4], args.ElementAtOrDefault(5)))
 }
 
 long averageSteps = await CalculateAverageStepsAsync(seed, difficultySettings, player);
-await client.SayAsync($"With my current settings, a non-randomized playthrough would take {(stepInterval * averageSteps).TotalMinutes} minutes to complete.");
+await client.SayAsync($"With my current settings, a non-randomized playthrough would take {(stepInterval * averageSteps).TotalMinutes:N2} minutes to complete.");
 
 int x = 0;
 Console.CancelKeyPress += async (sender, args) =>

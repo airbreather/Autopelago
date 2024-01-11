@@ -181,9 +181,17 @@ public sealed class Game(GameDifficultySettings difficultySettings, int seed)
         {
             await _movingToRegionEvent.InvokeAsync(this, (_currentRegion, bestNextRegion), cancellationToken);
             _travelStepsRemaining = s_regionDistances[(_currentRegion, bestNextRegion)];
-            _destinationRegion = bestNextRegion;
-            _currentRegion = Region.Traveling;
-            return true;
+            if (_travelStepsRemaining > 0)
+            {
+                _currentRegion = Region.Traveling;
+                _destinationRegion = bestNextRegion;
+                await TravelStepAsync(player, cancellationToken);
+                return true;
+            }
+
+            _currentRegion = bestNextRegion;
+            _destinationRegion = null;
+            await _movedToRegionEvent.InvokeAsync(this, _currentRegion, cancellationToken);
         }
 
         if (_remainingLocationsInRegion[bestNextRegion].Count == 0)
@@ -241,7 +249,7 @@ public sealed class Game(GameDifficultySettings difficultySettings, int seed)
 
     private static Dictionary<Region, Dictionary<Region, bool>> ToUndirected(Dictionary<Region, Dictionary<Region, bool>> g)
     {
-        foreach ((Region s, Dictionary<Region, bool> ts) in g)
+        foreach ((Region s, Dictionary<Region, bool> ts) in g.ToDictionary(kvp => kvp.Key, kvp => kvp.Value.ToDictionary()))
         {
             foreach (Region t in ts.Keys)
             {
