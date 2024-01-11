@@ -9,8 +9,8 @@ using ArchipelagoClientDotNet;
 await Helper.ConfigureAwaitFalse();
 
 using SemaphoreSlim gameLock = new(1, 1);
-using ArchipelagoClient client = new(args[0], ushort.Parse(args[1]));
-TimeSpan stepInterval = TimeSpan.FromSeconds(int.Parse(args[2]));
+TimeSpan stepInterval = TimeSpan.FromSeconds(int.Parse(args[0]));
+using ArchipelagoClient client = new(args[1], ushort.Parse(args[2]));
 
 FrozenDictionary<int, string>? playerNames = null;
 FrozenDictionary<long, string>? allLocationNamesById = null;
