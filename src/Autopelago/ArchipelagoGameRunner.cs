@@ -1,7 +1,6 @@
 using System.Collections.Frozen;
 using System.Collections.Immutable;
 using System.Diagnostics;
-using System.Runtime.InteropServices;
 
 using ArchipelagoClientDotNet;
 
@@ -56,11 +55,11 @@ public sealed class ArchipelagoGameRunner : IDisposable
 
     private readonly TimeSpan _stepInterval;
 
+    private readonly Player _player;
+
+    private readonly GameDifficultySettings _difficultySettings;
+
     private readonly int _seed;
-
-    private readonly Player _player = new();
-
-    private readonly GameDifficultySettings _difficultySettings = new();
 
     private readonly Game _game;
 
@@ -98,15 +97,17 @@ public sealed class ArchipelagoGameRunner : IDisposable
 
     private long[]? _allMyItems = null;
 
-    public ArchipelagoGameRunner(TimeSpan stepInterval, string server, ushort port, string gameName, string slot, string? password)
+    public ArchipelagoGameRunner(TimeSpan stepInterval, Player player, GameDifficultySettings difficultySettings, int seed, string server, ushort port, string gameName, string slot, string? password)
     {
-        this._stepInterval = stepInterval;
-        Random.Shared.NextBytes(MemoryMarshal.AsBytes(MemoryMarshal.CreateSpan(ref _seed, 1)));
+        _stepInterval = stepInterval;
+        _player = player;
+        _difficultySettings = difficultySettings;
+        _seed = seed;
         _game = new(_difficultySettings, _seed);
         _client = new(server, port);
-        this._gameName = gameName;
-        this._slot = slot;
-        this._password = password;
+        _gameName = gameName;
+        _slot = slot;
+        _password = password;
 
         // if this is true, we'll just find gaps inside the existing item ranges and exit.
         if (false)
@@ -122,7 +123,7 @@ public sealed class ArchipelagoGameRunner : IDisposable
         _client.RoomUpdatePacketReceived += OnRoomUpdatePacketReceived;
     }
 
-    public async ValueTask<bool> TryRunGameAsync(CancellationToken cancellationToken)
+    public async Task<bool> TryRunGameAsync(CancellationToken cancellationToken)
     {
         await Helper.ConfigureAwaitFalse();
         if (!await _client.TryConnectAsync(_gameName, _slot, _password, cancellationToken))

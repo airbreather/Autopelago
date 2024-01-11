@@ -1,11 +1,19 @@
-﻿using ArchipelagoClientDotNet;
+﻿using System.Runtime.CompilerServices;
+using System.Runtime.InteropServices;
+
+using ArchipelagoClientDotNet;
 
 await Helper.ConfigureAwaitFalse();
 
 CancellationTokenSource cts = new();
 
+Unsafe.SkipInit(out int seed);
+Random.Shared.NextBytes(MemoryMarshal.AsBytes(MemoryMarshal.CreateSpan(ref seed, 1)));
 ArchipelagoGameRunner runner = new(
     stepInterval: TimeSpan.FromSeconds(double.Parse(args[0])),
+    player: new(),
+    difficultySettings: new(),
+    seed: seed,
     server: args[1],
     port: ushort.Parse(args[2]),
     gameName: args[3],
