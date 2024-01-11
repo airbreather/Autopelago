@@ -1,2 +1,2 @@
 #!/bin/sh
-dot -Ksfdp -Tpng -O simple-progression.dot
+dot -Tpng -O simple-progression.dot

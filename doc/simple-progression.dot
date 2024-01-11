@@ -1,13 +1,19 @@
 digraph simple {
-    a -> b -> c -> d -> e -> f
-    b -> g -> h -> e;
+    layout="sfdp";
+    start="2";
 
-    a [label="Start"];
-    b [label="8 rats"];
-    c [label="A"];
-    d [label="C"];
-    e [label="20 rats"];
-    f [label="E or F"];
-    g [label="B"];
-    h [label="D"];
+    va -> vb -> vc -> vd -> ve -> vf -> vg;
+    vb -> vh -> vi -> ve;
+    ve -> vj -> vg;
+
+    va [label="Start"];
+    vb [label="8 rats"];
+    vc [label="A"];
+    vd [label="C"];
+    ve [label="20 rats"];
+    vf [label="E"];
+    vg [label="Goal"];
+    vh [label="B"];
+    vi [label="D"];
+    vj [label="F"];
 }
