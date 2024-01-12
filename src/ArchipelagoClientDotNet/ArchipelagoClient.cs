@@ -17,11 +17,6 @@ public sealed partial class ArchipelagoClient(string server, ushort port) : IDis
         PropertyNamingPolicy = JsonNamingPolicy.SnakeCaseLower,
     };
 
-    private static readonly JsonSerializerOptions s_prettyJsonSerializerOptions = new(s_jsonSerializerOptions)
-    {
-        WriteIndented = true,
-    };
-
     private readonly AsyncEvent<ReadOnlyMemory<ArchipelagoPacketModel>> _packetGroupReceivedEvent = new();
 
     private readonly AsyncEvent<ArchipelagoPacketModel> _anyPacketReceivedEvent = new();
@@ -40,9 +35,9 @@ public sealed partial class ArchipelagoClient(string server, ushort port) : IDis
 
     private readonly AsyncEvent<RoomUpdatePacketModel> _roomUpdatePacketReceivedEvent = new();
 
-    private readonly ClientWebSocket _socket = new() { Options = { DangerousDeflateOptions = new() } };
-
     private readonly SemaphoreSlim _writerLock = new(1, 1);
+
+    private ClientWebSocket _socket = new() { Options = { DangerousDeflateOptions = new() } };
 
     private CancellationTokenSource _cts = new();
 
@@ -128,9 +123,18 @@ public sealed partial class ArchipelagoClient(string server, ushort port) : IDis
             {
                 await _socket.ConnectAsync(new Uri($"wss://{server}:{port}"), cancellationToken);
             }
-            catch
+            catch (Exception ex)
             {
-                await _socket.ConnectAsync(new Uri($"ws://{server}:{port}"), cancellationToken);
+                try
+                {
+                    _socket.Dispose();
+                    _socket = new() { Options = { DangerousDeflateOptions = new() } };
+                    await _socket.ConnectAsync(new Uri($"ws://{server}:{port}"), cancellationToken);
+                }
+                catch (Exception ex2)
+                {
+                    throw new AggregateException(ex, ex2);
+                }
             }
         }
 
