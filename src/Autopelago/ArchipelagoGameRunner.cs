@@ -99,7 +99,7 @@ public sealed class ArchipelagoGameRunner : IDisposable
 
     private long[]? _allMyItems = null;
 
-    public ArchipelagoGameRunner(TimeSpan stepInterval, Player player, GameDifficultySettings difficultySettings, int seed, string server, ushort port, string gameName, string slot, string? password)
+    public ArchipelagoGameRunner(bool primary, TimeSpan stepInterval, Player player, GameDifficultySettings difficultySettings, int seed, string server, ushort port, string gameName, string slot, string? password)
     {
         _stepInterval = stepInterval;
         _player = player;
@@ -121,7 +121,11 @@ public sealed class ArchipelagoGameRunner : IDisposable
         _client.DataPackagePacketReceived += OnDataPackagePacketReceived;
         _client.ConnectedPacketReceived += OnConnectedPacketReceived;
         _client.ReceivedItemsPacketReceived += OnReceivedItemsPacketReceived;
-        _client.PrintJSONPacketReceived += OnPrintJSONPacketReceived;
+        if (primary)
+        {
+            _client.PrintJSONPacketReceived += OnPrintJSONPacketReceived;
+        }
+
         _client.RoomUpdatePacketReceived += OnRoomUpdatePacketReceived;
     }
 
@@ -242,7 +246,6 @@ public sealed class ArchipelagoGameRunner : IDisposable
         _myLocationNamesById = myGame.LocationNameToId.Select(kvp => KeyValuePair.Create(kvp.Value, kvp.Key)).ToFrozenDictionary();
         _myItemNamesById = myGame.ItemNameToId.Select(kvp => KeyValuePair.Create(kvp.Value, kvp.Key)).ToFrozenDictionary();
 
-        Console.WriteLine($"Data initialized.  There are {_myLocationNamesById.Count} location(s) and {_myItemNamesById.Count} item(s).");
         return ValueTask.CompletedTask;
     }
 

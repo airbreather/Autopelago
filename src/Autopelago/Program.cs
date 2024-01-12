@@ -17,11 +17,14 @@ AutopelagoSettingsModel settings = new DeserializerBuilder()
 CancellationTokenSource cts = new();
 
 List<ArchipelagoGameRunner> runners = [];
-foreach (AutopelagoPlayerSettingsModel slot in settings.Slots)
+for (int i = 0, cnt = settings.Slots.Count; i < cnt; i++)
 {
+    bool primary = i == 0;
+    AutopelagoPlayerSettingsModel slot = settings.Slots[i];
     Unsafe.SkipInit(out int seed);
     Random.Shared.NextBytes(MemoryMarshal.AsBytes(MemoryMarshal.CreateSpan(ref seed, 1)));
-    runners.Add(new(
+    ArchipelagoGameRunner runner = new(
+        primary: primary,
         stepInterval: TimeSpan.FromSeconds(slot.OverriddenSettings?.SecondsPerGameStep ?? settings.DefaultSettings.SecondsPerGameStep),
         player: new(),
         difficultySettings: new(),
@@ -31,7 +34,20 @@ foreach (AutopelagoPlayerSettingsModel slot in settings.Slots)
         gameName: settings.GameName,
         slot: slot.Name,
         password: slot.Password
-    ));
+    );
+    runners.Add(runner);
+
+    if (primary)
+    {
+        _ = Task.Run(async () =>
+        {
+            await Helper.ConfigureAwaitFalse();
+            while (Console.ReadLine() is string line)
+            {
+                await runner.SayAsync(line, cts.Token);
+            }
+        }, cts.Token);
+    }
 }
 
 Console.CancelKeyPress += async (sender, args) =>
