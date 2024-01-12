@@ -67,7 +67,7 @@ public enum ArchipelagoItemsHandlingFlags
 public record ArchipelagoPacketModel
 {
     [JsonExtensionData]
-    public Dictionary<string, JsonElement> ExtensionData { get; init; } = [];
+    public Dictionary<string, JsonElement> ExtensionData { get; set; } = [];
 }
 
 public sealed record RoomInfoPacketModel : ArchipelagoPacketModel
@@ -154,6 +154,21 @@ public sealed record ReceivedItemsPacketModel : ArchipelagoPacketModel
     public required ImmutableArray<ItemModel> Items { get; init; }
 }
 
+[JsonDerivedType(typeof(ItemSendPrintJSONPacketModel))]
+[JsonDerivedType(typeof(ItemCheatPrintJSONPacketModel))]
+[JsonDerivedType(typeof(HintPrintJSONPacketModel))]
+[JsonDerivedType(typeof(JoinPrintJSONPacketModel))]
+[JsonDerivedType(typeof(PartPrintJSONPacketModel))]
+[JsonDerivedType(typeof(ChatPrintJSONPacketModel))]
+[JsonDerivedType(typeof(ServerChatPrintJSONPacketModel))]
+[JsonDerivedType(typeof(TutorialPrintJSONPacketModel))]
+[JsonDerivedType(typeof(TagsChangedPrintJSONPacketModel))]
+[JsonDerivedType(typeof(CommandResultPrintJSONPacketModel))]
+[JsonDerivedType(typeof(AdminCommandResultPrintJSONPacketModel))]
+[JsonDerivedType(typeof(GoalPrintJSONPacketModel))]
+[JsonDerivedType(typeof(ReleasePrintJSONPacketModel))]
+[JsonDerivedType(typeof(CollectPrintJSONPacketModel))]
+[JsonDerivedType(typeof(CountdownPrintJSONPacketModel))]
 public record PrintJSONPacketModel : ArchipelagoPacketModel
 {
     private static readonly Dictionary<string, Type> s_recognizedTypes = new()

@@ -2,9 +2,16 @@ using System.Buffers;
 using System.Collections.Immutable;
 using System.Net.WebSockets;
 using System.Text.Json;
+using System.Text.Json.Serialization;
 using System.Text.RegularExpressions;
 
 namespace ArchipelagoClientDotNet;
+
+[JsonSourceGenerationOptions(PropertyNamingPolicy = JsonKnownNamingPolicy.SnakeCaseLower)]
+[JsonSerializable(typeof(ArchipelagoPacketModel[]))]
+internal sealed partial class SourceGenerationContext : JsonSerializerContext
+{
+}
 
 public sealed partial class ArchipelagoClient(string server, ushort port) : IDisposable
 {
@@ -15,6 +22,7 @@ public sealed partial class ArchipelagoClient(string server, ushort port) : IDis
     private static readonly JsonSerializerOptions s_jsonSerializerOptions = new()
     {
         PropertyNamingPolicy = JsonNamingPolicy.SnakeCaseLower,
+        TypeInfoResolver = SourceGenerationContext.Default,
     };
 
     private readonly AsyncEvent<ReadOnlyMemory<ArchipelagoPacketModel>> _packetGroupReceivedEvent = new();
@@ -115,21 +123,25 @@ public sealed partial class ArchipelagoClient(string server, ushort port) : IDis
 
         if (s_hasWebSocketSchemeRegex.IsMatch(server))
         {
-            await _socket.ConnectAsync(new Uri($"{server}:{port}"), cancellationToken);
+            await _socket.ConnectAsync(new($"{server}:{port}"), cancellationToken);
         }
         else
         {
             try
             {
-                await _socket.ConnectAsync(new Uri($"wss://{server}:{port}"), cancellationToken);
+                await _socket.ConnectAsync(new($"wss://{server}:{port}"), cancellationToken);
             }
             catch (Exception ex)
             {
                 try
                 {
+                    // the socket actually disposes itself after ConnectAsync fails for practically
+                    // any reason (which is why we need to overwrite it with a new one here), but it
+                    // still makes me feel icky not to dispose it explicitly before overwriting it,
+                    // so just do it ourselves (airbreather 2024-01-12).
                     _socket.Dispose();
                     _socket = new() { Options = { DangerousDeflateOptions = new() } };
-                    await _socket.ConnectAsync(new Uri($"ws://{server}:{port}"), cancellationToken);
+                    await _socket.ConnectAsync(new($"ws://{server}:{port}"), cancellationToken);
                 }
                 catch (Exception ex2)
                 {
