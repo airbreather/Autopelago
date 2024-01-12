@@ -221,32 +221,19 @@ public sealed class Game(GameDifficultySettings difficultySettings, int seed)
             return true;
         }
 
-        Region bestNextRegion = DetermineNextRegion(player);
-        if (bestNextRegion != _currentRegion)
+        if (await StartTravelingIfNeeded(player, cancellationToken))
         {
-            _travelStepsRemaining = s_regionDistances[(_currentRegion, bestNextRegion)] * difficultySettings.RegionChangeSteps;
-            _sourceRegion = _currentRegion;
-            _currentRegion = Region.Traveling;
-            await _movingToRegionEvent.InvokeAsync(this, new() { Player = player, DifficultySettings = difficultySettings, SourceRegion = _sourceRegion.Value, TargetRegion = bestNextRegion, TotalTravelSteps = _travelStepsRemaining }, cancellationToken);
-            if (_travelStepsRemaining > 0)
-            {
-                _destinationRegion = bestNextRegion;
-                await TravelStepAsync(player, cancellationToken);
-                return true;
-            }
-
-            _currentRegion = bestNextRegion;
-            await _movedToRegionEvent.InvokeAsync(this, new() { Player = player, DifficultySettings = difficultySettings, SourceRegion = _sourceRegion.Value, TargetRegion = bestNextRegion, TotalTravelSteps = _travelStepsRemaining }, cancellationToken);
-            _sourceRegion = null;
-            _destinationRegion = null;
+            await TravelStepAsync(player, cancellationToken);
+            return true;
         }
 
-        if (_remainingLocationsInRegion[bestNextRegion].Count == 0)
+        if (_remainingLocationsInRegion[_currentRegion].Count == 0)
         {
             return false;
         }
 
         await TryNextCheckAsync(player, cancellationToken);
+        await StartTravelingIfNeeded(player, cancellationToken);
         return true;
     }
 
@@ -325,6 +312,31 @@ public sealed class Game(GameDifficultySettings difficultySettings, int seed)
         await _completedLocationCheckEvent.InvokeAsync(this, new() { Player = player, DifficultySettings = difficultySettings, Location = locationId, InRegion = _currentRegion, ConsecutiveFailureCountBeforeCheck = _numConsecutiveFailures }, cancellationToken);
         _numConsecutiveFailures = 0;
         remainingLocations.RemoveAt(remainingLocations.Count - 1);
+    }
+
+    private async ValueTask<bool> StartTravelingIfNeeded(Player player, CancellationToken cancellationToken)
+    {
+        Region bestNextRegion = DetermineNextRegion(player);
+        if (bestNextRegion == _currentRegion)
+        {
+            return false;
+        }
+
+        _travelStepsRemaining = s_regionDistances[(_currentRegion, bestNextRegion)] * difficultySettings.RegionChangeSteps;
+        _sourceRegion = _currentRegion;
+        _currentRegion = Region.Traveling;
+        await _movingToRegionEvent.InvokeAsync(this, new() { Player = player, DifficultySettings = difficultySettings, SourceRegion = _sourceRegion.Value, TargetRegion = bestNextRegion, TotalTravelSteps = _travelStepsRemaining }, cancellationToken);
+        if (_travelStepsRemaining > 0)
+        {
+            _destinationRegion = bestNextRegion;
+            return true;
+        }
+
+        _currentRegion = bestNextRegion;
+        await _movedToRegionEvent.InvokeAsync(this, new() { Player = player, DifficultySettings = difficultySettings, SourceRegion = _sourceRegion.Value, TargetRegion = bestNextRegion, TotalTravelSteps = _travelStepsRemaining }, cancellationToken);
+        _sourceRegion = null;
+        _destinationRegion = null;
+        return false;
     }
 
     private async ValueTask TravelStepAsync(Player player, CancellationToken cancellationToken)
