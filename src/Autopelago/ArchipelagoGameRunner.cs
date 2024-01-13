@@ -53,7 +53,9 @@ public sealed class ArchipelagoGameRunner : IDisposable
 
     private readonly SemaphoreSlim _gameLock = new(1, 1);
 
-    private readonly TimeSpan _stepInterval;
+    private readonly TimeSpan _minStepInterval;
+
+    private readonly TimeSpan _maxStepInterval;
 
     private readonly Player _player;
 
@@ -99,9 +101,10 @@ public sealed class ArchipelagoGameRunner : IDisposable
 
     private long[]? _allMyItems = null;
 
-    public ArchipelagoGameRunner(bool primary, TimeSpan stepInterval, Player player, GameDifficultySettings difficultySettings, int seed, string server, ushort port, string gameName, string slot, string? password)
+    public ArchipelagoGameRunner(bool primary, TimeSpan minStepInterval, TimeSpan maxStepInterval, Player player, GameDifficultySettings difficultySettings, int seed, string server, ushort port, string gameName, string slot, string? password)
     {
-        _stepInterval = stepInterval;
+        _minStepInterval = minStepInterval;
+        _maxStepInterval = maxStepInterval;
         _player = player;
         _difficultySettings = difficultySettings;
         _seed = seed;
@@ -138,7 +141,8 @@ public sealed class ArchipelagoGameRunner : IDisposable
         }
 
         long averageSteps = await CalculateAverageStepsAsync(_seed, _difficultySettings, _player);
-        await _client.SayAsync($"With my current settings, a non-randomized playthrough would take {(_stepInterval * averageSteps).TotalMinutes:N2} minutes to complete.", cancellationToken);
+        TimeSpan medianStepInterval = (_minStepInterval + _maxStepInterval) / 2;
+        await _client.SayAsync($"With my current settings, a non-randomized playthrough would take {(medianStepInterval * averageSteps).TotalMinutes:N2} minutes to complete.", cancellationToken);
 
         _game.CompletedLocationCheck += OnCompletedLocationCheckAsync;
         _game.FailedLocationCheck += OnFailedLocationCheckAsync;
@@ -146,7 +150,7 @@ public sealed class ArchipelagoGameRunner : IDisposable
         _game.MovedToRegion += OnMovedToRegionAsync;
 
         await _client.StatusUpdateAsync(ArchipelagoClientStatus.Playing, cancellationToken);
-        Task nextDelay = Task.Delay(_stepInterval, cancellationToken);
+        Task nextDelay = Task.Delay(NextStepInterval(), cancellationToken);
         long? reportedBlockedTime = null;
         long lastUpdateTime = Stopwatch.GetTimestamp();
         try
@@ -176,7 +180,7 @@ public sealed class ArchipelagoGameRunner : IDisposable
             await Helper.ConfigureAwaitFalse();
 
             await nextDelay;
-            nextDelay = Task.Delay(_stepInterval, cancellationToken);
+            nextDelay = Task.Delay(NextStepInterval(), cancellationToken);
             bool step;
             await _gameLock.WaitAsync(cancellationToken);
             try
@@ -343,7 +347,8 @@ public sealed class ArchipelagoGameRunner : IDisposable
         await Helper.ConfigureAwaitFalse();
 
         int actualTravelSteps = (args.TotalTravelSteps + _player.MovementSpeed - 1) / _player.MovementSpeed;
-        await _client.SayAsync($"Moving to {args.TargetRegion} (travel time: {actualTravelSteps * _stepInterval.TotalSeconds:N0}s)", cancellationToken);
+        TimeSpan medianStepInterval = (_maxStepInterval + _minStepInterval) / 2;
+        await _client.SayAsync($"Moving to {args.TargetRegion} (travel time: ~{actualTravelSteps * medianStepInterval.TotalSeconds:N0}s)", cancellationToken);
     }
 
     private async ValueTask OnMovedToRegionAsync(object? sender, MovedToRegionEventArgs args, CancellationToken cancellationToken)
@@ -439,5 +444,12 @@ public sealed class ArchipelagoGameRunner : IDisposable
 
         Environment.Exit(0);
         return ValueTask.CompletedTask;
+    }
+
+    private TimeSpan NextStepInterval()
+    {
+        long tickRange = _maxStepInterval.Ticks - _minStepInterval.Ticks;
+        long extraTicks = (long)(Random.Shared.NextDouble() * tickRange);
+        return _minStepInterval + TimeSpan.FromTicks(extraTicks);
     }
 }

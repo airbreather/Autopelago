@@ -25,7 +25,8 @@ for (int i = 0, cnt = settings.Slots.Count; i < cnt; i++)
     Random.Shared.NextBytes(MemoryMarshal.AsBytes(MemoryMarshal.CreateSpan(ref seed, 1)));
     ArchipelagoGameRunner runner = new(
         primary: primary,
-        stepInterval: TimeSpan.FromSeconds(slot.OverriddenSettings?.SecondsPerGameStep ?? settings.DefaultSettings.SecondsPerGameStep),
+        minStepInterval: TimeSpan.FromSeconds(slot.OverriddenSettings?.MinSecondsPerGameStep ?? settings.DefaultSettings.MinSecondsPerGameStep),
+        maxStepInterval: TimeSpan.FromSeconds(slot.OverriddenSettings?.MaxSecondsPerGameStep ?? settings.DefaultSettings.MaxSecondsPerGameStep),
         player: new(),
         difficultySettings: new(),
         seed: seed,

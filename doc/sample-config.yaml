@@ -2,7 +2,8 @@ server: "foo.example.com"
 port: 55555
 
 defaultSettings:
-  secondsPerGameStep: 60
+  minSecondsPerGameStep: 60
+  maxSecondsPerGameStep: 90
   movementSpeedMultiplier: 1
 
 slots:
