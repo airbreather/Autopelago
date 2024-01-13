@@ -148,6 +148,7 @@ public sealed class ArchipelagoGameRunner : IDisposable
         await _client.StatusUpdateAsync(ArchipelagoClientStatus.Playing, cancellationToken);
         Task nextDelay = Task.Delay(_stepInterval, cancellationToken);
         long? reportedBlockedTime = null;
+        long lastUpdateTime = Stopwatch.GetTimestamp();
         try
         {
             while (!cancellationToken.IsCancellationRequested)
@@ -196,13 +197,16 @@ public sealed class ArchipelagoGameRunner : IDisposable
             {
                 reportedBlockedTime = null;
             }
-            else
+            else if (reportedBlockedTime is not { } ts || Stopwatch.GetElapsedTime(ts) > TimeSpan.FromMinutes(5))
             {
-                if (reportedBlockedTime is not { } ts || Stopwatch.GetElapsedTime(ts) > TimeSpan.FromMinutes(5))
-                {
-                    await _client.SayAsync("I have nothing to do right now...", cancellationToken);
-                    reportedBlockedTime = Stopwatch.GetTimestamp();
-                }
+                await _client.SayAsync("I have nothing to do right now...", cancellationToken);
+                reportedBlockedTime = Stopwatch.GetTimestamp();
+            }
+
+            if (Stopwatch.GetElapsedTime(lastUpdateTime) > TimeSpan.FromMinutes(2))
+            {
+                await _client.StatusUpdateAsync(ArchipelagoClientStatus.Playing, cancellationToken);
+                lastUpdateTime = Stopwatch.GetTimestamp();
             }
 
             return true;
