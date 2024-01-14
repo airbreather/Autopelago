@@ -310,7 +310,7 @@ public sealed partial class ArchipelagoClient(string server, ushort port) : IDis
         _disposed = true;
     }
 
-    [GeneratedRegex("^ws(?:s)?://", RegexOptions.Compiled | RegexOptions.CultureInvariant | RegexOptions.NonBacktracking)]
+    [GeneratedRegex("^ws(?:s)?://", RegexOptions.Compiled | RegexOptions.CultureInvariant)]
     private static partial Regex HasWebSocketSchemeRegex();
 
     private static ArchipelagoPacketModel[] Deserialize(ReadOnlySequence<byte> buf)

@@ -1,10 +1,33 @@
 using System.Collections.Immutable;
+using System.ComponentModel;
 using System.Diagnostics.CodeAnalysis;
 using System.Text.Json;
 using System.Text.Json.Nodes;
 using System.Text.Json.Serialization;
 
 namespace ArchipelagoClientDotNet;
+
+public enum ArchipelagoDataStorageOperationType
+{
+    Replace,
+    Default,
+    Add,
+    Mul,
+    Pow,
+    Mod,
+    Floor,
+    Ceil,
+    Max,
+    Min,
+    And,
+    Or,
+    Xor,
+    LeftShift,
+    RightShift,
+    Remove,
+    Pop,
+    Update,
+}
 
 public enum ArchipelagoClientStatus
 {
@@ -437,24 +460,25 @@ public sealed record ItemModel
 
 public sealed record DataStorageOperationModel
 {
-    private readonly string _operation = null!;
-
     public string Class = "DataStorageOperation";
 
-    public required string Operation
-    {
-        get => _operation;
-        init => _operation = value switch
-        {
-            "replace" or "default" or "add" or "mul" or
-            "pow" or "mod" or "floor" or "ceil" or "max" or
-            "min" or "and" or "or" or "xor" or "left_shift" or
-            "right_shift" or "remove" or "pop" or "update" => value,
-            _ => throw new ArgumentOutOfRangeException(nameof(value), value, "Unsupported operation"),
-        };
-    }
+    [JsonIgnore]
+    public required ArchipelagoDataStorageOperationType Operation { get; init; }
 
     public required JsonNode Value { get; init; }
+
+    // https://github.com/dotnet/runtime/issues/74385 means that we need to do SOMETHING if we want
+    // this to be an enum (and thus get the compile-time help). use this old trick to have it not
+    // NEED any extra framework support, just a few gray hairs here and there.
+    [Browsable(false)]
+    [EditorBrowsable(EditorBrowsableState.Never)]
+    [JsonPropertyName("operation")]
+    public string OperationForJson => Operation switch
+    {
+        ArchipelagoDataStorageOperationType.LeftShift => "left_shift",
+        ArchipelagoDataStorageOperationType.RightShift => "right_shift",
+        { } other => $"{$"{other}".ToLowerInvariant()}",
+    };
 }
 
 [JsonConverter(typeof(JSONMessagePartModelConverter))]
