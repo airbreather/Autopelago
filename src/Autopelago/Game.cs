@@ -267,6 +267,11 @@ public sealed class Game(GameDifficultySettings difficultySettings, int seed)
         }
 
         await TryNextCheckAsync(player, cancellationToken);
+        if (IsCompleted)
+        {
+            return false;
+        }
+
         await StartTravelingIfNeeded(player, cancellationToken);
         return true;
     }
@@ -346,6 +351,12 @@ public sealed class Game(GameDifficultySettings difficultySettings, int seed)
         await _completedLocationCheckEvent.InvokeAsync(this, new() { Player = player, DifficultySettings = difficultySettings, Location = locationId, InRegion = _currentRegion, ConsecutiveFailureCountBeforeCheck = _numConsecutiveFailures }, cancellationToken);
         _numConsecutiveFailures = 0;
         remainingLocations.RemoveAt(remainingLocations.Count - 1);
+        if (_currentRegion == Region.TryingForGoal)
+        {
+            await _movingToRegionEvent.InvokeAsync(this, new() { Player = player, DifficultySettings = difficultySettings, SourceRegion = Region.TryingForGoal, TargetRegion = Region.CompletedGoal, TotalTravelSteps = 0, RemainingTravelSteps = 0, ResettingFirst = false }, cancellationToken);
+            _currentRegion = Region.CompletedGoal;
+            await _movedToRegionEvent.InvokeAsync(this, new() { Player = player, DifficultySettings = difficultySettings, SourceRegion = Region.TryingForGoal, TargetRegion = Region.CompletedGoal, TotalTravelSteps = 0 }, cancellationToken);
+        }
     }
 
     private async ValueTask<bool> StartTravelingIfNeeded(Player player, CancellationToken cancellationToken)
