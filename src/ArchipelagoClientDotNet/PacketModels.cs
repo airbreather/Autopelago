@@ -573,7 +573,7 @@ internal sealed class JSONMessagePartModelConverter : JsonConverter<JSONMessageP
             "location_name" => new LocationNameJSONMessagePartModel { Text = text, Player = element.GetProperty("player"u8).GetInt32() },
             "entrance_name" => new EntranceNameJSONMessagePartModel { Text = text },
             "color" => new ColorJSONMessagePartModel { Text = text, Color = element.GetProperty("color"u8).GetString()! },
-            string type => new() { Text = text, Type = type },
+            { } type => new() { Text = text, Type = type },
         };
     }
 

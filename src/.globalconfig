@@ -1,0 +1,17 @@
+# Declare types in namespaces
+dotnet_diagnostic.CA1050.severity = none
+
+# Do not declare visible instance fields
+dotnet_diagnostic.CA1051.severity = none
+
+# Specify IFormatProvider
+dotnet_diagnostic.CA1305.severity = none
+
+# Identifiers should not contain underscores
+dotnet_diagnostic.CA1707.severity = none
+
+# Identifiers should not have incorrect suffix
+dotnet_diagnostic.CA1711.severity = none
+
+# Mark members as static
+dotnet_diagnostic.CA1822.severity = none

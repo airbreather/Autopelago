@@ -14,7 +14,7 @@ AutopelagoSettingsModel settings = new DeserializerBuilder()
     .Build()
     .Deserialize<AutopelagoSettingsModel>(settingsYaml);
 
-CancellationTokenSource cts = new();
+using CancellationTokenSource cts = new();
 
 List<ArchipelagoGameRunner> runners = [];
 for (int i = 0, cnt = settings.Slots.Count; i < cnt; i++)

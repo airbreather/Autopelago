@@ -376,7 +376,7 @@ public sealed partial class ArchipelagoClient(string server, ushort port) : IDis
                 RoomUpdatePacketModel roomUpdate => _roomUpdatePacketReceivedEvent.InvokeAsync(this, roomUpdate, cancellationToken),
                 RetrievedPacketModel retrieved => _retrievedPacketReceivedEvent.InvokeAsync(this, retrieved, cancellationToken),
                 SetReplyPacketModel setReply => _setReplyPacketReceivedEvent.InvokeAsync(this, setReply, cancellationToken),
-                _ => new(Task.Run(() => Console.WriteLine("UNRECOGNIZED"))),
+                _ => ValueTask.CompletedTask,
             });
         }
 

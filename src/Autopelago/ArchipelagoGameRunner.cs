@@ -73,33 +73,33 @@ public sealed class ArchipelagoGameRunner : IDisposable
 
     private readonly string? _password;
 
-    private FrozenDictionary<int, string>? _playerNamesBySlot = null;
+    private FrozenDictionary<int, string>? _playerNamesBySlot;
 
-    private FrozenDictionary<string, int>? _playerSlotsByName = null;
+    private FrozenDictionary<string, int>? _playerSlotsByName;
 
-    private FrozenDictionary<long, string>? _allLocationNamesById = null;
+    private FrozenDictionary<long, string>? _allLocationNamesById;
 
-    private FrozenDictionary<long, string>? _allItemNamesById = null;
+    private FrozenDictionary<long, string>? _allItemNamesById;
 
-    private FrozenDictionary<string, long>? _allLocationIdsByName = null;
+    private FrozenDictionary<string, long>? _allLocationIdsByName;
 
-    private FrozenDictionary<string, long>? _allItemIdsByName = null;
+    private FrozenDictionary<string, long>? _allItemIdsByName;
 
-    private FrozenDictionary<long, string>? _myLocationNamesById = null;
+    private FrozenDictionary<long, string>? _myLocationNamesById;
 
-    private FrozenDictionary<long, string>? _myItemNamesById = null;
+    private FrozenDictionary<long, string>? _myItemNamesById;
 
-    private FrozenDictionary<string, long>? _myLocationIdsByName = null;
+    private FrozenDictionary<string, long>? _myLocationIdsByName;
 
-    private FrozenDictionary<string, long>? _myItemIdsByName = null;
+    private FrozenDictionary<string, long>? _myItemIdsByName;
 
-    private HashSet<long>? _myLocationsNotYetSent = null;
+    private HashSet<long>? _myLocationsNotYetSent;
 
-    private HashSet<long>? _myItemsNotYetReceived = null;
+    private HashSet<long>? _myItemsNotYetReceived;
 
-    private long[]? _allMyLocations = null;
+    private long[]? _allMyLocations;
 
-    private long[]? _allMyItems = null;
+    private long[]? _allMyItems;
 
     public ArchipelagoGameRunner(bool primary, TimeSpan minStepInterval, TimeSpan maxStepInterval, Player player, GameDifficultySettings difficultySettings, int seed, string server, ushort port, string gameName, string slot, string? password)
     {
