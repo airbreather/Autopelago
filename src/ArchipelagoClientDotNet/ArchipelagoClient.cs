@@ -201,7 +201,7 @@ public sealed partial class ArchipelagoClient(string server, ushort port) : IDis
             {
                 await ProcessNextMessageAsync(_cts.Token);
             }
-        });
+        }, CancellationToken.None);
 
         return result;
     }
