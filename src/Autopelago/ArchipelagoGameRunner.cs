@@ -142,7 +142,7 @@ public sealed class ArchipelagoGameRunner : IDisposable
 
         long averageSteps = await CalculateAverageStepsAsync(_seed, _difficultySettings, _player, cancellationToken);
         TimeSpan medianStepInterval = (_minStepInterval + _maxStepInterval) / 2;
-        await _client.SayAsync($"With my current settings, a non-randomized playthrough would take {(medianStepInterval * averageSteps).TotalMinutes:N2} minutes to complete.", cancellationToken);
+        await _client.SayAsync($"With my current settings, a non-randomized playthrough would take {(medianStepInterval * averageSteps).FormatMyWay()} to complete.", cancellationToken);
 
         _game.CompletedLocationCheck += OnCompletedLocationCheckAsync;
         _game.FailedLocationCheck += OnFailedLocationCheckAsync;
@@ -346,9 +346,9 @@ public sealed class ArchipelagoGameRunner : IDisposable
 
         await Helper.ConfigureAwaitFalse();
 
-        int actualTravelSteps = (args.TotalTravelSteps + _player.MovementSpeed - 1) / _player.MovementSpeed;
+        int actualTravelSteps = (args.RemainingTravelSteps + _player.MovementSpeed - 1) / _player.MovementSpeed;
         TimeSpan medianStepInterval = (_maxStepInterval + _minStepInterval) / 2;
-        await _client.SayAsync($"Moving to {args.TargetRegion} (travel time: ~{actualTravelSteps * medianStepInterval.TotalSeconds:N0}s)", cancellationToken);
+        await _client.SayAsync($"Moving to {args.TargetRegion} (remaining: ~{(actualTravelSteps * medianStepInterval).FormatMyWay()})", cancellationToken);
     }
 
     private async ValueTask OnMovedToRegionAsync(object? sender, MovedToRegionEventArgs args, CancellationToken cancellationToken)

@@ -9,6 +9,21 @@ public static class Helper
     public static void Throw(this Exception[] exceptions) => throw new AggregateException(exceptions);
     public static void Throw(this Exception[] exceptions, string? message) => throw new AggregateException(message, exceptions);
 
+    public static string FormatMyWay(this TimeSpan @this)
+    {
+        if (@this.TotalDays >= 1)
+        {
+            return $"{@this:d\\:hh\\:mm\\:ss}";
+        }
+
+        if (@this.TotalHours >= 1)
+        {
+            return $"{@this:h\\:mm\\:ss}";
+        }
+
+        return $"{@this:m\\:ss}";
+    }
+
     public static GetOffSyncContextAwaitableAndAwaiter ConfigureAwaitFalse() => default;
 
     public readonly struct GetOffSyncContextAwaitableAndAwaiter : INotifyCompletion

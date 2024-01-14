@@ -15,6 +15,8 @@ public sealed record MovingToRegionEventArgs : GameStateUpdateEventArgs
 
     public required Region TargetRegion { get; init; }
 
+    public required int RemainingTravelSteps { get; init; }
+
     public required int TotalTravelSteps { get; init; }
 }
 
@@ -325,7 +327,7 @@ public sealed class Game(GameDifficultySettings difficultySettings, int seed)
         _travelStepsRemaining = s_regionDistances[(_currentRegion, bestNextRegion)] * difficultySettings.RegionChangeSteps;
         _sourceRegion = _currentRegion;
         _currentRegion = Region.Traveling;
-        await _movingToRegionEvent.InvokeAsync(this, new() { Player = player, DifficultySettings = difficultySettings, SourceRegion = _sourceRegion.Value, TargetRegion = bestNextRegion, TotalTravelSteps = _travelStepsRemaining }, cancellationToken);
+        await _movingToRegionEvent.InvokeAsync(this, new() { Player = player, DifficultySettings = difficultySettings, SourceRegion = _sourceRegion.Value, TargetRegion = bestNextRegion, RemainingTravelSteps = _travelStepsRemaining, TotalTravelSteps = _travelStepsRemaining }, cancellationToken);
         if (_travelStepsRemaining > 0)
         {
             _destinationRegion = bestNextRegion;
@@ -346,6 +348,7 @@ public sealed class Game(GameDifficultySettings difficultySettings, int seed)
         _travelStepsRemaining -= player.MovementSpeed;
         if (_travelStepsRemaining >= 0)
         {
+            await _movingToRegionEvent.InvokeAsync(this, new() { Player = player, DifficultySettings = difficultySettings, SourceRegion = _sourceRegion!.Value, TargetRegion = _destinationRegion!.Value, RemainingTravelSteps = _travelStepsRemaining, TotalTravelSteps = s_regionDistances[(_sourceRegion.Value, _destinationRegion.Value)] }, cancellationToken);
             return;
         }
 
