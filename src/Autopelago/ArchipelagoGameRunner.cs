@@ -140,7 +140,7 @@ public sealed class ArchipelagoGameRunner : IDisposable
             return false;
         }
 
-        long averageSteps = await CalculateAverageStepsAsync(_seed, _difficultySettings, _player);
+        long averageSteps = await CalculateAverageStepsAsync(_seed, _difficultySettings, _player, cancellationToken);
         TimeSpan medianStepInterval = (_minStepInterval + _maxStepInterval) / 2;
         await _client.SayAsync($"With my current settings, a non-randomized playthrough would take {(medianStepInterval * averageSteps).TotalMinutes:N2} minutes to complete.", cancellationToken);
 
@@ -363,14 +363,14 @@ public sealed class ArchipelagoGameRunner : IDisposable
         await _client.SayAsync($"Arrived at {args.TargetRegion}.", cancellationToken);
     }
 
-    private async ValueTask<long> CalculateAverageStepsAsync(int seed, GameDifficultySettings difficultySettings, Player player)
+    private async ValueTask<long> CalculateAverageStepsAsync(int seed, GameDifficultySettings difficultySettings, Player player, CancellationToken cancellationToken)
     {
         await Helper.ConfigureAwaitFalse();
         long simulatedTotalStepCount = 0;
         long locationGoal = Game.s_locationsByRegion[Region.TryingForGoal].Single();
 
         const int SimulationCount = 100_000;
-        await Parallel.ForAsync(0, SimulationCount, async (i, cancellationToken) =>
+        await Parallel.ForAsync(0, SimulationCount, cancellationToken, async (i, cancellationToken) =>
         {
             await Helper.ConfigureAwaitFalse();
             Game simulatedGame = new(difficultySettings, seed + i);
@@ -385,6 +385,7 @@ public sealed class ArchipelagoGameRunner : IDisposable
             long currentGameStepCount = 0;
             while (!simulatedGame.IsCompleted)
             {
+                cancellationToken.ThrowIfCancellationRequested();
                 await simulatedGame.StepAsync(player, cancellationToken);
                 ++currentGameStepCount;
                 if (itemToSendBeforeNextStep is { } location)
