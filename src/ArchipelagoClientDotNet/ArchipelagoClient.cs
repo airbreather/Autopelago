@@ -2,6 +2,7 @@ using System.Buffers;
 using System.Collections.Immutable;
 using System.Net.WebSockets;
 using System.Text.Json;
+using System.Text.Json.Nodes;
 using System.Text.Json.Serialization;
 using System.Text.RegularExpressions;
 
@@ -42,6 +43,10 @@ public sealed partial class ArchipelagoClient(string server, ushort port) : IDis
     private readonly AsyncEvent<PrintJSONPacketModel> _printJSONPacketReceivedEvent = new();
 
     private readonly AsyncEvent<RoomUpdatePacketModel> _roomUpdatePacketReceivedEvent = new();
+
+    private readonly AsyncEvent<RetrievedPacketModel> _retrievedPacketReceivedEvent = new();
+
+    private readonly AsyncEvent<SetReplyPacketModel> _setReplyPacketReceivedEvent = new();
 
     private readonly SemaphoreSlim _writerLock = new(1, 1);
 
@@ -107,6 +112,18 @@ public sealed partial class ArchipelagoClient(string server, ushort port) : IDis
     {
         add => _roomUpdatePacketReceivedEvent.Add(value);
         remove => _roomUpdatePacketReceivedEvent.Remove(value);
+    }
+
+    public event AsyncEventHandler<RetrievedPacketModel> RetrievedPacketReceived
+    {
+        add => _retrievedPacketReceivedEvent.Add(value);
+        remove => _retrievedPacketReceivedEvent.Remove(value);
+    }
+
+    public event AsyncEventHandler<SetReplyPacketModel> SetReplyPacketReceived
+    {
+        add => _setReplyPacketReceivedEvent.Add(value);
+        remove => _setReplyPacketReceivedEvent.Remove(value);
     }
 
     public async ValueTask<bool> TryConnectAsync(string game, string slot, string? password = null, CancellationToken cancellationToken = default)
@@ -210,6 +227,63 @@ public sealed partial class ArchipelagoClient(string server, ushort port) : IDis
         await WriteNextAsync(statusUpdate, cancellationToken);
     }
 
+    public async ValueTask<RetrievedPacketModel> GetAsync(ImmutableArray<string> keys, CancellationToken cancellationToken = default)
+    {
+        await Helper.ConfigureAwaitFalse();
+        GetPacketModel[] @get = [ new() { Keys = keys } ];
+        TaskCompletionSource<RetrievedPacketModel> replyTcs = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        RetrievedPacketReceived += OnRetrievedPacketReceivedAsync;
+        using (cancellationToken.Register(() => RetrievedPacketReceived -= OnRetrievedPacketReceivedAsync))
+        {
+            await WriteNextAsync(@get, cancellationToken);
+            return await replyTcs.Task.WaitAsync(cancellationToken);
+        }
+
+        ValueTask OnRetrievedPacketReceivedAsync(object? sender, RetrievedPacketModel retrieved, CancellationToken cancellationToken)
+        {
+            RetrievedPacketReceived -= OnRetrievedPacketReceivedAsync;
+            replyTcs.TrySetResult(retrieved);
+            return ValueTask.CompletedTask;
+        }
+    }
+
+    public async ValueTask<SetReplyPacketModel?> SetAsync(string key, ImmutableArray<DataStorageOperationModel> operations, JsonNode? @default = null, bool wantReply = false, CancellationToken cancellationToken = default)
+    {
+        await Helper.ConfigureAwaitFalse();
+        SetPacketModel[] @set =
+        [
+            new()
+            {
+                Key = key,
+                Operations = operations,
+                Default = @default,
+                WantReply = wantReply,
+            },
+        ];
+        if (wantReply)
+        {
+            TaskCompletionSource<SetReplyPacketModel> replyTcs = new(TaskCreationOptions.RunContinuationsAsynchronously);
+            SetReplyPacketReceived += OnSetReplyPacketReceivedAsync;
+            using (cancellationToken.Register(() => SetReplyPacketReceived -= OnSetReplyPacketReceivedAsync))
+            {
+                await WriteNextAsync(@set, cancellationToken);
+                return await replyTcs.Task.WaitAsync(cancellationToken);
+            }
+
+            ValueTask OnSetReplyPacketReceivedAsync(object? sender, SetReplyPacketModel setReply, CancellationToken cancellationToken)
+            {
+                SetReplyPacketReceived -= OnSetReplyPacketReceivedAsync;
+                replyTcs.TrySetResult(setReply);
+                return ValueTask.CompletedTask;
+            }
+        }
+        else
+        {
+            await WriteNextAsync(@set, cancellationToken);
+            return null;
+        }
+    }
+
     public async ValueTask StopAsync(CancellationToken cancellationToken = default)
     {
         ObjectDisposedException.ThrowIf(_disposed, this);
@@ -300,6 +374,8 @@ public sealed partial class ArchipelagoClient(string server, ushort port) : IDis
                 ReceivedItemsPacketModel receivedItems => _receivedItemsPacketReceivedEvent.InvokeAsync(this, receivedItems, cancellationToken),
                 PrintJSONPacketModel printJSON => _printJSONPacketReceivedEvent.InvokeAsync(this, printJSON, cancellationToken),
                 RoomUpdatePacketModel roomUpdate => _roomUpdatePacketReceivedEvent.InvokeAsync(this, roomUpdate, cancellationToken),
+                RetrievedPacketModel retrieved => _retrievedPacketReceivedEvent.InvokeAsync(this, retrieved, cancellationToken),
+                SetReplyPacketModel setReply => _setReplyPacketReceivedEvent.InvokeAsync(this, setReply, cancellationToken),
                 _ => new(Task.Run(() => Console.WriteLine("UNRECOGNIZED"))),
             });
         }

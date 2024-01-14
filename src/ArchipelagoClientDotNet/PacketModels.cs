@@ -64,6 +64,10 @@ public enum ArchipelagoItemsHandlingFlags
 [JsonDerivedType(typeof(LocationChecksPacketModel), "LocationChecks")]
 [JsonDerivedType(typeof(RoomUpdatePacketModel), "RoomUpdate")]
 [JsonDerivedType(typeof(StatusUpdatePacketModel), "StatusUpdate")]
+[JsonDerivedType(typeof(GetPacketModel), "Get")]
+[JsonDerivedType(typeof(RetrievedPacketModel), "Retrieved")]
+[JsonDerivedType(typeof(SetPacketModel), "Set")]
+[JsonDerivedType(typeof(SetReplyPacketModel), "SetReply")]
 public record ArchipelagoPacketModel
 {
     [JsonExtensionData]
@@ -319,6 +323,37 @@ public sealed record StatusUpdatePacketModel : ArchipelagoPacketModel
     public required ArchipelagoClientStatus Status { get; init; }
 }
 
+public sealed record GetPacketModel : ArchipelagoPacketModel
+{
+    public required ImmutableArray<string> Keys { get; init; }
+}
+
+public sealed record RetrievedPacketModel : ArchipelagoPacketModel
+{
+    public required Dictionary<string, JsonElement> Keys { get; init; }
+}
+
+public sealed record SetPacketModel : ArchipelagoPacketModel
+{
+    public required string Key { get; init; }
+
+    public required ImmutableArray<DataStorageOperationModel> Operations { get; init; }
+
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]
+    public JsonNode? Default { get; init; }
+
+    public bool WantReply { get; init; }
+}
+
+public sealed record SetReplyPacketModel : ArchipelagoPacketModel
+{
+    public required string Key { get; init; }
+
+    public required JsonElement Value { get; init; }
+
+    public JsonElement? OriginalValue { get; init; }
+}
+
 public sealed record PlayerModel
 {
     public string Class => "Player";
@@ -398,6 +433,28 @@ public sealed record ItemModel
     public required int Player { get; init; }
 
     public required ArchipelagoItemFlags Flags { get; init; }
+}
+
+public sealed record DataStorageOperationModel
+{
+    private readonly string _operation = null!;
+
+    public string Class = "DataStorageOperation";
+
+    public required string Operation
+    {
+        get => _operation;
+        init => _operation = value switch
+        {
+            "replace" or "default" or "add" or "mul" or
+            "pow" or "mod" or "floor" or "ceil" or "max" or
+            "min" or "and" or "or" or "xor" or "left_shift" or
+            "right_shift" or "remove" or "pop" or "update" => value,
+            _ => throw new ArgumentOutOfRangeException(nameof(value), value, "Unsupported operation"),
+        };
+    }
+
+    public required JsonNode Value { get; init; }
 }
 
 [JsonConverter(typeof(JSONMessagePartModelConverter))]
