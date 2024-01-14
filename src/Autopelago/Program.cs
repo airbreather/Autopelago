@@ -33,7 +33,7 @@ for (int i = 0, cnt = settings.Slots.Count; i < cnt; i++)
         server: settings.Server,
         port: settings.Port,
         gameName: settings.GameName,
-        slot: slot.Name,
+        slotName: slot.Name,
         password: slot.Password
     );
     runners.Add(runner);

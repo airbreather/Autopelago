@@ -353,7 +353,7 @@ public sealed record GetPacketModel : ArchipelagoPacketModel
 
 public sealed record RetrievedPacketModel : ArchipelagoPacketModel
 {
-    public required Dictionary<string, JsonElement> Keys { get; init; }
+    public required Dictionary<string, JsonElement> Keys { get; init; } = [];
 }
 
 public sealed record SetPacketModel : ArchipelagoPacketModel

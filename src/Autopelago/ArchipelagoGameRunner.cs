@@ -1,11 +1,27 @@
 using System.Collections.Frozen;
 using System.Collections.Immutable;
 using System.Diagnostics;
+using System.Text.Json;
+using System.Text.Json.Serialization;
 
 using ArchipelagoClientDotNet;
 
+[JsonSourceGenerationOptions(
+    PropertyNamingPolicy = JsonKnownNamingPolicy.SnakeCaseLower,
+    UseStringEnumConverter = true)]
+[JsonSerializable(typeof(PersistentState))]
+internal sealed partial class SourceGenerationContext : JsonSerializerContext
+{
+}
+
 public sealed class ArchipelagoGameRunner : IDisposable
 {
+    private static readonly JsonSerializerOptions s_jsonSerializerOptions = new()
+    {
+        PropertyNamingPolicy = JsonNamingPolicy.SnakeCaseLower,
+        TypeInfoResolver = SourceGenerationContext.Default,
+    };
+
     private static readonly Dictionary<string, ItemType> s_progressiveItemTypeByName = new()
     {
         ["Set of Three Seashells"] = ItemType.Rat,
@@ -69,13 +85,17 @@ public sealed class ArchipelagoGameRunner : IDisposable
 
     private readonly string _gameName;
 
-    private readonly string _slot;
+    private readonly string _slotName;
 
     private readonly string? _password;
 
-    private FrozenDictionary<int, string>? _playerNamesBySlot;
+    private int? _team;
 
-    private FrozenDictionary<string, int>? _playerSlotsByName;
+    private int? _slotNumber;
+
+    private FrozenDictionary<int, (int Team, string Name)>? _playerNamesBySlot;
+
+    private FrozenDictionary<(int Team, string Name), int>? _playerSlotsByName;
 
     private FrozenDictionary<long, string>? _allLocationNamesById;
 
@@ -93,15 +113,11 @@ public sealed class ArchipelagoGameRunner : IDisposable
 
     private FrozenDictionary<string, long>? _myItemIdsByName;
 
-    private HashSet<long>? _myLocationsNotYetSent;
-
-    private HashSet<long>? _myItemsNotYetReceived;
-
     private long[]? _allMyLocations;
 
     private long[]? _allMyItems;
 
-    public ArchipelagoGameRunner(bool primary, TimeSpan minStepInterval, TimeSpan maxStepInterval, Player player, GameDifficultySettings difficultySettings, int seed, string server, ushort port, string gameName, string slot, string? password)
+    public ArchipelagoGameRunner(bool primary, TimeSpan minStepInterval, TimeSpan maxStepInterval, Player player, GameDifficultySettings difficultySettings, int seed, string server, ushort port, string gameName, string slotName, string? password)
     {
         _minStepInterval = minStepInterval;
         _maxStepInterval = maxStepInterval;
@@ -111,7 +127,7 @@ public sealed class ArchipelagoGameRunner : IDisposable
         _game = new(_difficultySettings, _seed);
         _client = new(server, port);
         _gameName = gameName;
-        _slot = slot;
+        _slotName = slotName;
         _password = password;
 
         // if this is true, we'll just find gaps inside the existing item ranges and exit.
@@ -135,14 +151,29 @@ public sealed class ArchipelagoGameRunner : IDisposable
     public async Task<bool> TryRunGameAsync(CancellationToken cancellationToken)
     {
         await Helper.ConfigureAwaitFalse();
-        if (!await _client.TryConnectAsync(_gameName, _slot, _password, cancellationToken))
+        if (!await _client.TryConnectAsync(_gameName, _slotName, _password, cancellationToken))
         {
             return false;
         }
 
-        long averageSteps = await CalculateAverageStepsAsync(_seed, _difficultySettings, _player, cancellationToken);
-        TimeSpan medianStepInterval = (_minStepInterval + _maxStepInterval) / 2;
-        await _client.SayAsync($"With my current settings, a non-randomized playthrough would take {(medianStepInterval * averageSteps).FormatMyWay()} to complete.", cancellationToken);
+        bool resuming = false;
+        string stateKey = $"autopelago_state_{_team}_{_slotNumber}";
+        RetrievedPacketModel gameStatePacket = await _client.GetAsync([stateKey], cancellationToken);
+        if (gameStatePacket.Keys.TryGetValue(stateKey, out JsonElement element))
+        {
+            if (JsonSerializer.Deserialize<PersistentState>(element, s_jsonSerializerOptions) is PersistentState state)
+            {
+                _game.InitState(state);
+                resuming = true;
+            }
+        }
+
+        if (!resuming)
+        {
+            long averageSteps = await CalculateAverageStepsAsync(_seed, _difficultySettings, _player, cancellationToken);
+            TimeSpan medianStepInterval = (_minStepInterval + _maxStepInterval) / 2;
+            await _client.SayAsync($"With my current settings, a non-randomized playthrough would take {(medianStepInterval * averageSteps).FormatMyWay()} to complete.", cancellationToken);
+        }
 
         _game.CompletedLocationCheck += OnCompletedLocationCheckAsync;
         _game.FailedLocationCheck += OnFailedLocationCheckAsync;
@@ -200,6 +231,12 @@ public sealed class ArchipelagoGameRunner : IDisposable
             if (step)
             {
                 reportedBlockedTime = null;
+                DataStorageOperationModel operation = new()
+                {
+                    Operation = ArchipelagoDataStorageOperationType.Replace,
+                    Value = JsonSerializer.SerializeToNode(_game.State, s_jsonSerializerOptions)!,
+                };
+                await _client.SetAsync(stateKey, [operation], cancellationToken: cancellationToken);
             }
             else if (reportedBlockedTime is not { } ts || Stopwatch.GetElapsedTime(ts) > TimeSpan.FromMinutes(5))
             {
@@ -245,9 +282,6 @@ public sealed class ArchipelagoGameRunner : IDisposable
         _allMyLocations = [..myGame.LocationNameToId.Values.Order()];
         _allMyItems = [..myGame.ItemNameToId.Values.Order()];
 
-        _myLocationsNotYetSent = [.._allMyLocations];
-        _myItemsNotYetReceived = [.._allMyItems];
-
         _myLocationIdsByName = myGame.LocationNameToId.ToFrozenDictionary();
         _myItemIdsByName = myGame.ItemNameToId.ToFrozenDictionary();
 
@@ -259,8 +293,10 @@ public sealed class ArchipelagoGameRunner : IDisposable
 
     private ValueTask OnConnectedPacketReceived(object? sender, ConnectedPacketModel connected, CancellationToken cancellationToken)
     {
-        _playerNamesBySlot = connected.Players.ToFrozenDictionary(p => p.Slot, p => p.Name);
-        _playerSlotsByName = connected.Players.ToFrozenDictionary(p => p.Name, p => p.Slot);
+        _team = connected.Team;
+        _slotNumber = connected.Slot;
+        _playerNamesBySlot = connected.Players.ToFrozenDictionary(p => p.Slot, p => (p.Team, p.Name));
+        _playerSlotsByName = connected.Players.ToFrozenDictionary(p => (p.Team, p.Name), p => p.Slot);
         foreach (long locationId in connected.CheckedLocations)
         {
             _game.MarkLocationChecked(locationId);
@@ -294,7 +330,7 @@ public sealed class ArchipelagoGameRunner : IDisposable
         {
             Console.Write(part switch
             {
-                PlayerIdJSONMessagePartModel playerId => _playerNamesBySlot![int.Parse(playerId.Text)],
+                PlayerIdJSONMessagePartModel playerId => _playerNamesBySlot![int.Parse(playerId.Text)].Name,
                 ItemIdJSONMessagePartModel itemId => _allItemNamesById![long.Parse(itemId.Text)],
                 LocationIdJSONMessagePartModel locationId => _allLocationNamesById![long.Parse(locationId.Text)],
                 _ => part.Text,
@@ -338,21 +374,21 @@ public sealed class ArchipelagoGameRunner : IDisposable
 
     private async ValueTask OnGameReset(object? sender, ResetGameEventArgs args, CancellationToken cancellationToken)
     {
-        switch (args.Reasons)
+        switch (args.State.ReasonsToReset)
         {
             case ResetReasons.FasterTravelTime:
                 await _client.SayAsync("Finished a reset for better travel time.", cancellationToken);
                 break;
 
             default:
-                await _client.SayAsync($"Finished resetting the game for a combination of reasons that Joe hasn't written a special message for yet: {args.Reasons}.", cancellationToken);
+                await _client.SayAsync($"Finished resetting the game for a combination of reasons that Joe hasn't written a special message for yet: {args.State.ReasonsToReset}.", cancellationToken);
                 break;
         }
     }
 
     private async ValueTask OnMovingToRegionAsync(object? sender, MovingToRegionEventArgs args, CancellationToken cancellationToken)
     {
-        if (args.TotalTravelSteps == 0)
+        if (args.TotalTravelUnits == 0)
         {
             // we'll immediately do a check, no need to communicate extra.
             return;
@@ -360,28 +396,28 @@ public sealed class ArchipelagoGameRunner : IDisposable
 
         await Helper.ConfigureAwaitFalse();
 
-        int actualTravelSteps = (args.RemainingTravelSteps + _player.MovementSpeed - 1) / _player.MovementSpeed;
+        int actualTravelSteps = (args.State.TravelUnitsRemaining + _player.MovementSpeed - 1) / _player.MovementSpeed;
         TimeSpan medianStepInterval = (_maxStepInterval + _minStepInterval) / 2;
-        if (args.ResettingFirst)
+        if (args.State.ReasonsToReset.HasFlag(ResetReasons.FasterTravelTime))
         {
-            await _client.SayAsync($"Moving to {args.TargetRegion} (remaining: ~{(actualTravelSteps * medianStepInterval).FormatMyWay()} after game reset)", cancellationToken);
+            await _client.SayAsync($"Moving to {args.State.DestinationRegion} (remaining: ~{(actualTravelSteps * medianStepInterval).FormatMyWay()} after game reset)", cancellationToken);
         }
         else
         {
-            await _client.SayAsync($"Moving to {args.TargetRegion} (remaining: ~{(actualTravelSteps * medianStepInterval).FormatMyWay()})", cancellationToken);
+            await _client.SayAsync($"Moving to {args.State.DestinationRegion} (remaining: ~{(actualTravelSteps * medianStepInterval).FormatMyWay()})", cancellationToken);
         }
     }
 
     private async ValueTask OnMovedToRegionAsync(object? sender, MovedToRegionEventArgs args, CancellationToken cancellationToken)
     {
-        if (args.TotalTravelSteps == 0)
+        if (args.TotalTravelUnits == 0)
         {
             // we'll immediately do a check, no need to communicate extra.
             return;
         }
 
         await Helper.ConfigureAwaitFalse();
-        await _client.SayAsync($"Arrived at {args.TargetRegion}.", cancellationToken);
+        await _client.SayAsync($"Arrived at {args.State.CurrentRegion}.", cancellationToken);
     }
 
     private async ValueTask<long> CalculateAverageStepsAsync(int seed, GameDifficultySettings difficultySettings, Player player, CancellationToken cancellationToken)
