@@ -336,6 +336,20 @@ public sealed class ArchipelagoGameRunner : IDisposable
         await _client.SayAsync($"failed a check ({_myLocationNamesById![args.Location]})", cancellationToken);
     }
 
+    private async ValueTask OnGameReset(object? sender, ResetGameEventArgs args, CancellationToken cancellationToken)
+    {
+        switch (args.Reasons)
+        {
+            case ResetReasons.FasterTravelTime:
+                await _client.SayAsync("Finished a reset for better travel time.", cancellationToken);
+                break;
+
+            default:
+                await _client.SayAsync($"Finished resetting the game for a combination of reasons that Joe hasn't written a special message for yet: {args.Reasons}.", cancellationToken);
+                break;
+        }
+    }
+
     private async ValueTask OnMovingToRegionAsync(object? sender, MovingToRegionEventArgs args, CancellationToken cancellationToken)
     {
         if (args.TotalTravelSteps == 0)
@@ -348,7 +362,14 @@ public sealed class ArchipelagoGameRunner : IDisposable
 
         int actualTravelSteps = (args.RemainingTravelSteps + _player.MovementSpeed - 1) / _player.MovementSpeed;
         TimeSpan medianStepInterval = (_maxStepInterval + _minStepInterval) / 2;
-        await _client.SayAsync($"Moving to {args.TargetRegion} (remaining: ~{(actualTravelSteps * medianStepInterval).FormatMyWay()})", cancellationToken);
+        if (args.ResettingFirst)
+        {
+            await _client.SayAsync($"Moving to {args.TargetRegion} (remaining: ~{(actualTravelSteps * medianStepInterval).FormatMyWay()} after game reset)", cancellationToken);
+        }
+        else
+        {
+            await _client.SayAsync($"Moving to {args.TargetRegion} (remaining: ~{(actualTravelSteps * medianStepInterval).FormatMyWay()})", cancellationToken);
+        }
     }
 
     private async ValueTask OnMovedToRegionAsync(object? sender, MovedToRegionEventArgs args, CancellationToken cancellationToken)
