@@ -287,6 +287,7 @@ public sealed class ArchipelagoGameRunner : IDisposable
 
     private ValueTask OnPrintJSONPacketReceived(object? sender, PrintJSONPacketModel packet, CancellationToken cancellationToken)
     {
+        Console.Write($"[{DateTime.Now:G}] -> ");
         foreach (JSONMessagePartModel part in packet.Data)
         {
             Console.Write(part switch
