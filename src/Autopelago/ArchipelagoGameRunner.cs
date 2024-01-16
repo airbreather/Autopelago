@@ -22,48 +22,14 @@ public sealed class ArchipelagoGameRunner : IDisposable
         TypeInfoResolver = SourceGenerationContext.Default,
     };
 
-    private static readonly Dictionary<string, ItemType> s_progressiveItemTypeByName = new()
+    private static readonly Dictionary<string, ItemType> s_keyItemTypeByName = new()
     {
-        ["Set of Three Seashells"] = ItemType.Rat,
-        ["Chewed Bar of Soap"] = ItemType.Rat,
-        ["Refreshing Glass of Lemonade"] = ItemType.Rat,
-        ["Empty Snail Shell"] = ItemType.Rat,
-        ["Bag of Powdered Sugar"] = ItemType.Rat,
-        ["Half of a Worm"] = ItemType.Rat,
-        ["Loose Screw"] = ItemType.Rat,
-        ["Organic Apple Core"] = ItemType.Rat,
-        ["AAAAAA battery"] = ItemType.Rat,
-        ["Faux Dalmation-Skin Coat"] = ItemType.Rat,
-        ["Off-brand Soda Can"] = ItemType.Rat,
-        ["Generic Green Slime"] = ItemType.Rat,
-        ["Handful of Loose Marbles"] = ItemType.Rat,
-        ["Discarded Video Game Cartridge"] = ItemType.Rat,
-        ["Packet of Ketchup"] = ItemType.Rat,
-        ["An Entire Roast Chicken"] = ItemType.Rat,
-        ["Actual Lava Lamp"] = ItemType.Rat,
-        ["Soup with a Hair in it"] = ItemType.Rat,
-        ["Proof that Aliens Exist"] = ItemType.Rat,
-        ["Small chain of Islands"] = ItemType.Rat,
-        ["Pluto"] = ItemType.Rat,
-        ["Too Many Crabs"] = ItemType.Rat,
-        ["Oxford Comma"] = ItemType.Rat,
-        ["Printer Driver Disc"] = ItemType.Rat,
-        ["Ticket for the Off-broadway Musical Rats"] = ItemType.Rat,
-        ["Can of Spam"] = ItemType.Rat,
-        ["Human-sized Skateboard"] = ItemType.Rat,
-        ["Holographic Draw Four Card"] = ItemType.Rat,
-        ["Loose Staples"] = ItemType.Rat,
-        ["Beanie Baby in a Pot of Chili"] = ItemType.Rat,
-        ["Red Cape"] = ItemType.Rat,
-        ["Radio Controlled Car"] = ItemType.Rat,
-        ["Lovely Bunch of Coconuts"] = ItemType.Rat,
-        ["Dihydrogen Monoxide"] = ItemType.Rat,
-        ["Taco Salad that is Only Tacos"] = ItemType.A,
-        ["Blue Turtle Shell"] = ItemType.B,
-        ["Statue of David's Dog"] = ItemType.C,
-        ["Yesterday's Horoscope"] = ItemType.D,
-        ["Aggressive Post-it Notes"] = ItemType.E,
-        ["Cheesnado"] = ItemType.F,
+        ["A Cookie"] = ItemType.A,
+        ["Fresh Banana Peel"] = ItemType.B,
+        ["MacGuffin"] = ItemType.C,
+        ["Blue Turtle Shell"] = ItemType.D,
+        ["Red Matador\'s Cape"] = ItemType.E,
+        ["Pair of Fake Mouse Ears"] = ItemType.F,
         ["Lockheed SR-71 Blackbird"] = ItemType.Goal,
     };
 
@@ -156,7 +122,6 @@ public sealed class ArchipelagoGameRunner : IDisposable
             return false;
         }
 
-        bool resuming = false;
         string stateKey = $"autopelago_state_{_team}_{_slotNumber}";
         RetrievedPacketModel gameStatePacket = await _client.GetAsync([stateKey], cancellationToken);
         if (gameStatePacket.Keys.TryGetValue(stateKey, out JsonElement element))
@@ -164,15 +129,7 @@ public sealed class ArchipelagoGameRunner : IDisposable
             if (JsonSerializer.Deserialize<PersistentState>(element, s_jsonSerializerOptions) is PersistentState state)
             {
                 _game.InitState(state);
-                resuming = true;
             }
-        }
-
-        if (!resuming)
-        {
-            long averageSteps = await CalculateAverageStepsAsync(_seed, _difficultySettings, _player, cancellationToken);
-            TimeSpan medianStepInterval = (_minStepInterval + _maxStepInterval) / 2;
-            await _client.SayAsync($"With my current settings, a non-randomized playthrough would take {(medianStepInterval * averageSteps).FormatMyWay()} to complete.", cancellationToken);
         }
 
         _game.CompletedLocationCheck += OnCompletedLocationCheckAsync;
@@ -313,9 +270,8 @@ public sealed class ArchipelagoGameRunner : IDisposable
         {
             foreach (ItemModel item in receivedItems.Items)
             {
-                string name = _myItemNamesById![item.Item];
-                bool isAdvancement = item.Flags.HasFlag(ArchipelagoItemFlags.LogicalAdvancement);
-                _game.ReceiveItem(item.Item, isAdvancement ? s_progressiveItemTypeByName[name] : ItemType.Filler);
+                ItemType itemType = Classify(item);
+                _game.ReceiveItem(item.Item, itemType);
             }
         }
         finally
@@ -420,45 +376,6 @@ public sealed class ArchipelagoGameRunner : IDisposable
         await _client.SayAsync($"Arrived at {args.State.CurrentRegion}.", cancellationToken);
     }
 
-    private async ValueTask<long> CalculateAverageStepsAsync(int seed, GameDifficultySettings difficultySettings, Player player, CancellationToken cancellationToken)
-    {
-        await Helper.ConfigureAwaitFalse();
-        long simulatedTotalStepCount = 0;
-        long locationGoal = Game.s_locationsByRegion[Region.TryingForGoal].Single();
-
-        const int SimulationCount = 100_000;
-        await Parallel.ForAsync(0, SimulationCount, cancellationToken, async (i, cancellationToken) =>
-        {
-            await Helper.ConfigureAwaitFalse();
-            Game simulatedGame = new(difficultySettings, seed + i);
-            long? itemToSendBeforeNextStep = null;
-            simulatedGame.CompletedLocationCheck += SimulatedOnCompletedLocationCheckAsync;
-            ValueTask SimulatedOnCompletedLocationCheckAsync(object? sender, CompletedLocationCheckEventArgs args, CancellationToken cancellationToken)
-            {
-                itemToSendBeforeNextStep = args.Location;
-                return ValueTask.CompletedTask;
-            }
-
-            long currentGameStepCount = 0;
-            while (!simulatedGame.IsCompleted)
-            {
-                cancellationToken.ThrowIfCancellationRequested();
-                await simulatedGame.StepAsync(player, cancellationToken);
-                ++currentGameStepCount;
-                if (itemToSendBeforeNextStep is { } location)
-                {
-                    itemToSendBeforeNextStep = null;
-                    string name = _myItemNamesById![location];
-                    simulatedGame.ReceiveItem(location, s_progressiveItemTypeByName.TryGetValue(name, out ItemType progressiveItemType) ? progressiveItemType : ItemType.Filler);
-                }
-            }
-
-            Interlocked.Add(ref simulatedTotalStepCount, currentGameStepCount);
-        });
-
-        return simulatedTotalStepCount / SimulationCount;
-    }
-
     private ValueTask FindIdRangeGapsAndExit(object? sender, DataPackagePacketModel dataPackage, CancellationToken cancellationToken)
     {
         Dictionary<long, string> itemToGame = [];
@@ -502,6 +419,32 @@ public sealed class ArchipelagoGameRunner : IDisposable
 
         Environment.Exit(0);
         return ValueTask.CompletedTask;
+    }
+
+    private ItemType Classify(ItemModel item)
+    {
+        ItemType itemType;
+        if (item.Flags.HasFlag(ArchipelagoItemFlags.LogicalAdvancement))
+        {
+            if (!s_keyItemTypeByName.TryGetValue(_myItemNamesById![item.Item], out itemType))
+            {
+                itemType = ItemType.Rat;
+            }
+        }
+        else if (item.Flags.HasFlag(ArchipelagoItemFlags.ImportantNonAdvancement))
+        {
+            itemType = ItemType.Useful;
+        }
+        else if (item.Flags.HasFlag(ArchipelagoItemFlags.Trap))
+        {
+            itemType = ItemType.Trap;
+        }
+        else
+        {
+            itemType = ItemType.Filler;
+        }
+
+        return itemType;
     }
 
     private TimeSpan NextStepInterval()

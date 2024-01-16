@@ -1,6 +1,8 @@
 public enum ItemType
 {
+    Trap,
     Filler,
+    Useful,
     Rat,
     A,
     B,

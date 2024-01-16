@@ -1,0 +1,8 @@
+{
+  "profiles": {
+    "Default": {
+      "commandName": "Project",
+      "commandLineArgs": "game-config.yaml"
+    }
+  }
+}
