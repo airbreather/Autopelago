@@ -267,8 +267,8 @@ public sealed class Game(GameDifficultySettings difficultySettings, int seed)
 
             if (State.ReasonsToReset != ResetReasons.None)
             {
-                State = State with { ReasonsToReset = ResetReasons.None };
                 await _resetGameEvent.InvokeAsync(this, new() { Player = player, DifficultySettings = difficultySettings, State = State }, cancellationToken);
+                State = State with { ReasonsToReset = ResetReasons.None };
                 return true;
             }
 
