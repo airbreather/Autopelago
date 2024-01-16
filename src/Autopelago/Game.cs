@@ -202,7 +202,7 @@ public sealed class Game(GameDifficultySettings difficultySettings, int seed)
 
     public PersistentState State { get; private set; } = PersistentState.Initial;
 
-    public bool IsCompleted => State.CurrentRegion == Region.CompletedGoal || _receivedItems.ContainsKey(s_locationGoal);
+    public bool IsCompleted => State.CurrentRegion == Region.CompletedGoal || _receivedItems.ContainsValue(ItemType.Goal);
 
     public event AsyncEventHandler<MovingToRegionEventArgs> MovingToRegion
     {

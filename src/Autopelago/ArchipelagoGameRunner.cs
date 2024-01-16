@@ -132,6 +132,7 @@ public sealed class ArchipelagoGameRunner : IDisposable
             }
         }
 
+        _game.ResetGame += OnGameResetAsync;
         _game.CompletedLocationCheck += OnCompletedLocationCheckAsync;
         _game.FailedLocationCheck += OnFailedLocationCheckAsync;
         _game.MovingToRegion += OnMovingToRegionAsync;
@@ -328,7 +329,7 @@ public sealed class ArchipelagoGameRunner : IDisposable
         await _client.SayAsync($"failed a check ({_myLocationNamesById![args.Location]})", cancellationToken);
     }
 
-    private async ValueTask OnGameReset(object? sender, ResetGameEventArgs args, CancellationToken cancellationToken)
+    private async ValueTask OnGameResetAsync(object? sender, ResetGameEventArgs args, CancellationToken cancellationToken)
     {
         switch (args.State.ReasonsToReset)
         {
