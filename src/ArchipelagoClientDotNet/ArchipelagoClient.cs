@@ -128,7 +128,7 @@ public sealed partial class ArchipelagoClient(string server, ushort port) : IDis
         remove => _setReplyPacketReceivedEvent.Remove(value);
     }
 
-    public async ValueTask<bool> TryConnectAsync(string game, string slot, string? password = null, CancellationToken cancellationToken = default)
+    public async ValueTask<bool> TryConnectAsync(string game, string slot, string? password, ImmutableArray<string> tags, CancellationToken cancellationToken = default)
     {
         ObjectDisposedException.ThrowIf(_disposed, this);
 
@@ -185,7 +185,7 @@ public sealed partial class ArchipelagoClient(string server, ushort port) : IDis
             uuid: Guid.NewGuid(),
             itemsHandling: ArchipelagoItemsHandlingFlags.All,
             slotData: true,
-            tags: [],
+            tags: tags,
             version: new(s_archipelagoVersion),
             cancellationToken: cancellationToken);
 

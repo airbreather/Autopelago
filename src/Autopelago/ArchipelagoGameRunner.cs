@@ -59,31 +59,12 @@ public sealed class ArchipelagoGameRunner : IDisposable
 
     private int? _slotNumber;
 
-    private FrozenDictionary<int, (int Team, string Name)>? _playerNamesBySlot;
-
-    private FrozenDictionary<(int Team, string Name), int>? _playerSlotsByName;
-
-    private FrozenDictionary<long, string>? _allLocationNamesById;
-
-    private FrozenDictionary<long, string>? _allItemNamesById;
-
-    private FrozenDictionary<string, long>? _allLocationIdsByName;
-
-    private FrozenDictionary<string, long>? _allItemIdsByName;
-
     private FrozenDictionary<long, string>? _myLocationNamesById;
 
     private FrozenDictionary<long, string>? _myItemNamesById;
 
-    private FrozenDictionary<string, long>? _myLocationIdsByName;
 
-    private FrozenDictionary<string, long>? _myItemIdsByName;
-
-    private long[]? _allMyLocations;
-
-    private long[]? _allMyItems;
-
-    public ArchipelagoGameRunner(bool primary, TimeSpan minStepInterval, TimeSpan maxStepInterval, Player player, GameDifficultySettings difficultySettings, int seed, string server, ushort port, string gameName, string slotName, string? password)
+    public ArchipelagoGameRunner(TimeSpan minStepInterval, TimeSpan maxStepInterval, Player player, GameDifficultySettings difficultySettings, int seed, string server, ushort port, string gameName, string slotName, string? password)
     {
         _minStepInterval = minStepInterval;
         _maxStepInterval = maxStepInterval;
@@ -106,18 +87,13 @@ public sealed class ArchipelagoGameRunner : IDisposable
         _client.DataPackagePacketReceived += OnDataPackagePacketReceived;
         _client.ConnectedPacketReceived += OnConnectedPacketReceived;
         _client.ReceivedItemsPacketReceived += OnReceivedItemsPacketReceived;
-        if (primary)
-        {
-            _client.PrintJSONPacketReceived += OnPrintJSONPacketReceived;
-        }
-
         _client.RoomUpdatePacketReceived += OnRoomUpdatePacketReceived;
     }
 
     public async Task<bool> TryRunGameAsync(CancellationToken cancellationToken)
     {
         await Helper.ConfigureAwaitFalse();
-        if (!await _client.TryConnectAsync(_gameName, _slotName, _password, cancellationToken))
+        if (!await _client.TryConnectAsync(_gameName, _slotName, _password, ["AP"], cancellationToken))
         {
             return false;
         }
@@ -235,18 +211,6 @@ public sealed class ArchipelagoGameRunner : IDisposable
             Environment.Exit(1);
         }
 
-        _allLocationIdsByName = dataPackage.Data.Games.Values.SelectMany(game => game.LocationNameToId).ToFrozenDictionary();
-        _allItemIdsByName = dataPackage.Data.Games.Values.SelectMany(game => game.ItemNameToId).ToFrozenDictionary();
-
-        _allLocationNamesById = _allLocationIdsByName.Select(kvp => KeyValuePair.Create(kvp.Value, kvp.Key)).ToFrozenDictionary();
-        _allItemNamesById = _allItemIdsByName.Select(kvp => KeyValuePair.Create(kvp.Value, kvp.Key)).ToFrozenDictionary();
-
-        _allMyLocations = [..myGame.LocationNameToId.Values.Order()];
-        _allMyItems = [..myGame.ItemNameToId.Values.Order()];
-
-        _myLocationIdsByName = myGame.LocationNameToId.ToFrozenDictionary();
-        _myItemIdsByName = myGame.ItemNameToId.ToFrozenDictionary();
-
         _myLocationNamesById = myGame.LocationNameToId.Select(kvp => KeyValuePair.Create(kvp.Value, kvp.Key)).ToFrozenDictionary();
         _myItemNamesById = myGame.ItemNameToId.Select(kvp => KeyValuePair.Create(kvp.Value, kvp.Key)).ToFrozenDictionary();
 
@@ -257,8 +221,6 @@ public sealed class ArchipelagoGameRunner : IDisposable
     {
         _team = connected.Team;
         _slotNumber = connected.Slot;
-        _playerNamesBySlot = connected.Players.ToFrozenDictionary(p => p.Slot, p => (p.Team, p.Name));
-        _playerSlotsByName = connected.Players.ToFrozenDictionary(p => (p.Team, p.Name), p => p.Slot);
         foreach (long locationId in connected.CheckedLocations)
         {
             _game.MarkLocationChecked(locationId);
@@ -283,24 +245,6 @@ public sealed class ArchipelagoGameRunner : IDisposable
         {
             _gameLock.Release();
         }
-    }
-
-    private ValueTask OnPrintJSONPacketReceived(object? sender, PrintJSONPacketModel packet, CancellationToken cancellationToken)
-    {
-        Console.Write($"[{DateTime.Now:G}] -> ");
-        foreach (JSONMessagePartModel part in packet.Data)
-        {
-            Console.Write(part switch
-            {
-                PlayerIdJSONMessagePartModel playerId => _playerNamesBySlot![int.Parse(playerId.Text)].Name,
-                ItemIdJSONMessagePartModel itemId => _allItemNamesById![long.Parse(itemId.Text)],
-                LocationIdJSONMessagePartModel locationId => _allLocationNamesById![long.Parse(locationId.Text)],
-                _ => part.Text,
-            });
-        }
-
-        Console.WriteLine();
-        return ValueTask.CompletedTask;
     }
 
     private async ValueTask OnRoomUpdatePacketReceived(object? sender, RoomUpdatePacketModel roomUpdate, CancellationToken cancellationToken)
@@ -407,11 +351,11 @@ public sealed class ArchipelagoGameRunner : IDisposable
             string causedBy = _myItemNamesById![aura.CausedByItem];
             if (aura.IsBeneficial)
             {
-                await _client.SayAsync($"'{causedBy}' wore off. Darn...", cancellationToken);
+                await _client.SayAsync($"{causedBy} wore off. Darn...", cancellationToken);
             }
             else
             {
-                await _client.SayAsync($"'{causedBy}' wore off. Yay!", cancellationToken);
+                await _client.SayAsync($"{causedBy} wore off. Yay!", cancellationToken);
             }
         }
     }
