@@ -137,6 +137,8 @@ public sealed class ArchipelagoGameRunner : IDisposable
         _game.FailedLocationCheck += OnFailedLocationCheckAsync;
         _game.MovingToRegion += OnMovingToRegionAsync;
         _game.MovedToRegion += OnMovedToRegionAsync;
+        _game.AurasAdded += OnAurasAddedAsync;
+        _game.AurasExpired += OnAurasExpiredAsync;
 
         await _client.StatusUpdateAsync(ArchipelagoClientStatus.Playing, cancellationToken);
         Task nextDelay = Task.Delay(NextStepInterval(), cancellationToken);
@@ -169,12 +171,13 @@ public sealed class ArchipelagoGameRunner : IDisposable
             await Helper.ConfigureAwaitFalse();
 
             await nextDelay;
-            nextDelay = Task.Delay(NextStepInterval(), cancellationToken);
             bool step;
+            PersistentState gameState;
             await _gameLock.WaitAsync(cancellationToken);
             try
             {
                 step = await _game.StepAsync(_player, cancellationToken);
+                gameState = _game.State;
             }
             finally
             {
@@ -186,13 +189,14 @@ public sealed class ArchipelagoGameRunner : IDisposable
                 return false;
             }
 
+            nextDelay = Task.Delay(NextStepInterval() * gameState.StepIntervalMultiplier, cancellationToken);
             if (step)
             {
                 reportedBlockedTime = null;
                 DataStorageOperationModel operation = new()
                 {
                     Operation = ArchipelagoDataStorageOperationType.Replace,
-                    Value = JsonSerializer.SerializeToNode(_game.State, s_jsonSerializerOptions)!,
+                    Value = JsonSerializer.SerializeToNode(gameState, s_jsonSerializerOptions)!,
                 };
                 await _client.SetAsync(stateKey, [operation], cancellationToken: cancellationToken);
             }
@@ -272,7 +276,7 @@ public sealed class ArchipelagoGameRunner : IDisposable
             foreach (ItemModel item in receivedItems.Items)
             {
                 ItemType itemType = Classify(item);
-                _game.ReceiveItem(item.Item, itemType);
+                await _game.ReceiveItem(item.Item, itemType, cancellationToken);
             }
         }
         finally
@@ -375,6 +379,40 @@ public sealed class ArchipelagoGameRunner : IDisposable
 
         await Helper.ConfigureAwaitFalse();
         await _client.SayAsync($"Arrived at {args.State.CurrentRegion}.", cancellationToken);
+    }
+
+    private async ValueTask OnAurasAddedAsync(object? sender, AurasAddedEventArgs aurasAdded, CancellationToken cancellationToken)
+    {
+        await Helper.ConfigureAwaitFalse();
+        foreach (Aura aura in aurasAdded.AddedAuras)
+        {
+            string causedBy = _myItemNamesById![aura.CausedByItem];
+            if (aura.IsBeneficial)
+            {
+                await _client.SayAsync($"{causedBy} makes me feel good!", cancellationToken);
+            }
+            else
+            {
+                await _client.SayAsync($"{causedBy} makes me feel bad...", cancellationToken);
+            }
+        }
+    }
+
+    private async ValueTask OnAurasExpiredAsync(object? sender, AurasExpiredEventArgs aurasExpired, CancellationToken cancellationToken)
+    {
+        await Helper.ConfigureAwaitFalse();
+        foreach (Aura aura in aurasExpired.ExpiredAuras)
+        {
+            string causedBy = _myItemNamesById![aura.CausedByItem];
+            if (aura.IsBeneficial)
+            {
+                await _client.SayAsync($"'{causedBy}' wore off. Darn...", cancellationToken);
+            }
+            else
+            {
+                await _client.SayAsync($"'{causedBy}' wore off. Yay!", cancellationToken);
+            }
+        }
     }
 
     private ValueTask FindIdRangeGapsAndExit(object? sender, DataPackagePacketModel dataPackage, CancellationToken cancellationToken)

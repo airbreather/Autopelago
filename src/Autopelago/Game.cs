@@ -1,4 +1,6 @@
+using System.Collections.Immutable;
 using System.Runtime.InteropServices;
+using System.Text.Json.Serialization;
 
 using ArchipelagoClientDotNet;
 
@@ -8,6 +10,11 @@ public enum ResetReasons
     None = 0b0,
 
     FasterTravelTime = 0b1,
+}
+
+public enum AuraType
+{
+    ScaleStepInterval,
 }
 
 public sealed record PersistentState
@@ -21,6 +28,7 @@ public sealed record PersistentState
         SourceRegion = null,
         DestinationRegion = null,
         TravelUnitsRemaining = 0,
+        Auras = [],
     };
 
     public required long TotalProgressiveGameSteps { get; init; }
@@ -36,12 +44,48 @@ public sealed record PersistentState
     public required Region? DestinationRegion { get; init; }
 
     public required int TravelUnitsRemaining { get; init; }
+
+    public required ImmutableArray<Aura> Auras { get; init; }
+
+    [JsonIgnore]
+    public double StepIntervalMultiplier
+    {
+        get
+        {
+            double result = 1;
+            foreach (StepIntervalModifierAura modifier in Auras.OfType<StepIntervalModifierAura>())
+            {
+                result *= modifier.Modifier;
+            }
+
+            return result;
+        }
+    }
+}
+
+[JsonPolymorphic]
+[JsonDerivedType(typeof(StepIntervalModifierAura))]
+public abstract record Aura
+{
+    public required long CausedByItem { get; init; }
+
+    public required long AddedTime { get; init; }
+
+    public required long ExpirationDeadline { get; init; }
+
+    [JsonIgnore]
+    public abstract bool IsBeneficial { get; }
+}
+
+public sealed record StepIntervalModifierAura : Aura
+{
+    public required double Modifier { get; init; }
+
+    public override bool IsBeneficial => Modifier < 1;
 }
 
 public abstract record GameStateUpdateEventArgs
 {
-    public required Player Player { get; init; }
-
     public required GameDifficultySettings DifficultySettings { get; init; }
 
     public required PersistentState State { get; init; }
@@ -69,6 +113,16 @@ public sealed record FailedLocationCheckEventArgs : GameStateUpdateEventArgs
 
 public sealed record ResetGameEventArgs : GameStateUpdateEventArgs
 {
+}
+
+public sealed record AurasAddedEventArgs : GameStateUpdateEventArgs
+{
+    public ImmutableArray<Aura> AddedAuras { get; init; }
+}
+
+public sealed record AurasExpiredEventArgs : GameStateUpdateEventArgs
+{
+    public ImmutableArray<Aura> ExpiredAuras { get; init; }
 }
 
 public sealed class Game(GameDifficultySettings difficultySettings, int seed)
@@ -194,6 +248,10 @@ public sealed class Game(GameDifficultySettings difficultySettings, int seed)
 
     private readonly AsyncEvent<ResetGameEventArgs> _resetGameEvent = new();
 
+    private readonly AsyncEvent<AurasAddedEventArgs> _aurasAddedEvent = new();
+
+    private readonly AsyncEvent<AurasExpiredEventArgs> _aurasExpiredEvent = new();
+
     private readonly Dictionary<long, ItemType> _receivedItems = [];
 
     private readonly Dictionary<Region, List<long>> _remainingLocationsInRegion = s_locationsByRegion.ToDictionary(kvp => kvp.Key, kvp => kvp.Value.Reverse().ToList());
@@ -234,6 +292,18 @@ public sealed class Game(GameDifficultySettings difficultySettings, int seed)
         remove => _resetGameEvent.Remove(value);
     }
 
+    public event AsyncEventHandler<AurasAddedEventArgs> AurasAdded
+    {
+        add => _aurasAddedEvent.Add(value);
+        remove => _aurasAddedEvent.Remove(value);
+    }
+
+    public event AsyncEventHandler<AurasExpiredEventArgs> AurasExpired
+    {
+        add => _aurasExpiredEvent.Add(value);
+        remove => _aurasExpiredEvent.Remove(value);
+    }
+
     public void InitState(PersistentState state)
     {
         if (!_beforeFirstStep)
@@ -252,6 +322,12 @@ public sealed class Game(GameDifficultySettings difficultySettings, int seed)
         if (innerResult)
         {
             State = State with { TotalProgressiveGameSteps = State.TotalProgressiveGameSteps + 1 };
+            ImmutableArray<Aura> expiredAuras = State.Auras.RemoveAll(a => a.ExpirationDeadline > State.TotalProgressiveGameSteps);
+            if (!expiredAuras.IsEmpty)
+            {
+                State = State with { Auras = State.Auras.RemoveRange(expiredAuras) };
+                await _aurasExpiredEvent.InvokeAsync(this, new() { DifficultySettings = difficultySettings, State = State, ExpiredAuras = expiredAuras }, cancellationToken);
+            }
         }
 
         return innerResult;
@@ -267,7 +343,7 @@ public sealed class Game(GameDifficultySettings difficultySettings, int seed)
 
             if (State.ReasonsToReset != ResetReasons.None)
             {
-                await _resetGameEvent.InvokeAsync(this, new() { Player = player, DifficultySettings = difficultySettings, State = State }, cancellationToken);
+                await _resetGameEvent.InvokeAsync(this, new() { DifficultySettings = difficultySettings, State = State }, cancellationToken);
                 State = State with { ReasonsToReset = ResetReasons.None };
                 return true;
             }
@@ -305,15 +381,39 @@ public sealed class Game(GameDifficultySettings difficultySettings, int seed)
         _remainingLocationsInRegion[s_regionByLocation[locationId]].Remove(locationId);
     }
 
-    public void ReceiveItem(long itemId, ItemType itemType)
+    public async ValueTask ReceiveItem(long itemId, ItemType itemType, CancellationToken cancellationToken)
     {
+        await Helper.ConfigureAwaitFalse();
+
         if (!_receivedItems.TryAdd(itemId, itemType))
         {
             if (_receivedItems[itemId] != itemType)
             {
                 throw new InvalidDataException("Item was received multiple times, with different ItemType values");
             }
+
+            return;
         }
+
+        StepIntervalModifierAura? auraToAdd = null;
+        switch (itemType)
+        {
+            case ItemType.Trap:
+                auraToAdd = new() { CausedByItem = itemId, AddedTime = State.TotalProgressiveGameSteps, ExpirationDeadline = State.TotalProgressiveGameSteps + 5, Modifier = 2 };
+                break;
+
+            case ItemType.Useful:
+                auraToAdd = new() { CausedByItem = itemId, AddedTime = State.TotalProgressiveGameSteps, ExpirationDeadline = State.TotalProgressiveGameSteps + 20, Modifier = 0.5 };
+                break;
+        }
+
+        if (auraToAdd is null)
+        {
+            return;
+        }
+
+        State = State with { Auras = [..State.Auras, auraToAdd] };
+        await _aurasAddedEvent.InvokeAsync(this, new() { DifficultySettings = difficultySettings, State = State, AddedAuras = [auraToAdd] }, cancellationToken);
     }
 
     private static Dictionary<(Region S, Region T), int> ToComplete(Dictionary<Region, Dictionary<Region, bool>> g)
@@ -368,19 +468,19 @@ public sealed class Game(GameDifficultySettings difficultySettings, int seed)
         if (roll < difficultySettings.DifficultyClass[State.CurrentRegion])
         {
             State = State with { NumConsecutiveFailures = State.NumConsecutiveFailures + 1 };
-            await _failedLocationCheckEvent.InvokeAsync(this, new() { Player = player, DifficultySettings = difficultySettings, State = State, Location = locationId }, cancellationToken);
+            await _failedLocationCheckEvent.InvokeAsync(this, new() { DifficultySettings = difficultySettings, State = State, Location = locationId }, cancellationToken);
             return;
         }
 
-        await _completedLocationCheckEvent.InvokeAsync(this, new() { Player = player, DifficultySettings = difficultySettings, State = State, Location = locationId }, cancellationToken);
+        await _completedLocationCheckEvent.InvokeAsync(this, new() { DifficultySettings = difficultySettings, State = State, Location = locationId }, cancellationToken);
         State = State with { NumConsecutiveFailures = 0 };
         remainingLocations.RemoveAt(remainingLocations.Count - 1);
         if (State.CurrentRegion == Region.TryingForGoal)
         {
             State = State with { CurrentRegion = Region.Traveling, SourceRegion = Region.TryingForGoal, DestinationRegion = Region.CompletedGoal, ReasonsToReset = ResetReasons.None };
-            await _movingToRegionEvent.InvokeAsync(this, new() { Player = player, DifficultySettings = difficultySettings, State = State, TotalTravelUnits = 0 }, cancellationToken);
+            await _movingToRegionEvent.InvokeAsync(this, new() { DifficultySettings = difficultySettings, State = State, TotalTravelUnits = 0 }, cancellationToken);
             State = State with { CurrentRegion = Region.CompletedGoal, SourceRegion = Region.TryingForGoal, DestinationRegion = Region.CompletedGoal };
-            await _movedToRegionEvent.InvokeAsync(this, new() { Player = player, DifficultySettings = difficultySettings, State = State, TotalTravelUnits = 0 }, cancellationToken);
+            await _movedToRegionEvent.InvokeAsync(this, new() { DifficultySettings = difficultySettings, State = State, TotalTravelUnits = 0 }, cancellationToken);
             State = State with { SourceRegion = null, DestinationRegion = null };
         }
     }
@@ -408,14 +508,14 @@ public sealed class Game(GameDifficultySettings difficultySettings, int seed)
         }
 
         State = State with { CurrentRegion = Region.Traveling, SourceRegion = State.CurrentRegion, DestinationRegion = bestNextRegion, TravelUnitsRemaining = travelUnitsRemaining, ReasonsToReset = resetReasons };
-        await _movingToRegionEvent.InvokeAsync(this, new() { Player = player, DifficultySettings = difficultySettings, State = State, TotalTravelUnits = travelUnitsRemaining }, cancellationToken);
+        await _movingToRegionEvent.InvokeAsync(this, new() { DifficultySettings = difficultySettings, State = State, TotalTravelUnits = travelUnitsRemaining }, cancellationToken);
         if (travelUnitsRemaining > 0)
         {
             return true;
         }
 
         State = State with { CurrentRegion = bestNextRegion };
-        await _movedToRegionEvent.InvokeAsync(this, new() { Player = player, DifficultySettings = difficultySettings, State = State, TotalTravelUnits = 0 }, cancellationToken);
+        await _movedToRegionEvent.InvokeAsync(this, new() { DifficultySettings = difficultySettings, State = State, TotalTravelUnits = 0 }, cancellationToken);
         State = State with { SourceRegion = null, DestinationRegion = null };
         return false;
     }
@@ -431,12 +531,12 @@ public sealed class Game(GameDifficultySettings difficultySettings, int seed)
         State = State with { TravelUnitsRemaining = State.TravelUnitsRemaining - player.MovementSpeed };
         if (State.TravelUnitsRemaining >= 0)
         {
-            await _movingToRegionEvent.InvokeAsync(this, new() { Player = player, DifficultySettings = difficultySettings, State = State, TotalTravelUnits = totalTravelUnits }, cancellationToken);
+            await _movingToRegionEvent.InvokeAsync(this, new() { DifficultySettings = difficultySettings, State = State, TotalTravelUnits = totalTravelUnits }, cancellationToken);
             return;
         }
 
         State = State with { CurrentRegion = State.DestinationRegion!.Value, TravelUnitsRemaining = 0 };
-        await _movedToRegionEvent.InvokeAsync(this, new() { Player = player, DifficultySettings = difficultySettings, State = State, TotalTravelUnits = totalTravelUnits }, cancellationToken);
+        await _movedToRegionEvent.InvokeAsync(this, new() { DifficultySettings = difficultySettings, State = State, TotalTravelUnits = totalTravelUnits }, cancellationToken);
         State = State with { SourceRegion = null, DestinationRegion = null };
     }
 
