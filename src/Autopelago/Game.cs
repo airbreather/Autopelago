@@ -48,6 +48,9 @@ public sealed record PersistentState
     public required ImmutableArray<Aura> Auras { get; init; }
 
     [JsonIgnore]
+    public bool AchievedGoal => CurrentRegion == Region.CompletedGoal;
+
+    [JsonIgnore]
     public double StepIntervalMultiplier
     {
         get
@@ -64,7 +67,7 @@ public sealed record PersistentState
 }
 
 [JsonPolymorphic]
-[JsonDerivedType(typeof(StepIntervalModifierAura))]
+[JsonDerivedType(typeof(StepIntervalModifierAura), "stepInterval")]
 public abstract record Aura
 {
     public required long CausedByItem { get; init; }

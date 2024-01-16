@@ -124,16 +124,21 @@ public sealed class ArchipelagoGameRunner : IDisposable
         {
             while (!cancellationToken.IsCancellationRequested)
             {
-                if (!await OneStepAsync())
+                PersistentState gameState = await OneStepAsync();
+                DataStorageOperationModel operation = new()
                 {
-                    break;
+                    Operation = ArchipelagoDataStorageOperationType.Replace,
+                    Value = JsonSerializer.SerializeToNode(gameState, s_jsonSerializerOptions)!,
+                };
+                await _client.SetAsync(stateKey, [operation], cancellationToken: cancellationToken);
+                if (gameState.AchievedGoal)
+                {
+                    await _client.SayAsync("I've completed my goal!  Wrapping up now...", cancellationToken);
+                    await _client.StatusUpdateAsync(ArchipelagoClientStatus.Goal, cancellationToken);
+                    await _client.StopAsync(cancellationToken);
+                    return true;
                 }
             }
-
-            await _client.SayAsync("I've completed my goal!  Wrapping up now...", cancellationToken);
-            await _client.StatusUpdateAsync(ArchipelagoClientStatus.Goal, cancellationToken);
-            await _client.StopAsync(cancellationToken);
-            return true;
         }
         catch (OperationCanceledException)
         {
@@ -142,7 +147,7 @@ public sealed class ArchipelagoGameRunner : IDisposable
         await _client.StopAsync(CancellationToken.None);
         return false;
 
-        async ValueTask<bool> OneStepAsync()
+        async ValueTask<PersistentState> OneStepAsync()
         {
             await Helper.ConfigureAwaitFalse();
 
@@ -160,21 +165,10 @@ public sealed class ArchipelagoGameRunner : IDisposable
                 _gameLock.Release();
             }
 
-            if (_game.IsCompleted)
-            {
-                return false;
-            }
-
             nextDelay = Task.Delay(NextStepInterval() * gameState.StepIntervalMultiplier, cancellationToken);
             if (step)
             {
                 reportedBlockedTime = null;
-                DataStorageOperationModel operation = new()
-                {
-                    Operation = ArchipelagoDataStorageOperationType.Replace,
-                    Value = JsonSerializer.SerializeToNode(gameState, s_jsonSerializerOptions)!,
-                };
-                await _client.SetAsync(stateKey, [operation], cancellationToken: cancellationToken);
             }
             else if (reportedBlockedTime is not { } ts || Stopwatch.GetElapsedTime(ts) > TimeSpan.FromMinutes(5))
             {
@@ -188,7 +182,7 @@ public sealed class ArchipelagoGameRunner : IDisposable
                 lastUpdateTime = Stopwatch.GetTimestamp();
             }
 
-            return true;
+            return gameState;
         }
     }
 
