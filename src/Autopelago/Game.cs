@@ -559,10 +559,10 @@ public sealed class Game(GameDifficultySettings difficultySettings, int seed)
     {
         int ratCount = _receivedItems.Values.Sum(i => i switch
         {
-            ItemType.OneNamedRat or ItemType.OneNormalRat => 1,
+            ItemType.OneNamedRat => 1,
             ItemType.EntireRatPack => 5,
             _ => 0,
-        });
+        }) + _numNormalRatsReceived;
 
         // ASSUMPTION: you don't need help to figure out what to do in Traveling or CompletedGoal.
         //
