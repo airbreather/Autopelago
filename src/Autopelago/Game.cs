@@ -397,7 +397,7 @@ public sealed class Game(GameDifficultySettings difficultySettings, int seed)
                 throw new InvalidDataException("Item was received multiple times, with different ItemType values");
             }
 
-            if (itemType == ItemType.NormalRat)
+            if (itemType == ItemType.OneNormalRat)
             {
                 ++_numNormalRatsReceived;
             }
@@ -557,12 +557,17 @@ public sealed class Game(GameDifficultySettings difficultySettings, int seed)
 
     private Region DetermineNextRegion(Player player)
     {
-        int progCount = _receivedItems.Values.Count(i => i > ItemType.Useful) + _numNormalRatsReceived - 1;
+        int ratCount = _receivedItems.Values.Sum(i => i switch
+        {
+            ItemType.OneNamedRat or ItemType.OneNormalRat => 1,
+            ItemType.EntireRatPack => 5,
+            _ => 0,
+        });
 
         // ASSUMPTION: you don't need help to figure out what to do in Traveling or CompletedGoal.
         //
         // if the goal is open, then you should ALWAYS try for it.
-        if (progCount >= 20 &&
+        if (ratCount >= 20 &&
             _receivedItems.Values.Any(i => i is ItemType.E or ItemType.F) &&
             (
                 (_receivedItems.ContainsValue(ItemType.A) && _receivedItems.ContainsValue(ItemType.C)) ||
@@ -584,7 +589,7 @@ public sealed class Game(GameDifficultySettings difficultySettings, int seed)
 
         HandleUnlockedRegion(Region.Before8Rats);
 
-        if (progCount < 8)
+        if (ratCount < 8)
         {
             return bestRegion;
         }
@@ -617,7 +622,7 @@ public sealed class Game(GameDifficultySettings difficultySettings, int seed)
             }
         }
 
-        if (receivedCOrD && progCount >= 20)
+        if (receivedCOrD && ratCount >= 20)
         {
             HandleUnlockedRegion(Region.After20RatsBeforeE);
             HandleUnlockedRegion(Region.E);

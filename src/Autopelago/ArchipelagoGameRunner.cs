@@ -49,6 +49,8 @@ public sealed class ArchipelagoGameRunner : IDisposable
         "Entire Rat Pack",
     ];
 
+    private static readonly string s_entireRatPackItemName = "Entire Rat Pack";
+
     private static readonly string s_normalRatItemName = "Normal Rat";
 
     private readonly SemaphoreSlim _gameLock = new(1, 1);
@@ -375,11 +377,15 @@ public sealed class ArchipelagoGameRunner : IDisposable
             {
                 if (s_namedRats.Contains(itemName))
                 {
-                    itemType = ItemType.NamedRat;
+                    itemType = ItemType.OneNamedRat;
+                }
+                else if (s_entireRatPackItemName == itemName)
+                {
+                    itemType = ItemType.EntireRatPack;
                 }
                 else if (s_normalRatItemName == itemName)
                 {
-                    itemType = ItemType.NormalRat;
+                    itemType = ItemType.OneNormalRat;
                 }
                 else
                 {
