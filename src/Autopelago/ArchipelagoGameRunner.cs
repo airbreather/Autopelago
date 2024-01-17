@@ -310,7 +310,7 @@ public sealed class ArchipelagoGameRunner : IDisposable
         await Helper.ConfigureAwaitFalse();
 
         int actualTravelSteps = (args.State.TravelUnitsRemaining + _player.MovementSpeed - 1) / _player.MovementSpeed;
-        TimeSpan medianStepInterval = (_maxStepInterval + _minStepInterval) / 2;
+        TimeSpan medianStepInterval = (_maxStepInterval + _minStepInterval) / 2 * args.State.StepIntervalMultiplier;
         if (args.State.ReasonsToReset.HasFlag(ResetReasons.FasterTravelTime))
         {
             await _client.SayAsync($"Moving to {args.State.DestinationRegion} (remaining: ~{(actualTravelSteps * medianStepInterval).FormatMyWay()} after game reset)", cancellationToken);
