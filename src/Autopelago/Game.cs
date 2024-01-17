@@ -557,7 +557,7 @@ public sealed class Game(GameDifficultySettings difficultySettings, int seed)
 
     private Region DetermineNextRegion(Player player)
     {
-        int progCount = _receivedItems.Values.Count(i => i > ItemType.Useful) + _numNormalRatsReceived;
+        int progCount = _receivedItems.Values.Count(i => i > ItemType.Useful) + _numNormalRatsReceived - 1;
 
         // ASSUMPTION: you don't need help to figure out what to do in Traveling or CompletedGoal.
         //
