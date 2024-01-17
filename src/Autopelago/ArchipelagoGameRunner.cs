@@ -33,6 +33,24 @@ public sealed class ArchipelagoGameRunner : IDisposable
         ["Lockheed SR-71 Blackbird"] = ItemType.Goal,
     };
 
+    private static readonly HashSet<string> s_namedRats =
+    [
+        "Pack Rat",
+        "Pizza Rat",
+        "Chef Rat",
+        "Ninja Rat",
+        "Gym Rat",
+        "Computer Rat",
+        "Pie Rat",
+        "Ziggu Rat",
+        "Acro Rat",
+        "Lab Rat",
+        "Soc-Rat-es",
+        "Entire Rat Pack",
+    ];
+
+    private static readonly string s_normalRatItemName = "Normal Rat";
+
     private readonly SemaphoreSlim _gameLock = new(1, 1);
 
     private readonly TimeSpan _minStepInterval;
@@ -352,9 +370,21 @@ public sealed class ArchipelagoGameRunner : IDisposable
         ItemType itemType;
         if (item.Flags.HasFlag(ArchipelagoItemFlags.LogicalAdvancement))
         {
-            if (!s_keyItemTypeByName.TryGetValue(_myItemNamesById![item.Item], out itemType))
+            string itemName = _myItemNamesById![item.Item];
+            if (!s_keyItemTypeByName.TryGetValue(itemName, out itemType))
             {
-                itemType = ItemType.Rat;
+                if (s_namedRats.Contains(itemName))
+                {
+                    itemType = ItemType.NamedRat;
+                }
+                else if (s_normalRatItemName == itemName)
+                {
+                    itemType = ItemType.NormalRat;
+                }
+                else
+                {
+                    throw new InvalidDataException("hardcoded names changed, fix!!!");
+                }
             }
         }
         else if (item.Flags.HasFlag(ArchipelagoItemFlags.ImportantNonAdvancement))

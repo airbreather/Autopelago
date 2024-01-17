@@ -261,6 +261,8 @@ public sealed class Game(GameDifficultySettings difficultySettings, int seed)
 
     private bool _beforeFirstStep = true;
 
+    private int _numNormalRatsReceived;
+
     public PersistentState State { get; private set; } = PersistentState.Initial;
 
     public bool IsCompleted => State.CurrentRegion == Region.CompletedGoal || _receivedItems.ContainsValue(ItemType.Goal);
@@ -393,6 +395,11 @@ public sealed class Game(GameDifficultySettings difficultySettings, int seed)
             if (_receivedItems[itemId] != itemType)
             {
                 throw new InvalidDataException("Item was received multiple times, with different ItemType values");
+            }
+
+            if (itemType == ItemType.NormalRat)
+            {
+                ++_numNormalRatsReceived;
             }
 
             return;
@@ -550,7 +557,7 @@ public sealed class Game(GameDifficultySettings difficultySettings, int seed)
 
     private Region DetermineNextRegion(Player player)
     {
-        int progCount = _receivedItems.Values.Count(i => i > ItemType.Useful);
+        int progCount = _receivedItems.Values.Count(i => i > ItemType.Useful) + _numNormalRatsReceived;
 
         // ASSUMPTION: you don't need help to figure out what to do in Traveling or CompletedGoal.
         //
