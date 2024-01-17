@@ -265,6 +265,13 @@ public sealed class Game(GameDifficultySettings difficultySettings, int seed)
 
     public PersistentState State { get; private set; } = PersistentState.Initial;
 
+    public int RatCount => _receivedItems.Values.Sum(i => i switch
+        {
+            ItemType.OneNamedRat => 1,
+            ItemType.EntireRatPack => 5,
+            _ => 0,
+        }) + _numNormalRatsReceived;
+
     public bool IsCompleted => State.CurrentRegion == Region.CompletedGoal || _receivedItems.ContainsValue(ItemType.Goal);
 
     public event AsyncEventHandler<MovingToRegionEventArgs> MovingToRegion
@@ -409,11 +416,11 @@ public sealed class Game(GameDifficultySettings difficultySettings, int seed)
         switch (itemType)
         {
             case ItemType.Trap:
-                auraToAdd = new() { CausedByItem = itemId, AddedTime = State.TotalProgressiveGameSteps, ExpirationDeadline = State.TotalProgressiveGameSteps + 5, Modifier = 2 };
+                auraToAdd = new() { CausedByItem = itemId, AddedTime = State.TotalProgressiveGameSteps, ExpirationDeadline = State.TotalProgressiveGameSteps + 2, Modifier = 2 };
                 break;
 
             case ItemType.Useful:
-                auraToAdd = new() { CausedByItem = itemId, AddedTime = State.TotalProgressiveGameSteps, ExpirationDeadline = State.TotalProgressiveGameSteps + 20, Modifier = 0.5 };
+                auraToAdd = new() { CausedByItem = itemId, AddedTime = State.TotalProgressiveGameSteps, ExpirationDeadline = State.TotalProgressiveGameSteps + 8, Modifier = 0.5 };
                 break;
         }
 
@@ -557,12 +564,7 @@ public sealed class Game(GameDifficultySettings difficultySettings, int seed)
 
     private Region DetermineNextRegion(Player player)
     {
-        int ratCount = _receivedItems.Values.Sum(i => i switch
-        {
-            ItemType.OneNamedRat => 1,
-            ItemType.EntireRatPack => 5,
-            _ => 0,
-        }) + _numNormalRatsReceived;
+        int ratCount = RatCount;
 
         // ASSUMPTION: you don't need help to figure out what to do in Traveling or CompletedGoal.
         //
