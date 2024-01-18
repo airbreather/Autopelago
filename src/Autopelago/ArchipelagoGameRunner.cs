@@ -166,12 +166,14 @@ public sealed class ArchipelagoGameRunner : IDisposable
 
             await nextDelay;
             bool step;
+            int ratCount;
             PersistentState gameState;
             await _gameLock.WaitAsync(cancellationToken);
             try
             {
                 step = await _game.StepAsync(_player, cancellationToken);
                 gameState = _game.State;
+                ratCount = _game.RatCount;
             }
             finally
             {
@@ -185,7 +187,7 @@ public sealed class ArchipelagoGameRunner : IDisposable
             }
             else if (reportedBlockedTime is not { } ts || Stopwatch.GetElapsedTime(ts) > TimeSpan.FromMinutes(5))
             {
-                await _client.SayAsync("I have nothing to do right now...", cancellationToken);
+                await _client.SayAsync($"I have nothing to do right now... rat count: {ratCount}", cancellationToken);
                 reportedBlockedTime = Stopwatch.GetTimestamp();
             }
 
