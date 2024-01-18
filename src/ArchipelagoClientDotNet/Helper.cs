@@ -21,12 +21,12 @@ public static class Helper
             return $"{@this:h\\:mm\\:ss}";
         }
 
-        if (@this.TotalSeconds >= 1)
+        if (@this.TotalSeconds >= 2)
         {
             return $"{@this:m\\:ss}";
         }
 
-        return $"{@this:m\\:ss.fff}";
+        return $"{@this:s\\.FFF\\s}";
     }
 
     public static GetOffSyncContextAwaitableAndAwaiter ConfigureAwaitFalse() => default;
