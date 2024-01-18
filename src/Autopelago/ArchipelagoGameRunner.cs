@@ -312,7 +312,7 @@ public sealed class ArchipelagoGameRunner : IDisposable
         await Helper.ConfigureAwaitFalse();
 
         int actualTravelSteps = (args.State.TravelUnitsRemaining + _player.MovementSpeed - 1) / _player.MovementSpeed;
-        TimeSpan medianStepInterval = (_maxStepInterval + _minStepInterval) / 2 * args.State.StepIntervalMultiplier;
+        TimeSpan medianStepInterval = MedianStepInterval() * args.State.StepIntervalMultiplier;
         if (args.State.ReasonsToReset.HasFlag(ResetReasons.FasterTravelTime))
         {
             await _client.SayAsync($"Moving to {args.State.DestinationRegion} (remaining: ~{(actualTravelSteps * medianStepInterval).FormatMyWay()} after game reset)", cancellationToken);
@@ -335,36 +335,38 @@ public sealed class ArchipelagoGameRunner : IDisposable
         await _client.SayAsync($"Arrived at {args.State.CurrentRegion}.", cancellationToken);
     }
 
-    private async ValueTask OnAurasAddedAsync(object? sender, AurasAddedEventArgs aurasAdded, CancellationToken cancellationToken)
+    private async ValueTask OnAurasAddedAsync(object? sender, AurasAddedEventArgs args, CancellationToken cancellationToken)
     {
         await Helper.ConfigureAwaitFalse();
-        foreach (Aura aura in aurasAdded.AddedAuras)
+        TimeSpan medianStepInterval = MedianStepInterval() * args.State.StepIntervalMultiplier;
+        foreach (Aura aura in args.AddedAuras)
         {
             string causedBy = _myItemNamesById![aura.CausedByItem];
             if (aura.IsBeneficial)
             {
-                await _client.SayAsync($"{causedBy} makes me feel good!", cancellationToken);
+                await _client.SayAsync($"{causedBy} makes me feel good! (msi: {medianStepInterval.FormatMyWay()})", cancellationToken);
             }
             else
             {
-                await _client.SayAsync($"{causedBy} makes me feel bad...", cancellationToken);
+                await _client.SayAsync($"{causedBy} makes me feel bad... (msi: {medianStepInterval.FormatMyWay()})", cancellationToken);
             }
         }
     }
 
-    private async ValueTask OnAurasExpiredAsync(object? sender, AurasExpiredEventArgs aurasExpired, CancellationToken cancellationToken)
+    private async ValueTask OnAurasExpiredAsync(object? sender, AurasExpiredEventArgs args, CancellationToken cancellationToken)
     {
         await Helper.ConfigureAwaitFalse();
-        foreach (Aura aura in aurasExpired.ExpiredAuras)
+        TimeSpan medianStepInterval = MedianStepInterval() * args.State.StepIntervalMultiplier;
+        foreach (Aura aura in args.ExpiredAuras)
         {
             string causedBy = _myItemNamesById![aura.CausedByItem];
             if (aura.IsBeneficial)
             {
-                await _client.SayAsync($"{causedBy} wore off. Darn...", cancellationToken);
+                await _client.SayAsync($"{causedBy} wore off. Darn... (msi: {medianStepInterval.FormatMyWay()})", cancellationToken);
             }
             else
             {
-                await _client.SayAsync($"{causedBy} wore off. Yay!", cancellationToken);
+                await _client.SayAsync($"{causedBy} wore off. Yay! (msi: {medianStepInterval.FormatMyWay()})", cancellationToken);
             }
         }
     }
@@ -409,6 +411,11 @@ public sealed class ArchipelagoGameRunner : IDisposable
         }
 
         return itemType;
+    }
+
+    private TimeSpan MedianStepInterval()
+    {
+        return (_minStepInterval + _maxStepInterval) / 2;
     }
 
     private TimeSpan NextStepInterval()
