@@ -9,7 +9,7 @@ using ArchipelagoClientDotNet;
 [JsonSourceGenerationOptions(
     PropertyNamingPolicy = JsonKnownNamingPolicy.SnakeCaseLower,
     UseStringEnumConverter = true)]
-[JsonSerializable(typeof(PersistentState))]
+[JsonSerializable(typeof(ResumableGameState))]
 internal sealed partial class SourceGenerationContext : JsonSerializerContext
 {
 }
@@ -115,9 +115,9 @@ public sealed class ArchipelagoGameRunner : IDisposable
         RetrievedPacketModel gameStatePacket = await _client.GetAsync([stateKey], cancellationToken);
         if (gameStatePacket.Keys.TryGetValue(stateKey, out JsonElement element))
         {
-            if (JsonSerializer.Deserialize<PersistentState>(element, s_jsonSerializerOptions) is PersistentState state)
+            if (JsonSerializer.Deserialize<ResumableGameState>(element, s_jsonSerializerOptions) is ResumableGameState gameState)
             {
-                _game.InitState(state);
+                _game.InitState(gameState);
             }
         }
 
@@ -137,7 +137,7 @@ public sealed class ArchipelagoGameRunner : IDisposable
         {
             while (!cancellationToken.IsCancellationRequested)
             {
-                PersistentState gameState = await OneStepAsync();
+                ResumableGameState gameState = await OneStepAsync();
                 DataStorageOperationModel operation = new()
                 {
                     Operation = ArchipelagoDataStorageOperationType.Replace,
@@ -160,14 +160,14 @@ public sealed class ArchipelagoGameRunner : IDisposable
         await _client.StopAsync(CancellationToken.None);
         return false;
 
-        async ValueTask<PersistentState> OneStepAsync()
+        async ValueTask<ResumableGameState> OneStepAsync()
         {
             await Helper.ConfigureAwaitFalse();
 
             await nextDelay;
             bool step;
             int ratCount;
-            PersistentState gameState;
+            ResumableGameState gameState;
             await _gameLock.WaitAsync(cancellationToken);
             try
             {

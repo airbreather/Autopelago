@@ -12,30 +12,30 @@ public enum ResetReasons
     FasterTravelTime = 0b1,
 }
 
-public enum AuraType
+// anything that's primarily tracked by the Archipelago server is excluded from this record, e.g.:
+// 1. received items
+// 2. checked locations
+// 3. hints received
+public sealed record ResumableGameState
 {
-    ScaleStepInterval,
-}
-
-public sealed record PersistentState
-{
-    public static readonly PersistentState Initial = new()
+    public static readonly ResumableGameState Initial = new()
     {
-        TotalProgressiveGameSteps = 0,
+        StepCount = 0,
         CurrentRegion = Region.Before8Rats,
-        NumConsecutiveFailures = 0,
+        ConsecutiveFailureCount = 0,
         ReasonsToReset = ResetReasons.None,
         SourceRegion = null,
         DestinationRegion = null,
         TravelUnitsRemaining = 0,
         Auras = [],
+        StartedNextStep = false,
     };
 
-    public required long TotalProgressiveGameSteps { get; init; }
+    public required long StepCount { get; init; }
 
     public required Region CurrentRegion { get; init; }
 
-    public required int NumConsecutiveFailures { get; init; }
+    public required int ConsecutiveFailureCount { get; init; }
 
     public required ResetReasons ReasonsToReset { get; init; }
 
@@ -47,6 +47,8 @@ public sealed record PersistentState
 
     public required ImmutableArray<Aura> Auras { get; init; }
 
+    public required bool StartedNextStep { get; init; }
+
     [JsonIgnore]
     public bool AchievedGoal => CurrentRegion == Region.CompletedGoal;
 
@@ -55,10 +57,19 @@ public sealed record PersistentState
     {
         get
         {
+            long excludeIfExpiredBy = StepCount + (StartedNextStep ? 1 : 0);
             double result = 1;
-            foreach (StepIntervalModifierAura modifier in Auras.OfType<StepIntervalModifierAura>())
+            foreach (Aura aura in Auras)
             {
-                result *= modifier.Modifier;
+                if (aura.MaxStepCountOnExpiration <= excludeIfExpiredBy)
+                {
+                    continue;
+                }
+
+                if (aura is StepIntervalModifierAura modifierAura)
+                {
+                    result *= modifierAura.Modifier;
+                }
             }
 
             return result;
@@ -72,9 +83,11 @@ public abstract record Aura
 {
     public required long CausedByItem { get; init; }
 
-    public required long AddedTime { get; init; }
+    public required long StepCountWhenAdded { get; init; }
 
-    public required long ExpirationDeadline { get; init; }
+    // this is a MAXIMUM. hypothetically, some auras could expire earlier, e.g., if they blow their
+    // load as a one-shot in response to a trigger.
+    public required long MaxStepCountOnExpiration { get; init; }
 
     [JsonIgnore]
     public abstract bool IsBeneficial { get; }
@@ -91,7 +104,7 @@ public abstract record GameStateUpdateEventArgs
 {
     public required GameDifficultySettings DifficultySettings { get; init; }
 
-    public required PersistentState State { get; init; }
+    public required ResumableGameState State { get; init; }
 }
 
 public sealed record MovingToRegionEventArgs : GameStateUpdateEventArgs
@@ -263,7 +276,7 @@ public sealed class Game(GameDifficultySettings difficultySettings, int seed)
 
     private int _numNormalRatsReceived;
 
-    public PersistentState State { get; private set; } = PersistentState.Initial;
+    public ResumableGameState State { get; private set; } = ResumableGameState.Initial;
 
     public int RatCount => _receivedItems.Values.Sum(i => i switch
         {
@@ -316,7 +329,7 @@ public sealed class Game(GameDifficultySettings difficultySettings, int seed)
         remove => _aurasExpiredEvent.Remove(value);
     }
 
-    public void InitState(PersistentState state)
+    public void InitState(ResumableGameState state)
     {
         if (!_beforeFirstStep)
         {
@@ -330,16 +343,14 @@ public sealed class Game(GameDifficultySettings difficultySettings, int seed)
     {
         _beforeFirstStep = false;
         await Helper.ConfigureAwaitFalse();
+        State = State with { StartedNextStep = true };
         bool innerResult = await Inner();
-        if (innerResult)
+        State = State with { StartedNextStep = false, StepCount = State.StepCount + 1 };
+        ImmutableArray<Aura> expiredAuras = State.Auras.RemoveAll(a => a.MaxStepCountOnExpiration > State.StepCount);
+        if (!expiredAuras.IsEmpty)
         {
-            State = State with { TotalProgressiveGameSteps = State.TotalProgressiveGameSteps + 1 };
-            ImmutableArray<Aura> expiredAuras = State.Auras.RemoveAll(a => a.ExpirationDeadline > State.TotalProgressiveGameSteps);
-            if (!expiredAuras.IsEmpty)
-            {
-                State = State with { Auras = State.Auras.RemoveRange(expiredAuras) };
-                await _aurasExpiredEvent.InvokeAsync(this, new() { DifficultySettings = difficultySettings, State = State, ExpiredAuras = expiredAuras }, cancellationToken);
-            }
+            State = State with { Auras = State.Auras.RemoveRange(expiredAuras) };
+            await _aurasExpiredEvent.InvokeAsync(this, new() { DifficultySettings = difficultySettings, State = State, ExpiredAuras = expiredAuras }, cancellationToken);
         }
 
         return innerResult;
@@ -416,11 +427,11 @@ public sealed class Game(GameDifficultySettings difficultySettings, int seed)
         switch (itemType)
         {
             case ItemType.Trap:
-                auraToAdd = new() { CausedByItem = itemId, AddedTime = State.TotalProgressiveGameSteps, ExpirationDeadline = State.TotalProgressiveGameSteps + 2, Modifier = 2 };
+                auraToAdd = new() { CausedByItem = itemId, StepCountWhenAdded = State.StepCount, MaxStepCountOnExpiration = State.StepCount + 2, Modifier = 2 };
                 break;
 
             case ItemType.Useful:
-                auraToAdd = new() { CausedByItem = itemId, AddedTime = State.TotalProgressiveGameSteps, ExpirationDeadline = State.TotalProgressiveGameSteps + 8, Modifier = 0.5 };
+                auraToAdd = new() { CausedByItem = itemId, StepCountWhenAdded = State.StepCount, MaxStepCountOnExpiration = State.StepCount + 8, Modifier = 0.5 };
                 break;
         }
 
@@ -484,13 +495,13 @@ public sealed class Game(GameDifficultySettings difficultySettings, int seed)
         int roll = NextD20(player, player.DiceModifier[State.CurrentRegion]);
         if (roll < difficultySettings.DifficultyClass[State.CurrentRegion])
         {
-            State = State with { NumConsecutiveFailures = State.NumConsecutiveFailures + 1 };
+            State = State with { ConsecutiveFailureCount = State.ConsecutiveFailureCount + 1 };
             await _failedLocationCheckEvent.InvokeAsync(this, new() { DifficultySettings = difficultySettings, State = State, Location = locationId }, cancellationToken);
             return;
         }
 
         await _completedLocationCheckEvent.InvokeAsync(this, new() { DifficultySettings = difficultySettings, State = State, Location = locationId }, cancellationToken);
-        State = State with { NumConsecutiveFailures = 0 };
+        State = State with { ConsecutiveFailureCount = 0 };
         remainingLocations.RemoveAt(remainingLocations.Count - 1);
         if (State.CurrentRegion == Region.TryingForGoal)
         {
@@ -559,7 +570,7 @@ public sealed class Game(GameDifficultySettings difficultySettings, int seed)
 
     private int NextD20(Player player, int baseDiceModifier)
     {
-        return _random.Next(1, 21) + baseDiceModifier + State.NumConsecutiveFailures / player.ConsecutiveFailuresBeforeDiceModifierIncrement;
+        return _random.Next(1, 21) + baseDiceModifier + State.ConsecutiveFailureCount / player.ConsecutiveFailuresBeforeDiceModifierIncrement;
     }
 
     private Region DetermineNextRegion(Player player)
