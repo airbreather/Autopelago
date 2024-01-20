@@ -1,0 +1,33 @@
+digraph cool {
+    layout="dot";
+
+    node [shape=none fontsize=14];
+    edge [arrowsize=0.5];
+
+    _s [label="●"];
+    _t [label="●"];
+
+    _s -> a;
+    _s -> b;
+    _s -> c;
+
+    a -> d;
+    b -> e;
+    c -> f;
+
+    d -> g [style=invis];
+    e -> h [style=invis];
+    f -> i [style=invis];
+    d -> h;
+    e -> i;
+    f -> e [constraint=false];
+
+    g -> j;
+    h -> k;
+    i -> l;
+    h -> g [constraint=false];
+
+    j -> _t;
+    k -> _t;
+    l -> _t;
+}

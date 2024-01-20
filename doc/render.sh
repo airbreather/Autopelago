@@ -1,2 +1,2 @@
 #!/bin/sh
-dot -Tpng -O simple-progression.dot
+for f in *.dot; do dot -Tpng -O $f; done
