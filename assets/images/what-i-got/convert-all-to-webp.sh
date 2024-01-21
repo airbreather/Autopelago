@@ -1,7 +1,7 @@
 #!/bin/sh
 
-# https://stackoverflow.com/a/1482133/1083771
-SCRIPT_DIR="$(dirname "$(readlink -f "$0")")"
+# https://stackoverflow.com/a/35374073/1083771
+SCRIPT_DIR="$(dirname "$(realpath "$0")")"
 
 for f in $SCRIPT_DIR/*.png
 do
