@@ -10,7 +10,6 @@ do
     cwebp -mt -z 9 -o "$SCRIPT_DIR/../$fn_webp" "$f"
 done
 
-# assumption: all .gif files are animated
 for f in $SCRIPT_DIR/*.gif
 do
     fn=${f##*/}
