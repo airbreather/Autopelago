@@ -230,6 +230,7 @@ public sealed class Game(GameDifficultySettings difficultySettings, int seed)
     public static readonly Dictionary<Region, long[]> s_locationsByRegion = new()
     {
         [Region.Before8Rats] = s_locationsBefore8Rats,
+        [Region.Gate8Rats] = [s_locationGate8Rats],
         [Region.After8RatsBeforeA] = s_locationsAfter8RatsBeforeA,
         [Region.After8RatsBeforeB] = s_locationsAfter8RatsBeforeB,
         [Region.A] = [s_locationA],
@@ -240,6 +241,7 @@ public sealed class Game(GameDifficultySettings difficultySettings, int seed)
         [Region.D] = [s_locationD],
         [Region.AfterCBefore20Rats] = s_locationsAfterCBefore20Rats,
         [Region.AfterDBefore20Rats] = s_locationsAfterDBefore20Rats,
+        [Region.Gate20Rats] = [s_locationGate20Rats],
         [Region.After20RatsBeforeE] = s_locationsAfter20RatsBeforeE,
         [Region.After20RatsBeforeF] = s_locationsAfter20RatsBeforeF,
         [Region.E] = [s_locationE],
