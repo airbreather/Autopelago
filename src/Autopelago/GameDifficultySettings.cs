@@ -5,6 +5,7 @@ public sealed record GameDifficultySettings
     public Dictionary<Region, int> DifficultyClass { get; } = new()
     {
         [Region.Before8Rats] = 10,
+        [Region.Gate8Rats] = 11,
         [Region.After8RatsBeforeA] = 12,
         [Region.After8RatsBeforeB] = 12,
         [Region.A] = 12,
@@ -15,6 +16,7 @@ public sealed record GameDifficultySettings
         [Region.D] = 14,
         [Region.AfterCBefore20Rats] = 16,
         [Region.AfterDBefore20Rats] = 16,
+        [Region.Gate20Rats] = 17,
         [Region.After20RatsBeforeE] = 18,
         [Region.After20RatsBeforeF] = 18,
         [Region.E] = 18,

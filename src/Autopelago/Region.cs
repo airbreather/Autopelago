@@ -2,6 +2,7 @@ public enum Region
 {
     Traveling,
     Before8Rats,
+    Gate8Rats,
     After8RatsBeforeA,
     After8RatsBeforeB,
     A,
@@ -12,6 +13,7 @@ public enum Region
     D,
     AfterCBefore20Rats,
     AfterDBefore20Rats,
+    Gate20Rats,
     After20RatsBeforeE,
     After20RatsBeforeF,
     E,

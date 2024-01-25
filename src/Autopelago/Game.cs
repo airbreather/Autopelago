@@ -163,7 +163,9 @@ public sealed class Game(GameDifficultySettings difficultySettings, int seed)
     // "key item" locations
     private static readonly long[] s_locationsBefore8Rats = Enumerable.Range(0, s_numLocationsIn[Region.Before8Rats]).Select(id => BASE_ID + id).ToArray();
 
-    private static readonly long[] s_locationsAfter8RatsBeforeA = Enumerable.Range(1, s_numLocationsIn[Region.After8RatsBeforeA]).Select(id => s_locationsBefore8Rats[^1] + id).ToArray();
+    private static readonly long s_locationGate8Rats = s_locationsBefore8Rats[^1] + 1;
+
+    private static readonly long[] s_locationsAfter8RatsBeforeA = Enumerable.Range(1, s_numLocationsIn[Region.After8RatsBeforeA]).Select(id => s_locationGate8Rats + id).ToArray();
 
     private static readonly long[] s_locationsAfter8RatsBeforeB = Enumerable.Range(1, s_numLocationsIn[Region.After8RatsBeforeB]).Select(id => s_locationsAfter8RatsBeforeA[^1] + id).ToArray();
 
@@ -183,7 +185,9 @@ public sealed class Game(GameDifficultySettings difficultySettings, int seed)
 
     private static readonly long[] s_locationsAfterDBefore20Rats = Enumerable.Range(1, s_numLocationsIn[Region.AfterDBefore20Rats]).Select(id => s_locationsAfterCBefore20Rats[^1] + id).ToArray();
 
-    private static readonly long[] s_locationsAfter20RatsBeforeE = Enumerable.Range(1, s_numLocationsIn[Region.After20RatsBeforeE]).Select(id => s_locationsAfterDBefore20Rats[^1] + id).ToArray();
+    private static readonly long s_locationGate20Rats = s_locationsAfterDBefore20Rats[^1] + 1;
+
+    private static readonly long[] s_locationsAfter20RatsBeforeE = Enumerable.Range(1, s_numLocationsIn[Region.After20RatsBeforeE]).Select(id => s_locationGate20Rats + id).ToArray();
 
     private static readonly long[] s_locationsAfter20RatsBeforeF = Enumerable.Range(1, s_numLocationsIn[Region.After20RatsBeforeF]).Select(id => s_locationsAfter20RatsBeforeE[^1] + id).ToArray();
 
@@ -195,7 +199,8 @@ public sealed class Game(GameDifficultySettings difficultySettings, int seed)
 
     private static readonly Dictionary<(Region S, Region T), int> s_regionDistances = ToComplete(ToUndirected(new()
     {
-        [Region.Before8Rats] = new()
+        [Region.Before8Rats] = new() { [Region.Gate8Rats] = false },
+        [Region.Gate8Rats] = new()
         {
             [Region.After8RatsBeforeA] = true,
             [Region.After8RatsBeforeB] = true,
@@ -208,12 +213,9 @@ public sealed class Game(GameDifficultySettings difficultySettings, int seed)
         [Region.AfterBBeforeD] = new() { [Region.D] = false },
         [Region.C] = new() { [Region.AfterCBefore20Rats] = true },
         [Region.D] = new() { [Region.AfterDBefore20Rats] = true },
-        [Region.AfterCBefore20Rats] = new()
-        {
-            [Region.After20RatsBeforeE] = true,
-            [Region.After20RatsBeforeF] = true,
-        },
-        [Region.AfterDBefore20Rats] = new()
+        [Region.AfterCBefore20Rats] = new() { [Region.Gate20Rats] = false },
+        [Region.AfterDBefore20Rats] = new() { [Region.Gate20Rats] = false },
+        [Region.Gate20Rats] = new()
         {
             [Region.After20RatsBeforeE] = true,
             [Region.After20RatsBeforeF] = true,
@@ -580,12 +582,7 @@ public sealed class Game(GameDifficultySettings difficultySettings, int seed)
         // ASSUMPTION: you don't need help to figure out what to do in Traveling or CompletedGoal.
         //
         // if the goal is open, then you should ALWAYS try for it.
-        if (ratCount >= 20 &&
-            _receivedItems.Values.Any(i => i is ItemType.E or ItemType.F) &&
-            (
-                (_receivedItems.ContainsValue(ItemType.A) && _receivedItems.ContainsValue(ItemType.C)) ||
-                (_receivedItems.ContainsValue(ItemType.B) && _receivedItems.ContainsValue(ItemType.D))
-            ))
+        if (ratCount >= 20 && ( _remainingLocationsInRegion[Region.E].Count == 0 || _remainingLocationsInRegion[Region.F].Count == 0))
         {
             return Region.TryingForGoal;
         }
@@ -607,39 +604,87 @@ public sealed class Game(GameDifficultySettings difficultySettings, int seed)
             return bestRegion;
         }
 
-        HandleUnlockedRegion(Region.After8RatsBeforeA);
-        HandleUnlockedRegion(Region.A);
-        HandleUnlockedRegion(Region.After8RatsBeforeB);
-        HandleUnlockedRegion(Region.B);
+        HandleUnlockedRegion(Region.Gate8Rats);
+        if (_remainingLocationsInRegion[Region.Gate8Rats].Count > 0)
+        {
+            return bestRegion;
+        }
 
-        bool receivedCOrD = false;
+        HandleUnlockedRegion(Region.After8RatsBeforeA);
+        HandleUnlockedRegion(Region.After8RatsBeforeB);
+
         if (_receivedItems.ContainsValue(ItemType.A))
         {
-            HandleUnlockedRegion(Region.AfterABeforeC);
-            HandleUnlockedRegion(Region.C);
-            if (_receivedItems.ContainsValue(ItemType.C))
-            {
-                HandleUnlockedRegion(Region.AfterCBefore20Rats);
-                receivedCOrD = true;
-            }
+            HandleUnlockedRegion(Region.A);
         }
 
         if (_receivedItems.ContainsValue(ItemType.B))
         {
-            HandleUnlockedRegion(Region.AfterBBeforeD);
-            HandleUnlockedRegion(Region.D);
-            if (_receivedItems.ContainsValue(ItemType.D))
+            HandleUnlockedRegion(Region.B);
+        }
+
+        bool pastA = _remainingLocationsInRegion[Region.A].Count > 0;
+        bool pastB = _remainingLocationsInRegion[Region.B].Count > 0;
+        if (!(pastA || pastB))
+        {
+            return bestRegion;
+        }
+
+        if (pastA)
+        {
+            HandleUnlockedRegion(Region.AfterABeforeC);
+            if (_receivedItems.ContainsValue(ItemType.C))
             {
-                HandleUnlockedRegion(Region.AfterDBefore20Rats);
-                receivedCOrD = true;
+                HandleUnlockedRegion(Region.C);
             }
         }
 
-        if (receivedCOrD && ratCount >= 20)
+        if (pastB)
         {
-            HandleUnlockedRegion(Region.After20RatsBeforeE);
+            HandleUnlockedRegion(Region.AfterBBeforeD);
+            if (_receivedItems.ContainsValue(ItemType.D))
+            {
+                HandleUnlockedRegion(Region.D);
+            }
+        }
+
+        bool pastC = _remainingLocationsInRegion[Region.C].Count > 0;
+        bool pastD = _remainingLocationsInRegion[Region.D].Count > 0;
+        if (!(pastC || pastD))
+        {
+            return bestRegion;
+        }
+
+        if (pastC)
+        {
+            HandleUnlockedRegion(Region.AfterCBefore20Rats);
+        }
+
+        if (pastD)
+        {
+            HandleUnlockedRegion(Region.AfterDBefore20Rats);
+        }
+
+        if (ratCount < 20)
+        {
+            return bestRegion;
+        }
+
+        HandleUnlockedRegion(Region.Gate20Rats);
+        if (_remainingLocationsInRegion[Region.Gate20Rats].Count > 0)
+        {
+            return bestRegion;
+        }
+
+        HandleUnlockedRegion(Region.After20RatsBeforeE);
+        HandleUnlockedRegion(Region.After20RatsBeforeF);
+        if (_receivedItems.ContainsValue(ItemType.E))
+        {
             HandleUnlockedRegion(Region.E);
-            HandleUnlockedRegion(Region.After20RatsBeforeF);
+        }
+
+        if (_receivedItems.ContainsValue(ItemType.F))
+        {
             HandleUnlockedRegion(Region.F);
         }
 
