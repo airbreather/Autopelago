@@ -653,8 +653,8 @@ public sealed class Game(GameDifficultySettings difficultySettings, int seed)
             HandleUnlockedRegion(Region.PrawnStars);
         }
 
-        bool pastMinotaur = _remainingLocationsInRegion[Region.Minotaur].Count > 0;
-        bool pastPrawnStars = _remainingLocationsInRegion[Region.PrawnStars].Count > 0;
+        bool pastMinotaur = _remainingLocationsInRegion[Region.Minotaur].Count == 0;
+        bool pastPrawnStars = _remainingLocationsInRegion[Region.PrawnStars].Count == 0;
         if (!(pastMinotaur || pastPrawnStars))
         {
             return bestRegion;
@@ -678,8 +678,8 @@ public sealed class Game(GameDifficultySettings difficultySettings, int seed)
             }
         }
 
-        bool pastRestaurant = _remainingLocationsInRegion[Region.Restaurant].Count > 0;
-        bool pastPirateBakeSale = _remainingLocationsInRegion[Region.PirateBakeSale].Count > 0;
+        bool pastRestaurant = _remainingLocationsInRegion[Region.Restaurant].Count == 0;
+        bool pastPirateBakeSale = _remainingLocationsInRegion[Region.PirateBakeSale].Count == 0;
         if (!(pastRestaurant || pastPirateBakeSale))
         {
             return bestRegion;
