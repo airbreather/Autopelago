@@ -14,6 +14,7 @@ public enum Region
     AfterRestaurant,
     AfterPirateBakeSale,
     BowlingBallDoor,
+    BeforeGoldfish,
     Goldfish,
     CompletedGoal,
 }

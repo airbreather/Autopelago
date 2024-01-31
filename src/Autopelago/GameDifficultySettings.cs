@@ -16,7 +16,8 @@ public sealed record GameDifficultySettings
         [Region.PirateBakeSale] = 14,
         [Region.AfterRestaurant] = 16,
         [Region.AfterPirateBakeSale] = 16,
-        [Region.BowlingBallDoor] = 18,
+        [Region.BowlingBallDoor] = 17,
+        [Region.BeforeGoldfish] = 18,
         [Region.Goldfish] = 20,
     };
 }

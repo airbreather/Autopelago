@@ -153,6 +153,7 @@ public sealed class Game(GameDifficultySettings difficultySettings, int seed)
         [Region.BeforePirateBakeSale] = 10,
         [Region.AfterRestaurant] = 10,
         [Region.AfterPirateBakeSale] = 10,
+        [Region.BeforeGoldfish] = 20,
     };
 
     // location IDs
@@ -185,27 +186,9 @@ public sealed class Game(GameDifficultySettings difficultySettings, int seed)
 
     private static readonly long s_locationBowlingBallDoor = s_locationsAfterPirateBakeSale[^1] + 1;
 
-    private static readonly long s_locationGoldfish = s_locationBowlingBallDoor + 1;
+    private static readonly long[] s_locationsBeforeGoldfish = Enumerable.Range(1, s_numLocationsIn[Region.BeforeGoldfish]).Select(id => s_locationBowlingBallDoor + id).ToArray();
 
-    private static readonly HashSet<string> s_namedRats =
-    [
-        "Pack Rat",
-        "Pizza Rat",
-        "Chef Rat",
-        "Ninja Rat",
-        "Gym Rat",
-        "Computer Rat",
-        "Pie Rat",
-        "Ziggu Rat",
-        "Acro Rat",
-        "Lab Rat",
-        "Soc-Rat-es",
-        "Entire Rat Pack",
-    ];
-
-    private static readonly string s_entireRatPackItemName = "Entire Rat Pack";
-
-    private static readonly string s_normalRatItemName = "Normal Rat";
+    private static readonly long s_locationGoldfish = s_locationsBeforeGoldfish[^1] + 1;
 
     private static readonly Dictionary<(Region S, Region T), int> s_regionDistances = ToComplete(ToUndirected(new()
     {
@@ -225,7 +208,8 @@ public sealed class Game(GameDifficultySettings difficultySettings, int seed)
         [Region.PirateBakeSale] = new() { [Region.AfterPirateBakeSale] = true },
         [Region.AfterRestaurant] = new() { [Region.BowlingBallDoor] = false },
         [Region.AfterPirateBakeSale] = new() { [Region.BowlingBallDoor] = false },
-        [Region.BowlingBallDoor] = new() { [Region.Goldfish] = false },
+        [Region.BowlingBallDoor] = new() { [Region.BeforeGoldfish] = true },
+        [Region.BeforeGoldfish] = new() { [Region.Goldfish] = false },
         [Region.Goldfish] = [],
     }));
 
@@ -244,6 +228,7 @@ public sealed class Game(GameDifficultySettings difficultySettings, int seed)
         [Region.AfterRestaurant] = s_locationsAfterRestaurant,
         [Region.AfterPirateBakeSale] = s_locationsAfterPirateBakeSale,
         [Region.BowlingBallDoor] = [s_locationBowlingBallDoor],
+        [Region.BeforeGoldfish] = s_locationsBeforeGoldfish,
         [Region.Goldfish] = [s_locationGoldfish],
     };
 
@@ -410,7 +395,7 @@ public sealed class Game(GameDifficultySettings difficultySettings, int seed)
     {
         await Helper.ConfigureAwaitFalse();
 
-        ItemType itemType = Classify(item, itemName);
+        ItemType itemType = Classify(item.Flags, itemName);
         if (!_receivedItems.TryAdd(item.Item, itemType))
         {
             if (_receivedItems[item.Item] != itemType)
@@ -445,49 +430,6 @@ public sealed class Game(GameDifficultySettings difficultySettings, int seed)
 
         State = State with { Auras = [..State.Auras, auraToAdd] };
         await _aurasAddedEvent.InvokeAsync(this, new() { DifficultySettings = difficultySettings, State = State, AddedAuras = [auraToAdd] }, cancellationToken);
-
-        static ItemType Classify(ItemModel item, string itemName)
-        {
-            if (item.Flags.HasFlag(ArchipelagoItemFlags.Trap))
-            {
-                return ItemType.Trap;
-            }
-
-            if (item.Flags.HasFlag(ArchipelagoItemFlags.ImportantNonAdvancement))
-            {
-                return ItemType.Useful;
-            }
-
-            if (!item.Flags.HasFlag(ArchipelagoItemFlags.LogicalAdvancement))
-            {
-                return ItemType.Filler;
-            }
-
-            if (itemName == s_normalRatItemName)
-            {
-                return ItemType.OneNormalRat;
-            }
-
-            if (s_namedRats.Contains(itemName))
-            {
-                return ItemType.OneNamedRat;
-            }
-
-            if (itemName == s_entireRatPackItemName)
-            {
-                return ItemType.EntireRatPack;
-            }
-
-            return itemName switch
-            {
-                "Red Matador's Cape" => ItemType.UnlocksMinotaur,
-                "Premium Can of Prawn Food" => ItemType.UnlocksPrawnStars,
-                "A Cookie" => ItemType.UnlocksRestaurant,
-                "Bribe" => ItemType.UnlocksPirateBakeSale,
-                "Lockheed SR-71 Blackbird" => ItemType.Goal,
-                _ => throw new InvalidDataException("All items should have been accounted for above."),
-            };
-        }
     }
 
     private static Dictionary<(Region S, Region T), int> ToComplete(Dictionary<Region, Dictionary<Region, bool>> g)
@@ -529,6 +471,56 @@ public sealed class Game(GameDifficultySettings difficultySettings, int seed)
         }
 
         return g;
+    }
+
+    private static ItemType Classify(ArchipelagoItemFlags flags, string itemName)
+    {
+        if (flags.HasFlag(ArchipelagoItemFlags.Trap))
+        {
+            return ItemType.Trap;
+        }
+
+        if (flags.HasFlag(ArchipelagoItemFlags.ImportantNonAdvancement))
+        {
+            return ItemType.Useful;
+        }
+
+        if (!flags.HasFlag(ArchipelagoItemFlags.LogicalAdvancement))
+        {
+            return ItemType.Filler;
+        }
+
+        return itemName switch
+        {
+            "Normal Rat"
+                => ItemType.OneNormalRat,
+
+            "Pack Rat" or "Pizza Rat" or "Chef Rat" or "Ninja Rat" or "Gym Rat" or "Computer Rat" or "Pie Rat" or "Ziggu Rat" or "Acro Rat" or "Lab Rat" or "Soc-Rat-es"
+                => ItemType.OneNamedRat,
+
+            "Entire Rat Pack"
+                => ItemType.EntireRatPack,
+
+            "Red Matador's Cape"
+                => ItemType.UnlocksMinotaur,
+
+            "Premium Can of Prawn Food"
+                => ItemType.UnlocksPrawnStars,
+
+            "A Cookie"
+                => ItemType.UnlocksRestaurant,
+
+            "Bribe"
+                => ItemType.UnlocksPirateBakeSale,
+
+            "Masterful Longsword"
+                => ItemType.UnlocksGoldfish,
+
+            "Lockheed SR-71 Blackbird"
+                => ItemType.Goal,
+
+            _ => throw new InvalidDataException("All items should have been accounted for above."),
+        };
     }
 
     private async ValueTask TryNextCheckAsync(Player player, CancellationToken cancellationToken)
@@ -623,13 +615,7 @@ public sealed class Game(GameDifficultySettings difficultySettings, int seed)
     {
         int ratCount = RatCount;
 
-        // ASSUMPTION: you don't need help to figure out what to do in Traveling.
-        //
-        // if the goal is open, then you should ALWAYS try for it.
-        if (ratCount >= 20 && _remainingLocationsInRegion[Region.BowlingBallDoor].Count == 0)
-        {
-            return Region.Goldfish;
-        }
+        // ASSUMPTION: you don't need help to figure out what to do in Traveling or CompletedGoal.
 
         Region bestRegion = State.CurrentRegion;
         int bestRegionDifficultyClass = EffectiveDifficultyClass(bestRegion);
@@ -715,11 +701,13 @@ public sealed class Game(GameDifficultySettings difficultySettings, int seed)
         }
 
         HandleUnlockedRegion(Region.BowlingBallDoor);
-
-        // note: at the time of writing, whenever we get to this point in the code, the following
-        // condition will ALWAYS be true. otherwise, we would have short-circuited at the very top.
-        // it remains here because there are plans to implement other "worlds".
         if (_remainingLocationsInRegion[Region.BowlingBallDoor].Count > 0)
+        {
+            return bestRegion;
+        }
+
+        HandleUnlockedRegion(Region.BeforeGoldfish);
+        if (!_receivedItems.ContainsValue(ItemType.UnlocksGoldfish))
         {
             return bestRegion;
         }
@@ -735,7 +723,8 @@ public sealed class Game(GameDifficultySettings difficultySettings, int seed)
             }
 
             int testDifficultyClass = EffectiveDifficultyClass(testRegion);
-            if (testDifficultyClass < bestRegionDifficultyClass ||
+            if (testRegion == Region.Goldfish ||
+                testDifficultyClass < bestRegionDifficultyClass ||
                 (testDifficultyClass == bestRegionDifficultyClass && s_regionDistances[(State.CurrentRegion, testRegion)] < bestRegionDistance))
             {
                 bestRegion = testRegion;

@@ -10,5 +10,6 @@ public enum ItemType
     UnlocksPrawnStars,
     UnlocksRestaurant,
     UnlocksPirateBakeSale,
+    UnlocksGoldfish,
     Goal,
 }
