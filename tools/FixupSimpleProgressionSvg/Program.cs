@@ -23,7 +23,7 @@ FileStreamOptions saveFileAsync = new()
 };
 
 XDocument doc;
-await using (FileStream fs = new(args[0], openFileAsync))
+await using (FileStream fs = new(args[1], openFileAsync))
 {
     doc = await XDocument.LoadAsync(fs, LoadOptions.None, default);
 }
@@ -96,16 +96,25 @@ foreach (XElement img in doc.Descendants(svg.GetName("image")).Cast<XElement>())
     }
 
     href.Value = Path.ChangeExtension(href.Value, "webp");
-    href.Value = $$$"""
-    {{ url_for('static', filename='static/icons/autopelago/{{{href.Value}}}') }}
-    """;
+    switch (args[0])
+    {
+        case "1":
+            href.Value = $$$"""
+            {{ url_for('static', filename='static/icons/autopelago/{{{href.Value}}}') }}
+            """;
+            break;
+
+        case "2":
+            href.Value = $"../assets/images/${href.Value}";
+            break;
+    }
 }
 
 doc.DescendantNodes().OfType<XComment>().Remove();
 doc.Descendants().SelectMany(e => e.Attributes().Where(a => a.Name == "id")).Remove();
 doc.Descendants(svg.GetName("title")).Remove();
 
-await using (FileStream fs = new(args[1], saveFileAsync))
+await using (FileStream fs = new(args[2], saveFileAsync))
 {
     await doc.SaveAsync(fs, SaveOptions.None, default);
 }

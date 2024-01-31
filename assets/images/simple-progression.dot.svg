@@ -2,42 +2,42 @@
 <svg width="100%" viewBox="0.00 0.00 422.00 164.00" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink">
   <g>
     <g class="checked-location not-checked not-open checked-basketball">
-      <image xlink:href="../assets/images/$Basketball.webp" width="54px" height="54px" preserveAspectRatio="xMinYMin" x="4" y="76" />
+      <image xlink:href="Basketball.webp" width="54px" height="54px" preserveAspectRatio="xMinYMin" x="4" y="76" />
     </g>
     <g class="traversed-path before-basketball after-start current-region">
       <path fill="none" stroke="black" d="M31,39.72C31,48.04 31,56.35 31,64.67" class="arrow-line" />
       <polygon fill="black" stroke="black" points="34.5,64.49 31,74.49 27.5,64.49 34.5,64.49" class="arrow-head" />
     </g>
     <g class="checked-location not-checked not-open checked-minotaur">
-      <image xlink:href="../assets/images/$Minotaur Maze.webp" width="54px" height="54px" preserveAspectRatio="xMinYMin" x="94" y="42" />
+      <image xlink:href="Minotaur Maze.webp" width="54px" height="54px" preserveAspectRatio="xMinYMin" x="94" y="42" />
     </g>
     <g class="traversed-path before-minotaur after-basketball">
       <path fill="none" stroke="black" d="M57.93,90.98C65.98,87.87 75.02,84.38 83.65,81.05" class="arrow-line" />
       <polygon fill="black" stroke="black" points="82.26,77.83 92.85,77.49 84.78,84.36 82.26,77.83" class="arrow-head" />
     </g>
     <g class="checked-location not-checked not-open checked-prawn-stars">
-      <image xlink:href="../assets/images/$Prawn Stars.webp" width="54px" height="54px" preserveAspectRatio="xMinYMin" x="94" y="110" />
+      <image xlink:href="Prawn Stars.webp" width="54px" height="54px" preserveAspectRatio="xMinYMin" x="94" y="110" />
     </g>
     <g class="traversed-path before-prawn-stars after-basketball">
       <path fill="none" stroke="black" d="M57.93,111.02C65.98,114.13 75.02,117.62 83.65,120.95" class="arrow-line" />
       <polygon fill="black" stroke="black" points="84.78,117.64 92.85,124.51 82.26,124.17 84.78,117.64" class="arrow-head" />
     </g>
     <g class="checked-location not-checked not-open checked-restaurant">
-      <image xlink:href="../assets/images/$Restaurant.webp" width="54px" height="54px" preserveAspectRatio="xMinYMin" x="184" y="42" />
+      <image xlink:href="Restaurant.webp" width="54px" height="54px" preserveAspectRatio="xMinYMin" x="184" y="42" />
     </g>
     <g class="traversed-path before-restaurant after-minotaur">
       <path fill="none" stroke="black" d="M147.93,67C155.71,67 164.42,67 172.78,67" class="arrow-line" />
       <polygon fill="black" stroke="black" points="172.74,63.5 182.74,67 172.74,70.5 172.74,63.5" class="arrow-head" />
     </g>
     <g class="checked-location not-checked not-open checked-pirate-bake-sale">
-      <image xlink:href="../assets/images/$Pirate Bake Sale.webp" width="54px" height="54px" preserveAspectRatio="xMinYMin" x="184" y="110" />
+      <image xlink:href="Pirate Bake Sale.webp" width="54px" height="54px" preserveAspectRatio="xMinYMin" x="184" y="110" />
     </g>
     <g class="traversed-path before-pirate-bake-sale after-prawn-stars">
       <path fill="none" stroke="black" d="M147.93,135C155.71,135 164.42,135 172.78,135" class="arrow-line" />
       <polygon fill="black" stroke="black" points="172.74,131.5 182.74,135 172.74,138.5 172.74,131.5" class="arrow-head" />
     </g>
     <g class="checked-location not-checked not-open checked-bowling-ball-door">
-      <image xlink:href="../assets/images/$Bowling Ball Door.webp" width="54px" height="54px" preserveAspectRatio="xMinYMin" x="274" y="76" />
+      <image xlink:href="Bowling Ball Door.webp" width="54px" height="54px" preserveAspectRatio="xMinYMin" x="274" y="76" />
     </g>
     <g class="traversed-path before-bowling-ball-door after-restaurant">
       <path fill="none" stroke="black" d="M237.93,77.02C245.98,80.13 255.02,83.62 263.65,86.95" class="arrow-line" />
@@ -48,7 +48,7 @@
       <polygon fill="black" stroke="black" points="262.26,111.83 272.85,111.49 264.78,118.36 262.26,111.83" class="arrow-head" />
     </g>
     <g class="checked-location not-checked not-open checked-captured-goldfish">
-      <image xlink:href="../assets/images/$Captured Goldfish.webp" width="54px" height="54px" preserveAspectRatio="xMinYMin" x="364" y="76" />
+      <image xlink:href="Captured Goldfish.webp" width="54px" height="54px" preserveAspectRatio="xMinYMin" x="364" y="76" />
     </g>
     <g class="traversed-path before-captured-goldfish after-bowling-ball-door">
       <path fill="none" stroke="black" d="M327.93,101C335.71,101 344.42,101 352.78,101" class="arrow-line" />
