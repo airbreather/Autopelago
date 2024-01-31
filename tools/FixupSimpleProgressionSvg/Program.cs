@@ -32,6 +32,17 @@ doc.DocumentType?.Remove();
 doc.Root!.Attribute("width")!.Value = "100%";
 doc.Root.Attribute("height")?.Remove();
 
+doc.Root.Attribute("viewBox")!.Value = Regex.Replace(
+    doc.Root.Attribute("viewBox")!.Value,
+    @"(?<minX>-?\d+(?:\.\d+)?) (?<minY>-?\d+(?:\.\d+)?) (?<width>-?\d+(?:\.\d+)?) (?<height>-?\d+(?:\.\d+)?)",
+    m =>
+    {
+        decimal width = decimal.Parse(m.Groups["width"].ValueSpan);
+        decimal height = decimal.Parse(m.Groups["height"].ValueSpan);
+        return $"{m.Groups["minX"].Value} {m.Groups["minY"].Value} {width + 30} {height + 30}";
+    },
+    RegexOptions.CultureInvariant | RegexOptions.Compiled);
+
 if (doc.Root?.Element(svg.GetName("g")) is XElement layoutRoot)
 {
     if (layoutRoot.Attribute("transform") is not XAttribute { Value: "scale(1 1) rotate(0) translate(4 160)" } transformAttribute)
@@ -65,7 +76,7 @@ foreach (XElement path in doc.Descendants(svg.GetName("path")).Cast<XElement>())
         throw new InvalidDataException("Hardcoded parameters changed.");
     }
 
-    d.Value = Regex.Replace(d.Value, @"(?<x>-?\d+(?:\.\d+)?),(?<y>-?\d+(?:\.\d+)?)", m => $"{decimal.Parse(m.Groups["x"].ValueSpan) + 4},{decimal.Parse(m.Groups["y"].ValueSpan) + 160}", RegexOptions.Compiled | RegexOptions.CultureInvariant);
+    d.Value = Regex.Replace(d.Value, @"(?<x>-?\d+(?:\.\d+)?),(?<y>-?\d+(?:\.\d+)?)", m => $"{decimal.Parse(m.Groups["x"].ValueSpan) + 19},{decimal.Parse(m.Groups["y"].ValueSpan) + 175}", RegexOptions.Compiled | RegexOptions.CultureInvariant);
 }
 
 foreach (XElement polygon in doc.Descendants(svg.GetName("polygon")).Cast<XElement>())
@@ -76,7 +87,7 @@ foreach (XElement polygon in doc.Descendants(svg.GetName("polygon")).Cast<XEleme
         throw new InvalidDataException("Hardcoded parameters changed.");
     }
 
-    points.Value = Regex.Replace(points.Value, @"(?<x>-?\d+(?:\.\d+)?),(?<y>-?\d+(?:\.\d+)?)", m => $"{decimal.Parse(m.Groups["x"].ValueSpan) + 4},{decimal.Parse(m.Groups["y"].ValueSpan) + 160}", RegexOptions.Compiled | RegexOptions.CultureInvariant);
+    points.Value = Regex.Replace(points.Value, @"(?<x>-?\d+(?:\.\d+)?),(?<y>-?\d+(?:\.\d+)?)", m => $"{decimal.Parse(m.Groups["x"].ValueSpan) + 19},{decimal.Parse(m.Groups["y"].ValueSpan) + 175}", RegexOptions.Compiled | RegexOptions.CultureInvariant);
 }
 
 foreach (XElement img in doc.Descendants(svg.GetName("image")).Cast<XElement>())
@@ -85,8 +96,8 @@ foreach (XElement img in doc.Descendants(svg.GetName("image")).Cast<XElement>())
     string title = parent.Element(svg.GetName("title"))!.Value;
     parent.Attribute("class")!.Value = $"checked-location not-checked not-open checked-{title.Replace('_', '-')}";
 
-    img.Attribute("x")!.Value = $"{decimal.Parse(img.Attribute("x")!.Value) + 4}";
-    img.Attribute("y")!.Value = $"{decimal.Parse(img.Attribute("y")!.Value) + 160}";
+    img.Attribute("x")!.Value = $"{decimal.Parse(img.Attribute("x")!.Value) + 19}";
+    img.Attribute("y")!.Value = $"{decimal.Parse(img.Attribute("y")!.Value) + 175}";
     img.Attribute("height")!.Value = "54px";
     img.Attribute("preserveAspectRatio")!.Value = "xMinYMin";
 
