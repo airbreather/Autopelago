@@ -5,6 +5,14 @@ using System.Text.Json.Serialization;
 using ArchipelagoClientDotNet;
 
 [Flags]
+public enum GoModePaths
+{
+    None = 0b00,
+    Minotaur = 0b01,
+    PrawnStars = 0b10,
+}
+
+[Flags]
 public enum ResetReasons
 {
     None = 0b0,
@@ -271,6 +279,48 @@ public sealed class Game(GameDifficultySettings difficultySettings, int seed)
             ItemType.EntireRatPack => 5,
             _ => 0,
         }) + _numNormalRatsReceived;
+
+    public GoModePaths GoModePathsUnlocked
+    {
+        get
+        {
+            int ratCount = _numNormalRatsReceived;
+            bool unlockedGoldfish = false;
+            bool unlockedPirateBakeSale = false;
+            bool unlockedPrawnStars = false;
+            bool unlockedRestaurant = false;
+            bool unlockedMinotaur = false;
+            foreach (ItemType received in _receivedItems.Values)
+            {
+                switch (received)
+                {
+                    case ItemType.OneNamedRat: ++ratCount; break;
+                    case ItemType.EntireRatPack: ratCount += 5; break;
+                    case ItemType.UnlocksGoldfish: unlockedGoldfish = true; break;
+                    case ItemType.UnlocksPirateBakeSale: unlockedPirateBakeSale = true; break;
+                    case ItemType.UnlocksPrawnStars: unlockedPrawnStars = true; break;
+                    case ItemType.UnlocksRestaurant: unlockedRestaurant = true; break;
+                    case ItemType.UnlocksMinotaur: unlockedMinotaur = true; break;
+                }
+            }
+
+            GoModePaths result = GoModePaths.None;
+            if (ratCount >= 20 && unlockedGoldfish)
+            {
+                if (unlockedRestaurant && unlockedMinotaur)
+                {
+                    result |= GoModePaths.Minotaur;
+                }
+
+                if (unlockedPirateBakeSale && unlockedPrawnStars)
+                {
+                    result |= GoModePaths.PrawnStars;
+                }
+            }
+
+            return result;
+        }
+    }
 
     public bool IsCompleted => State.CurrentRegion == Region.CompletedGoal || _receivedItems.ContainsValue(ItemType.Goal);
 
@@ -553,24 +603,22 @@ public sealed class Game(GameDifficultySettings difficultySettings, int seed)
 
     private async ValueTask<bool> StartTravelingIfNeeded(Player player, CancellationToken cancellationToken)
     {
-        Region bestNextRegion = DetermineNextRegion(player);
+        Region bestNextRegion = GoModePathsUnlocked switch
+        {
+            GoModePaths.None => DetermineNextRegionIgnoringGoMode(player),
+            GoModePaths pathsUnlocked => DetermineNextRegionInGoMode(player, pathsUnlocked),
+        };
         if (bestNextRegion == State.CurrentRegion)
         {
             return false;
         }
 
-        int travelUnitsFromCurrentRegion = s_regionDistances[(State.CurrentRegion, bestNextRegion)] * difficultySettings.RegionChangeSteps;
-        int travelUnitsFromMenu = s_regionDistances[(Region.BeforeBasketball, bestNextRegion)] * difficultySettings.RegionChangeSteps;
-        int travelUnitsRemaining;
+        int travelUnitsRemaining = EffectiveDistance(player, State.CurrentRegion, bestNextRegion, out bool includesReset);
         ResetReasons resetReasons = State.ReasonsToReset;
-        if (travelUnitsFromMenu + player.MovementSpeed < travelUnitsFromCurrentRegion)
+        if (includesReset)
         {
-            travelUnitsRemaining = travelUnitsFromMenu;
+            travelUnitsRemaining -= player.MovementSpeed;
             resetReasons |= ResetReasons.FasterTravelTime;
-        }
-        else
-        {
-            travelUnitsRemaining = travelUnitsFromCurrentRegion;
         }
 
         State = State with { CurrentRegion = Region.Traveling, SourceRegion = State.CurrentRegion, DestinationRegion = bestNextRegion, TravelUnitsRemaining = travelUnitsRemaining, ReasonsToReset = resetReasons };
@@ -611,14 +659,14 @@ public sealed class Game(GameDifficultySettings difficultySettings, int seed)
         return _random.Next(1, 21) + baseDiceModifier + State.ConsecutiveFailureCount / player.ConsecutiveFailuresBeforeDiceModifierIncrement;
     }
 
-    private Region DetermineNextRegion(Player player)
+    private Region DetermineNextRegionIgnoringGoMode(Player player)
     {
         int ratCount = RatCount;
 
         // ASSUMPTION: you don't need help to figure out what to do in Traveling or CompletedGoal.
 
         Region bestRegion = State.CurrentRegion;
-        int bestRegionDifficultyClass = EffectiveDifficultyClass(bestRegion);
+        int bestRegionDifficultyClass = EffectiveDifficultyClass(player, bestRegion);
         int bestRegionDistance = 0;
 
         // if your current region is empty, then you should favor moving ANYWHERE else.
@@ -722,17 +770,119 @@ public sealed class Game(GameDifficultySettings difficultySettings, int seed)
                 return;
             }
 
-            int testDifficultyClass = EffectiveDifficultyClass(testRegion);
+            int testDifficultyClass = EffectiveDifficultyClass(player, testRegion);
+            int testRegionDistance = EffectiveDistance(player, State.CurrentRegion, testRegion, out _);
             if (testRegion == Region.Goldfish ||
                 testDifficultyClass < bestRegionDifficultyClass ||
-                (testDifficultyClass == bestRegionDifficultyClass && s_regionDistances[(State.CurrentRegion, testRegion)] < bestRegionDistance))
+                (testDifficultyClass == bestRegionDifficultyClass && testRegionDistance < bestRegionDistance))
             {
                 bestRegion = testRegion;
                 bestRegionDifficultyClass = testDifficultyClass;
-                bestRegionDistance = s_regionDistances[(State.CurrentRegion, bestRegion)];
+                bestRegionDistance = testRegionDistance;
+            }
+        }
+    }
+
+    private Region DetermineNextRegionInGoMode(Player player, GoModePaths goModePathsUnlocked)
+    {
+        switch (goModePathsUnlocked)
+        {
+            case GoModePaths.Minotaur:
+                // the Minotaur path is the only one putting us in go-mode. no decisions here.
+                return FirstBlockedOf([Region.Basketball, Region.Minotaur, Region.Restaurant, Region.BowlingBallDoor, Region.Goldfish]);
+
+            case GoModePaths.PrawnStars:
+                // likewise if the PrawnStars path is the only one that brought us into go-mode.
+                return FirstBlockedOf([Region.Basketball, Region.PrawnStars, Region.PirateBakeSale, Region.BowlingBallDoor, Region.Goldfish]);
+
+            default:
+                // we have the items necessary for either path, so pick the one that requires the
+                // least amount of effort (if there's even a difference from our vantage point).
+                Region minotaurFirstBlocked = FirstBlockedOf([Region.Basketball, Region.Minotaur, Region.Restaurant, Region.BowlingBallDoor, Region.Goldfish]);
+                Region prawnStarsFirstBlocked = FirstBlockedOf([Region.Basketball, Region.PrawnStars, Region.PirateBakeSale, Region.BowlingBallDoor, Region.Goldfish]);
+                if (minotaurFirstBlocked == prawnStarsFirstBlocked)
+                {
+                    // we're either before the paths diverge, or after they converge back.
+                    return minotaurFirstBlocked;
+                }
+
+                // we have to make at least one check along one of the two mutually exclusive paths.
+                // if one is shorter than the other (weighted based on sum of effective DC), then
+                // pick that one (even if it requires a lot of travel time).
+                int remainingMinotaurPathDifficulty =
+                    (_remainingLocationsInRegion[Region.Restaurant].Count * EffectiveDifficultyClass(player, Region.Restaurant)) +
+                    (_remainingLocationsInRegion[Region.Minotaur].Count * EffectiveDifficultyClass(player, Region.Minotaur));
+
+                int remainingPrawnStarsPathDifficulty =
+                    (_remainingLocationsInRegion[Region.PirateBakeSale].Count * EffectiveDifficultyClass(player, Region.PirateBakeSale)) +
+                    (_remainingLocationsInRegion[Region.PrawnStars].Count * EffectiveDifficultyClass(player, Region.PrawnStars));
+
+                if (remainingMinotaurPathDifficulty < remainingPrawnStarsPathDifficulty)
+                {
+                    return minotaurFirstBlocked;
+                }
+
+                if (remainingPrawnStarsPathDifficulty < remainingMinotaurPathDifficulty)
+                {
+                    return prawnStarsFirstBlocked;
+                }
+
+                // both have exactly the same difficulty. if one requires less travel time than the
+                // other, then that's the one we pick. otherwise, arbitrarily pick Minotaur.
+                int minotaurDistance = EffectiveDistance(player, State.CurrentRegion, minotaurFirstBlocked, out bool resetForMinotaur);
+                int prawnStarsDistance = EffectiveDistance(player, State.CurrentRegion, prawnStarsFirstBlocked, out bool resetForPrawnStars);
+                if (minotaurDistance < prawnStarsDistance)
+                {
+                    return minotaurFirstBlocked;
+                }
+
+                if (prawnStarsDistance < minotaurDistance)
+                {
+                    return prawnStarsFirstBlocked;
+                }
+
+                // they're completely identical in every practical way. in theory, there COULD be an
+                // impending reset that is going to happen anyway, so if only *one* of the effective
+                // distances includes the time for a reset, then we actually want to pick that one.
+                // at the time of writing, this cannot happen (FasterTravelTime is the only flag in
+                // ResetReasons), but we're already WAY far down into "pick arbitrarily" land. think
+                // "a reset is a reset. you can't say it's only a half" if you're confused.
+                if (resetForPrawnStars && !resetForMinotaur)
+                {
+                    return prawnStarsFirstBlocked;
+                }
+
+                // down here, the choice is 100% arbitrary.
+                return minotaurFirstBlocked;
+        }
+    }
+
+    private int EffectiveDifficultyClass(Player player, Region region) => difficultySettings.DifficultyClass[region] - player.DiceModifier[region];
+
+    private int EffectiveDistance(Player player, Region from, Region to, out bool includesReset)
+    {
+        int distanceFromCurrent = s_regionDistances[(from, to)] * difficultySettings.RegionChangeSteps;
+        int distanceFromMenu = s_regionDistances[(from, to)] * difficultySettings.RegionChangeSteps;
+        if (distanceFromMenu + player.MovementSpeed < distanceFromCurrent)
+        {
+            includesReset = true;
+            return distanceFromMenu + player.MovementSpeed;
+        }
+
+        includesReset = false;
+        return distanceFromCurrent;
+    }
+
+    private Region FirstBlockedOf(ReadOnlySpan<Region> candidates)
+    {
+        foreach (Region region in candidates)
+        {
+            if (_remainingLocationsInRegion[region].Count > 0)
+            {
+                return region;
             }
         }
 
-        int EffectiveDifficultyClass(Region region) => difficultySettings.DifficultyClass[region] - player.DiceModifier[region];
+        return candidates[^1];
     }
 }
