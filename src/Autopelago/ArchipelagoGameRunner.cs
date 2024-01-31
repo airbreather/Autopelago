@@ -100,6 +100,7 @@ public sealed class ArchipelagoGameRunner : IDisposable
 
         await _client.StatusUpdateAsync(ArchipelagoClientStatus.Playing, cancellationToken);
         Task nextDelay = Task.Delay(NextStepInterval(), cancellationToken);
+        GoModePaths prevGoModePathsUnlocked = GoModePaths.None;
         long? reportedBlockedTime = null;
         long lastUpdateTime = Stopwatch.GetTimestamp();
         try
@@ -137,12 +138,14 @@ public sealed class ArchipelagoGameRunner : IDisposable
             bool step;
             int ratCount;
             ResumableGameState gameState;
+            GoModePaths goModePathsUnlocked;
             await _gameLock.WaitAsync(cancellationToken);
             try
             {
                 step = await _game.StepAsync(_player, cancellationToken);
                 gameState = _game.State;
                 ratCount = _game.RatCount;
+                goModePathsUnlocked = _game.GoModePathsUnlocked;
             }
             finally
             {
@@ -153,6 +156,23 @@ public sealed class ArchipelagoGameRunner : IDisposable
             if (step)
             {
                 reportedBlockedTime = null;
+                if (goModePathsUnlocked != prevGoModePathsUnlocked)
+                {
+                    switch (goModePathsUnlocked & ~prevGoModePathsUnlocked)
+                    {
+                        case GoModePaths.Minotaur:
+                            await _client.SayAsync($"go-mode: Minotaur path open!", cancellationToken);
+                            break;
+
+                        case GoModePaths.PrawnStars:
+                            await _client.SayAsync($"go-mode: Prawn Stars path open!", cancellationToken);
+                            break;
+
+                        default:
+                            await _client.SayAsync($"go-mode: both paths open!", cancellationToken);
+                            break;
+                    }
+                }
             }
             else if (reportedBlockedTime is not { } ts || Stopwatch.GetElapsedTime(ts) > TimeSpan.FromMinutes(5))
             {
@@ -166,6 +186,7 @@ public sealed class ArchipelagoGameRunner : IDisposable
                 lastUpdateTime = Stopwatch.GetTimestamp();
             }
 
+            prevGoModePathsUnlocked = goModePathsUnlocked;
             return gameState;
         }
     }
