@@ -105,7 +105,7 @@ foreach (XElement img in doc.Descendants(svg.GetName("image")).Cast<XElement>())
             break;
 
         case "2":
-            href.Value = $"../assets/images/${href.Value}";
+            href.Value = $"../assets/images/{href.Value}";
             break;
     }
 }
