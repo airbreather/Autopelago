@@ -22,37 +22,6 @@ public sealed class ArchipelagoGameRunner : IDisposable
         TypeInfoResolver = SourceGenerationContext.Default,
     };
 
-    private static readonly Dictionary<string, ItemType> s_keyItemTypeByName = new()
-    {
-        ["A Cookie"] = ItemType.A,
-        ["Fresh Banana Peel"] = ItemType.B,
-        ["MacGuffin"] = ItemType.C,
-        ["Blue Turtle Shell"] = ItemType.D,
-        ["Red Matador\'s Cape"] = ItemType.E,
-        ["Pair of Fake Mouse Ears"] = ItemType.F,
-        ["Lockheed SR-71 Blackbird"] = ItemType.Goal,
-    };
-
-    private static readonly HashSet<string> s_namedRats =
-    [
-        "Pack Rat",
-        "Pizza Rat",
-        "Chef Rat",
-        "Ninja Rat",
-        "Gym Rat",
-        "Computer Rat",
-        "Pie Rat",
-        "Ziggu Rat",
-        "Acro Rat",
-        "Lab Rat",
-        "Soc-Rat-es",
-        "Entire Rat Pack",
-    ];
-
-    private static readonly string s_entireRatPackItemName = "Entire Rat Pack";
-
-    private static readonly string s_normalRatItemName = "Normal Rat";
-
     private readonly SemaphoreSlim _gameLock = new(1, 1);
 
     private readonly TimeSpan _minStepInterval;
@@ -246,8 +215,7 @@ public sealed class ArchipelagoGameRunner : IDisposable
         {
             foreach (ItemModel item in receivedItems.Items)
             {
-                ItemType itemType = Classify(item);
-                await _game.ReceiveItem(item.Item, itemType, cancellationToken);
+                await _game.ReceiveItem(item, _myItemNamesById![item.Item], cancellationToken);
             }
         }
         finally
@@ -369,48 +337,6 @@ public sealed class ArchipelagoGameRunner : IDisposable
                 await _client.SayAsync($"{causedBy} wore off. Yay! (msi: {medianStepInterval.FormatMyWay()})", cancellationToken);
             }
         }
-    }
-
-    private ItemType Classify(ItemModel item)
-    {
-        ItemType itemType;
-        if (item.Flags.HasFlag(ArchipelagoItemFlags.LogicalAdvancement))
-        {
-            string itemName = _myItemNamesById![item.Item];
-            if (!s_keyItemTypeByName.TryGetValue(itemName, out itemType))
-            {
-                if (s_namedRats.Contains(itemName))
-                {
-                    itemType = ItemType.OneNamedRat;
-                }
-                else if (s_entireRatPackItemName == itemName)
-                {
-                    itemType = ItemType.EntireRatPack;
-                }
-                else if (s_normalRatItemName == itemName)
-                {
-                    itemType = ItemType.OneNormalRat;
-                }
-                else
-                {
-                    throw new InvalidDataException("hardcoded names changed, fix!!!");
-                }
-            }
-        }
-        else if (item.Flags.HasFlag(ArchipelagoItemFlags.ImportantNonAdvancement))
-        {
-            itemType = ItemType.Useful;
-        }
-        else if (item.Flags.HasFlag(ArchipelagoItemFlags.Trap))
-        {
-            itemType = ItemType.Trap;
-        }
-        else
-        {
-            itemType = ItemType.Filler;
-        }
-
-        return itemType;
     }
 
     private TimeSpan MedianStepInterval()

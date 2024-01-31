@@ -21,7 +21,7 @@ public sealed record ResumableGameState
     public static readonly ResumableGameState Initial = new()
     {
         StepCount = 0,
-        CurrentRegion = Region.Before8Rats,
+        CurrentRegion = Region.BeforeBasketball,
         ConsecutiveFailureCount = 0,
         ReasonsToReset = ResetReasons.None,
         SourceRegion = null,
@@ -146,107 +146,105 @@ public sealed class Game(GameDifficultySettings difficultySettings, int seed)
     // "non-key item" location count tuning
     private static readonly Dictionary<Region, int> s_numLocationsIn = new()
     {
-        [Region.Before8Rats] = 40,
-        [Region.After8RatsBeforeA] = 10,
-        [Region.After8RatsBeforeB] = 10,
-        [Region.AfterABeforeC] = 10,
-        [Region.AfterBBeforeD] = 10,
-        [Region.AfterCBefore20Rats] = 10,
-        [Region.AfterDBefore20Rats] = 10,
-        [Region.After20RatsBeforeE] = 20,
-        [Region.After20RatsBeforeF] = 20,
+        [Region.BeforeBasketball] = 40,
+        [Region.BeforeMinotaur] = 10,
+        [Region.BeforePrawnStars] = 10,
+        [Region.BeforeRestaurant] = 10,
+        [Region.BeforePirateBakeSale] = 10,
+        [Region.AfterRestaurant] = 10,
+        [Region.AfterPirateBakeSale] = 10,
     };
 
     // location IDs
     private const long BASE_ID = 300000;
 
     // "key item" locations
-    private static readonly long[] s_locationsBefore8Rats = Enumerable.Range(0, s_numLocationsIn[Region.Before8Rats]).Select(id => BASE_ID + id).ToArray();
+    private static readonly long[] s_locationsBeforeBasketball = Enumerable.Range(0, s_numLocationsIn[Region.BeforeBasketball]).Select(id => BASE_ID + id).ToArray();
 
-    private static readonly long s_locationGate8Rats = s_locationsBefore8Rats[^1] + 1;
+    private static readonly long s_locationBasketball = s_locationsBeforeBasketball[^1] + 1;
 
-    private static readonly long[] s_locationsAfter8RatsBeforeA = Enumerable.Range(1, s_numLocationsIn[Region.After8RatsBeforeA]).Select(id => s_locationGate8Rats + id).ToArray();
+    private static readonly long[] s_locationsBeforeMinotaur = Enumerable.Range(1, s_numLocationsIn[Region.BeforeMinotaur]).Select(id => s_locationBasketball + id).ToArray();
 
-    private static readonly long[] s_locationsAfter8RatsBeforeB = Enumerable.Range(1, s_numLocationsIn[Region.After8RatsBeforeB]).Select(id => s_locationsAfter8RatsBeforeA[^1] + id).ToArray();
+    private static readonly long[] s_locationsBeforePrawnStars = Enumerable.Range(1, s_numLocationsIn[Region.BeforePrawnStars]).Select(id => s_locationsBeforeMinotaur[^1] + id).ToArray();
 
-    private static readonly long s_locationA = s_locationsAfter8RatsBeforeB[^1] + 1;
+    private static readonly long s_locationMinotaur = s_locationsBeforePrawnStars[^1] + 1;
 
-    private static readonly long s_locationB = s_locationA + 1;
+    private static readonly long s_locationPrawnStars = s_locationMinotaur + 1;
 
-    private static readonly long[] s_locationsAfterABeforeC = Enumerable.Range(1, s_numLocationsIn[Region.AfterABeforeC]).Select(id => s_locationB + id).ToArray();
+    private static readonly long[] s_locationsBeforeRestaurant = Enumerable.Range(1, s_numLocationsIn[Region.BeforeRestaurant]).Select(id => s_locationPrawnStars + id).ToArray();
 
-    private static readonly long[] s_locationsAfterBBeforeD = Enumerable.Range(1, s_numLocationsIn[Region.AfterBBeforeD]).Select(id => s_locationsAfterABeforeC[^1] + id).ToArray();
+    private static readonly long[] s_locationsBeforePirateBakeSale = Enumerable.Range(1, s_numLocationsIn[Region.BeforePirateBakeSale]).Select(id => s_locationsBeforeRestaurant[^1] + id).ToArray();
 
-    private static readonly long s_locationC = s_locationsAfterBBeforeD[^1] + 1;
+    private static readonly long s_locationRestaurant = s_locationsBeforePirateBakeSale[^1] + 1;
 
-    private static readonly long s_locationD = s_locationC + 1;
+    private static readonly long s_locationPirateBakeSale = s_locationRestaurant + 1;
 
-    private static readonly long[] s_locationsAfterCBefore20Rats = Enumerable.Range(1, s_numLocationsIn[Region.AfterCBefore20Rats]).Select(id => s_locationD + id).ToArray();
+    private static readonly long[] s_locationsAfterRestaurant = Enumerable.Range(1, s_numLocationsIn[Region.AfterRestaurant]).Select(id => s_locationPirateBakeSale + id).ToArray();
 
-    private static readonly long[] s_locationsAfterDBefore20Rats = Enumerable.Range(1, s_numLocationsIn[Region.AfterDBefore20Rats]).Select(id => s_locationsAfterCBefore20Rats[^1] + id).ToArray();
+    private static readonly long[] s_locationsAfterPirateBakeSale = Enumerable.Range(1, s_numLocationsIn[Region.AfterPirateBakeSale]).Select(id => s_locationsAfterRestaurant[^1] + id).ToArray();
 
-    private static readonly long s_locationGate20Rats = s_locationsAfterDBefore20Rats[^1] + 1;
+    private static readonly long s_locationBowlingBallDoor = s_locationsAfterPirateBakeSale[^1] + 1;
 
-    private static readonly long[] s_locationsAfter20RatsBeforeE = Enumerable.Range(1, s_numLocationsIn[Region.After20RatsBeforeE]).Select(id => s_locationGate20Rats + id).ToArray();
+    private static readonly long s_locationGoldfish = s_locationBowlingBallDoor + 1;
 
-    private static readonly long[] s_locationsAfter20RatsBeforeF = Enumerable.Range(1, s_numLocationsIn[Region.After20RatsBeforeF]).Select(id => s_locationsAfter20RatsBeforeE[^1] + id).ToArray();
+    private static readonly HashSet<string> s_namedRats =
+    [
+        "Pack Rat",
+        "Pizza Rat",
+        "Chef Rat",
+        "Ninja Rat",
+        "Gym Rat",
+        "Computer Rat",
+        "Pie Rat",
+        "Ziggu Rat",
+        "Acro Rat",
+        "Lab Rat",
+        "Soc-Rat-es",
+        "Entire Rat Pack",
+    ];
 
-    private static readonly long s_locationE = s_locationsAfter20RatsBeforeF[^1] + 1;
+    private static readonly string s_entireRatPackItemName = "Entire Rat Pack";
 
-    private static readonly long s_locationF = s_locationE + 1;
-
-    private static readonly long s_locationGoal = s_locationF + 1;
+    private static readonly string s_normalRatItemName = "Normal Rat";
 
     private static readonly Dictionary<(Region S, Region T), int> s_regionDistances = ToComplete(ToUndirected(new()
     {
-        [Region.Before8Rats] = new() { [Region.Gate8Rats] = false },
-        [Region.Gate8Rats] = new()
+        [Region.BeforeBasketball] = new() { [Region.Basketball] = false },
+        [Region.Basketball] = new()
         {
-            [Region.After8RatsBeforeA] = true,
-            [Region.After8RatsBeforeB] = true,
+            [Region.BeforeMinotaur] = true,
+            [Region.BeforePrawnStars] = true,
         },
-        [Region.After8RatsBeforeA] = new() { [Region.A] = false },
-        [Region.After8RatsBeforeB] = new() { [Region.B] = false },
-        [Region.A] = new() { [Region.AfterABeforeC] = true },
-        [Region.B] = new() { [Region.AfterBBeforeD] = true },
-        [Region.AfterABeforeC] = new() { [Region.C] = false },
-        [Region.AfterBBeforeD] = new() { [Region.D] = false },
-        [Region.C] = new() { [Region.AfterCBefore20Rats] = true },
-        [Region.D] = new() { [Region.AfterDBefore20Rats] = true },
-        [Region.AfterCBefore20Rats] = new() { [Region.Gate20Rats] = false },
-        [Region.AfterDBefore20Rats] = new() { [Region.Gate20Rats] = false },
-        [Region.Gate20Rats] = new()
-        {
-            [Region.After20RatsBeforeE] = true,
-            [Region.After20RatsBeforeF] = true,
-        },
-        [Region.After20RatsBeforeE] = new() { [Region.E] = false },
-        [Region.After20RatsBeforeF] = new() { [Region.F] = false },
-        [Region.E] = new() { [Region.TryingForGoal] = true, },
-        [Region.F] = new() { [Region.TryingForGoal] = true, },
-        [Region.TryingForGoal] = [],
+        [Region.BeforeMinotaur] = new() { [Region.Minotaur] = false },
+        [Region.BeforePrawnStars] = new() { [Region.PrawnStars] = false },
+        [Region.Minotaur] = new() { [Region.BeforeRestaurant] = true },
+        [Region.PrawnStars] = new() { [Region.BeforePirateBakeSale] = true },
+        [Region.BeforeRestaurant] = new() { [Region.Restaurant] = false },
+        [Region.BeforePirateBakeSale] = new() { [Region.PirateBakeSale] = false },
+        [Region.Restaurant] = new() { [Region.AfterRestaurant] = true },
+        [Region.PirateBakeSale] = new() { [Region.AfterPirateBakeSale] = true },
+        [Region.AfterRestaurant] = new() { [Region.BowlingBallDoor] = false },
+        [Region.AfterPirateBakeSale] = new() { [Region.BowlingBallDoor] = false },
+        [Region.BowlingBallDoor] = new() { [Region.Goldfish] = false },
+        [Region.Goldfish] = [],
     }));
 
     public static readonly Dictionary<Region, long[]> s_locationsByRegion = new()
     {
-        [Region.Before8Rats] = s_locationsBefore8Rats,
-        [Region.Gate8Rats] = [s_locationGate8Rats],
-        [Region.After8RatsBeforeA] = s_locationsAfter8RatsBeforeA,
-        [Region.After8RatsBeforeB] = s_locationsAfter8RatsBeforeB,
-        [Region.A] = [s_locationA],
-        [Region.B] = [s_locationB],
-        [Region.AfterABeforeC] = s_locationsAfterABeforeC,
-        [Region.AfterBBeforeD] = s_locationsAfterBBeforeD,
-        [Region.C] = [s_locationC],
-        [Region.D] = [s_locationD],
-        [Region.AfterCBefore20Rats] = s_locationsAfterCBefore20Rats,
-        [Region.AfterDBefore20Rats] = s_locationsAfterDBefore20Rats,
-        [Region.Gate20Rats] = [s_locationGate20Rats],
-        [Region.After20RatsBeforeE] = s_locationsAfter20RatsBeforeE,
-        [Region.After20RatsBeforeF] = s_locationsAfter20RatsBeforeF,
-        [Region.E] = [s_locationE],
-        [Region.F] = [s_locationF],
-        [Region.TryingForGoal] = [s_locationGoal],
+        [Region.BeforeBasketball] = s_locationsBeforeBasketball,
+        [Region.Basketball] = [s_locationBasketball],
+        [Region.BeforeMinotaur] = s_locationsBeforeMinotaur,
+        [Region.BeforePrawnStars] = s_locationsBeforePrawnStars,
+        [Region.Minotaur] = [s_locationMinotaur],
+        [Region.PrawnStars] = [s_locationPrawnStars],
+        [Region.BeforeRestaurant] = s_locationsBeforeRestaurant,
+        [Region.BeforePirateBakeSale] = s_locationsBeforePirateBakeSale,
+        [Region.Restaurant] = [s_locationRestaurant],
+        [Region.PirateBakeSale] = [s_locationPirateBakeSale],
+        [Region.AfterRestaurant] = s_locationsAfterRestaurant,
+        [Region.AfterPirateBakeSale] = s_locationsAfterPirateBakeSale,
+        [Region.BowlingBallDoor] = [s_locationBowlingBallDoor],
+        [Region.Goldfish] = [s_locationGoldfish],
     };
 
     public static readonly Dictionary<long, Region> s_regionByLocation =
@@ -408,13 +406,14 @@ public sealed class Game(GameDifficultySettings difficultySettings, int seed)
         _remainingLocationsInRegion[s_regionByLocation[locationId]].Remove(locationId);
     }
 
-    public async ValueTask ReceiveItem(long itemId, ItemType itemType, CancellationToken cancellationToken)
+    public async ValueTask ReceiveItem(ItemModel item, string itemName, CancellationToken cancellationToken)
     {
         await Helper.ConfigureAwaitFalse();
 
-        if (!_receivedItems.TryAdd(itemId, itemType))
+        ItemType itemType = Classify(item, itemName);
+        if (!_receivedItems.TryAdd(item.Item, itemType))
         {
-            if (_receivedItems[itemId] != itemType)
+            if (_receivedItems[item.Item] != itemType)
             {
                 throw new InvalidDataException("Item was received multiple times, with different ItemType values");
             }
@@ -431,11 +430,11 @@ public sealed class Game(GameDifficultySettings difficultySettings, int seed)
         switch (itemType)
         {
             case ItemType.Trap:
-                auraToAdd = new() { CausedByItem = itemId, StepCountWhenAdded = State.StepCount, MaxStepCountOnExpiration = State.StepCount + 2, Modifier = 2 };
+                auraToAdd = new() { CausedByItem = item.Item, StepCountWhenAdded = State.StepCount, MaxStepCountOnExpiration = State.StepCount + 2, Modifier = 2 };
                 break;
 
             case ItemType.Useful:
-                auraToAdd = new() { CausedByItem = itemId, StepCountWhenAdded = State.StepCount, MaxStepCountOnExpiration = State.StepCount + 8, Modifier = 0.5 };
+                auraToAdd = new() { CausedByItem = item.Item, StepCountWhenAdded = State.StepCount, MaxStepCountOnExpiration = State.StepCount + 8, Modifier = 0.5 };
                 break;
         }
 
@@ -446,6 +445,49 @@ public sealed class Game(GameDifficultySettings difficultySettings, int seed)
 
         State = State with { Auras = [..State.Auras, auraToAdd] };
         await _aurasAddedEvent.InvokeAsync(this, new() { DifficultySettings = difficultySettings, State = State, AddedAuras = [auraToAdd] }, cancellationToken);
+
+        static ItemType Classify(ItemModel item, string itemName)
+        {
+            if (item.Flags.HasFlag(ArchipelagoItemFlags.Trap))
+            {
+                return ItemType.Trap;
+            }
+
+            if (item.Flags.HasFlag(ArchipelagoItemFlags.ImportantNonAdvancement))
+            {
+                return ItemType.Useful;
+            }
+
+            if (!item.Flags.HasFlag(ArchipelagoItemFlags.LogicalAdvancement))
+            {
+                return ItemType.Filler;
+            }
+
+            if (itemName == s_normalRatItemName)
+            {
+                return ItemType.OneNormalRat;
+            }
+
+            if (s_namedRats.Contains(itemName))
+            {
+                return ItemType.OneNamedRat;
+            }
+
+            if (itemName == s_entireRatPackItemName)
+            {
+                return ItemType.EntireRatPack;
+            }
+
+            return itemName switch
+            {
+                "Red Matador's Cape" => ItemType.UnlocksMinotaur,
+                "Premium Can of Prawn Food" => ItemType.UnlocksPrawnStars,
+                "A Cookie" => ItemType.UnlocksRestaurant,
+                "Bribe" => ItemType.UnlocksPirateBakeSale,
+                "Lockheed SR-71 Blackbird" => ItemType.Goal,
+                _ => throw new InvalidDataException("All items should have been accounted for above."),
+            };
+        }
     }
 
     private static Dictionary<(Region S, Region T), int> ToComplete(Dictionary<Region, Dictionary<Region, bool>> g)
@@ -507,11 +549,11 @@ public sealed class Game(GameDifficultySettings difficultySettings, int seed)
         await _completedLocationCheckEvent.InvokeAsync(this, new() { DifficultySettings = difficultySettings, State = State, Location = locationId }, cancellationToken);
         State = State with { ConsecutiveFailureCount = 0 };
         remainingLocations.RemoveAt(remainingLocations.Count - 1);
-        if (State.CurrentRegion == Region.TryingForGoal)
+        if (State.CurrentRegion == Region.Goldfish)
         {
-            State = State with { CurrentRegion = Region.Traveling, SourceRegion = Region.TryingForGoal, DestinationRegion = Region.CompletedGoal, ReasonsToReset = ResetReasons.None };
+            State = State with { CurrentRegion = Region.Traveling, SourceRegion = Region.Goldfish, DestinationRegion = Region.CompletedGoal, ReasonsToReset = ResetReasons.None };
             await _movingToRegionEvent.InvokeAsync(this, new() { DifficultySettings = difficultySettings, State = State, TotalTravelUnits = 0 }, cancellationToken);
-            State = State with { CurrentRegion = Region.CompletedGoal, SourceRegion = Region.TryingForGoal, DestinationRegion = Region.CompletedGoal };
+            State = State with { CurrentRegion = Region.CompletedGoal, SourceRegion = Region.Goldfish, DestinationRegion = Region.CompletedGoal };
             await _movedToRegionEvent.InvokeAsync(this, new() { DifficultySettings = difficultySettings, State = State, TotalTravelUnits = 0 }, cancellationToken);
             State = State with { SourceRegion = null, DestinationRegion = null };
         }
@@ -526,7 +568,7 @@ public sealed class Game(GameDifficultySettings difficultySettings, int seed)
         }
 
         int travelUnitsFromCurrentRegion = s_regionDistances[(State.CurrentRegion, bestNextRegion)] * difficultySettings.RegionChangeSteps;
-        int travelUnitsFromMenu = s_regionDistances[(Region.Before8Rats, bestNextRegion)] * difficultySettings.RegionChangeSteps;
+        int travelUnitsFromMenu = s_regionDistances[(Region.BeforeBasketball, bestNextRegion)] * difficultySettings.RegionChangeSteps;
         int travelUnitsRemaining;
         ResetReasons resetReasons = State.ReasonsToReset;
         if (travelUnitsFromMenu + player.MovementSpeed < travelUnitsFromCurrentRegion)
@@ -558,7 +600,7 @@ public sealed class Game(GameDifficultySettings difficultySettings, int seed)
 
         int totalTravelUnits = difficultySettings.RegionChangeSteps * Math.Min(
             s_regionDistances[(State.SourceRegion!.Value, State.DestinationRegion!.Value)],
-            s_regionDistances[(Region.Before8Rats, State.DestinationRegion!.Value)]);
+            s_regionDistances[(Region.BeforeBasketball, State.DestinationRegion!.Value)]);
 
         State = State with { TravelUnitsRemaining = State.TravelUnitsRemaining - player.MovementSpeed };
         if (State.TravelUnitsRemaining >= 0)
@@ -581,12 +623,12 @@ public sealed class Game(GameDifficultySettings difficultySettings, int seed)
     {
         int ratCount = RatCount;
 
-        // ASSUMPTION: you don't need help to figure out what to do in Traveling or CompletedGoal.
+        // ASSUMPTION: you don't need help to figure out what to do in Traveling.
         //
         // if the goal is open, then you should ALWAYS try for it.
-        if (ratCount >= 20 && ( _remainingLocationsInRegion[Region.E].Count == 0 || _remainingLocationsInRegion[Region.F].Count == 0))
+        if (ratCount >= 20 && _remainingLocationsInRegion[Region.BowlingBallDoor].Count == 0)
         {
-            return Region.TryingForGoal;
+            return Region.Goldfish;
         }
 
         Region bestRegion = State.CurrentRegion;
@@ -599,72 +641,72 @@ public sealed class Game(GameDifficultySettings difficultySettings, int seed)
             bestRegionDifficultyClass = int.MaxValue;
         }
 
-        HandleUnlockedRegion(Region.Before8Rats);
+        HandleUnlockedRegion(Region.BeforeBasketball);
 
-        if (ratCount < 8)
+        if (ratCount < 5)
         {
             return bestRegion;
         }
 
-        HandleUnlockedRegion(Region.Gate8Rats);
-        if (_remainingLocationsInRegion[Region.Gate8Rats].Count > 0)
+        HandleUnlockedRegion(Region.Basketball);
+        if (_remainingLocationsInRegion[Region.Basketball].Count > 0)
         {
             return bestRegion;
         }
 
-        HandleUnlockedRegion(Region.After8RatsBeforeA);
-        HandleUnlockedRegion(Region.After8RatsBeforeB);
+        HandleUnlockedRegion(Region.BeforeMinotaur);
+        HandleUnlockedRegion(Region.BeforePrawnStars);
 
-        if (_receivedItems.ContainsValue(ItemType.A))
+        if (_receivedItems.ContainsValue(ItemType.UnlocksMinotaur))
         {
-            HandleUnlockedRegion(Region.A);
+            HandleUnlockedRegion(Region.Minotaur);
         }
 
-        if (_receivedItems.ContainsValue(ItemType.B))
+        if (_receivedItems.ContainsValue(ItemType.UnlocksPrawnStars))
         {
-            HandleUnlockedRegion(Region.B);
+            HandleUnlockedRegion(Region.PrawnStars);
         }
 
-        bool pastA = _remainingLocationsInRegion[Region.A].Count > 0;
-        bool pastB = _remainingLocationsInRegion[Region.B].Count > 0;
-        if (!(pastA || pastB))
+        bool pastMinotaur = _remainingLocationsInRegion[Region.Minotaur].Count > 0;
+        bool pastPrawnStars = _remainingLocationsInRegion[Region.PrawnStars].Count > 0;
+        if (!(pastMinotaur || pastPrawnStars))
         {
             return bestRegion;
         }
 
-        if (pastA)
+        if (pastMinotaur)
         {
-            HandleUnlockedRegion(Region.AfterABeforeC);
-            if (_receivedItems.ContainsValue(ItemType.C))
+            HandleUnlockedRegion(Region.BeforeRestaurant);
+            if (_receivedItems.ContainsValue(ItemType.UnlocksRestaurant))
             {
-                HandleUnlockedRegion(Region.C);
+                HandleUnlockedRegion(Region.Restaurant);
             }
         }
 
-        if (pastB)
+        if (pastPrawnStars)
         {
-            HandleUnlockedRegion(Region.AfterBBeforeD);
-            if (_receivedItems.ContainsValue(ItemType.D))
+            HandleUnlockedRegion(Region.BeforePirateBakeSale);
+            if (_receivedItems.ContainsValue(ItemType.UnlocksPirateBakeSale))
             {
-                HandleUnlockedRegion(Region.D);
+                HandleUnlockedRegion(Region.PirateBakeSale);
             }
         }
 
-        bool pastC = _remainingLocationsInRegion[Region.C].Count > 0;
-        bool pastD = _remainingLocationsInRegion[Region.D].Count > 0;
-        if (!(pastC || pastD))
+        bool pastRestaurant = _remainingLocationsInRegion[Region.Restaurant].Count > 0;
+        bool pastPirateBakeSale = _remainingLocationsInRegion[Region.PirateBakeSale].Count > 0;
+        if (!(pastRestaurant || pastPirateBakeSale))
         {
             return bestRegion;
         }
 
-        if (pastC)
+        if (pastRestaurant)
         {
-            HandleUnlockedRegion(Region.AfterCBefore20Rats);
+            HandleUnlockedRegion(Region.AfterRestaurant);
         }
 
-        if (pastD)
+        if (pastPirateBakeSale)
         {
-            HandleUnlockedRegion(Region.AfterDBefore20Rats);
+            HandleUnlockedRegion(Region.AfterPirateBakeSale);
         }
 
         if (ratCount < 20)
@@ -672,24 +714,17 @@ public sealed class Game(GameDifficultySettings difficultySettings, int seed)
             return bestRegion;
         }
 
-        HandleUnlockedRegion(Region.Gate20Rats);
-        if (_remainingLocationsInRegion[Region.Gate20Rats].Count > 0)
+        HandleUnlockedRegion(Region.BowlingBallDoor);
+
+        // note: at the time of writing, whenever we get to this point in the code, the following
+        // condition will ALWAYS be true. otherwise, we would have short-circuited at the very top.
+        // it remains here because there are plans to implement other "worlds".
+        if (_remainingLocationsInRegion[Region.BowlingBallDoor].Count > 0)
         {
             return bestRegion;
         }
 
-        HandleUnlockedRegion(Region.After20RatsBeforeE);
-        HandleUnlockedRegion(Region.After20RatsBeforeF);
-        if (_receivedItems.ContainsValue(ItemType.E))
-        {
-            HandleUnlockedRegion(Region.E);
-        }
-
-        if (_receivedItems.ContainsValue(ItemType.F))
-        {
-            HandleUnlockedRegion(Region.F);
-        }
-
+        HandleUnlockedRegion(Region.Goldfish);
         return bestRegion;
 
         void HandleUnlockedRegion(Region testRegion)
