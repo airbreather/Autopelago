@@ -446,16 +446,16 @@ public sealed class Game(GameDifficultySettings difficultySettings, int seed)
         await Helper.ConfigureAwaitFalse();
 
         ItemType itemType = Classify(item.Flags, itemName);
+        if (itemType == ItemType.OneNormalRat)
+        {
+            ++_numNormalRatsReceived;
+        }
+
         if (!_receivedItems.TryAdd(item.Item, itemType))
         {
             if (_receivedItems[item.Item] != itemType)
             {
                 throw new InvalidDataException("Item was received multiple times, with different ItemType values");
-            }
-
-            if (itemType == ItemType.OneNormalRat)
-            {
-                ++_numNormalRatsReceived;
             }
 
             return;
