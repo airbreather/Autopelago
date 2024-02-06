@@ -16,7 +16,7 @@ internal sealed partial class SourceGenerationContext : JsonSerializerContext
 {
 }
 
-public sealed partial class ArchipelagoClient(string server, ushort port) : IDisposable
+public sealed partial class ArchipelagoClient(string server, ushort port) : IArchipelagoClient, IDisposable
 {
     private static readonly Version s_archipelagoVersion = new("0.4.4");
 
@@ -59,8 +59,6 @@ public sealed partial class ArchipelagoClient(string server, ushort port) : IDis
     private bool _triedConnecting;
 
     private bool _disposed;
-
-    public bool NeedDataPackageForAllGames { get; set; }
 
     public event AsyncEventHandler<ImmutableArray<ArchipelagoPacketModel>> PacketGroupReceived
     {
@@ -175,7 +173,7 @@ public sealed partial class ArchipelagoClient(string server, ushort port) : IDis
         }
 
         // TODO: cache result on disk by checksum so we don't always need to do this.
-        await GetDataPackageAsync(NeedDataPackageForAllGames ? default : roomInfo.Games, cancellationToken);
+        await GetDataPackageAsync(roomInfo.Games, cancellationToken);
         _ = await ProcessNextMessageAsync(cancellationToken);
 
         await ConnectAsync(
@@ -212,21 +210,21 @@ public sealed partial class ArchipelagoClient(string server, ushort port) : IDis
     {
         await Helper.ConfigureAwaitFalse();
         SayPacketModel say = new() { Text = text };
-        await WriteNextAsync([say], cancellationToken);
+        await WriteAsync([say], cancellationToken);
     }
 
     public async ValueTask LocationChecksAsync(ReadOnlyMemory<long> locations, CancellationToken cancellationToken = default)
     {
         await Helper.ConfigureAwaitFalse();
         LocationChecksPacketModel locationChecks = new() { Locations = locations };
-        await WriteNextAsync([locationChecks], cancellationToken);
+        await WriteAsync([locationChecks], cancellationToken);
     }
 
     public async ValueTask StatusUpdateAsync(ArchipelagoClientStatus status, CancellationToken cancellationToken = default)
     {
         await Helper.ConfigureAwaitFalse();
         StatusUpdatePacketModel statusUpdate = new() { Status = status };
-        await WriteNextAsync([statusUpdate], cancellationToken);
+        await WriteAsync([statusUpdate], cancellationToken);
     }
 
     public async ValueTask<RetrievedPacketModel> GetAsync(ImmutableArray<string> keys, CancellationToken cancellationToken = default)
@@ -237,7 +235,7 @@ public sealed partial class ArchipelagoClient(string server, ushort port) : IDis
         RetrievedPacketReceived += OnRetrievedPacketReceivedAsync;
         using (cancellationToken.Register(() => RetrievedPacketReceived -= OnRetrievedPacketReceivedAsync))
         {
-            await WriteNextAsync([@get], cancellationToken);
+            await WriteAsync([@get], cancellationToken);
             return await replyTcs.Task.WaitAsync(cancellationToken);
         }
 
@@ -249,14 +247,14 @@ public sealed partial class ArchipelagoClient(string server, ushort port) : IDis
         }
     }
 
-    public async ValueTask<SetReplyPacketModel?> SetAsync(string key, ImmutableArray<DataStorageOperationModel> operations, JsonNode? @default = null, bool wantReply = false, CancellationToken cancellationToken = default)
+    public async ValueTask<SetReplyPacketModel?> SetAsync(string key, ImmutableArray<DataStorageOperationModel> operations, JsonNode? defaultValue = null, bool wantReply = false, CancellationToken cancellationToken = default)
     {
         await Helper.ConfigureAwaitFalse();
         SetPacketModel @set = new()
         {
             Key = key,
             Operations = operations,
-            Default = @default,
+            Default = defaultValue,
             WantReply = wantReply,
         };
         if (wantReply)
@@ -265,7 +263,7 @@ public sealed partial class ArchipelagoClient(string server, ushort port) : IDis
             SetReplyPacketReceived += OnSetReplyPacketReceivedAsync;
             using (cancellationToken.Register(() => SetReplyPacketReceived -= OnSetReplyPacketReceivedAsync))
             {
-                await WriteNextAsync([@set], cancellationToken);
+                await WriteAsync([@set], cancellationToken);
                 return await replyTcs.Task.WaitAsync(cancellationToken);
             }
 
@@ -278,7 +276,7 @@ public sealed partial class ArchipelagoClient(string server, ushort port) : IDis
         }
         else
         {
-            await WriteNextAsync([@set], cancellationToken);
+            await WriteAsync([@set], cancellationToken);
             return null;
         }
     }
@@ -302,7 +300,7 @@ public sealed partial class ArchipelagoClient(string server, ushort port) : IDis
             SetReplyPacketReceived += OnSetReplyPacketReceivedAsync;
             using (cancellationToken.Register(() => SetReplyPacketReceived -= OnSetReplyPacketReceivedAsync))
             {
-                await WriteNextAsync(packets, cancellationToken);
+                await WriteAsync(packets, cancellationToken);
                 await replyTcs.Task.WaitAsync(cancellationToken);
                 return repliesBuilder.MoveToImmutable();
             }
@@ -321,7 +319,7 @@ public sealed partial class ArchipelagoClient(string server, ushort port) : IDis
         }
         else
         {
-            await WriteNextAsync(packets, cancellationToken);
+            await WriteAsync(packets, cancellationToken);
             return [];
         }
     }
@@ -337,6 +335,24 @@ public sealed partial class ArchipelagoClient(string server, ushort port) : IDis
             await _socket.CloseAsync(WebSocketCloseStatus.NormalClosure, "", cancellationToken);
             await _cts.CancelAsync();
             _cts = new();
+        }
+    }
+
+    public async ValueTask WriteAsync<T>(ImmutableArray<T> values, CancellationToken cancellationToken)
+        where T : ArchipelagoPacketModel
+    {
+        ObjectDisposedException.ThrowIf(_disposed, this);
+
+        await Helper.ConfigureAwaitFalse();
+
+        await _writerLock.WaitAsync(cancellationToken);
+        try
+        {
+            await _socket.SendAsync(JsonSerializer.SerializeToUtf8Bytes(ImmutableArray<ArchipelagoPacketModel>.CastUp(values), s_jsonSerializerOptions), WebSocketMessageType.Text, true, cancellationToken);
+        }
+        finally
+        {
+            _writerLock.Release();
         }
     }
 
@@ -431,7 +447,7 @@ public sealed partial class ArchipelagoClient(string server, ushort port) : IDis
     {
         await Helper.ConfigureAwaitFalse();
         GetDataPackagePacketModel getDataPackage = new() { Games = games };
-        await WriteNextAsync([getDataPackage], cancellationToken);
+        await WriteAsync([getDataPackage], cancellationToken);
     }
 
     private async ValueTask ConnectAsync(string game, string slot, string? password, Guid uuid, ArchipelagoItemsHandlingFlags itemsHandling, bool slotData, ImmutableArray<string> tags, VersionModel version, CancellationToken cancellationToken)
@@ -448,24 +464,6 @@ public sealed partial class ArchipelagoClient(string server, ushort port) : IDis
             Tags = tags,
             Version = version,
         };
-        await WriteNextAsync([connect], cancellationToken);
-    }
-
-    private async ValueTask WriteNextAsync<T>(ImmutableArray<T> values, CancellationToken cancellationToken)
-        where T : ArchipelagoPacketModel
-    {
-        ObjectDisposedException.ThrowIf(_disposed, this);
-
-        await Helper.ConfigureAwaitFalse();
-
-        await _writerLock.WaitAsync(cancellationToken);
-        try
-        {
-            await _socket.SendAsync(JsonSerializer.SerializeToUtf8Bytes(ImmutableArray<ArchipelagoPacketModel>.CastUp(values), s_jsonSerializerOptions), WebSocketMessageType.Text, true, cancellationToken);
-        }
-        finally
-        {
-            _writerLock.Release();
-        }
+        await WriteAsync([connect], cancellationToken);
     }
 }
