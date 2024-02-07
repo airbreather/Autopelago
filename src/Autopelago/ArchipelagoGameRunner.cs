@@ -3,6 +3,7 @@ using System.Collections.Immutable;
 using System.Diagnostics;
 using System.Text.Json;
 using System.Text.Json.Serialization;
+using System.Threading.Channels;
 
 using ArchipelagoClientDotNet;
 
@@ -52,8 +53,7 @@ public sealed class ArchipelagoGameRunner : IDisposable
 
     private FrozenDictionary<long, string>? _myItemNamesById;
 
-
-    public ArchipelagoGameRunner(TimeSpan minStepInterval, TimeSpan maxStepInterval, Player player, GameDifficultySettings difficultySettings, int seed, string server, ushort port, string gameName, string slotName, string? password)
+    public ArchipelagoGameRunner(TimeSpan minStepInterval, TimeSpan maxStepInterval, Player player, GameDifficultySettings difficultySettings, int seed, Channel<ImmutableArray<ArchipelagoPacketModel>, ArchipelagoPacketModel> channel, string gameName, string slotName, string? password)
     {
         _minStepInterval = minStepInterval;
         _maxStepInterval = maxStepInterval;
@@ -61,7 +61,7 @@ public sealed class ArchipelagoGameRunner : IDisposable
         _difficultySettings = difficultySettings;
         _seed = seed;
         _game = new(_difficultySettings, _seed);
-        _client = new(server, port);
+        _client = new(channel);
         _gameName = gameName;
         _slotName = slotName;
         _password = password;
@@ -118,7 +118,7 @@ public sealed class ArchipelagoGameRunner : IDisposable
                 {
                     await _client.SayAsync("I've completed my goal!  Wrapping up now...", cancellationToken);
                     await _client.StatusUpdateAsync(ArchipelagoClientStatus.Goal, cancellationToken);
-                    await _client.StopAsync(cancellationToken);
+                    await _client.StopGracefullyAsync(cancellationToken);
                     return true;
                 }
             }
@@ -127,7 +127,7 @@ public sealed class ArchipelagoGameRunner : IDisposable
         {
         }
 
-        await _client.StopAsync(CancellationToken.None);
+        await _client.StopGracefullyAsync(CancellationToken.None);
         return false;
 
         async ValueTask<ResumableGameState> OneStepAsync()
@@ -198,7 +198,6 @@ public sealed class ArchipelagoGameRunner : IDisposable
 
     public void Dispose()
     {
-        _client.Dispose();
         _gameLock.Dispose();
     }
 

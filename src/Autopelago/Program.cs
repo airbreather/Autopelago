@@ -24,14 +24,15 @@ for (int i = 0, cnt = settings.Slots.Count; i < cnt; i++)
     AutopelagoPlayerSettingsModel slot = settings.Slots[i];
     Unsafe.SkipInit(out int seed);
     Random.Shared.NextBytes(MemoryMarshal.AsBytes(MemoryMarshal.CreateSpan(ref seed, 1)));
+    WebSocketPacketChannel channel = new(settings.Server, settings.Port);
+    await channel.ConnectAsync(cts.Token);
     ArchipelagoGameRunner runner = new(
         minStepInterval: TimeSpan.FromSeconds(slot.OverriddenSettings?.MinSecondsPerGameStep ?? settings.DefaultSettings.MinSecondsPerGameStep),
         maxStepInterval: TimeSpan.FromSeconds(slot.OverriddenSettings?.MaxSecondsPerGameStep ?? settings.DefaultSettings.MaxSecondsPerGameStep),
         player: new(),
         difficultySettings: new(),
         seed: seed,
-        server: settings.Server,
-        port: settings.Port,
+        channel: channel,
         gameName: settings.GameName,
         slotName: slot.Name,
         password: slot.Password
@@ -44,7 +45,9 @@ for (int i = 0, cnt = settings.Slots.Count; i < cnt; i++)
         {
             await Helper.ConfigureAwaitFalse();
 
-            using ArchipelagoClient textClient = new(settings.Server, settings.Port);
+            using WebSocketPacketChannel channel = new(settings.Server, settings.Port);
+            await channel.ConnectAsync(cts.Token);
+            ArchipelagoClient textClient = new(channel);
             FrozenDictionary<long, string>? _allLocationNamesById = null;
             FrozenDictionary<long, string>? _allItemNamesById = null;
             FrozenDictionary<int, (int Team, string Name)>? _playerNamesBySlot = null;

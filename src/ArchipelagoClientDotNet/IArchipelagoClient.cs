@@ -3,8 +3,10 @@ using System.Text.Json.Nodes;
 
 namespace ArchipelagoClientDotNet;
 
-public interface IArchipelagoClient : IArchipelagoProtocolClient
+public interface IArchipelagoClient
 {
+    event AsyncEventHandler<ArchipelagoPacketModel> AnyPacketReceived;
+
     event AsyncEventHandler<RoomInfoPacketModel> RoomInfoPacketReceived;
 
     event AsyncEventHandler<DataPackagePacketModel> DataPackagePacketReceived;
@@ -36,4 +38,6 @@ public interface IArchipelagoClient : IArchipelagoProtocolClient
     ValueTask<SetReplyPacketModel?> SetAsync(string key, ImmutableArray<DataStorageOperationModel> operations, JsonNode? defaultValue = null, bool wantReply = false, CancellationToken cancellationToken = default);
 
     ValueTask<ImmutableArray<SetReplyPacketModel>> SetAsync(ImmutableArray<SetPacketModel> packets, CancellationToken cancellationToken = default);
+
+    ValueTask StopGracefullyAsync(CancellationToken cancellationToken = default);
 }
