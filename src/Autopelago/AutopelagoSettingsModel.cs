@@ -15,11 +15,11 @@ public sealed record AutopelagoSettingsModel
 
 public sealed record AutopelagoDefaultGameSettingsModel
 {
-    public double MinSecondsPerGameStep { get; init; } = double.NaN;
+    public required double MinSecondsPerGameStep { get; init; } = double.NaN;
 
-    public double MaxSecondsPerGameStep { get; init; } = double.NaN;
+    public required double MaxSecondsPerGameStep { get; init; } = double.NaN;
 
-    public double MovementSpeedMultiplier { get; init; } = double.NaN;
+    public required double MovementSpeedMultiplier { get; init; } = double.NaN;
 }
 
 public sealed record AutopelagoOverriddenGameSettingsModel
