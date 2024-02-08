@@ -36,8 +36,6 @@ public sealed partial class WebSocketPacketChannel : Channel<ImmutableArray<Arch
         AllowSynchronousContinuations = false,
     };
 
-    private static readonly Regex s_hasWebSocketSchemeRegex = HasWebSocketSchemeRegex();
-
     private readonly string _server;
 
     private readonly ushort _port;
@@ -70,7 +68,7 @@ public sealed partial class WebSocketPacketChannel : Channel<ImmutableArray<Arch
         ObjectDisposedException.ThrowIf(_disposed, this);
         await Helper.ConfigureAwaitFalse();
 
-        if (s_hasWebSocketSchemeRegex.IsMatch(_server))
+        if (Uri.TryCreate(_server, UriKind.Absolute, out Uri? uri) && uri.Scheme is ['w', 's', ..])
         {
             await _socket.ConnectAsync(new($"{_server}:{_port}"), cancellationToken);
         }
@@ -159,9 +157,6 @@ public sealed partial class WebSocketPacketChannel : Channel<ImmutableArray<Arch
         _socket.Dispose();
         _disposed = true;
     }
-
-    [GeneratedRegex("^ws(?:s)?://", RegexOptions.Compiled | RegexOptions.CultureInvariant)]
-    private static partial Regex HasWebSocketSchemeRegex();
 
     private static ArchipelagoPacketModel[] Deserialize(ReadOnlySequence<byte> buf)
     {
