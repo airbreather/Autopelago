@@ -1,6 +1,7 @@
 using System.Collections.Frozen;
 using System.Collections.Immutable;
 using System.Data;
+
 using ArchipelagoClientDotNet;
 
 using YamlDotNet.Core;
@@ -25,7 +26,13 @@ public sealed record GameDefinitionsModel : IYamlConvertible
         init => _locations = value;
     }
 
-    // public required RelativeTravelDistancesModel RelativeTravelDistances { get; init; }
+    private ImmutableArray<RelativeTravelDistanceModel> _relativeTravelDistances;
+
+    public ImmutableArray<RelativeTravelDistanceModel> RelativeTravelDistances
+    {
+        get => _relativeTravelDistances;
+        init => _relativeTravelDistances = value;
+    }
 
     public void Read(IParser parser, Type expectedType, ObjectDeserializer nestedObjectDeserializer)
     {
@@ -37,6 +44,7 @@ public sealed record GameDefinitionsModel : IYamlConvertible
 
         _items = ItemDefinitionsModel.DeserializeFrom(itemsMap, locationsMap);
         _locations = LocationDefinitionsModel.DeserializeFrom(locationsMap);
+        _relativeTravelDistances = [..relativeTravelDistancesSeq.Cast<YamlMappingNode>().Select(RelativeTravelDistanceModel.DeserializeFrom)];
     }
 
     public void Write(IEmitter emitter, ObjectSerializer nestedObjectSerializer)
@@ -439,6 +447,29 @@ public sealed record ReceivedItemRequirement : LocationRequirement
     public override bool Satisfied(Game game)
     {
         return false;
+    }
+}
+
+public sealed record RelativeTravelDistanceModel
+{
+    public required string FromLocationKey { get; init; }
+
+    public required string ToLocationKey { get; init; }
+
+    public required BeforeOrAfter ToLocationSide { get; init; }
+
+    public required double Distance { get; init; }
+
+    public static RelativeTravelDistanceModel DeserializeFrom(YamlMappingNode map)
+    {
+        string[] toSplit = ((YamlScalarNode)map["to"]).Value!.Split('.', 2);
+        return new()
+        {
+            FromLocationKey = ((YamlScalarNode)map["from"]).Value!,
+            ToLocationKey = toSplit[0],
+            ToLocationSide = Enum.Parse<BeforeOrAfter>(toSplit[1], true),
+            Distance = double.Parse(((YamlScalarNode)map["d"]).Value!),
+        };
     }
 }
 
