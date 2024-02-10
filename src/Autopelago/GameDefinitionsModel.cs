@@ -1,6 +1,6 @@
 using System.Collections.Frozen;
 using System.Collections.Immutable;
-
+using System.Data;
 using ArchipelagoClientDotNet;
 
 using YamlDotNet.Core;
@@ -17,7 +17,13 @@ public sealed record GameDefinitionsModel : IYamlConvertible
         init => _items = value;
     }
 
-    // public required LocationDefinitionsModel Locations { get; init; }
+    private LocationDefinitionsModel _locations = null!;
+
+    public required LocationDefinitionsModel Locations
+    {
+        get => _locations;
+        init => _locations = value;
+    }
 
     // public required RelativeTravelDistancesModel RelativeTravelDistances { get; init; }
 
@@ -30,6 +36,7 @@ public sealed record GameDefinitionsModel : IYamlConvertible
         YamlSequenceNode relativeTravelDistancesSeq = (YamlSequenceNode)map["relative_travel_distances"];
 
         _items = ItemDefinitionsModel.DeserializeFrom(itemsMap, locationsMap);
+        _locations = LocationDefinitionsModel.DeserializeFrom(locationsMap);
     }
 
     public void Write(IEmitter emitter, ObjectSerializer nestedObjectSerializer)
@@ -261,9 +268,183 @@ public record ItemDefinitionModel
     }
 }
 
+public sealed record LocationDefinitionsModel
+{
+    public required FrozenDictionary<string, LocationDefinitionModel> DefiningLocations { get; init; }
+
+    public required ImmutableArray<LocationFillerGroupModel> FillerGroups { get; init; }
+
+    public static LocationDefinitionsModel DeserializeFrom(YamlMappingNode map)
+    {
+        Dictionary<string, LocationDefinitionModel> definingLocations = [];
+        ImmutableArray<LocationFillerGroupModel> fillerGroups = default;
+        foreach ((YamlNode keyNode, YamlNode valueNode) in map)
+        {
+            string key = ((YamlScalarNode)keyNode).Value!;
+            if (key == "filler_groups")
+            {
+                fillerGroups = [..((YamlSequenceNode)valueNode).Cast<YamlMappingNode>().Select(LocationFillerGroupModel.DeserializeFrom)];
+                continue;
+            }
+
+            definingLocations.Add(key, LocationDefinitionModel.DeserializeFrom((YamlMappingNode)valueNode));
+        }
+
+        if (fillerGroups.IsDefault)
+        {
+            throw new InvalidDataException("Must have filler_groups");
+        }
+
+        return new()
+        {
+            DefiningLocations = definingLocations.ToFrozenDictionary(),
+            FillerGroups = fillerGroups,
+        };
+    }
+}
+
+public sealed record LocationDefinitionModel
+{
+    public required string Name { get; init; }
+
+    public required LocationRequirement Requires { get; init; }
+
+    public static LocationDefinitionModel DeserializeFrom(YamlMappingNode map)
+    {
+        return new()
+        {
+            Name = ((YamlScalarNode)map["name"]).Value!,
+            Requires = LocationRequirement.DeserializeFrom(map["requires"]),
+        };
+    }
+}
+
+public enum BeforeOrAfter
+{
+    Before,
+    After,
+}
+
+public sealed record LocationFillerGroupModel
+{
+    public required BeforeOrAfter DirectionFromDefiningLocation { get; init; }
+
+    public required string DefiningLocationKey { get; init; }
+
+    public required int LocationCount { get; init; }
+
+    public required LocationRequirement EachRequires { get; init; }
+
+    public static LocationFillerGroupModel DeserializeFrom(YamlMappingNode map)
+    {
+        BeforeOrAfter direction = map.Children.ContainsKey("before") ? BeforeOrAfter.Before : BeforeOrAfter.After;
+        return new()
+        {
+            DirectionFromDefiningLocation = direction,
+            DefiningLocationKey = ((YamlScalarNode)map[direction.ToString().ToLowerInvariant()]).Value!,
+            LocationCount = int.Parse(((YamlScalarNode)map["count"]).Value!),
+            EachRequires = LocationRequirement.DeserializeFrom(map["each_requires"]),
+        };
+    }
+}
+
+public abstract record LocationRequirement
+{
+    public abstract bool Satisfied(Game game);
+
+    public static LocationRequirement DeserializeFrom(YamlNode node)
+    {
+        // special case: there's an implicit "all:" at the top, which means that we might be coming
+        // in partway through that. it's easy to test for this.
+        if (node is YamlSequenceNode seq)
+        {
+            return new AllLocationRequirement
+            {
+                Requirements = [..seq.Select(DeserializeFrom)],
+            };
+        }
+
+        if (node is not YamlMappingNode { Children: [(YamlScalarNode keyNode, YamlNode valueNode)] } map)
+        {
+            throw new InvalidDataException("Bad node type");
+        }
+
+        return keyNode.Value switch
+        {
+            "ability_check_with_dc" => new AbilityCheckRequirement { DifficultyClass = int.Parse(((YamlScalarNode)valueNode).Value!) },
+            "rat_count" => new RatCountRequirement { RatCount = int.Parse(((YamlScalarNode)valueNode).Value!) },
+            "location" => new CheckedLocationRequirement { LocationKey = ((YamlScalarNode)valueNode).Value! },
+            "item" => new ReceivedItemRequirement { ItemKey = ((YamlScalarNode)valueNode).Value! },
+            "any" => new AnyLocationRequirement { Requirements = [..((YamlSequenceNode)valueNode).Select(DeserializeFrom)] },
+            "all" => new AllLocationRequirement { Requirements = [..((YamlSequenceNode)valueNode).Select(DeserializeFrom)] },
+            _ => throw new InvalidDataException($"Unrecognized requirement: {keyNode.Value}"),
+        };
+    }
+}
+
+public sealed record AllLocationRequirement : LocationRequirement
+{
+    public required ImmutableArray<LocationRequirement> Requirements { get; init; }
+
+    public override bool Satisfied(Game game)
+    {
+        return Requirements.All(r => r.Satisfied(game));
+    }
+}
+
+public sealed record AnyLocationRequirement : LocationRequirement
+{
+    public required ImmutableArray<LocationRequirement> Requirements { get; init; }
+
+    public override bool Satisfied(Game game)
+    {
+        return Requirements.Any(r => r.Satisfied(game));
+    }
+}
+
+public sealed record AbilityCheckRequirement : LocationRequirement
+{
+    public required int DifficultyClass { get; init; }
+
+    public override bool Satisfied(Game game)
+    {
+        return false;
+    }
+}
+
+public sealed record RatCountRequirement : LocationRequirement
+{
+    public required int RatCount { get; init; }
+
+    public override bool Satisfied(Game game)
+    {
+        return game.RatCount >= RatCount;
+    }
+}
+
+public sealed record CheckedLocationRequirement : LocationRequirement
+{
+    public required string LocationKey { get; init; }
+
+    public override bool Satisfied(Game game)
+    {
+        return false;
+    }
+}
+
+public sealed record ReceivedItemRequirement : LocationRequirement
+{
+    public required string ItemKey { get; init; }
+
+    public override bool Satisfied(Game game)
+    {
+        return false;
+    }
+}
+
 file sealed class AllItemKeysVisitor : YamlVisitorBase
 {
-    private bool _visitingItems;
+    private bool _visitingItem;
 
     public required HashSet<string> NeededItemsNotYetVisited { get; init; }
 
@@ -271,7 +452,7 @@ file sealed class AllItemKeysVisitor : YamlVisitorBase
 
     public override void Visit(YamlScalarNode scalar)
     {
-        if (_visitingItems && scalar.Value is { } val and not ("and" or "or") && VisitedItems.Add(val))
+        if (_visitingItem && scalar.Value is string val && VisitedItems.Add(val))
         {
             NeededItemsNotYetVisited.Remove(val);
         }
@@ -280,8 +461,8 @@ file sealed class AllItemKeysVisitor : YamlVisitorBase
     protected override void VisitPair(YamlNode key, YamlNode value)
     {
         key.Accept(this);
-        _visitingItems = key is YamlScalarNode { Value: "items" };
+        _visitingItem = key is YamlScalarNode { Value: "item" };
         value.Accept(this);
-        _visitingItems = false;
+        _visitingItem = false;
     }
 }

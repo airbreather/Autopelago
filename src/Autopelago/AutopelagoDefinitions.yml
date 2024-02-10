@@ -363,96 +363,93 @@ locations:
   goal:
     name: 'Captured Goldfish'
     requires:
-      ability_check_with_dc: 20
-      locations:
-        - bowling_ball_door
-      items:
-        - masterful_longsword
+      - ability_check_with_dc: 20
+      - location: bowling_ball_door
+      - item: masterful_longsword
 
   bowling_ball_door:
     name: 'Bowling Ball Door'
     requires:
-      ability_check_with_dc: 17
-      rat_count: 20
-      locations:
-        - or:
-          - restaurant
-          - pirate_bake_sale
+      - ability_check_with_dc: 17
+      - rat_count: 20
+      - any:
+        - location: restaurant
+        - location: pirate_bake_sale
 
   restaurant:
     name: 'Restaurant'
     requires:
-      ability_check_with_dc: 14
-      locations:
-        - minotaur
-      items:
-        - a_cookie
+      - ability_check_with_dc: 14
+      - location: minotaur
+      - item: a_cookie
 
   pirate_bake_sale:
     name: 'Pirate Bake Sale'
     requires:
-      ability_check_with_dc: 14
-      locations:
-        - prawn_stars
-      items:
-        - bribe
+      - ability_check_with_dc: 14
+      - location: prawn_stars
+      - item: bribe
 
   minotaur:
     name: 'Minotaur'
     requires:
-      ability_check_with_dc: 12
-      locations:
-        - basketball
-      items:
-        - red_matador_cape
+      - ability_check_with_dc: 12
+      - location: basketball
+      - item: red_matador_cape
 
   prawn_stars:
     name: 'Prawn Stars'
     requires:
-      ability_check_with_dc: 12
-      locations:
-        - basketball
-      items:
-        - premium_can_of_prawn_food
+      - ability_check_with_dc: 12
+      - location: basketball
+      - item: premium_can_of_prawn_food
 
   basketball:
     name: 'Basketball'
     requires:
-      ability_check_with_dc: 11
-      rat_count: 5
+      - ability_check_with_dc: 11
+      - rat_count: 5
 
   filler_groups:
     - before: goal
       count: 20
-      ability_check_dc: 18
+      each_requires:
+        - ability_check_with_dc: 18
 
     - after: restaurant
       count: 10
-      ability_check_dc: 16
+      each_requires:
+        - ability_check_with_dc: 16
 
     - after: pirate_bake_sale
       count: 10
-      ability_check_dc: 16
+      each_requires:
+        - ability_check_with_dc: 16
 
     - before: restaurant
       count: 10
-      ability_check_dc: 14
+      each_requires:
+        - ability_check_with_dc: 14
 
     - before: pirate_bake_sale
       count: 10
-      ability_check_dc: 14
+      each_requires:
+        - ability_check_with_dc: 14
 
     - before: minotaur
       count: 10
-      ability_check_dc: 12
+      each_requires:
+        - ability_check_with_dc: 12
 
     - before: prawn_stars
       count: 10
-      ability_check_dc: 12
+      each_requires:
+        - ability_check_with_dc: 12
 
     - before: basketball
       count: 40
-      ability_check_dc: 10
+      each_requires:
+        - ability_check_with_dc: 10
 
 # travel distances are relative to the distance from the special start location
 # to its single successor, i.e., a value of 1 means that the distance is equal
