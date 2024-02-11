@@ -11,15 +11,13 @@ using YamlDotNet.Serialization;
 
 public sealed record GameDefinitionsModel
 {
-    public static readonly GameDefinitionsModel Instance = Load();
-
     public required ItemDefinitionsModel Items { get; init; }
 
     public required LocationDefinitionsModel Locations { get; init; }
 
     public required ImmutableArray<RelativeTravelDistanceModel> RelativeTravelDistances { get; init; }
 
-    private static GameDefinitionsModel Load()
+    public static GameDefinitionsModel LoadFromEmbeddedResource()
     {
         using Stream yamlStream = Assembly.GetExecutingAssembly().GetManifestResourceStream("AutopelagoDefinitions.yml")!;
         using StreamReader yamlReader = new(yamlStream, Encoding.UTF8);

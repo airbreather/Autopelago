@@ -9,8 +9,6 @@ using YamlDotNet.Serialization.NamingConventions;
 
 await Helper.ConfigureAwaitFalse();
 
-GameDefinitionsModel gameDefinitions = GameDefinitionsModel.Instance;
-
 string settingsYaml = await File.ReadAllTextAsync(Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), args[0]));
 AutopelagoSettingsModel settings = new DeserializerBuilder()
     .WithNamingConvention(CamelCaseNamingConvention.Instance)
