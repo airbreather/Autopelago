@@ -26,7 +26,7 @@ public enum ResetReasons
 // 3. hints received
 public sealed record ResumableGameState
 {
-    public static readonly ResumableGameState Initial = new()
+    public static ResumableGameState CreateInitial(Random random) => new()
     {
         StepCount = 0,
         CurrentRegion = Region.BeforeBasketball,
@@ -37,6 +37,7 @@ public sealed record ResumableGameState
         TravelUnitsRemaining = 0,
         Auras = [],
         StartedNextStep = false,
+        RngState = Rng.State.Start(random),
     };
 
     public required long StepCount { get; init; }
@@ -56,6 +57,8 @@ public sealed record ResumableGameState
     public required ImmutableArray<Aura> Auras { get; init; }
 
     public required bool StartedNextStep { get; init; }
+
+    public required Rng.State RngState { get; init; }
 
     [JsonIgnore]
     public bool AchievedGoal => CurrentRegion == Region.CompletedGoal;
@@ -247,8 +250,6 @@ public sealed class Game(GameDifficultySettings difficultySettings, int seed)
         select (location, kvp.Key)
     ).ToDictionary();
 
-    private readonly Random _random = new(seed);
-
     private readonly AsyncEvent<MovingToRegionEventArgs> _movingToRegionEvent = new();
 
     private readonly AsyncEvent<MovedToRegionEventArgs> _movedToRegionEvent = new();
@@ -271,7 +272,7 @@ public sealed class Game(GameDifficultySettings difficultySettings, int seed)
 
     private int _numNormalRatsReceived;
 
-    public ResumableGameState State { get; private set; } = ResumableGameState.Initial;
+    public ResumableGameState State { get; private set; } = ResumableGameState.CreateInitial(new Random(seed));
 
     public int RatCount => _receivedItems.Values.Sum(i => i switch
         {
@@ -656,7 +657,10 @@ public sealed class Game(GameDifficultySettings difficultySettings, int seed)
 
     private int NextD20(Player player, int baseDiceModifier)
     {
-        return _random.Next(1, 21) + baseDiceModifier + State.ConsecutiveFailureCount / player.ConsecutiveFailuresBeforeDiceModifierIncrement;
+        Rng.State rngState = State.RngState;
+        double next = Rng.NextDouble(ref rngState);
+        State = State with { RngState = rngState };
+        return (int)(next * 20) + baseDiceModifier + 1 + State.ConsecutiveFailureCount / player.ConsecutiveFailuresBeforeDiceModifierIncrement;
     }
 
     private Region DetermineNextRegionIgnoringGoMode(Player player)
