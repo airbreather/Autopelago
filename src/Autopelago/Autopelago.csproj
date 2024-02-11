@@ -14,7 +14,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <None Include="AutopelagoDefinitions.yml" CopyToOutputDirectory="PreserveNewest" />
+    <EmbeddedResource Include="AutopelagoDefinitions.yml" LogicalName="AutopelagoDefinitions.yml" />
   </ItemGroup>
 
 </Project>

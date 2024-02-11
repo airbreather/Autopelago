@@ -1,5 +1,4 @@
 ﻿using System.Collections.Frozen;
-using System.Reflection;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 
@@ -10,11 +9,7 @@ using YamlDotNet.Serialization.NamingConventions;
 
 await Helper.ConfigureAwaitFalse();
 
-string gameDefinitionsYaml = await File.ReadAllTextAsync(Path.Combine(Path.GetDirectoryName(Assembly.GetAssembly(typeof(Program))!.Location)!, "AutopelagoDefinitions.yml"));
-GameDefinitionsModel gameDefinitions = new DeserializerBuilder()
-    .WithNamingConvention(UnderscoredNamingConvention.Instance)
-    .Build()
-    .Deserialize<GameDefinitionsModel>(gameDefinitionsYaml);
+GameDefinitionsModel gameDefinitions = GameDefinitionsModel.Instance;
 
 string settingsYaml = await File.ReadAllTextAsync(Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), args[0]));
 AutopelagoSettingsModel settings = new DeserializerBuilder()

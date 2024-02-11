@@ -1,55 +1,40 @@
 using System.Collections.Frozen;
 using System.Collections.Immutable;
 using System.Data;
+using System.Reflection;
+using System.Text;
 
 using ArchipelagoClientDotNet;
 
-using YamlDotNet.Core;
 using YamlDotNet.RepresentationModel;
 using YamlDotNet.Serialization;
 
-public sealed record GameDefinitionsModel : IYamlConvertible
+public sealed record GameDefinitionsModel
 {
-    private ItemDefinitionsModel _items = null!;
+    public static readonly GameDefinitionsModel Instance = Load();
 
-    public required ItemDefinitionsModel Items
+    public required ItemDefinitionsModel Items { get; init; }
+
+    public required LocationDefinitionsModel Locations { get; init; }
+
+    public required ImmutableArray<RelativeTravelDistanceModel> RelativeTravelDistances { get; init; }
+
+    private static GameDefinitionsModel Load()
     {
-        get => _items;
-        init => _items = value;
-    }
-
-    private LocationDefinitionsModel _locations = null!;
-
-    public required LocationDefinitionsModel Locations
-    {
-        get => _locations;
-        init => _locations = value;
-    }
-
-    private ImmutableArray<RelativeTravelDistanceModel> _relativeTravelDistances;
-
-    public ImmutableArray<RelativeTravelDistanceModel> RelativeTravelDistances
-    {
-        get => _relativeTravelDistances;
-        init => _relativeTravelDistances = value;
-    }
-
-    public void Read(IParser parser, Type expectedType, ObjectDeserializer nestedObjectDeserializer)
-    {
-        YamlMappingNode map = nestedObjectDeserializer.Get<YamlMappingNode>();
+        using Stream yamlStream = Assembly.GetExecutingAssembly().GetManifestResourceStream("AutopelagoDefinitions.yml")!;
+        using StreamReader yamlReader = new(yamlStream, Encoding.UTF8);
+        YamlMappingNode map = new DeserializerBuilder().Build().Deserialize<YamlMappingNode>(yamlReader);
 
         YamlMappingNode itemsMap = (YamlMappingNode)map["items"];
         YamlMappingNode locationsMap = (YamlMappingNode)map["locations"];
         YamlSequenceNode relativeTravelDistancesSeq = (YamlSequenceNode)map["relative_travel_distances"];
 
-        _items = ItemDefinitionsModel.DeserializeFrom(itemsMap, locationsMap);
-        _locations = LocationDefinitionsModel.DeserializeFrom(locationsMap);
-        _relativeTravelDistances = [..relativeTravelDistancesSeq.Cast<YamlMappingNode>().Select(RelativeTravelDistanceModel.DeserializeFrom)];
-    }
-
-    public void Write(IEmitter emitter, ObjectSerializer nestedObjectSerializer)
-    {
-        throw new NotImplementedException();
+        return new()
+        {
+            Items = ItemDefinitionsModel.DeserializeFrom(itemsMap, locationsMap),
+            Locations = LocationDefinitionsModel.DeserializeFrom(locationsMap),
+            RelativeTravelDistances = [..relativeTravelDistancesSeq.Cast<YamlMappingNode>().Select(RelativeTravelDistanceModel.DeserializeFrom)],
+        };
     }
 }
 
@@ -70,7 +55,7 @@ public sealed record ItemDefinitionsModel
 
     public required ImmutableArray<ItemDefinitionModel> AllItems { get; init; }
 
-    public required FrozenDictionary<string, ItemDefinitionModel> ProgressionItems { get; init; } = null!;
+    public required FrozenDictionary<string, ItemDefinitionModel> ProgressionItems { get; init; }
 
     public static ItemDefinitionsModel DeserializeFrom(YamlMappingNode itemsMap, YamlMappingNode locationsMap)
     {
