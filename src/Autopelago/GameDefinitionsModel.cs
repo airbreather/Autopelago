@@ -298,14 +298,14 @@ public sealed record LocationDefinitionModel
 {
     public required string Name { get; init; }
 
-    public required LocationRequirement Requires { get; init; }
+    public required GameRequirement Requires { get; init; }
 
     public static LocationDefinitionModel DeserializeFrom(YamlMappingNode map)
     {
         return new()
         {
             Name = ((YamlScalarNode)map["name"]).Value!,
-            Requires = LocationRequirement.DeserializeFrom(map["requires"]),
+            Requires = GameRequirement.DeserializeFrom(map["requires"]),
         };
     }
 }
@@ -324,7 +324,7 @@ public sealed record LocationFillerGroupModel
 
     public required int LocationCount { get; init; }
 
-    public required LocationRequirement EachRequires { get; init; }
+    public required GameRequirement EachRequires { get; init; }
 
     public string RegionKey
     {
@@ -340,22 +340,24 @@ public sealed record LocationFillerGroupModel
             DirectionFromDefiningLocation = direction,
             DefiningLocationKey = definingLocationKey,
             LocationCount = int.Parse(((YamlScalarNode)map["count"]).Value!),
-            EachRequires = LocationRequirement.DeserializeFrom(map["each_requires"]),
+            EachRequires = GameRequirement.DeserializeFrom(map["each_requires"]),
         };
     }
 }
 
-public abstract record LocationRequirement
+public abstract record GameRequirement
 {
+    public static readonly GameRequirement AlwaysSatisfied = new AllGameRequirement { Requirements = [] };
+
     public abstract bool Satisfied(Game game);
 
-    public static LocationRequirement DeserializeFrom(YamlNode node)
+    public static GameRequirement DeserializeFrom(YamlNode node)
     {
         // special case: there's an implicit "all:" at the top, which means that we might be coming
         // in partway through that. it's easy to test for this.
         if (node is YamlSequenceNode seq)
         {
-            return new AllLocationRequirement
+            return new AllGameRequirement
             {
                 Requirements = [..seq.Select(DeserializeFrom)],
             };
@@ -372,16 +374,16 @@ public abstract record LocationRequirement
             "rat_count" => new RatCountRequirement { RatCount = int.Parse(((YamlScalarNode)valueNode).Value!) },
             "location" => new CheckedLocationRequirement { LocationKey = ((YamlScalarNode)valueNode).Value! },
             "item" => new ReceivedItemRequirement { ItemKey = ((YamlScalarNode)valueNode).Value! },
-            "any" => new AnyLocationRequirement { Requirements = [..((YamlSequenceNode)valueNode).Select(DeserializeFrom)] },
-            "all" => new AllLocationRequirement { Requirements = [..((YamlSequenceNode)valueNode).Select(DeserializeFrom)] },
+            "any" => new AnyGameRequirement { Requirements = [..((YamlSequenceNode)valueNode).Select(DeserializeFrom)] },
+            "all" => new AllGameRequirement { Requirements = [..((YamlSequenceNode)valueNode).Select(DeserializeFrom)] },
             _ => throw new InvalidDataException($"Unrecognized requirement: {keyNode.Value}"),
         };
     }
 }
 
-public sealed record AllLocationRequirement : LocationRequirement
+public sealed record AllGameRequirement : GameRequirement
 {
-    public required ImmutableArray<LocationRequirement> Requirements { get; init; }
+    public required ImmutableArray<GameRequirement> Requirements { get; init; }
 
     public override bool Satisfied(Game game)
     {
@@ -389,9 +391,9 @@ public sealed record AllLocationRequirement : LocationRequirement
     }
 }
 
-public sealed record AnyLocationRequirement : LocationRequirement
+public sealed record AnyGameRequirement : GameRequirement
 {
-    public required ImmutableArray<LocationRequirement> Requirements { get; init; }
+    public required ImmutableArray<GameRequirement> Requirements { get; init; }
 
     public override bool Satisfied(Game game)
     {
@@ -399,7 +401,7 @@ public sealed record AnyLocationRequirement : LocationRequirement
     }
 }
 
-public sealed record AbilityCheckRequirement : LocationRequirement
+public sealed record AbilityCheckRequirement : GameRequirement
 {
     public required int DifficultyClass { get; init; }
 
@@ -409,7 +411,7 @@ public sealed record AbilityCheckRequirement : LocationRequirement
     }
 }
 
-public sealed record RatCountRequirement : LocationRequirement
+public sealed record RatCountRequirement : GameRequirement
 {
     public required int RatCount { get; init; }
 
@@ -419,7 +421,7 @@ public sealed record RatCountRequirement : LocationRequirement
     }
 }
 
-public sealed record CheckedLocationRequirement : LocationRequirement
+public sealed record CheckedLocationRequirement : GameRequirement
 {
     public required string LocationKey { get; init; }
 
@@ -429,7 +431,7 @@ public sealed record CheckedLocationRequirement : LocationRequirement
     }
 }
 
-public sealed record ReceivedItemRequirement : LocationRequirement
+public sealed record ReceivedItemRequirement : GameRequirement
 {
     public required string ItemKey { get; init; }
 
