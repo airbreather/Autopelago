@@ -326,13 +326,19 @@ public sealed record LocationFillerGroupModel
 
     public required LocationRequirement EachRequires { get; init; }
 
+    public string RegionKey
+    {
+        get => $"{DefiningLocationKey}.{$"{DirectionFromDefiningLocation}".ToLowerInvariant()}";
+    }
+
     public static LocationFillerGroupModel DeserializeFrom(YamlMappingNode map)
     {
         BeforeOrAfter direction = map.Children.ContainsKey("before") ? BeforeOrAfter.Before : BeforeOrAfter.After;
+        string definingLocationKey = ((YamlScalarNode)map[direction.ToString().ToLowerInvariant()]).Value!;
         return new()
         {
             DirectionFromDefiningLocation = direction,
-            DefiningLocationKey = ((YamlScalarNode)map[direction.ToString().ToLowerInvariant()]).Value!,
+            DefiningLocationKey = definingLocationKey,
             LocationCount = int.Parse(((YamlScalarNode)map["count"]).Value!),
             EachRequires = LocationRequirement.DeserializeFrom(map["each_requires"]),
         };
