@@ -72,4 +72,63 @@ However, it remembers that this item is coming. Receiving an item (or a combinat
 
 ### "Specific item is basically never coming"
 
-Tricky...
+**Probably** doesn't affect us too much. I feel like all that it realistically should do is counteract any optimism that we might get from the other calls.
+
+## When we ask it to advance itself
+
+This is the meat of the code, and the overwhelming majority of what I've written so far in the pilot implements a bit of a cringe version of it. It's time to think it through for real. I think I want to use something resembling the PF2e Encounter Mode rules for this.
+
+1. Figure out what our path should be. This is considered a free action.
+2. If we're not on the correct path right now, then spend 1 action point to switch.
+3. If we're currently at a non-"filler" location check, then spend 2 action points, simulating some sort of dynamic encounter-specific thing you'd need to do.
+4. Spend remaining action points on movement / attempts at the location check.
+
+### "Mercy rule" / On the concept of "difficulty"
+
+The pilot implements what I'll call a "mercy rule", where every consecutive failure increases the next check's modifier by +1. The intent of that was to make sure that we can simulate location checks that get progressively more "difficult" to collect as the player progresses through the game by cranking up the DC, without creating a situation where each playthrough can **only** succeed by hitting a lucky streak.
+
+Playtesting shows that this strategy is probably serving its intended purpose, as we never have to wait **too** long in BK mode, but when you examine it for more than a few minutes, you see that it does a very poor job at simulating how a realistic player will experience their game.
+
+---
+
+**In general**, within a single run, a player won't **strictly** get **significantly**, **progressively** better at solving any given challenge that they face, **just** by virtue of trying. There's **some shadow** of this **overall** concept, but by the time you accept a player into your multi-world, there's an expectation that they're going to be competent enough at their chosen game that they won't have a 5% chance of beating the final boss on their first try, and then a 10% chance on their second try, and then a 15% chance on their third try, and so on.
+
+---
+
+This strategy **also** has the fundamental flaw of making every playthrough feel basically the same. The **only** thing that can govern which path you take is just whether or not you **happen** to have the single key item that unlocks the next specific blocker that stands in the way of that path.
+
+But consider my usual OoT sphere 0 run. Right away, the path can diverge significantly based on whether or not I receive a Deku Shield before exhausting the accessible Kokiri Forest and Lost Woods checks, even though there are plenty of very easy sphere 0 checks in the Deku Tree. This is because the Deku Tree region is so close to the menu — and there are so many ways to get a Deku Shield, which is the only item that my logic requires me to have for a full clear — that it's a definite waste of time to go in there without one.
+
+The pilot version **completely** misses this element.
+
+---
+
+Finally, while I can't say that I know how this **usually** plays out in Archipelago multi-worlds (I haven't seen anyone else play this for real outside my friend group), I feel like it's not a stretch to guess that with most players in most of their chosen games, the game doesn't get **monotonically** more difficult as the player goes to "later" regions just because the numbers are bigger. Personally, given that I have all the requirements to complete either one, I find the Spirit Temple not tremendously harder than the Fire Temple — especially if I've gotten Biggoron's Sword or a Giant's Knife for crouch-stab abuse.
+
+What sets the "later" Spirit Temple apart from the "earlier" Fire Temple is:
+
+- Its complexity, in terms of:
+
+  - how many items are required to enter it at all
+  - split between child / adult segments
+  - how many items are required to **fully** clear **all** location checks while inside
+
+- Its "difficulty", in terms of:
+
+  - how many hazards there are that might cause random damage to an unprepared / careless player
+  - the amount of damage that the various enemies can deal, especially the final / sub-bosses
+  - the absolute size of the thing
+
+So if we assume that I have received **all** the items to complete both the Fire Temple **and** the Spirit Temple to the fullest extent that the seed allows me to — all else equal! — then I will feel more inclined to hit the Spirit Temple first, because:
+
+- It has more locations that I can check
+- I haven't counted, but it feels like there are far more location checks that I can do in the Spirit Temple without randomly getting blocked because the seed didn't happen to put enough small keys early enough.
+- I'm a skilled enough player that even though this dungeon throws at least one enemy with an Adult Link-sized health bar and damage output at a Child Link-sized toolkit (sometimes two such enemies) — which is supposed to be a major part of this dungeon's "difficulty" — this doesn't really slow me down substantially.
+
+And here's the kicker: on top of all this, keeping those same assumptions (i.e., barring any external information or hints that would justify prioritizing one of the two), if I happened to have very few heart containers and no double defense, then I wouldn't prioritize **either** of these dungeons, because I tend to be careless enough that **both** will probably usually hit me for at least 3 hearts worth of damage between the guaranteed recovery hearts, and so I should prioritize other regions (probably mostly Overworld) with similar location densities but lower or sparser damage output... but the overall difficulty strategy I implemented for the pilot will pretty much always say that I should go for the Fire Temple before the Adult Link-only checks in Lake Hylia, because the latter ones have the smallest travel time to the blocker that comes "next" in the original game.
+
+---
+
+### How to better implement "difficulty"
+
+Working on it...
