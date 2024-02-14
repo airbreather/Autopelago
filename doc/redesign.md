@@ -127,8 +127,32 @@ So if we assume that I have received **all** the items to complete both the Fire
 
 And here's the kicker: on top of all this, keeping those same assumptions (i.e., barring any external information or hints that would justify prioritizing one of the two), if I happened to have very few heart containers and no double defense, then I wouldn't prioritize **either** of these dungeons, because I tend to be careless enough that **both** will probably usually hit me for at least 3 hearts worth of damage between the guaranteed recovery hearts, and so I should prioritize other regions (probably mostly Overworld) with similar location densities but lower or sparser damage output... but the overall difficulty strategy I implemented for the pilot will pretty much always say that I should go for the Fire Temple before the Adult Link-only checks in Lake Hylia, because the latter ones have the smallest travel time to the blocker that comes "next" in the original game.
 
----
+### How better to implement "difficulty"
 
-### How to better implement "difficulty"
+Some observations:
 
-Working on it...
+1. Some OoT players [can](https://www.zeldaspeedruns.com/oot/tech/superslide) increase their travel time dramatically once they have a bomb bag.
+2. Getting a Hylian Shield and either Giant's Knife or Biggoron's Sword will allow me to significantly increase my damage output against enemies where it's worthwhile.
+3. Some "later" enemies do enough damage to one- or two-shot Link if he has gotten no heart container or defense upgrades, but even on the very unusual seeds where they show up much earlier than usual, I've always had plenty of buffer to fight them fearlessly.
+
+    - And even if I were faced with a Stalfos right outside Link's house at the start of the game, I could still probably defeat it most of the time if I just play it safe.
+
+4. Despite the fact that not all playthroughs strictly require it, at least one bottle is a pseudo-requirement for me because of how much extra damage it lets me do to Ganondorf.
+
+From those observations and considering the flaws enumerated above, an appropriate response starts to take form:
+
+1. Regardless of anything else, **in general**, all built-in increases in the difficulty of "later" stages should be substantially counterbalanced by items that the player is "expected" to have acquired in the "earlier" stages.
+2. A "key" item that is required to clear a certain blocker could also sensibly make some other unrelated location checks easier.
+3. Rather than only incrementing the DC — which increases both the mean and the standard deviation without increasing the min or max — a "more difficult" check could primarily require additional successes.
+
+    - Nothing fundamentally conflicts with the notion of having the final boss require 100 successes at DC 15.
+    - For any given check, if it feels too "easy" by requiring `x` successes at DC `y`, but too "hard" when it requires `x + 1` successes at DC `y` / `x` successes at DC `y + 1`, then we can always multiply the number of required successes on everything by a factor of `n` and the interval between steps by a factor of `1 / n` to expand our options without meaningfully affecting all the other balancing up to that point.
+
+        - I should mention here that I'm pretty sure that combining the effects of `n` and `1 / n` will probably cause a net effect to the mean time to complete any given location check (especially if its DC is relatively high), but I feel like the magnitude of the net effect is probably generally low enough that I can treat it as nearly zero until I feel good enough with the overall numbers to take the game's layout to a final balancing phase where I can use a Monte Carlo method to get feedback and compensate for anything that gets too far out-of-whack.
+
+4. It's still fun to sometimes throw a player into a situation where they have to do something a little too difficult, a little too early for how the game is "normally" played.
+
+    - e.g., I can't **always** single-cycle Gohma without the Slingshot, but I can **usually** do it, and it's always two-cycle when I fail, and that's good enough for me to completely ignore the Slingshot.
+    - e.g., sometimes the Iron Knuckle on the Child Link side of the Spirit Temple really does need to be done as Child Link (or as Adult Link without Biggoron's Sword or Giant's Knife), in which case the fight becomes nontrivial because it has enough time to make an initial swing against me (though I'm sure if I cared enough, I could find a setup to turn it from "nontrivial but easy" into "trivial" under these circumstances as well).
+
+5. More...
