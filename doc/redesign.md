@@ -191,7 +191,14 @@ Immutable record type with:
 - Successes so far against target APMW location
 - Demands such as "push hard for APMW location X"
 - History of calls such as "item X is coming pretty soon"
+- History of aura-related events
+
+  - This could **possibly** be inferred exactly from the history of received items, but I think I want to allow auras to be complex enough that there's no reasonable way to avoid storing some of this history separately.
+  - Plus, if "save replay" ever happens, then on playback, it might be cool to show a scene of a buffed-up rat tearing through the sewers.
+
 - PRNG state
+
+Not listed are any indexes that are fully derived from the above data members which will allow querying and transitioning the state more efficiently.
 
 There is a baseline state that depends only on a PRNG seed and nothing else (not even the details of Game Definitions):
 
@@ -204,13 +211,16 @@ There is a baseline state that depends only on a PRNG seed and nothing else (not
 - Successes so far against target APMW location: none
 - Demands such as "push hard for APMW location X": none
 - History of calls such as "item X is coming pretty soon": never received any such calls
+- History of aura-related events from items: none
 - PRNG state: derived from the seed
 
 ### Player
 
-Class, responsible for taking a Game State and transitioning it to the next Game State by following the rules from Game Definitions
+Class, responsible for taking a Game State and transitioning it to the next Game State by following the rules from Game Definitions. All (or **very nearly** all) of its important state should be read-only and immutable.
 
-Overall things it can do:
+Two different Player instances could sensibly have different opinions about the best way to transition a Game State, but it's the combination of Game State and Game Definitions that determines what the **available** choices are. All **available** choices, by definition, will be completable by any Player instance, regardless of its own idiosyncrasies.
+
+Overall things it can do (probably not exhaustive):
 
 - Change the Target APMW location (if we're not currently targeting the best one)
 
@@ -218,6 +228,7 @@ Overall things it can do:
 
 - Change the current GPS location (if we're not already at the Target APMW location)
 - Change the number of successes so far against the target APMW location (if we're there and we succeed)
+- Update the history of aura-related events (if there's an active aura that influences or is influenced by something else that we've done)
 - Transition the PRNG state to the next one (if we used it at all)
 
 I believe that there should **always** be at least one thing to do in each transition. There are two things that look like exceptions to that rule:
@@ -227,4 +238,22 @@ I believe that there should **always** be at least one thing to do in each trans
 
 ### Game
 
-More...
+Class, responsible for taking a Game State through all the stages of a dynamic game.
+
+Its responsibilities include those of actually "playing" the game — which it definitely should delegate to a Player that it also manages — but it also has other sub-responsibilities, which are probably not worth delegating further:
+
+- Initialize the Game State at startup time, potentially resuming from an earlier run of the process
+- Directly transition the Game State when the multiworld server tells us about things that should influence it
+
+  - A [`ReceivedItems`](https://github.com/ArchipelagoMW/Archipelago/blob/0.4.4/docs/network%20protocol.md#ReceivedItems) packet is the main one
+  - [`PrintJSON`](https://github.com/ArchipelagoMW/Archipelago/blob/0.4.4/docs/network%20protocol.md#PrintJSON) can do it too, though, since that's how someone will make a call or a demand
+
+- Compare the pre- and post-transition Game States and tell the multiworld server about any important things that have changed
+- Store the post-transition Game State on the multiworld server so that we can resume later without relying on client-local storage
+- Ensure that we only make requests to the Player at appropriate time-based intervals
+
+  - Stretch goal: if we receive an item with an aura that influences the interval duration while we are already waiting for an interval to elapse (which is how it's usually going to be), then it would be quite nice to have it apply immediately instead of waiting for that interval to lapse. This makes balancing tricky, but I can say that it feels quite weird that buffs and traps can take such a long time to "kick in".
+
+### Program
+
+The usual, responsible for running one or more `Game` instances and connecting them to whatever multiworld server implementation is in use.
