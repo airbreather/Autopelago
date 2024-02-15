@@ -155,4 +155,76 @@ From those observations and considering the flaws enumerated above, an appropria
     - e.g., I can't **always** single-cycle Gohma without the Slingshot, but I can **usually** do it, and it's always two-cycle when I fail, and that's good enough for me to completely ignore the Slingshot.
     - e.g., sometimes the Iron Knuckle on the Child Link side of the Spirit Temple really does need to be done as Child Link (or as Adult Link without Biggoron's Sword or Giant's Knife), in which case the fight becomes nontrivial because it has enough time to make an initial swing against me (though I'm sure if I cared enough, I could find a setup to turn it from "nontrivial but easy" into "trivial" under these circumstances as well).
 
-5. More...
+## Code Layout
+
+With all that written down, let's do some actual object modeling...
+
+### Game Definitions
+
+Static immutable singleton record type with:
+
+- List of APMW regions, each with
+
+  - List of APMW locations it contains, each with what is required to complete its check.
+
+- List of connections between APMW regions, each with the relative time to traverse
+- List of items, each with
+
+  - List of aura(s) it grants
+  - Associated APMW game, if any
+
+### Game State
+
+Immutable record type with:
+
+- Epoch
+
+  - Starts at 0
+  - Each time we create a new instance based on an existing one, the new instance gets an Epoch that's 1 greater than the previous one's
+  - This **could** be implemented by having a list of all previous game states so far. That is excessively chunky for storing it in Archipelago, but doing it locally could enable a "save replay" feature
+
+- Received items
+- Checked locations
+- Known hints
+- Current GPS location
+- Target APMW location, if any
+- Successes so far against target APMW location
+- Demands such as "push hard for APMW location X"
+- History of calls such as "item X is coming pretty soon"
+- PRNG state
+
+There is a baseline state that depends only on a PRNG seed and nothing else (not even the details of Game Definitions):
+
+- Epoch: 0
+- Received items: none
+- Checked locations: none
+- Known hints: none
+- Current GPS location: "menu" / "start", however you want to word it
+- Target APMW location: none
+- Successes so far against target APMW location: none
+- Demands such as "push hard for APMW location X": none
+- History of calls such as "item X is coming pretty soon": never received any such calls
+- PRNG state: derived from the seed
+
+### Player
+
+Class, responsible for taking a Game State and transitioning it to the next Game State by following the rules from Game Definitions
+
+Overall things it can do:
+
+- Change the Target APMW location (if we're not currently targeting the best one)
+
+  - "the best one" is something that Player also must determine, based on the rest of the state and the Game Definitions
+
+- Change the current GPS location (if we're not already at the Target APMW location)
+- Change the number of successes so far against the target APMW location (if we're there and we succeed)
+- Transition the PRNG state to the next one (if we used it at all)
+
+I believe that there should **always** be at least one thing to do in each transition. There are two things that look like exceptions to that rule:
+
+1. You'd think that we shouldn't ever transition anything if the goal is already completed. I agree, and that's why I think that Player should enforce a pre-condition that we not ask it to transition a completed state.
+2. It also appears that we shouldn't ever transition anything in BK mode. I agree with that too, and that's why I think Player should also enforce a pre-condition that the state is not in BK mode.
+
+### Game
+
+More...
