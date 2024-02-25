@@ -19,9 +19,12 @@ public sealed class Game
 
     private ConnectResponsePacketModel? _lastHandshakeResponse;
 
+    private State _state;
+
     public Game(Channel<ImmutableArray<ArchipelagoPacketModel>, ArchipelagoPacketModel> channel)
     {
         _channel = channel;
+        _state = new() { PrngState = Prng.State.Start(new Random(123)) };
     }
 
     public ArchipelagoPacketEvents PacketEvents { get; } = new();
@@ -60,6 +63,65 @@ public sealed class Game
         _lastHandshakeResponse = await _channel.Reader.ReadAsync(cancellationToken) as ConnectResponsePacketModel ?? throw new InvalidDataException("Server does not properly implement the Archipelago handshake protocol.");
         await NotifyReceivedAsync(_lastHandshakeResponse, cancellationToken);
         return _lastHandshakeResponse is ConnectedPacketModel;
+    }
+
+    public async ValueTask RunUntilCanceled(CancellationToken cancellationToken)
+    {
+        await Helper.ConfigureAwaitFalse();
+
+        if (_lastHandshakeResponse is not ConnectedPacketModel)
+        {
+            throw new InvalidOperationException("Must finish the handshake successfully first.");
+        }
+
+        using SemaphoreSlim mutex = new(1, 1);
+        Task readerTask = Task.Run(async () =>
+        {
+            await Helper.ConfigureAwaitFalse();
+            while (await _channel.Reader.WaitToReadAsync(cancellationToken))
+            {
+                await mutex.WaitAsync(cancellationToken);
+                try
+                {
+                    while (_channel.Reader.TryRead(out ArchipelagoPacketModel? packet))
+                    {
+                        // do stuff with the packet.
+                    }
+                }
+                finally
+                {
+                    mutex.Release();
+                }
+            }
+        }, cancellationToken);
+
+        while (true)
+        {
+            // TODO: better
+            await Task.Delay(1000, cancellationToken);
+
+            await mutex.WaitAsync(cancellationToken);
+            try
+            {
+                State state = Advance();
+
+                // TODO: send packets as appropriate for how the state has changed from _state
+                _state = state;
+            }
+            finally
+            {
+                mutex.Release();
+            }
+        }
+    }
+
+    private State Advance()
+    {
+        // TODO: actually everything here.
+        return _state with
+        {
+            Epoch = _state.Epoch + 1,
+        };
     }
 
     private async ValueTask NotifyReceivedAsync<T>(T args, CancellationToken cancellationToken)
