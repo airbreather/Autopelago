@@ -1,8 +1,4 @@
-﻿using System.Collections.Frozen;
-using System.Runtime.CompilerServices;
-using System.Runtime.InteropServices;
-
-using ArchipelagoClientDotNet;
+﻿using ArchipelagoClientDotNet;
 
 using YamlDotNet.Serialization;
 using YamlDotNet.Serialization.NamingConventions;
@@ -23,11 +19,11 @@ Console.CancelKeyPress += async (sender, args) =>
     await cts.CancelAsync();
 };
 
-using WebSocketPacketChannel channel = new(settings.Server, settings.Port);
+await using WebSocketPacketChannel channel = new(settings.Server, settings.Port);
 await channel.ConnectAsync(cts.Token);
 
 Game game = new(channel);
-await game.StartHandshakeAsync(new() { Games = ["Autopelago"] }, cts.Token);
+await game.StartHandshakeAsync(new() { Games = [settings.GameName] }, cts.Token);
 await game.FinishHandshakeAsync(new()
 {
     Password = settings.Slots[0].Password,
@@ -39,3 +35,5 @@ await game.FinishHandshakeAsync(new()
     Tags = ["AP"],
     SlotData = true,
 }, cts.Token);
+
+cts.Cancel();

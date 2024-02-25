@@ -14,7 +14,7 @@ internal sealed partial class SourceGenerationContext : JsonSerializerContext
 {
 }
 
-public sealed partial class WebSocketPacketChannel : Channel<ImmutableArray<ArchipelagoPacketModel>, ArchipelagoPacketModel>, IDisposable
+public sealed partial class WebSocketPacketChannel : Channel<ImmutableArray<ArchipelagoPacketModel>, ArchipelagoPacketModel>, IAsyncDisposable
 {
     private static readonly JsonReaderOptions s_jsonReaderOptions = new()
     {
@@ -108,7 +108,7 @@ public sealed partial class WebSocketPacketChannel : Channel<ImmutableArray<Arch
                 Memory<byte> fullFirstBuf = firstBufOwner.Memory;
                 while (true)
                 {
-                    ValueWebSocketReceiveResult prevReceiveResult = await _socket.ReceiveAsync(fullFirstBuf, cancellationToken);
+                    ValueWebSocketReceiveResult prevReceiveResult = await _socket.ReceiveAsync(fullFirstBuf, socketClosing.Token);
                     ReadOnlyMemory<byte> firstBuf = fullFirstBuf[..prevReceiveResult.Count];
                     if (firstBuf.IsEmpty)
                     {
@@ -118,15 +118,9 @@ public sealed partial class WebSocketPacketChannel : Channel<ImmutableArray<Arch
                     // we're going to stream the objects in the array one-by-one.
                     int startIndex = 0;
                     JsonReaderState readerState = new(s_jsonReaderOptions);
-                    while (startIndex < firstBuf.Length)
+                    while (TryGetNextPacket(new(firstBuf[startIndex..]), prevReceiveResult.EndOfMessage, ref readerState) is (ArchipelagoPacketModel packet, long bytesConsumed))
                     {
-                        bool completed = TryGetNextPacket(new(firstBuf[startIndex..]), prevReceiveResult.EndOfMessage, ref readerState, out ArchipelagoPacketModel? packet, out long bytesConsumed);
                         startIndex = checked((int)(startIndex + bytesConsumed));
-                        if (packet is null)
-                        {
-                            break;
-                        }
-
                         await _receiveChannel.Writer.WriteAsync(packet, socketClosing.Token);
                     }
 
@@ -143,12 +137,10 @@ public sealed partial class WebSocketPacketChannel : Channel<ImmutableArray<Arch
                         IMemoryOwner<byte> nextBufOwner = MemoryPool<byte>.Shared.Rent(65536);
                         extraDisposables.Add(nextBufOwner);
                         Memory<byte> fullNextBuf = nextBufOwner.Memory;
-                        prevReceiveResult = await _socket.ReceiveAsync(fullNextBuf, cancellationToken);
+                        prevReceiveResult = await _socket.ReceiveAsync(fullNextBuf, socketClosing.Token);
                         endSegment = endSegment.Append(fullNextBuf[..prevReceiveResult.Count]);
-                        while (true)
+                        while (TryGetNextPacket(new(startSegment, startIndex, endSegment, endSegment.Memory.Length), prevReceiveResult.EndOfMessage, ref readerState) is (ArchipelagoPacketModel packet, long bytesConsumed))
                         {
-                            ReadOnlySequence<byte> seq = new(startSegment, startIndex, endSegment, endSegment.Memory.Length);
-                            bool completed = TryGetNextPacket(seq, prevReceiveResult.EndOfMessage, ref readerState, out ArchipelagoPacketModel? packet, out long bytesConsumed);
                             long totalBytesConsumed = startIndex + bytesConsumed;
                             while (totalBytesConsumed > startSegment.Memory.Length)
                             {
@@ -157,11 +149,6 @@ public sealed partial class WebSocketPacketChannel : Channel<ImmutableArray<Arch
                             }
 
                             startIndex = checked((int)totalBytesConsumed);
-                            if (packet is null)
-                            {
-                                break;
-                            }
-
                             await _receiveChannel.Writer.WriteAsync(packet, socketClosing.Token);
                         }
                     }
@@ -181,17 +168,23 @@ public sealed partial class WebSocketPacketChannel : Channel<ImmutableArray<Arch
         _sendConsumerTask = Task.Run(async () =>
         {
             await Helper.ConfigureAwaitFalse();
-            while (await _sendChannel.Reader.WaitToReadAsync(cancellationToken))
-            {
-                while (_sendChannel.Reader.TryRead(out ImmutableArray<ArchipelagoPacketModel> packetGroup))
-                {
-                    byte[] bytes = JsonSerializer.SerializeToUtf8Bytes(packetGroup, s_jsonSerializerOptions);
-                    await _socket.SendAsync(bytes, WebSocketMessageType.Text, true, cancellationToken);
-                }
-            }
-
             using (socketClosing)
             {
+                try
+                {
+                    while (await _sendChannel.Reader.WaitToReadAsync(socketClosing.Token))
+                    {
+                        while (_sendChannel.Reader.TryRead(out ImmutableArray<ArchipelagoPacketModel> packetGroup))
+                        {
+                            byte[] bytes = JsonSerializer.SerializeToUtf8Bytes(packetGroup, s_jsonSerializerOptions);
+                            await _socket.SendAsync(bytes, WebSocketMessageType.Text, true, socketClosing.Token);
+                        }
+                    }
+                }
+                catch (OperationCanceledException)
+                {
+                }
+
                 await socketClosing.CancelAsync();
                 await _receiveProducerTask;
             }
@@ -200,47 +193,34 @@ public sealed partial class WebSocketPacketChannel : Channel<ImmutableArray<Arch
         }, cancellationToken);
     }
 
-    public void Dispose()
+    public async ValueTask DisposeAsync()
     {
         if (_disposed)
         {
             return;
         }
 
+        await (_sendConsumerTask ?? Task.CompletedTask);
         _socket.Dispose();
         _disposed = true;
     }
 
-    private static bool TryGetNextPacket(ReadOnlySequence<byte> seq, bool endOfMessage, ref JsonReaderState readerState, out ArchipelagoPacketModel? packet, out long bytesConsumed)
+    private static (ArchipelagoPacketModel Packet, long BytesConsumed)? TryGetNextPacket(ReadOnlySequence<byte> seq, bool endOfMessage, ref JsonReaderState readerState)
     {
-        packet = null;
-        bytesConsumed = 0;
         Utf8JsonReader reader = new(seq, endOfMessage, readerState);
-        if (reader.TokenType == JsonTokenType.None)
+        if (reader.TokenType == JsonTokenType.None && !reader.Read())
         {
-            if (!reader.Read())
-            {
-                return false;
-            }
-
-            readerState = reader.CurrentState;
-            bytesConsumed = reader.BytesConsumed;
+            return null;
         }
 
-        if (reader.TokenType is JsonTokenType.StartArray or JsonTokenType.EndObject)
+        if (reader.TokenType is JsonTokenType.StartArray or JsonTokenType.EndObject && !reader.Read())
         {
-            if (!reader.Read())
-            {
-                return false;
-            }
-
-            readerState = reader.CurrentState;
-            bytesConsumed = reader.BytesConsumed;
+            return null;
         }
 
         if (reader.TokenType == JsonTokenType.EndArray)
         {
-            return true;
+            return null;
         }
 
         if (reader.TokenType != JsonTokenType.StartObject)
@@ -253,13 +233,12 @@ public sealed partial class WebSocketPacketChannel : Channel<ImmutableArray<Arch
             Utf8JsonReader testReader = reader;
             if (!testReader.TrySkip())
             {
-                return false;
+                return null;
             }
         }
 
-        packet = JsonSerializer.Deserialize<ArchipelagoPacketModel>(ref reader, s_jsonSerializerOptions);
+        ArchipelagoPacketModel packet = JsonSerializer.Deserialize<ArchipelagoPacketModel>(ref reader, s_jsonSerializerOptions)!;
         readerState = reader.CurrentState;
-        bytesConsumed = reader.BytesConsumed;
-        return true;
+        return (packet, reader.BytesConsumed);
     }
 }
