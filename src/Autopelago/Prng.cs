@@ -7,7 +7,7 @@ using System.Runtime.InteropServices;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 
-public static class Rng
+public static class Prng
 {
     // retrieved with the following header from https://prng.di.unimi.it/xoshiro256plus.c
     /*

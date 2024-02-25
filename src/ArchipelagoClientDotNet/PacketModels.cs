@@ -150,7 +150,12 @@ public sealed record ConnectPacketModel : ArchipelagoPacketModel
     public required bool SlotData { get; init; }
 }
 
-public sealed record ConnectedPacketModel : ArchipelagoPacketModel
+public abstract record ConnectResponsePacketModel : ArchipelagoPacketModel
+{
+    private protected ConnectResponsePacketModel() { }
+}
+
+public sealed record ConnectedPacketModel : ConnectResponsePacketModel
 {
     public required int Team { get; init; }
 
@@ -169,7 +174,7 @@ public sealed record ConnectedPacketModel : ArchipelagoPacketModel
     public required int HintPoints { get; init; }
 }
 
-public sealed record ConnectionRefusedPacketModel : ArchipelagoPacketModel
+public sealed record ConnectionRefusedPacketModel : ConnectResponsePacketModel
 {
     public ImmutableArray<string> Errors { get; init; } = [];
 }

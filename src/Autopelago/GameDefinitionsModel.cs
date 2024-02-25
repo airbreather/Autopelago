@@ -1,3 +1,5 @@
+#if false
+
 using System.Collections.Frozen;
 using System.Collections.Immutable;
 using System.Data;
@@ -349,7 +351,7 @@ public abstract record GameRequirement
 {
     public static readonly GameRequirement AlwaysSatisfied = new AllGameRequirement { Requirements = [] };
 
-    public abstract bool Satisfied(Game game);
+    public abstract bool Satisfied(GameState gameState);
 
     public static GameRequirement DeserializeFrom(YamlNode node)
     {
@@ -385,9 +387,9 @@ public sealed record AllGameRequirement : GameRequirement
 {
     public required ImmutableArray<GameRequirement> Requirements { get; init; }
 
-    public override bool Satisfied(Game game)
+    public override bool Satisfied(GameState gameState)
     {
-        return Requirements.All(r => r.Satisfied(game));
+        return Requirements.All(r => r.Satisfied(gameState));
     }
 }
 
@@ -395,9 +397,9 @@ public sealed record AnyGameRequirement : GameRequirement
 {
     public required ImmutableArray<GameRequirement> Requirements { get; init; }
 
-    public override bool Satisfied(Game game)
+    public override bool Satisfied(GameState gameState)
     {
-        return Requirements.Any(r => r.Satisfied(game));
+        return Requirements.Any(r => r.Satisfied(gameState));
     }
 }
 
@@ -405,7 +407,7 @@ public sealed record AbilityCheckRequirement : GameRequirement
 {
     public required int DifficultyClass { get; init; }
 
-    public override bool Satisfied(Game game)
+    public override bool Satisfied(GameState gameState)
     {
         return false;
     }
@@ -415,9 +417,9 @@ public sealed record RatCountRequirement : GameRequirement
 {
     public required int RatCount { get; init; }
 
-    public override bool Satisfied(Game game)
+    public override bool Satisfied(GameState gameState)
     {
-        return game.RatCount >= RatCount;
+        return gameState.RatCount >= RatCount;
     }
 }
 
@@ -425,7 +427,7 @@ public sealed record CheckedLocationRequirement : GameRequirement
 {
     public required string LocationKey { get; init; }
 
-    public override bool Satisfied(Game game)
+    public override bool Satisfied(GameState gameState)
     {
         return false;
     }
@@ -435,7 +437,7 @@ public sealed record ReceivedItemRequirement : GameRequirement
 {
     public required string ItemKey { get; init; }
 
-    public override bool Satisfied(Game game)
+    public override bool Satisfied(GameState gameState)
     {
         return false;
     }
@@ -488,3 +490,5 @@ file sealed class AllItemKeysVisitor : YamlVisitorBase
         _visitingItem = false;
     }
 }
+
+#endif
