@@ -1,3 +1,4 @@
+using System.Collections.Frozen;
 using System.Collections.Immutable;
 using System.Threading.Channels;
 
@@ -22,6 +23,12 @@ public sealed class Game
 
     private DataPackagePacketModel? _dataPackage;
 
+    private GameDataModel? _gameData;
+
+    private FrozenDictionary<long, ItemDefinitionModel>? _idToItem;
+
+    private FrozenDictionary<long, LocationDefinitionModel>? _idToLocation;
+
     private ConnectResponsePacketModel? _lastHandshakeResponse;
 
     private State _state;
@@ -44,13 +51,18 @@ public sealed class Game
 
         await _channel.Writer.WriteAsync([getDataPackage], cancellationToken);
         _dataPackage = await _channel.Reader.ReadAsync(cancellationToken) as DataPackagePacketModel ?? throw new InvalidDataException("Server does not properly implement the Archipelago handshake protocol.");
+
+        _gameData = _dataPackage.Data.Games["Autopelago"];
+
+        _idToItem = _gameData.ItemNameToId.ToFrozenDictionary(kvp => kvp.Value, kvp => GameDefinitions.Items[kvp.Key]);
+        _idToLocation = _gameData.LocationNameToId.ToFrozenDictionary(kvp => kvp.Value, kvp => GameDefinitions.Locations[kvp.Key]);
     }
 
     public async ValueTask<bool> FinishHandshakeAsync(ConnectPacketModel connect, CancellationToken cancellationToken = default)
     {
         await Helper.ConfigureAwaitFalse();
 
-        if (!_startedHandshake)
+        if (_idToLocation is null) // ideally, observe the last thing that happens in Start
         {
             throw new InvalidOperationException("Start the handshake first.");
         }

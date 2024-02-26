@@ -9,6 +9,12 @@ public static class GameDefinitions
 
     public static FrozenDictionary<string, ImmutableArray<LocationDefinitionModel>> Regions { get; } = BuildRegions();
 
+    public static FrozenDictionary<string, LocationDefinitionModel> Locations { get; } = (
+        from regionLocations in Regions.Values
+        from location in regionLocations
+        select KeyValuePair.Create(location.Name, location)
+    ).ToFrozenDictionary();
+
     private static FrozenDictionary<string, ImmutableArray<LocationDefinitionModel>> BuildRegions()
     {
         Dictionary<string, List<LocationDefinitionModel>> result = new()
