@@ -225,6 +225,7 @@ public sealed partial class WebSocketPacketChannel : Channel<ImmutableArray<Arch
             return;
         }
 
+        _sendChannel.Writer.Complete();
         await (_sendConsumerTask ?? Task.CompletedTask);
         _socket.Dispose();
         _disposed = true;
