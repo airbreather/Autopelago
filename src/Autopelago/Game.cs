@@ -1,5 +1,4 @@
 using System.Collections.Immutable;
-using System.Runtime.CompilerServices;
 using System.Threading.Channels;
 
 using ArchipelagoClientDotNet;
@@ -17,6 +16,10 @@ public sealed class Game
 
     private bool _startedHandshake;
 
+    private RoomInfoPacketModel? _roomInfo;
+
+    private DataPackagePacketModel? _dataPackage;
+
     private ConnectResponsePacketModel? _lastHandshakeResponse;
 
     private State _state;
@@ -27,8 +30,6 @@ public sealed class Game
         _state = new() { PrngState = Prng.State.Start(new Random(123)) };
     }
 
-    public ArchipelagoPacketEvents PacketEvents { get; } = new();
-
     public async ValueTask StartHandshakeAsync(GetDataPackagePacketModel getDataPackage, CancellationToken cancellationToken = default)
     {
         if (_startedHandshake)
@@ -37,12 +38,10 @@ public sealed class Game
         }
 
         _startedHandshake = true;
-        RoomInfoPacketModel roomInfo = await _channel.Reader.ReadAsync(cancellationToken) as RoomInfoPacketModel ?? throw new InvalidDataException("Server does not properly implement the Archipelago handshake protocol.");
-        await NotifyReceivedAsync(roomInfo, cancellationToken);
+        _roomInfo = await _channel.Reader.ReadAsync(cancellationToken) as RoomInfoPacketModel ?? throw new InvalidDataException("Server does not properly implement the Archipelago handshake protocol.");
 
         await _channel.Writer.WriteAsync([getDataPackage], cancellationToken);
-        DataPackagePacketModel dataPackage = await _channel.Reader.ReadAsync(cancellationToken) as DataPackagePacketModel ?? throw new InvalidDataException("Server does not properly implement the Archipelago handshake protocol.");
-        await NotifyReceivedAsync(dataPackage, cancellationToken);
+        _dataPackage = await _channel.Reader.ReadAsync(cancellationToken) as DataPackagePacketModel ?? throw new InvalidDataException("Server does not properly implement the Archipelago handshake protocol.");
     }
 
     public async ValueTask<bool> FinishHandshakeAsync(ConnectPacketModel connect, CancellationToken cancellationToken = default)
@@ -61,7 +60,6 @@ public sealed class Game
 
         await _channel.Writer.WriteAsync([connect], cancellationToken);
         _lastHandshakeResponse = await _channel.Reader.ReadAsync(cancellationToken) as ConnectResponsePacketModel ?? throw new InvalidDataException("Server does not properly implement the Archipelago handshake protocol.");
-        await NotifyReceivedAsync(_lastHandshakeResponse, cancellationToken);
         return _lastHandshakeResponse is ConnectedPacketModel;
     }
 
@@ -122,23 +120,5 @@ public sealed class Game
         {
             Epoch = _state.Epoch + 1,
         };
-    }
-
-    private async ValueTask NotifyReceivedAsync<T>(T args, CancellationToken cancellationToken)
-        where T : ArchipelagoPacketModel
-    {
-        await Helper.ConfigureAwaitFalse();
-
-        if (typeof(T) != typeof(PrintJSONPacketModel) && typeof(PrintJSONPacketModel).IsAssignableFrom(typeof(T)))
-        {
-            await NotifyReceivedAsync(Unsafe.As<T, PrintJSONPacketModel>(ref args), cancellationToken);
-        }
-
-        if (typeof(T) != typeof(ArchipelagoPacketModel))
-        {
-            await NotifyReceivedAsync<ArchipelagoPacketModel>(args, cancellationToken);
-        }
-
-        await PacketEvents.Received.NotifyAsync(args, cancellationToken);
     }
 }
