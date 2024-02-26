@@ -1,5 +1,3 @@
-#if false
-
 using System.Collections.Frozen;
 using System.Collections.Immutable;
 
@@ -42,5 +40,3 @@ public static class GameDefinitions
         return result.ToFrozenDictionary(kvp => kvp.Key, kvp => kvp.Value.ToImmutableArray());
     }
 }
-
-#endif

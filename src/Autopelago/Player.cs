@@ -1,11 +1,7 @@
-#if false
-
 public sealed class Player
 {
-    public GameState Advance(GameState gameState)
+    public Game.State Advance(Game.State state)
     {
-        return gameState;
+        return state with { Epoch = state.Epoch + 1 };
     }
 }
-
-#endif

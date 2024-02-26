@@ -9,6 +9,8 @@ public sealed class Game
     {
         public ulong Epoch { get; init; }
 
+        public int RatCount { get; init; }
+
         public Prng.State PrngState { get; init; }
     }
 
