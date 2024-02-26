@@ -106,6 +106,7 @@ public sealed partial class WebSocketPacketChannel : Channel<ImmutableArray<Arch
             {
                 using IMemoryOwner<byte> firstBufOwner = MemoryPool<byte>.Shared.Rent(65536);
                 Memory<byte> fullFirstBuf = firstBufOwner.Memory;
+                Queue<IDisposable?> extraDisposables = [];
                 while (true)
                 {
                     ValueWebSocketReceiveResult prevReceiveResult = await _socket.ReceiveAsync(fullFirstBuf, socketClosing.Token);
@@ -129,27 +130,38 @@ public sealed partial class WebSocketPacketChannel : Channel<ImmutableArray<Arch
                         continue;
                     }
 
-                    using AFewDisposables extraDisposables = default;
-                    BasicSequenceSegment startSegment = new(firstBuf);
-                    BasicSequenceSegment endSegment = startSegment;
-                    while (!prevReceiveResult.EndOfMessage)
+                    extraDisposables.Enqueue(null); // the first one lives through the entire outer loop.
+                    try
                     {
-                        IMemoryOwner<byte> nextBufOwner = MemoryPool<byte>.Shared.Rent(65536);
-                        extraDisposables.Add(nextBufOwner);
-                        Memory<byte> fullNextBuf = nextBufOwner.Memory;
-                        prevReceiveResult = await _socket.ReceiveAsync(fullNextBuf, socketClosing.Token);
-                        endSegment = endSegment.Append(fullNextBuf[..prevReceiveResult.Count]);
-                        while (TryGetNextPacket(new(startSegment, startIndex, endSegment, endSegment.Memory.Length), prevReceiveResult.EndOfMessage, ref readerState) is (ArchipelagoPacketModel packet, long bytesConsumed))
+                        BasicSequenceSegment startSegment = new(firstBuf);
+                        BasicSequenceSegment endSegment = startSegment;
+                        while (!prevReceiveResult.EndOfMessage)
                         {
-                            long totalBytesConsumed = startIndex + bytesConsumed;
-                            while (totalBytesConsumed > startSegment.Memory.Length)
+                            IMemoryOwner<byte> nextBufOwner = MemoryPool<byte>.Shared.Rent(65536);
+                            extraDisposables.Enqueue(nextBufOwner);
+                            Memory<byte> fullNextBuf = nextBufOwner.Memory;
+                            prevReceiveResult = await _socket.ReceiveAsync(fullNextBuf, socketClosing.Token);
+                            endSegment = endSegment.Append(fullNextBuf[..prevReceiveResult.Count]);
+                            while (TryGetNextPacket(new(startSegment, startIndex, endSegment, endSegment.Memory.Length), prevReceiveResult.EndOfMessage, ref readerState) is (ArchipelagoPacketModel packet, long bytesConsumed))
                             {
-                                totalBytesConsumed -= startSegment.Memory.Length;
-                                startSegment = (BasicSequenceSegment)startSegment.Next!;
-                            }
+                                long totalBytesConsumed = startIndex + bytesConsumed;
+                                while (totalBytesConsumed > startSegment.Memory.Length)
+                                {
+                                    totalBytesConsumed -= startSegment.Memory.Length;
+                                    startSegment = (BasicSequenceSegment)startSegment.Next!;
+                                    extraDisposables.Dequeue()?.Dispose();
+                                }
 
-                            startIndex = checked((int)totalBytesConsumed);
-                            await _receiveChannel.Writer.WriteAsync(packet, socketClosing.Token);
+                                startIndex = checked((int)totalBytesConsumed);
+                                await _receiveChannel.Writer.WriteAsync(packet, socketClosing.Token);
+                            }
+                        }
+                    }
+                    finally
+                    {
+                        while (extraDisposables.TryDequeue(out IDisposable? disposable))
+                        {
+                            disposable?.Dispose();
                         }
                     }
                 }
