@@ -1,14 +1,9 @@
 using System.Text.Json;
+
 using ArchipelagoClientDotNet;
 
-public sealed class ArchipelagoGameStateStorage : IGameStateStorage
+public sealed class ArchipelagoGameStateStorage : GameStateStorage
 {
-    private static readonly JsonSerializerOptions s_jsonSerializerOptions = new()
-    {
-        PropertyNamingPolicy = JsonNamingPolicy.SnakeCaseLower,
-        TypeInfoResolver = GameStateSerializerContext.Default,
-    };
-
     private readonly IArchipelagoClient _client;
 
     private readonly string _key;
@@ -19,23 +14,23 @@ public sealed class ArchipelagoGameStateStorage : IGameStateStorage
         _key = key;
     }
 
-    public async ValueTask<Game.State?> LoadAsync(CancellationToken cancellationToken)
+    protected override async ValueTask<Game.State.Proxy?> LoadProxyAsync(CancellationToken cancellationToken)
     {
         await Helper.ConfigureAwaitFalse();
         GetPacketModel retrieveGameState = new() { Keys = [_key] };
         RetrievedPacketModel retrievedGameState = await _client.GetAsync(retrieveGameState, cancellationToken);
         return retrievedGameState.Keys.TryGetValue(_key, out JsonElement stateElement)
-            ? JsonSerializer.Deserialize<Game.State>(stateElement, s_jsonSerializerOptions)
+            ? JsonSerializer.Deserialize<Game.State.Proxy>(stateElement, s_jsonSerializerOptions)
             : null;
     }
 
-    public async ValueTask SaveAsync(Game.State state, CancellationToken cancellationToken)
+    protected override async ValueTask SaveProxyAsync(Game.State.Proxy proxy, CancellationToken cancellationToken)
     {
         await Helper.ConfigureAwaitFalse();
         DataStorageOperationModel op = new()
         {
             Operation = ArchipelagoDataStorageOperationType.Replace,
-            Value = JsonSerializer.SerializeToNode(state, s_jsonSerializerOptions)!,
+            Value = JsonSerializer.SerializeToNode(proxy, s_jsonSerializerOptions)!,
         };
         await _client.SetAsync(new() { Key = _key, Operations = [op] }, cancellationToken);
     }

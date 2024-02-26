@@ -16,6 +16,35 @@ public sealed class Game
         public ImmutableList<ItemDefinitionModel> ReceivedItems { get; init; } = [];
 
         public Prng.State PrngState { get; init; }
+
+        public Proxy ToProxy()
+        {
+            return new()
+            {
+                Epoch = Epoch,
+                ReceivedItems = [..ReceivedItems.Select(i => i.Name)],
+                PrngState = PrngState,
+            };
+        }
+
+        public sealed record Proxy
+        {
+            public ulong Epoch { get; init; }
+
+            public ImmutableArray<string> ReceivedItems { get; init; }
+
+            public Prng.State PrngState { get; init; }
+
+            public State ToState()
+            {
+                return new()
+                {
+                    Epoch = Epoch,
+                    ReceivedItems = [..ReceivedItems.Select(name => GameDefinitions.Items[name])],
+                    PrngState = PrngState,
+                };
+            }
+        }
     }
 
     private readonly IArchipelagoClient _client;
@@ -36,7 +65,7 @@ public sealed class Game
 
     private ConnectResponsePacketModel? _lastHandshakeResponse;
 
-    private IGameStateStorage? _stateStorage;
+    private GameStateStorage? _stateStorage;
 
     private State _state;
 
@@ -47,7 +76,7 @@ public sealed class Game
         _state = new() { PrngState = Prng.State.Start(new Random(123)) };
     }
 
-    public async ValueTask SetStateStorageAsync(IGameStateStorage stateStorage, CancellationToken cancellationToken)
+    public async ValueTask SetStateStorageAsync(GameStateStorage stateStorage, CancellationToken cancellationToken)
     {
         await Helper.ConfigureAwaitFalse();
 
@@ -57,7 +86,7 @@ public sealed class Game
         }
 
         _stateStorage = stateStorage;
-        if (await _stateStorage.LoadAsync(cancellationToken) is State initialState)
+        if (await stateStorage.LoadAsync(cancellationToken) is State initialState)
         {
             _state = initialState;
         }
@@ -174,10 +203,23 @@ public sealed class Game
 
     private void Dispatch(ReceivedItemsPacketModel receivedItems)
     {
+        for (int i = receivedItems.Index; i < _state.ReceivedItems.Count; i++)
+        {
+            if (_state.ReceivedItems[i] != _state.ReceivedItems[i - receivedItems.Index])
+            {
+                throw new NotImplementedException("Need to resync.");
+            }
+        }
+
+        if (_state.ReceivedItems.Count - receivedItems.Index == _state.ReceivedItems.Count)
+        {
+            return;
+        }
+
         _state = _state with
         {
             Epoch = _state.Epoch + 1,
-            ReceivedItems = _state.ReceivedItems.AddRange(receivedItems.Items.Where(i => _idToItem!.ContainsKey(i.Item)).Select(i => _idToItem![i.Item])),
+            ReceivedItems = _state.ReceivedItems.AddRange(receivedItems.Items.Skip(_state.ReceivedItems.Count - receivedItems.Index).Where(i => _idToItem!.ContainsKey(i.Item)).Select(i => _idToItem![i.Item])),
         };
     }
 

@@ -54,7 +54,8 @@ try
         throw new InvalidDataException("Connection refused.");
     }
 
-    await game.SetStateStorageAsync(new ArchipelagoGameStateStorage(client, $"autopelago_state_{team}_{slot}"), cts.Token);
+    //// await game.SetStateStorageAsync(new ArchipelagoGameStateStorage(client, $"autopelago_state_{team}_{slot}"), cts.Token);
+    await game.SetStateStorageAsync(new FileGameStateStorage(Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), "ap-test.json")), cts.Token);
 
     await game.RunUntilCanceledAsync(cts.Token);
 }
