@@ -21,8 +21,9 @@ Console.CancelKeyPress += async (sender, args) =>
 
 await using WebSocketPacketChannel channel = new(settings.Server, settings.Port);
 await channel.ConnectAsync(cts.Token);
+ArchipelagoClient client = new(channel);
 
-Game game = new(channel);
+Game game = new(client, TimeProvider.System);
 await game.StartHandshakeAsync(new() { Games = [settings.GameName] }, cts.Token);
 await game.FinishHandshakeAsync(new()
 {
