@@ -36,4 +36,4 @@ await game.FinishHandshakeAsync(new()
     SlotData = true,
 }, cts.Token);
 
-await cts.CancelAsync();
+await game.RunUntilCanceled(cts.Token);

@@ -54,8 +54,8 @@ public sealed class Game
 
         _gameData = _dataPackage.Data.Games["Autopelago"];
 
-        _idToItem = _gameData.ItemNameToId.ToFrozenDictionary(kvp => kvp.Value, kvp => GameDefinitions.Items[kvp.Key]);
-        _idToLocation = _gameData.LocationNameToId.ToFrozenDictionary(kvp => kvp.Value, kvp => GameDefinitions.Locations[kvp.Key]);
+        _idToItem = _gameData.ItemNameToId.Where(kvp => GameDefinitions.Items.ContainsKey(kvp.Key)).ToFrozenDictionary(kvp => kvp.Value, kvp => GameDefinitions.Items[kvp.Key]);
+        _idToLocation = _gameData.LocationNameToId.Where(kvp => GameDefinitions.Locations.ContainsKey(kvp.Key)).ToFrozenDictionary(kvp => kvp.Value, kvp => GameDefinitions.Locations[kvp.Key]);
     }
 
     public async ValueTask<bool> FinishHandshakeAsync(ConnectPacketModel connect, CancellationToken cancellationToken = default)
@@ -97,7 +97,15 @@ public sealed class Game
                 {
                     while (_channel.Reader.TryRead(out ArchipelagoPacketModel? packet))
                     {
-                        // do stuff with the packet.
+                        if (packet is PrintJSONPacketModel printJSON)
+                        {
+                            foreach (JSONMessagePartModel part in printJSON.Data)
+                            {
+                                Console.Write(part.Text);
+                            }
+
+                            Console.WriteLine();
+                        }
                     }
                 }
                 finally
@@ -107,23 +115,29 @@ public sealed class Game
             }
         }, cancellationToken);
 
-        while (true)
+        try
         {
-            // TODO: better
-            await Task.Delay(1000, cancellationToken);
-
-            await mutex.WaitAsync(cancellationToken);
-            try
+            while (true)
             {
-                State state = Advance();
+                // TODO: better
+                await Task.Delay(1000, cancellationToken);
 
-                // TODO: send packets as appropriate for how the state has changed from _state
-                _state = state;
+                await mutex.WaitAsync(cancellationToken);
+                try
+                {
+                    State state = Advance();
+
+                    // TODO: send packets as appropriate for how the state has changed from _state
+                    _state = state;
+                }
+                finally
+                {
+                    mutex.Release();
+                }
             }
-            finally
-            {
-                mutex.Release();
-            }
+        }
+        catch (OperationCanceledException)
+        {
         }
     }
 
