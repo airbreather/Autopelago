@@ -192,16 +192,29 @@ public sealed partial class WebSocketPacketChannel : Channel<ImmutableArray<Arch
                             await _socket.SendAsync(bytes, WebSocketMessageType.Text, true, socketClosing.Token);
                         }
                     }
+
+                    await socketClosing.CancelAsync();
                 }
                 catch (OperationCanceledException)
                 {
                 }
 
-                await socketClosing.CancelAsync();
-                await _receiveProducerTask;
+                try
+                {
+                    await _receiveProducerTask;
+                }
+                catch (OperationCanceledException)
+                {
+                }
             }
 
-            await _socket.CloseAsync(WebSocketCloseStatus.NormalClosure, "", CancellationToken.None);
+            try
+            {
+                await _socket.CloseAsync(WebSocketCloseStatus.NormalClosure, "", CancellationToken.None);
+            }
+            catch (WebSocketException)
+            {
+            }
         }, cancellationToken);
     }
 
