@@ -47,6 +47,22 @@ public sealed class Game
         _state = new() { PrngState = Prng.State.Start(new Random(123)) };
     }
 
+    public async ValueTask SetStateStorageAsync(IGameStateStorage stateStorage, CancellationToken cancellationToken)
+    {
+        await Helper.ConfigureAwaitFalse();
+
+        if (_stateStorage is not null)
+        {
+            throw new InvalidOperationException("Already called this method before.");
+        }
+
+        _stateStorage = stateStorage;
+        if (await _stateStorage.LoadAsync(cancellationToken) is State initialState)
+        {
+            _state = initialState;
+        }
+    }
+
     public async ValueTask<RoomInfoPacketModel> Handshake1Async(CancellationToken cancellationToken)
     {
         await Helper.ConfigureAwaitFalse();
@@ -92,27 +108,6 @@ public sealed class Game
         return _lastHandshakeResponse = await _client.ReadNextPacketAsync(cancellationToken) as ConnectResponsePacketModel ?? throw new InvalidDataException("Server does not properly implement the Archipelago handshake protocol.");
     }
 
-    public async ValueTask SetStateStorageAsync(IGameStateStorage stateStorage, CancellationToken cancellationToken)
-    {
-        await Helper.ConfigureAwaitFalse();
-
-        if (_lastHandshakeResponse is not ConnectedPacketModel)
-        {
-            throw new InvalidOperationException("Must finish the handshake successfully first.");
-        }
-
-        if (_stateStorage is not null)
-        {
-            throw new InvalidOperationException("Already called this method before.");
-        }
-
-        _stateStorage = stateStorage;
-        if (await _stateStorage.LoadAsync(cancellationToken) is State initialState)
-        {
-            _state = initialState;
-        }
-    }
-
     public async ValueTask RunUntilCanceledAsync(CancellationToken cancellationToken)
     {
         await Helper.ConfigureAwaitFalse();
@@ -133,9 +128,13 @@ public sealed class Game
             try
             {
                 State state = Advance();
+                if (_state != state)
+                {
+                    // TODO: send packets as appropriate for how the state has changed
 
-                // TODO: send packets as appropriate for how the state has changed from _state
-                _state = state;
+                    await _stateStorage.SaveAsync(state, cancellationToken);
+                    _state = state;
+                }
             }
             finally
             {
