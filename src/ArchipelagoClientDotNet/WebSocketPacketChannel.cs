@@ -99,7 +99,7 @@ public sealed partial class WebSocketPacketChannel : Channel<ImmutableArray<Arch
         }
 
         CancellationTokenSource socketClosing = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
-        _receiveProducerTask = Task.Run(async () =>
+        _receiveProducerTask = BackgroundTaskRunner.Run(async () =>
         {
             await Helper.ConfigureAwaitFalse();
             try
@@ -177,7 +177,7 @@ public sealed partial class WebSocketPacketChannel : Channel<ImmutableArray<Arch
             _receiveChannel.Writer.TryComplete();
         }, socketClosing.Token);
 
-        _sendConsumerTask = Task.Run(async () =>
+        _sendConsumerTask = BackgroundTaskRunner.Run(async () =>
         {
             await Helper.ConfigureAwaitFalse();
             using (socketClosing)

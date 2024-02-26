@@ -1,18 +1,8 @@
 using System.Collections.Frozen;
 using System.Collections.Immutable;
 using System.Diagnostics.CodeAnalysis;
-using System.Text.Json;
-using System.Text.Json.Serialization;
 
 using ArchipelagoClientDotNet;
-
-[JsonSourceGenerationOptions(
-    PropertyNamingPolicy = JsonKnownNamingPolicy.SnakeCaseLower,
-    UseStringEnumConverter = true)]
-[JsonSerializable(typeof(Game.State), TypeInfoPropertyName = "Game")]
-internal sealed partial class SourceGenerationContext : JsonSerializerContext
-{
-}
 
 [SuppressMessage("Design", "CA1001:Types that own disposable fields should be disposable", Justification = "Lifetime is too close to the application's lifetime for me to care right now.")]
 public sealed class Game
@@ -28,19 +18,11 @@ public sealed class Game
         public Prng.State PrngState { get; init; }
     }
 
-    private static readonly JsonSerializerOptions s_jsonSerializerOptions = new()
-    {
-        PropertyNamingPolicy = JsonNamingPolicy.SnakeCaseLower,
-        TypeInfoResolver = SourceGenerationContext.Default,
-    };
-
     private readonly IArchipelagoClient _client;
 
     private readonly TimeProvider _timeProvider;
 
     private readonly SemaphoreSlim _mutex = new(1, 1);
-
-    private bool _startedHandshake;
 
     private RoomInfoPacketModel? _roomInfo;
 
@@ -54,7 +36,7 @@ public sealed class Game
 
     private ConnectResponsePacketModel? _lastHandshakeResponse;
 
-    private string? _gameStateKey;
+    private IGameStateStorage? _stateStorage;
 
     private State _state;
 
@@ -65,15 +47,21 @@ public sealed class Game
         _state = new() { PrngState = Prng.State.Start(new Random(123)) };
     }
 
-    public async ValueTask StartHandshakeAsync(GetDataPackagePacketModel getDataPackage, CancellationToken cancellationToken = default)
+    public async ValueTask<RoomInfoPacketModel> Handshake1Async(CancellationToken cancellationToken)
     {
-        if (_startedHandshake)
+        await Helper.ConfigureAwaitFalse();
+
+        if (_roomInfo is not null)
         {
-            throw new InvalidOperationException("Previous handshake attempt threw an exception, so this game will never be able to start.");
+            throw new InvalidOperationException("Already completed Handshake1.");
         }
 
-        _startedHandshake = true;
-        _roomInfo = await _client.ReadNextPacketAsync(cancellationToken) as RoomInfoPacketModel ?? throw new InvalidDataException("Server does not properly implement the Archipelago handshake protocol.");
+        return _roomInfo = await _client.ReadNextPacketAsync(cancellationToken) as RoomInfoPacketModel ?? throw new InvalidDataException("Server does not properly implement the Archipelago handshake protocol.");
+    }
+
+    public async ValueTask<DataPackagePacketModel> Handshake2Async(GetDataPackagePacketModel getDataPackage, CancellationToken cancellationToken)
+    {
+        await Helper.ConfigureAwaitFalse();
 
         await _client.WriteNextPacketAsync(getDataPackage, cancellationToken);
         _dataPackage = await _client.ReadNextPacketAsync(cancellationToken) as DataPackagePacketModel ?? throw new InvalidDataException("Server does not properly implement the Archipelago handshake protocol.");
@@ -82,15 +70,17 @@ public sealed class Game
 
         _idToItem = _gameData.ItemNameToId.Where(kvp => GameDefinitions.Items.ContainsKey(kvp.Key)).ToFrozenDictionary(kvp => kvp.Value, kvp => GameDefinitions.Items[kvp.Key]);
         _idToLocation = _gameData.LocationNameToId.Where(kvp => GameDefinitions.Locations.ContainsKey(kvp.Key)).ToFrozenDictionary(kvp => kvp.Value, kvp => GameDefinitions.Locations[kvp.Key]);
+
+        return _dataPackage;
     }
 
-    public async ValueTask<bool> FinishHandshakeAsync(ConnectPacketModel connect, CancellationToken cancellationToken = default)
+    public async ValueTask<ConnectResponsePacketModel> Handshake3Async(ConnectPacketModel connect, CancellationToken cancellationToken)
     {
         await Helper.ConfigureAwaitFalse();
 
-        if (_idToLocation is null) // ideally, observe the last thing that happens in Start
+        if (_idToLocation is null) // ideally, observe the last thing that happens in Handshake2
         {
-            throw new InvalidOperationException("Start the handshake first.");
+            throw new InvalidOperationException("Finish Handshake2 first (it's required here, even though it's not required by the protocol).");
         }
 
         if (_lastHandshakeResponse is ConnectedPacketModel)
@@ -99,29 +89,40 @@ public sealed class Game
         }
 
         await _client.WriteNextPacketAsync(connect, cancellationToken);
-        _lastHandshakeResponse = await _client.ReadNextPacketAsync(cancellationToken) as ConnectResponsePacketModel ?? throw new InvalidDataException("Server does not properly implement the Archipelago handshake protocol.");
-        return _lastHandshakeResponse is ConnectedPacketModel;
+        return _lastHandshakeResponse = await _client.ReadNextPacketAsync(cancellationToken) as ConnectResponsePacketModel ?? throw new InvalidDataException("Server does not properly implement the Archipelago handshake protocol.");
     }
 
-    public async ValueTask RunUntilCanceled(CancellationToken cancellationToken)
+    public async ValueTask SetStateStorageAsync(IGameStateStorage stateStorage, CancellationToken cancellationToken)
     {
         await Helper.ConfigureAwaitFalse();
 
-        if (_lastHandshakeResponse is not ConnectedPacketModel connected)
+        if (_lastHandshakeResponse is not ConnectedPacketModel)
         {
             throw new InvalidOperationException("Must finish the handshake successfully first.");
         }
 
-        _gameStateKey = $"autopelago_state_{connected.Team}_{connected.Slot}";
-        GetPacketModel retrieveGameState = new() { Keys = [_gameStateKey] };
-        RetrievedPacketModel retrievedGameState = await _client.GetAsync(retrieveGameState, cancellationToken);
-
-        if (retrievedGameState.Keys.TryGetValue(_gameStateKey, out JsonElement stateElement) && JsonSerializer.Deserialize<State>(stateElement, s_jsonSerializerOptions) is State serializedState)
+        if (_stateStorage is not null)
         {
-            _state = serializedState;
+            throw new InvalidOperationException("Already called this method before.");
         }
 
-        _ = Task.Run(async () => await ProcessIncomingPacketsAsync(cancellationToken), cancellationToken);
+        _stateStorage = stateStorage;
+        if (await _stateStorage.LoadAsync(cancellationToken) is State initialState)
+        {
+            _state = initialState;
+        }
+    }
+
+    public async ValueTask RunUntilCanceledAsync(CancellationToken cancellationToken)
+    {
+        await Helper.ConfigureAwaitFalse();
+
+        if (_stateStorage is null)
+        {
+            throw new InvalidOperationException("Must set the state storage first.");
+        }
+
+        _ = BackgroundTaskRunner.Run(async () => await ProcessIncomingPacketsAsync(cancellationToken), cancellationToken);
 
         while (true)
         {
