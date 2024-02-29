@@ -114,28 +114,35 @@ public sealed class Game
         }
     }
 
-    private ValueTask OnClientReceivedItemsAsync(object? sender, ReceivedItemsEventArgs args, CancellationToken cancellationToken)
+    private async ValueTask OnClientReceivedItemsAsync(object? sender, ReceivedItemsEventArgs args, CancellationToken cancellationToken)
     {
-        for (int i = args.Index; i < _state.ReceivedItems.Count; i++)
+        await Helper.ConfigureAwaitFalse();
+        await _mutex.WaitAsync(cancellationToken);
+        try
         {
-            if (_state.ReceivedItems[i] != _state.ReceivedItems[i - args.Index])
+            for (int i = args.Index; i < _state.ReceivedItems.Count; i++)
             {
-                throw new NotImplementedException("Need to resync.");
+                if (_state.ReceivedItems[i] != _state.ReceivedItems[i - args.Index])
+                {
+                    throw new NotImplementedException("Need to resync.");
+                }
             }
+
+            if (_state.ReceivedItems.Count - args.Index == _state.ReceivedItems.Count)
+            {
+                return;
+            }
+
+            _state = _state with
+            {
+                Epoch = _state.Epoch + 1,
+                ReceivedItems = _state.ReceivedItems.AddRange(args.Items.Skip(_state.ReceivedItems.Count - args.Index)),
+            };
         }
-
-        if (_state.ReceivedItems.Count - args.Index == _state.ReceivedItems.Count)
+        finally
         {
-            return ValueTask.CompletedTask;
+            _mutex.Release();
         }
-
-        _state = _state with
-        {
-            Epoch = _state.Epoch + 1,
-            ReceivedItems = _state.ReceivedItems.AddRange(args.Items.Skip(_state.ReceivedItems.Count - args.Index)),
-        };
-
-        return ValueTask.CompletedTask;
     }
 
     private State Advance()
