@@ -2,6 +2,7 @@ using System.Collections.Frozen;
 using System.Collections.Immutable;
 using System.Data;
 using System.Reflection;
+using System.Runtime.InteropServices;
 using System.Text;
 
 using ArchipelagoClientDotNet;
@@ -13,9 +14,7 @@ public sealed record GameDefinitionsModel
 {
     public required ItemDefinitionsModel Items { get; init; }
 
-    public required LocationDefinitionsModel Locations { get; init; }
-
-    public required ImmutableArray<RelativeTravelDistanceModel> RelativeTravelDistances { get; init; }
+    public required RegionDefinitionsModel Regions { get; init; }
 
     public static GameDefinitionsModel LoadFromEmbeddedResource()
     {
@@ -24,14 +23,14 @@ public sealed record GameDefinitionsModel
         YamlMappingNode map = new DeserializerBuilder().Build().Deserialize<YamlMappingNode>(yamlReader);
 
         YamlMappingNode itemsMap = (YamlMappingNode)map["items"];
-        YamlMappingNode locationsMap = (YamlMappingNode)map["locations"];
-        YamlSequenceNode relativeTravelDistancesSeq = (YamlSequenceNode)map["relative_travel_distances"];
+        YamlMappingNode regionsMap = (YamlMappingNode)map["regions"];
 
+        ItemDefinitionsModel items = ItemDefinitionsModel.DeserializeFrom(itemsMap, regionsMap);
+        RegionDefinitionsModel regions = RegionDefinitionsModel.DeserializeFrom(regionsMap, items);
         return new()
         {
-            Items = ItemDefinitionsModel.DeserializeFrom(itemsMap, locationsMap),
-            Locations = LocationDefinitionsModel.DeserializeFrom(locationsMap),
-            RelativeTravelDistances = [..relativeTravelDistancesSeq.Cast<YamlMappingNode>().Select(RelativeTravelDistanceModel.DeserializeFrom)],
+            Items = items,
+            Regions = regions,
         };
     }
 }
@@ -47,7 +46,6 @@ public sealed record ItemDefinitionsModel
     }.ToFrozenDictionary();
 
     public required ItemDefinitionModel Goal { get; init; }
-
 
     public required ItemDefinitionModel NormalRat { get; init; }
 
@@ -259,38 +257,148 @@ public record ItemDefinitionModel
     }
 }
 
-public sealed record LocationDefinitionsModel
+public sealed record RegionDefinitionsModel
 {
-    public required FrozenDictionary<string, LocationDefinitionModel> DefiningLocations { get; init; }
+    public required FrozenDictionary<string, RegionDefinitionModel> AllRegions { get; init; }
 
-    public required ImmutableArray<LocationFillerGroupModel> FillerGroups { get; init; }
+    public required FrozenDictionary<string, LandmarkRegionDefinitionModel> LandmarkRegions { get; init; }
 
-    public static LocationDefinitionsModel DeserializeFrom(YamlMappingNode map)
+    public required FrozenDictionary<string, FillerRegionDefinitionModel> FillerRegions { get; init; }
+
+    public static RegionDefinitionsModel DeserializeFrom(YamlMappingNode map, ItemDefinitionsModel items)
     {
-        Dictionary<string, LocationDefinitionModel> definingLocations = [];
-        ImmutableArray<LocationFillerGroupModel> fillerGroups = default;
-        foreach ((YamlNode keyNode, YamlNode valueNode) in map)
+        Dictionary<string, RegionDefinitionModel> allRegions = [];
+
+        Dictionary<string, LandmarkRegionDefinitionModel> landmarkRegions = [];
+        foreach ((YamlNode keyNode, YamlNode valueNode) in (YamlMappingNode)map["landmarks"])
         {
             string key = ((YamlScalarNode)keyNode).Value!;
-            if (key == "filler_groups")
-            {
-                fillerGroups = [..((YamlSequenceNode)valueNode).Cast<YamlMappingNode>().Select(LocationFillerGroupModel.DeserializeFrom)];
-                continue;
-            }
-
-            definingLocations.Add(key, LocationDefinitionModel.DeserializeFrom((YamlMappingNode)valueNode));
+            LandmarkRegionDefinitionModel value = LandmarkRegionDefinitionModel.DeserializeFrom((YamlMappingNode)valueNode, items);
+            landmarkRegions.Add(key, value);
+            allRegions.Add(key, value);
         }
 
-        if (fillerGroups.IsDefault)
+        Dictionary<string, FillerRegionDefinitionModel> fillerRegions = [];
+        foreach ((YamlNode keyNode, YamlNode valueNode) in (YamlMappingNode)map["fillers"])
         {
-            throw new InvalidDataException("Must have filler_groups");
+            string key = ((YamlScalarNode)keyNode).Value!;
+            FillerRegionDefinitionModel value = FillerRegionDefinitionModel.DeserializeFrom((YamlMappingNode)valueNode, items);
+            fillerRegions.Add(key, value);
+            allRegions.Add(key, value);
         }
 
         return new()
         {
-            DefiningLocations = definingLocations.ToFrozenDictionary(),
-            FillerGroups = fillerGroups,
+            AllRegions = allRegions.ToFrozenDictionary(),
+            LandmarkRegions = landmarkRegions.ToFrozenDictionary(),
+            FillerRegions = fillerRegions.ToFrozenDictionary(),
         };
+    }
+}
+
+public abstract record RegionDefinitionModel
+{
+    public required ImmutableArray<string> Exits { get; init; }
+
+    public required ImmutableArray<LocationDefinitionModel> Locations { get; init; }
+}
+
+public sealed record LandmarkRegionDefinitionModel : RegionDefinitionModel
+{
+    public static LandmarkRegionDefinitionModel DeserializeFrom(YamlMappingNode map, ItemDefinitionsModel items)
+    {
+        return new()
+        {
+            Exits = [..((YamlSequenceNode)map["exits"]).Select(n => ((YamlScalarNode)n).Value!)],
+            Locations =
+            [
+                new()
+                {
+                    Name = ((YamlScalarNode)map["name"]).Value!,
+                    UnrandomizedItem = items.ProgressionItems[((YamlScalarNode)map["unrandomized_item"]).Value!],
+                    Requires = GameRequirement.DeserializeFrom(map["requires"]),
+                },
+            ],
+        };
+    }
+}
+
+public sealed record FillerRegionDefinitionModel : RegionDefinitionModel
+{
+    public static FillerRegionDefinitionModel DeserializeFrom(YamlMappingNode map, ItemDefinitionsModel items)
+    {
+        Dictionary<ArchipelagoItemFlags, string> keyMap = new()
+        {
+            [ArchipelagoItemFlags.None] = "filler",
+            [ArchipelagoItemFlags.ImportantNonAdvancement] = "useful_nonprogression",
+        };
+        ILookup<string, ItemDefinitionModel> itemsLookup = items.AllItems.Where(item => keyMap.ContainsKey(item.ArchipelagoFlags)).ToLookup(item => keyMap[item.ArchipelagoFlags]);
+        Dictionary<string, int> nextInGroup = [];
+        string nameTemplate = ((YamlScalarNode)map["name_template"]).Value!;
+        List<ItemDefinitionModel> unrandomizedItems = [];
+        foreach ((YamlNode keyNode, YamlNode valueNode) in (YamlMappingNode)map["unrandomized_items"])
+        {
+            switch (((YamlScalarNode)keyNode).Value)
+            {
+                case "key":
+                    foreach (YamlNode itemRefNode in (YamlSequenceNode)valueNode)
+                    {
+                        ItemRefModel itemRef = ItemRefModel.DeserializeFrom(itemRefNode);
+                        ItemDefinitionModel item = items.ProgressionItems[itemRef.Key];
+                        for (int i = 0; i < itemRef.ItemCount; i++)
+                        {
+                            unrandomizedItems.Add(item);
+                        }
+                    }
+
+                    break;
+
+                case string key:
+                    IEnumerable<ItemDefinitionModel> grp = itemsLookup[key];
+                    int cnt = int.Parse(((YamlScalarNode)valueNode).Value!);
+                    ref int nextSrc = ref CollectionsMarshal.GetValueRefOrAddDefault(nextInGroup, key, out _);
+                    for (int i = 0; i < cnt; i++)
+                    {
+                        unrandomizedItems.Add(grp.ElementAt(nextSrc++));
+                    }
+
+                    break;
+            }
+        }
+
+        GameRequirement eachRequires = GameRequirement.DeserializeFrom(map["each_requires"]);
+        return new()
+        {
+            Exits = [..((YamlSequenceNode)map["exits"]).Select(n => ((YamlScalarNode)n).Value!)],
+            Locations = [..unrandomizedItems.Select((item, n) => new LocationDefinitionModel()
+            {
+                Name = nameTemplate.Replace("{n}", $"{n + 1}"),
+                Requires = eachRequires,
+                UnrandomizedItem = item,
+            })],
+        };
+    }
+
+    private sealed record ItemRefModel
+    {
+        public required string Key { get; init; }
+
+        public int ItemCount { get; init; } = 1;
+
+        public static ItemRefModel DeserializeFrom(YamlNode node)
+        {
+            if (node is YamlScalarNode scalar)
+            {
+                return new() { Key = scalar.Value! };
+            }
+
+            YamlMappingNode map = (YamlMappingNode)node;
+            return new()
+            {
+                Key = ((YamlScalarNode)map["item"]).Value!,
+                ItemCount = map.Children.TryGetValue("count", out YamlNode? countNode) ? int.Parse(((YamlScalarNode)countNode).Value!) : 1,
+            };
+        }
     }
 }
 
@@ -300,49 +408,7 @@ public sealed record LocationDefinitionModel
 
     public required GameRequirement Requires { get; init; }
 
-    public static LocationDefinitionModel DeserializeFrom(YamlMappingNode map)
-    {
-        return new()
-        {
-            Name = ((YamlScalarNode)map["name"]).Value!,
-            Requires = GameRequirement.DeserializeFrom(map["requires"]),
-        };
-    }
-}
-
-public enum BeforeOrAfter
-{
-    Before,
-    After,
-}
-
-public sealed record LocationFillerGroupModel
-{
-    public required BeforeOrAfter DirectionFromDefiningLocation { get; init; }
-
-    public required string DefiningLocationKey { get; init; }
-
-    public required int LocationCount { get; init; }
-
-    public required GameRequirement EachRequires { get; init; }
-
-    public string RegionKey
-    {
-        get => $"{DefiningLocationKey}.{$"{DirectionFromDefiningLocation}".ToLowerInvariant()}";
-    }
-
-    public static LocationFillerGroupModel DeserializeFrom(YamlMappingNode map)
-    {
-        BeforeOrAfter direction = map.Children.ContainsKey("before") ? BeforeOrAfter.Before : BeforeOrAfter.After;
-        string definingLocationKey = ((YamlScalarNode)map[direction.ToString().ToLowerInvariant()]).Value!;
-        return new()
-        {
-            DirectionFromDefiningLocation = direction,
-            DefiningLocationKey = definingLocationKey,
-            LocationCount = int.Parse(((YamlScalarNode)map["count"]).Value!),
-            EachRequires = GameRequirement.DeserializeFrom(map["each_requires"]),
-        };
-    }
+    public required ItemDefinitionModel UnrandomizedItem { get; init; }
 }
 
 public abstract record GameRequirement
@@ -438,29 +504,6 @@ public sealed record ReceivedItemRequirement : GameRequirement
     public override bool Satisfied(Game.State state)
     {
         return false;
-    }
-}
-
-public sealed record RelativeTravelDistanceModel
-{
-    public required string FromLocationKey { get; init; }
-
-    public required string ToLocationKey { get; init; }
-
-    public required BeforeOrAfter ToLocationSide { get; init; }
-
-    public required double Distance { get; init; }
-
-    public static RelativeTravelDistanceModel DeserializeFrom(YamlMappingNode map)
-    {
-        string[] toSplit = ((YamlScalarNode)map["to"]).Value!.Split('.', 2);
-        return new()
-        {
-            FromLocationKey = ((YamlScalarNode)map["from"]).Value!,
-            ToLocationKey = toSplit[0],
-            ToLocationSide = Enum.Parse<BeforeOrAfter>(toSplit[1], true),
-            Distance = double.Parse(((YamlScalarNode)map["d"]).Value!),
-        };
     }
 }
 

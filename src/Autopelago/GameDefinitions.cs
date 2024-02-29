@@ -1,5 +1,4 @@
 using System.Collections.Frozen;
-using System.Collections.Immutable;
 
 public static class GameDefinitions
 {
@@ -7,42 +6,9 @@ public static class GameDefinitions
 
     public static FrozenDictionary<string, ItemDefinitionModel> Items { get; } = s_model.Items.AllItems.ToFrozenDictionary(i => i.Name);
 
-    public static FrozenDictionary<string, ImmutableArray<LocationDefinitionModel>> Regions { get; } = BuildRegions();
-
     public static FrozenDictionary<string, LocationDefinitionModel> Locations { get; } = (
-        from regionLocations in Regions.Values
-        from location in regionLocations
+        from region in s_model.Regions.AllRegions.Values
+        from location in region.Locations
         select KeyValuePair.Create(location.Name, location)
     ).ToFrozenDictionary();
-
-    private static FrozenDictionary<string, ImmutableArray<LocationDefinitionModel>> BuildRegions()
-    {
-        Dictionary<string, List<LocationDefinitionModel>> result = new()
-        {
-            ["start"] = [],
-        };
-        foreach ((string key, LocationDefinitionModel location) in s_model.Locations.DefiningLocations)
-        {
-            result.Add(key, [location]);
-            result.Add($"{key}.before", []);
-            result.Add($"{key}.after", []);
-        }
-
-        foreach (LocationFillerGroupModel fillerGroup in s_model.Locations.FillerGroups)
-        {
-            LocationDefinitionModel defining = result[fillerGroup.DefiningLocationKey].Single();
-            string baseName = $"{fillerGroup.DirectionFromDefiningLocation} {defining.Name} #";
-            List<LocationDefinitionModel> toFill = result[fillerGroup.RegionKey];
-            for (int i = 0; i < fillerGroup.LocationCount; i++)
-            {
-                toFill.Add(new()
-                {
-                    Name = $"{baseName} {toFill.Count + 1}",
-                    Requires = fillerGroup.EachRequires,
-                });
-            }
-        }
-
-        return result.ToFrozenDictionary(kvp => kvp.Key, kvp => kvp.Value.ToImmutableArray());
-    }
 }
