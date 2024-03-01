@@ -13,11 +13,13 @@ public sealed class UnrandomizedTests
         FakeTimeProvider timeProvider = new();
         UnrandomizedAutopelagoClient client = new();
         LocalGameStateStorage gameStateStorage = new();
+        bool advanced = false;
         Game game = new(client, timeProvider);
         game.NextStepStarted += async (_, _, _) =>
         {
             await Helper.ConfigureAwaitFalse();
             await cts.CancelAsync();
+            advanced = true;
         };
 
         ValueTask gameTask = game.RunUntilCanceledAsync(gameStateStorage, cts.Token);
@@ -27,7 +29,7 @@ public sealed class UnrandomizedTests
             Assert.False(cts.IsCancellationRequested);
         }
 
-        if (!cts.IsCancellationRequested)
+        if (!advanced)
         {
             await cts.CancelAsync();
             Assert.Fail("Game did not advance after 1 second.");
