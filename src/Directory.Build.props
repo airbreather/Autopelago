@@ -1,9 +1,7 @@
 <Project>
+  <Import Project="../Directory.Build.props" />
 
   <PropertyGroup>
-    <ImplicitUsings>enable</ImplicitUsings>
-    <Nullable>enable</Nullable>
-    <WarningsAsErrors>Nullable</WarningsAsErrors>
     <EnableNETAnalyzers>true</EnableNETAnalyzers>
     <AnalysisLevel>latest-Recommended</AnalysisLevel>
   </PropertyGroup>

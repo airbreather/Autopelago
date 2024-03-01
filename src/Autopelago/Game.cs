@@ -3,6 +3,11 @@ using System.Diagnostics.CodeAnalysis;
 
 using ArchipelagoClientDotNet;
 
+public sealed record NextStepStartedEventArgs
+{
+    public required Game.State InitialState { get; init; }
+}
+
 [SuppressMessage("Design", "CA1001:Types that own disposable fields should be disposable", Justification = "Lifetime is too close to the application's lifetime for me to care right now.")]
 public sealed class Game
 {
@@ -39,7 +44,7 @@ public sealed class Game
                 return new()
                 {
                     Epoch = Epoch,
-                    ReceivedItems = [.. ReceivedItems.Select(name => GameDefinitions.ItemsByName[name])],
+                    ReceivedItems = [.. ReceivedItems.Select(name => GameDefinitions.Instance.ItemsByName[name])],
                     PrngState = PrngState,
                 };
             }
@@ -52,6 +57,8 @@ public sealed class Game
 
     private readonly SemaphoreSlim _mutex = new(1, 1);
 
+    private readonly AsyncEvent<NextStepStartedEventArgs> _nextStepStarted = new();
+
     private GameStateStorage? _stateStorage;
 
     private State _state;
@@ -63,7 +70,13 @@ public sealed class Game
         _state = new() { PrngState = Prng.State.Start(new Random(123)) };
     }
 
-    public async ValueTask SetStateStorageAsync(GameStateStorage stateStorage, CancellationToken cancellationToken)
+    public event AsyncEventHandler<NextStepStartedEventArgs> NextStepStarted
+    {
+        add => _nextStepStarted.Add(value);
+        remove => _nextStepStarted.Remove(value);
+    }
+
+    public async ValueTask RunUntilCanceledAsync(GameStateStorage stateStorage, CancellationToken cancellationToken)
     {
         await Helper.ConfigureAwaitFalse();
 
@@ -77,27 +90,17 @@ public sealed class Game
         {
             _state = initialState;
         }
-    }
-
-    public async ValueTask RunUntilCanceledAsync(CancellationToken cancellationToken)
-    {
-        await Helper.ConfigureAwaitFalse();
-
-        if (_stateStorage is null)
-        {
-            throw new InvalidOperationException("Must set the state storage first.");
-        }
 
         _client.ReceivedItems += OnClientReceivedItemsAsync;
 
         while (true)
         {
-            // TODO: better
+            // TODO: more control over the delay
             await Task.Delay(TimeSpan.FromSeconds(1), _timeProvider, cancellationToken);
-
             await _mutex.WaitAsync(cancellationToken);
             try
             {
+                await _nextStepStarted.InvokeAsync(this, new() { InitialState = _state }, cancellationToken);
                 State state = Advance();
                 if (_state != state)
                 {

@@ -1,4 +1,5 @@
 ﻿using System.Runtime.ExceptionServices;
+
 using ArchipelagoClientDotNet;
 
 using YamlDotNet.Serialization;
@@ -27,6 +28,7 @@ Console.CancelKeyPress += async (sender, args) =>
     await cts.CancelAsync();
 };
 
+#if false
 await using WebSocketPacketChannel channel = new(settings.Server, settings.Port);
 await channel.ConnectAsync(cts.Token);
 ArchipelagoClient archipelagoClient = new(channel);
@@ -65,15 +67,22 @@ if (connectResponse is not ConnectedPacketModel { Team: int team, Slot: int slot
 {
     throw new InvalidDataException("Connection refused.");
 }
+#else
+UnrandomizedAutopelagoClient client = new();
+#endif
 
 Game game = new(client, TimeProvider.System);
 try
 {
-    ////await game.SetStateStorageAsync(new ArchipelagoGameStateStorage(archipelagoClient, $"autopelago_state_{team}_{slot}"), cts.Token);
-    await game.SetStateStorageAsync(new FileGameStateStorage(Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), "ap-test.json")), cts.Token);
+    #if false
+    ArchipelagoGameStateStorage gameStateStorage = new(archipelagoClient, $"autopelago_state_{team}_{slot}");
+    #elif false
+    FileGameStateStorage gameStateStorage = new(Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), "ap-test.json"));
+    #else
+    LocalGameStateStorage gameStateStorage = new();
+    #endif
 
-    _ = BackgroundTaskRunner.Run(async () => await archipelagoClient.RunUntilCanceledAsync(cts.Token), cts.Token);
-    await game.RunUntilCanceledAsync(cts.Token);
+    await game.RunUntilCanceledAsync(gameStateStorage, cts.Token);
 }
 catch (OperationCanceledException)
 {
