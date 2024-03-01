@@ -46,8 +46,8 @@ public sealed class RealAutopelagoClient : IAutopelagoClient
         _client.PacketReceived -= OnEarlyPacketReceivedAsync;
         _client.PacketReceived += OnNormalPacketReceivedAsync;
         GameDataModel gameData = dataPackage.Data.Games["Autopelago"];
-        _itemsMapping = gameData.ItemNameToId.ToFrozenDictionary(kvp => kvp.Value, kvp => GameDefinitions.Items[kvp.Key]);
-        _locationsMapping = gameData.LocationNameToId.ToFrozenDictionary(kvp => GameDefinitions.Locations[kvp.Key], kvp => kvp.Value);
+        _itemsMapping = gameData.ItemNameToId.ToFrozenDictionary(kvp => kvp.Value, kvp => GameDefinitions.ItemsByName[kvp.Key]);
+        _locationsMapping = gameData.LocationNameToId.ToFrozenDictionary(kvp => GameDefinitions.LocationsByName[kvp.Key], kvp => kvp.Value);
         return ValueTask.CompletedTask;
     }
 
@@ -62,7 +62,7 @@ public sealed class RealAutopelagoClient : IAutopelagoClient
         ReceivedItemsEventArgs newArgs = new()
         {
             Index = receivedItems.Index,
-            Items = [..receivedItems.Items.Select(i => _itemsMapping![i.Item])],
+            Items = [.. receivedItems.Items.Select(i => _itemsMapping![i.Item])],
         };
 
         await _receivedItemsEvent.InvokeAsync(this, newArgs, cancellationToken);

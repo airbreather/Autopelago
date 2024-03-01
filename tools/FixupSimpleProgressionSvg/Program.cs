@@ -51,7 +51,7 @@ doc.Root.Attribute("viewBox")!.Value = Regex.Replace(
 
 if (doc.Root?.Element(svg.GetName("g")) is XElement layoutRoot)
 {
-    if (layoutRoot.Attribute("transform") is not XAttribute transformAttribute || transformAttribute.Value !=  $"scale(1 1) rotate(0) translate({InlineTranslateX} {InlineTranslateY})")
+    if (layoutRoot.Attribute("transform") is not XAttribute transformAttribute || transformAttribute.Value != $"scale(1 1) rotate(0) translate({InlineTranslateX} {InlineTranslateY})")
     {
         throw new InvalidDataException("Hardcoded parameters changed:" + layoutRoot.Attribute("transform"));
     }

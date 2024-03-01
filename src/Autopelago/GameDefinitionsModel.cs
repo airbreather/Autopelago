@@ -112,7 +112,7 @@ public sealed record ItemDefinitionsModel
             }
         }
 
-        if ((goal, normalRat) is not ({}, { RatCount: 1 }))
+        if ((goal, normalRat) is not ({ }, { RatCount: 1 }))
         {
             throw new InvalidDataException("'goal' and 'normal_rat' are required items (and 'normal_rat' needs to have a rat_count of 1).");
         }
@@ -142,7 +142,7 @@ public sealed record ItemDefinitionsModel
         {
             Goal = goal,
             NormalRat = normalRat,
-            AllItems = [..allItems],
+            AllItems = [.. allItems],
             ProgressionItems = keyedItems.ToFrozenDictionary(),
         };
     }
@@ -273,7 +273,7 @@ public sealed record RegionDefinitionsModel
         foreach ((YamlNode keyNode, YamlNode valueNode) in (YamlMappingNode)map["landmarks"])
         {
             string key = ((YamlScalarNode)keyNode).Value!;
-            LandmarkRegionDefinitionModel value = LandmarkRegionDefinitionModel.DeserializeFrom((YamlMappingNode)valueNode, items);
+            LandmarkRegionDefinitionModel value = LandmarkRegionDefinitionModel.DeserializeFrom(key, (YamlMappingNode)valueNode, items);
             landmarkRegions.Add(key, value);
             allRegions.Add(key, value);
         }
@@ -282,7 +282,7 @@ public sealed record RegionDefinitionsModel
         foreach ((YamlNode keyNode, YamlNode valueNode) in (YamlMappingNode)map["fillers"])
         {
             string key = ((YamlScalarNode)keyNode).Value!;
-            FillerRegionDefinitionModel value = FillerRegionDefinitionModel.DeserializeFrom((YamlMappingNode)valueNode, items);
+            FillerRegionDefinitionModel value = FillerRegionDefinitionModel.DeserializeFrom(key, (YamlMappingNode)valueNode, items);
             fillerRegions.Add(key, value);
             allRegions.Add(key, value);
         }
@@ -305,15 +305,16 @@ public abstract record RegionDefinitionModel
 
 public sealed record LandmarkRegionDefinitionModel : RegionDefinitionModel
 {
-    public static LandmarkRegionDefinitionModel DeserializeFrom(YamlMappingNode map, ItemDefinitionsModel items)
+    public static LandmarkRegionDefinitionModel DeserializeFrom(string key, YamlMappingNode map, ItemDefinitionsModel items)
     {
         return new()
         {
-            Exits = [..((YamlSequenceNode)map["exits"]).Select(n => ((YamlScalarNode)n).Value!)],
+            Exits = [.. ((YamlSequenceNode)map["exits"]).Select(n => ((YamlScalarNode)n).Value!)],
             Locations =
             [
                 new()
                 {
+                    Key = key,
                     Name = ((YamlScalarNode)map["name"]).Value!,
                     UnrandomizedItem = items.ProgressionItems[((YamlScalarNode)map["unrandomized_item"]).Value!],
                     Requires = GameRequirement.DeserializeFrom(map["requires"]),
@@ -325,7 +326,7 @@ public sealed record LandmarkRegionDefinitionModel : RegionDefinitionModel
 
 public sealed record FillerRegionDefinitionModel : RegionDefinitionModel
 {
-    public static FillerRegionDefinitionModel DeserializeFrom(YamlMappingNode map, ItemDefinitionsModel items)
+    public static FillerRegionDefinitionModel DeserializeFrom(string key, YamlMappingNode map, ItemDefinitionsModel items)
     {
         Dictionary<ArchipelagoItemFlags, string> keyMap = new()
         {
@@ -353,10 +354,10 @@ public sealed record FillerRegionDefinitionModel : RegionDefinitionModel
 
                     break;
 
-                case string key:
-                    IEnumerable<ItemDefinitionModel> grp = itemsLookup[key];
+                case string itemGroupKey:
+                    IEnumerable<ItemDefinitionModel> grp = itemsLookup[itemGroupKey];
                     int cnt = int.Parse(((YamlScalarNode)valueNode).Value!);
-                    ref int nextSrc = ref CollectionsMarshal.GetValueRefOrAddDefault(nextInGroup, key, out _);
+                    ref int nextSrc = ref CollectionsMarshal.GetValueRefOrAddDefault(nextInGroup, itemGroupKey, out _);
                     for (int i = 0; i < cnt; i++)
                     {
                         unrandomizedItems.Add(grp.ElementAt(nextSrc++));
@@ -369,9 +370,10 @@ public sealed record FillerRegionDefinitionModel : RegionDefinitionModel
         GameRequirement eachRequires = GameRequirement.DeserializeFrom(map["each_requires"]);
         return new()
         {
-            Exits = [..((YamlSequenceNode)map["exits"]).Select(n => ((YamlScalarNode)n).Value!)],
-            Locations = [..unrandomizedItems.Select((item, n) => new LocationDefinitionModel()
+            Exits = [.. ((YamlSequenceNode)map["exits"]).Select(n => ((YamlScalarNode)n).Value!)],
+            Locations = [.. unrandomizedItems.Select((item, n) => new LocationDefinitionModel()
             {
+                Key = $"{key}.{n}",
                 Name = nameTemplate.Replace("{n}", $"{n + 1}"),
                 Requires = eachRequires,
                 UnrandomizedItem = item,
@@ -404,6 +406,8 @@ public sealed record FillerRegionDefinitionModel : RegionDefinitionModel
 
 public sealed record LocationDefinitionModel
 {
+    public required string Key { get; init; }
+
     public required string Name { get; init; }
 
     public required GameRequirement Requires { get; init; }
@@ -425,7 +429,7 @@ public abstract record GameRequirement
         {
             return new AllGameRequirement
             {
-                Requirements = [..seq.Select(DeserializeFrom)],
+                Requirements = [.. seq.Select(DeserializeFrom)],
             };
         }
 
@@ -440,8 +444,8 @@ public abstract record GameRequirement
             "rat_count" => new RatCountRequirement { RatCount = int.Parse(((YamlScalarNode)valueNode).Value!) },
             "location" => new CheckedLocationRequirement { LocationKey = ((YamlScalarNode)valueNode).Value! },
             "item" => new ReceivedItemRequirement { ItemKey = ((YamlScalarNode)valueNode).Value! },
-            "any" => new AnyGameRequirement { Requirements = [..((YamlSequenceNode)valueNode).Select(DeserializeFrom)] },
-            "all" => new AllGameRequirement { Requirements = [..((YamlSequenceNode)valueNode).Select(DeserializeFrom)] },
+            "any" => new AnyGameRequirement { Requirements = [.. ((YamlSequenceNode)valueNode).Select(DeserializeFrom)] },
+            "all" => new AllGameRequirement { Requirements = [.. ((YamlSequenceNode)valueNode).Select(DeserializeFrom)] },
             _ => throw new InvalidDataException($"Unrecognized requirement: {keyNode.Value}"),
         };
     }

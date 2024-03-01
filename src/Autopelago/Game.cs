@@ -21,7 +21,7 @@ public sealed class Game
             return new()
             {
                 Epoch = Epoch,
-                ReceivedItems = [..ReceivedItems.Select(i => i.Name)],
+                ReceivedItems = [.. ReceivedItems.Select(i => i.Name)],
                 PrngState = PrngState,
             };
         }
@@ -39,7 +39,7 @@ public sealed class Game
                 return new()
                 {
                     Epoch = Epoch,
-                    ReceivedItems = [..ReceivedItems.Select(name => GameDefinitions.Items[name])],
+                    ReceivedItems = [.. ReceivedItems.Select(name => GameDefinitions.ItemsByName[name])],
                     PrngState = PrngState,
                 };
             }
@@ -101,8 +101,6 @@ public sealed class Game
                 State state = Advance();
                 if (_state != state)
                 {
-                    // TODO: send packets as appropriate for how the state has changed
-
                     await _stateStorage.SaveAsync(state, cancellationToken);
                     _state = state;
                 }
@@ -111,6 +109,8 @@ public sealed class Game
             {
                 _mutex.Release();
             }
+
+            // TODO: send packets as appropriate for how the state has changed
         }
     }
 
@@ -122,13 +122,13 @@ public sealed class Game
         {
             for (int i = args.Index; i < _state.ReceivedItems.Count; i++)
             {
-                if (_state.ReceivedItems[i] != _state.ReceivedItems[i - args.Index])
+                if (args.Items[i] != _state.ReceivedItems[i - args.Index])
                 {
                     throw new NotImplementedException("Need to resync.");
                 }
             }
 
-            if (_state.ReceivedItems.Count - args.Index == _state.ReceivedItems.Count)
+            if (_state.ReceivedItems.Count - args.Index == args.Items.Length)
             {
                 return;
             }
