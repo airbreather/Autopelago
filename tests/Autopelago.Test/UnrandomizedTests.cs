@@ -4,6 +4,8 @@ using Microsoft.Extensions.Time.Testing;
 
 public sealed class UnrandomizedTests
 {
+    private static readonly TimeSpan s_tolerance = TimeSpan.FromMilliseconds(500);
+
     [Fact]
     public async ValueTask FirstStepShouldStartAfterOneSecond()
     {
@@ -26,6 +28,6 @@ public sealed class UnrandomizedTests
         }
 
         Assert.True(cts.IsCancellationRequested);
-        await Assert.ThrowsAnyAsync<OperationCanceledException>(async () => await gameTask);
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(async () => await gameTask.AsTask().WaitAsync(s_tolerance));
     }
 }
