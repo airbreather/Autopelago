@@ -78,8 +78,6 @@ public sealed class Game
 
     public async ValueTask RunUntilCanceledAsync(GameStateStorage stateStorage, CancellationToken cancellationToken)
     {
-        await Helper.ConfigureAwaitFalse();
-
         if (_stateStorage is not null)
         {
             throw new InvalidOperationException("Already called this method before.");
