@@ -2,16 +2,30 @@ on:
   - push
 
 jobs:
-  test:
-    steps:
-      - name: Check out source code
-        uses: actions/checkout@v4
+  build-and-test:
+    env:
+      DOTNET_INSTALL_DIR: .dotnet
 
-      - name: Install .NET 8.0.x
+    steps:
+      - name: Cache .NET
+        id: cache-dotnet
+        uses: actions/cache@v4
+        with:
+          path: ${{ env.DOTNET_INSTALL_DIR }}
+          key: dotnet-${{ hashFiles('global.json') }}
+
+      - name: Install .NET
+        if: steps.cache-dotnet.outputs.cache-hit != 'true'
         uses: actions/setup-dotnet@v4
         with:
-          dotnet-version: '8.0.x'
-          cache: true
+          global-json-file: global.json
+
+      - name: Set environment for .NET
+        if: steps.cache-dotnet.outputs.cache-hit == 'true'
+        run: echo ${{ env.DOTNET_INSTALL_DIR }} >> ${{ env.GITHUB_PATH }}
+
+      - name: Check out source code
+        uses: actions/checkout@v4
 
       - name: Restore
         run: dotnet restore --locked-mode
