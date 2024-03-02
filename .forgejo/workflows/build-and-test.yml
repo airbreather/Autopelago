@@ -3,6 +3,9 @@ on:
 
 jobs:
   build-and-test:
+    container:
+      image: airbreather-runners/cacheready
+
     env:
       DOTNET_INSTALL_DIR: .dotnet
 
