@@ -2,12 +2,14 @@ using ArchipelagoClientDotNet;
 
 using Microsoft.Extensions.Time.Testing;
 
+using Xunit.Sdk;
+
 public sealed class UnrandomizedTests
 {
     private static readonly TimeSpan s_tolerance = TimeSpan.FromMilliseconds(500);
 
     [Fact]
-    public async ValueTask FirstStepShouldStartAfterOneSecond()
+    public async Task FirstStepShouldStartAfterOneSecond()
     {
         using CancellationTokenSource cts = new();
         FakeTimeProvider timeProvider = new();
@@ -44,7 +46,7 @@ public sealed class UnrandomizedTests
         }
         catch (TimeoutException)
         {
-            Assert.Skip($"Game took more than {s_tolerance.FormatMyWay()} to complete after ostensibly being canceled.");
+            throw SkipException.ForSkip($"Game took more than {s_tolerance.FormatMyWay()} to complete after ostensibly being canceled.");
         }
     }
 }

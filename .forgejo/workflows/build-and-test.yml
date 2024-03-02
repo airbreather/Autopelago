@@ -2,10 +2,16 @@ on: [push]
 jobs:
   test:
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-dotnet@v4
+      - name: Check out source code
+        uses: actions/checkout@v4
+
+      - name: Install .NET 8.0.x
+        uses: actions/setup-dotnet@v4
         with:
           dotnet-version: '8.0.x'
-      - run: dotnet build -c Release
-      - run: dotnet run -c Release
-        working-directory: tests/Autopelago.Test
+
+      - name: Build
+        run: dotnet build -c Release
+
+      - name: Run Tests
+        run: dotnet test -c Release
