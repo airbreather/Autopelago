@@ -10,12 +10,12 @@ jobs:
       - name: Check out source code
         uses: actions/checkout@v4
 
-      - name: Cache .NET
+      - name: Restore Cached .NET Installation
         id: cache-dotnet
-        uses: actions/cache@v4
+        uses: actions/cache/restore@v4
         with:
           path: ${{ env.DOTNET_INSTALL_DIR }}
-          key: dotnet-${{ hashFiles('global.json') }}
+          key: dotnet-${{ hashFiles('global.json') }}-take2
 
       - name: Set environment for .NET
         if: steps.cache-dotnet.outputs.cache-hit == 'true'
@@ -27,14 +27,18 @@ jobs:
         with:
           global-json-file: global.json
 
-      - name: Restore
-        run: dotnet restore --locked-mode
+      - name: Cache .NET Installation
+        if: steps.cache-dotnet.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v4
+        with:
+          path: ${{ env.DOTNET_INSTALL_DIR }}
+          key: dotnet-${{ hashFiles('global.json') }}-take2
 
       - name: Build
         run: dotnet build -c Release
 
       - name: Run tests
-        run: dotnet test -c Release --logger 'console;verbosity=normal' --logger trx --results-directory=TestResults
+        run: dotnet test -c Release --no-build --logger 'console;verbosity=normal' --logger trx --results-directory=TestResults
 
       - name: Upload test results
         uses: actions/upload-artifact@v3 # https://code.forgejo.org/forgejo/runner/issues/144
