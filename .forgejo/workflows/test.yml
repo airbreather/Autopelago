@@ -2,4 +2,4 @@ on: [push]
 jobs:
   test:
     steps:
-      - run: echo Hello world
+      - run: echo a message that changes
