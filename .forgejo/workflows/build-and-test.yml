@@ -4,7 +4,7 @@ on:
 jobs:
   build-and-test:
     container:
-      image: airbreather-runners/forgejo-runner
+      image: airbreather/forgejo-runner
 
     env:
       DOTNET_INSTALL_DIR: .dotnet
