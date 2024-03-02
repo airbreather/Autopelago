@@ -7,6 +7,5 @@ jobs:
         with:
           dotnet-version: '8.0.x'
       - run: dotnet build -c Release
-      - run: dotnet publish -c Release tests/Autopelago.Test/Autopelago.Test.csproj -o publish/Autopelago.Test/
-      - run: ./Autopelago.Test
-        working-directory: publish/Autopelago.Test
+      - run: dotnet run -c Release
+        working-directory: tests/Autopelago.Test
