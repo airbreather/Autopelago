@@ -10,12 +10,12 @@ jobs:
       - name: Check out source code
         uses: actions/checkout@v4
 
-      - name: Restore Cached .NET Installation
+      - name: Cache .NET
         id: cache-dotnet
-        uses: actions/cache/restore@v4
+        uses: actions/cache@v4
         with:
           path: ${{ env.DOTNET_INSTALL_DIR }}
-          key: dotnet-${{ hashFiles('global.json') }}-take2
+          key: dotnet-${{ hashFiles('global.json') }}
 
       - name: Set environment for .NET
         if: steps.cache-dotnet.outputs.cache-hit == 'true'
@@ -26,13 +26,6 @@ jobs:
         uses: actions/setup-dotnet@v4
         with:
           global-json-file: global.json
-
-      - name: Cache .NET Installation
-        if: steps.cache-dotnet.outputs.cache-hit != 'true'
-        uses: actions/cache/save@v4
-        with:
-          path: ${{ env.DOTNET_INSTALL_DIR }}
-          key: dotnet-${{ hashFiles('global.json') }}-take2
 
       - name: Build
         run: dotnet build -c Release
