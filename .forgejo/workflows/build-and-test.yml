@@ -17,7 +17,7 @@ jobs:
         run: dotnet test -c Release --logger 'console;verbosity=normal' --logger trx --results-directory=TestResults
 
       - name: Upload test results
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v3
         with:
           name: dotnet-results
           path: TestResults
