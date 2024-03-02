@@ -21,7 +21,7 @@ jobs:
         run: dotnet restore --locked-mode
 
       - name: Build
-        run: dotnet build -c Release
+        run: dotnet build -c Release --no-restore
 
       - name: Run tests
         run: dotnet test -c Release --no-build --logger 'console;verbosity=normal' --logger trx --results-directory=TestResults
