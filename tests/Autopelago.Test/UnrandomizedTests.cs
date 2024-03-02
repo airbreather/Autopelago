@@ -44,7 +44,6 @@ public sealed class UnrandomizedTests
         }
         catch (TimeoutException)
         {
-            await cts.CancelAsync();
             Assert.Skip($"Game took more than {s_tolerance.FormatMyWay()} to complete after ostensibly being canceled.");
         }
     }

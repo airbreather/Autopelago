@@ -442,7 +442,7 @@ public abstract record GameRequirement
 {
     public static readonly GameRequirement AlwaysSatisfied = new AllGameRequirement { Requirements = [] };
 
-    public abstract bool Satisfied(Game.State state);
+    public abstract bool Satisfied(ref Game.State state);
 
     public static GameRequirement DeserializeFrom(YamlNode node)
     {
@@ -478,9 +478,17 @@ public sealed record AllGameRequirement : GameRequirement
 {
     public required ImmutableArray<GameRequirement> Requirements { get; init; }
 
-    public override bool Satisfied(Game.State state)
+    public override bool Satisfied(ref Game.State state)
     {
-        return Requirements.All(r => r.Satisfied(state));
+        foreach (GameRequirement child in Requirements)
+        {
+            if (!child.Satisfied(ref state))
+            {
+                return false;
+            }
+        }
+
+        return true;
     }
 }
 
@@ -488,9 +496,17 @@ public sealed record AnyGameRequirement : GameRequirement
 {
     public required ImmutableArray<GameRequirement> Requirements { get; init; }
 
-    public override bool Satisfied(Game.State state)
+    public override bool Satisfied(ref Game.State state)
     {
-        return Requirements.Any(r => r.Satisfied(state));
+        foreach (GameRequirement child in Requirements)
+        {
+            if (child.Satisfied(ref state))
+            {
+                return true;
+            }
+        }
+
+        return false;
     }
 }
 
@@ -498,9 +514,9 @@ public sealed record AbilityCheckRequirement : GameRequirement
 {
     public required int DifficultyClass { get; init; }
 
-    public override bool Satisfied(Game.State state)
+    public override bool Satisfied(ref Game.State state)
     {
-        return false;
+        return Game.State.NextD20(ref state) + state.DiceModifier >= DifficultyClass;
     }
 }
 
@@ -508,7 +524,7 @@ public sealed record RatCountRequirement : GameRequirement
 {
     public required int RatCount { get; init; }
 
-    public override bool Satisfied(Game.State state)
+    public override bool Satisfied(ref Game.State state)
     {
         return state.RatCount >= RatCount;
     }
@@ -518,9 +534,9 @@ public sealed record CheckedLocationRequirement : GameRequirement
 {
     public required string LocationKey { get; init; }
 
-    public override bool Satisfied(Game.State state)
+    public override bool Satisfied(ref Game.State state)
     {
-        return false;
+        return state.CheckedLocations.Contains(GameDefinitions.Instance.LocationsByKey[LocationKey]);
     }
 }
 
@@ -528,9 +544,9 @@ public sealed record ReceivedItemRequirement : GameRequirement
 {
     public required string ItemKey { get; init; }
 
-    public override bool Satisfied(Game.State state)
+    public override bool Satisfied(ref Game.State state)
     {
-        return false;
+        return state.ReceivedItems.Contains(GameDefinitions.Instance.Items.ProgressionItems[ItemKey]);
     }
 }
 

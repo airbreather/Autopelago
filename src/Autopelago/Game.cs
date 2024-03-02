@@ -15,11 +15,33 @@ public sealed class Game
     {
         public ulong Epoch { get; init; }
 
+        public int DiceModifier => RatCount / 3;
+
         public int RatCount => ReceivedItems.Sum(i => i.RatCount).GetValueOrDefault();
 
         public ImmutableList<ItemDefinitionModel> ReceivedItems { get; init; } = [];
 
+        public ImmutableList<LocationDefinitionModel> CheckedLocations { get; init; } = [];
+
         public Prng.State PrngState { get; init; }
+
+        public static int NextD20(ref State state)
+        {
+            return ((int)Math.Floor(NextDouble(ref state) * 20)) + 1;
+        }
+
+        public static double NextDouble(ref State state)
+        {
+            Prng.State s = state.PrngState;
+            double result;
+            do
+            {
+                result = Prng.NextDouble(ref s);
+            } while (result == 1); // it's unbelievably unlikely, but if I want to make this method perfect, then I will.
+
+            state = state with { Epoch = state.Epoch + 1, PrngState = s };
+            return result;
+        }
 
         public Proxy ToProxy()
         {
@@ -27,6 +49,7 @@ public sealed class Game
             {
                 Epoch = Epoch,
                 ReceivedItems = [.. ReceivedItems.Select(i => i.Name)],
+                CheckedLocations = [.. CheckedLocations.Select(l => l.Name)],
                 PrngState = PrngState,
             };
         }
@@ -37,6 +60,8 @@ public sealed class Game
 
             public ImmutableArray<string> ReceivedItems { get; init; }
 
+            public ImmutableArray<string> CheckedLocations { get; init; }
+
             public Prng.State PrngState { get; init; }
 
             public State ToState()
@@ -45,6 +70,7 @@ public sealed class Game
                 {
                     Epoch = Epoch,
                     ReceivedItems = [.. ReceivedItems.Select(name => GameDefinitions.Instance.ItemsByName[name])],
+                    CheckedLocations = [.. CheckedLocations.Select(name => GameDefinitions.Instance.LocationsByName[name])],
                     PrngState = PrngState,
                 };
             }
