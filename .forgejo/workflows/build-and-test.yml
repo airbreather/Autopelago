@@ -7,6 +7,9 @@ jobs:
       DOTNET_INSTALL_DIR: .dotnet
 
     steps:
+      - name: Check out source code
+        uses: actions/checkout@v4
+
       - name: Cache .NET
         id: cache-dotnet
         uses: actions/cache@v4
@@ -14,18 +17,15 @@ jobs:
           path: ${{ env.DOTNET_INSTALL_DIR }}
           key: dotnet-${{ hashFiles('global.json') }}
 
+      - name: Set environment for .NET
+        if: steps.cache-dotnet.outputs.cache-hit == 'true'
+        run: echo ${{ env.DOTNET_INSTALL_DIR }} >> ${{ env.GITHUB_PATH }}
+
       - name: Install .NET
         if: steps.cache-dotnet.outputs.cache-hit != 'true'
         uses: actions/setup-dotnet@v4
         with:
           global-json-file: global.json
-
-      - name: Set environment for .NET
-        if: steps.cache-dotnet.outputs.cache-hit == 'true'
-        run: echo ${{ env.DOTNET_INSTALL_DIR }} >> ${{ env.GITHUB_PATH }}
-
-      - name: Check out source code
-        uses: actions/checkout@v4
 
       - name: Restore
         run: dotnet restore --locked-mode
