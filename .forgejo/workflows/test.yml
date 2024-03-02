@@ -1,5 +1,0 @@
-on: [push]
-jobs:
-  test:
-    steps:
-      - run: echo it changes for thee
