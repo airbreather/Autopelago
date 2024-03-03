@@ -30,6 +30,8 @@ public sealed record GameDefinitions
 
     public required FrozenDictionary<string, LocationDefinitionModel> LocationsByName { get; init; }
 
+    public required FloydWarshall FloydWarshall { get; init; }
+
     private static GameDefinitions LoadFromEmbeddedResource()
     {
         using Stream yamlStream = Assembly.GetExecutingAssembly().GetManifestResourceStream("AutopelagoDefinitions.yml")!;
@@ -54,6 +56,7 @@ public sealed record GameDefinitions
             ItemsByName = items.AllItems.ToFrozenDictionary(i => i.Name),
             LocationsByKey = locationsByKey.Values.ToFrozenDictionary(location => location.Key),
             LocationsByName = locationsByKey.Values.ToFrozenDictionary(location => location.Name),
+            FloydWarshall = FloydWarshall.Compute(regions.AllRegions.Values),
         };
     }
 }
@@ -288,8 +291,6 @@ public sealed record RegionDefinitionsModel
 
     public required FrozenDictionary<string, FillerRegionDefinitionModel> FillerRegions { get; init; }
 
-    public required FloydWarshall FloydWarshall { get; init; }
-
     public RegionDefinitionModel StartRegion => AllRegions["menu"];
 
     public static RegionDefinitionsModel DeserializeFrom(YamlMappingNode map, ItemDefinitionsModel items)
@@ -334,7 +335,6 @@ public sealed record RegionDefinitionsModel
         return new()
         {
             AllRegions = allRegions.ToFrozenDictionary(),
-            FloydWarshall = FloydWarshall.Compute(allRegions.Values),
             LandmarkRegions = landmarkRegions.ToFrozenDictionary(),
             FillerRegions = fillerRegions.ToFrozenDictionary(),
         };
