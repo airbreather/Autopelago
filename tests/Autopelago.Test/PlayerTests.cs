@@ -51,4 +51,33 @@ public sealed class PlayerTests
         Assert.Single(state.CheckedLocations);
         Assert.Equal(prngState, state.PrngState);
     }
+
+    [Theory]
+    [InlineData(0)]
+    [InlineData(1)]
+    [InlineData(2)]
+    [InlineData(3)]
+    [InlineData(4)]
+    [InlineData(5)]
+    [InlineData(6)]
+    [InlineData(7)]
+    public void ShouldOnlyTryBasketballWithAtLeastFiveRats(int ratCount)
+    {
+        Game.State state = Game.State.Start();
+        state = state with
+        {
+            ReceivedItems = [.. Enumerable.Repeat(GameDefinitions.Instance.Items.NormalRat, ratCount)],
+            CheckedLocations = [.. GameDefinitions.Instance.StartLocation.Region.Locations],
+        };
+
+        Player player = new();
+        if (ratCount < 5)
+        {
+            Assert.Equal(state, player.Advance(state));
+        }
+        else
+        {
+            Assert.NotEqual(state, player.Advance(state));
+        }
+    }
 }

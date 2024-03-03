@@ -31,10 +31,16 @@ public sealed class Player
 
             if (state.CurrentLocation != state.TargetLocation)
             {
-                state = state with { CurrentLocation = GameDefinitions.Instance.FloydWarshall.GetPath(state.CurrentLocation, state.TargetLocation)[1] };
+                state = state with { CurrentLocation = state.CurrentLocation.NextLocationTowards(state.TargetLocation) };
 
                 // movement takes an action
                 continue;
+            }
+
+            if (_checkedLocations.Contains(state.CurrentLocation))
+            {
+                // nowhere to move, nothing to do where we are.
+                break;
             }
 
             bool success = state.CurrentLocation.TryCheck(ref state);
@@ -63,7 +69,7 @@ public sealed class Player
         // - "go mode"
         // - requests / hints from other players
         LocationDefinitionModel result = state.TargetLocation;
-        int bestDistanceSoFar = GameDefinitions.Instance.FloydWarshall.GetDistance(state.CurrentLocation, result);
+        int bestDistanceSoFar = state.CurrentLocation.DistanceTo(result);
         if (state.CurrentLocation == result)
         {
             if (_checkedLocations.Contains(result))
@@ -87,12 +93,20 @@ public sealed class Player
             {
                 if (!_checkedLocations.Contains(candidate) && candidate.Requirement.StaticSatisfied(state))
                 {
-                    int distance = GameDefinitions.Instance.FloydWarshall.GetDistance(state.CurrentLocation, candidate);
+                    int distance = state.CurrentLocation.DistanceTo(candidate);
                     if (distance < bestDistanceSoFar)
                     {
                         result = candidate;
                         bestDistanceSoFar = distance;
                     }
+                }
+            }
+
+            foreach (RegionExitDefinitionModel exit in region.Exits)
+            {
+                if (exit.Requirement.StaticSatisfied(state))
+                {
+                    Enqueue(exit.Region);
                 }
             }
         }

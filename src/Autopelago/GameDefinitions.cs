@@ -356,19 +356,18 @@ public sealed record RegionExitDefinitionModel
 {
     public required string RegionKey { get; init; }
 
-    public required AllChildrenGameRequirement Requirement { get; init; }
+    public RegionDefinitionModel Region => GameDefinitions.Instance.Regions.AllRegions[RegionKey];
+
+    public AllChildrenGameRequirement Requirement => Region is LandmarkRegionDefinitionModel
+    {
+        Locations: [ LocationDefinitionModel { Requirement: AllChildrenGameRequirement req } ]
+    } ? req : GameRequirement.AlwaysSatisfied;
 
     public static RegionExitDefinitionModel DeserializeFrom(YamlNode node)
-    {
-        return DeserializeFrom(node, GameRequirement.AlwaysSatisfied);
-    }
-
-    public static RegionExitDefinitionModel DeserializeFrom(YamlNode node, AllChildrenGameRequirement requirement)
     {
         return new()
         {
             RegionKey = ((YamlScalarNode)node).Value!,
-            Requirement = requirement,
         };
     }
 }
@@ -509,6 +508,10 @@ public sealed record LocationDefinitionModel
     public required ItemDefinitionModel UnrandomizedItem { get; init; }
 
     public RegionDefinitionModel Region => GameDefinitions.Instance.Regions.AllRegions[Key.RegionKey];
+
+    public int DistanceTo(LocationDefinitionModel target) => GameDefinitions.Instance.FloydWarshall.GetDistance(this, target);
+
+    public LocationDefinitionModel NextLocationTowards(LocationDefinitionModel target) => this == target ? target : GameDefinitions.Instance.FloydWarshall.GetPath(this, target)[1];
 
     public bool TryCheck(ref Game.State state)
     {
