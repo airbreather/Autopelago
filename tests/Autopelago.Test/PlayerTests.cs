@@ -129,7 +129,7 @@ public sealed class PlayerTests
     private ulong SearchForPrngSeed(int cnt, SpanFunc<int, bool> isMatch)
     {
         ulong? seed = null;
-        Parallel.ForEach(Partitioner.Create(0, 2_000_000_000, 1_000_000), (part, state) =>
+        Parallel.ForEach(Partitioner.Create(0, 2_000_000_000, 10_000), (part, state) =>
         {
             if (state.ShouldExitCurrentIteration)
             {
