@@ -55,6 +55,11 @@ public sealed class Game
 
         public static State Start(ulong seed)
         {
+            return Start(Prng.State.Start(seed));
+        }
+
+        public static State Start(Prng.State prngState)
+        {
             return new()
             {
                 CurrentLocation = GameDefinitions.Instance.StartLocation,
@@ -62,7 +67,7 @@ public sealed class Game
                 ReceivedItems = [],
                 CheckedLocations = [],
                 LocationCheckAttemptsThisStep = 0,
-                PrngState = Prng.State.Start(seed),
+                PrngState = prngState,
             };
         }
 

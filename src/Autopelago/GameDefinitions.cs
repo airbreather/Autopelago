@@ -54,7 +54,7 @@ public sealed record GameDefinitions
         {
             Items = items,
             Regions = regions,
-            StartLocation = locationsByKey[LocationKey.Create("menu", 0)],
+            StartLocation = locationsByKey[LocationKey.For("menu", 0)],
             ItemsByName = items.AllItems.ToFrozenDictionary(i => i.Name),
             LocationsByKey = locationsByKey.Values.ToFrozenDictionary(location => location.Key),
             LocationsByName = locationsByKey.Values.ToFrozenDictionary(location => location.Name),
@@ -307,7 +307,7 @@ public sealed record RegionDefinitionsModel
                 [
                     new()
                     {
-                        Key = LocationKey.Create("goal"),
+                        Key = LocationKey.For("goal"),
                         Name = items.Goal.Name,
                         Requirement = GameRequirement.AlwaysSatisfied,
                         UnrandomizedItem = items.Goal,
@@ -385,7 +385,7 @@ public sealed record LandmarkRegionDefinitionModel : RegionDefinitionModel
             [
                 new()
                 {
-                    Key = LocationKey.Create(key),
+                    Key = LocationKey.For(key),
                     Name = ((YamlScalarNode)map["name"]).Value!,
                     UnrandomizedItem = items.ProgressionItems[((YamlScalarNode)map["unrandomized_item"]).Value!],
                     Requirement = requirement,
@@ -445,7 +445,7 @@ public sealed record FillerRegionDefinitionModel : RegionDefinitionModel
             Exits = [.. ((YamlSequenceNode)map["exits"]).Select(RegionExitDefinitionModel.DeserializeFrom)],
             Locations = [.. unrandomizedItems.Select((item, n) => new LocationDefinitionModel()
             {
-                Key = LocationKey.Create(key, n),
+                Key = LocationKey.For(key, n),
                 Name = nameTemplate.Replace("{n}", $"{n + 1}"),
                 Requirement = eachRequires,
                 UnrandomizedItem = item,
@@ -482,12 +482,12 @@ public readonly record struct LocationKey
 
     public required int N { get; init; }
 
-    public static LocationKey Create(string regionKey)
+    public static LocationKey For(string regionKey)
     {
-        return Create(regionKey, 0);
+        return For(regionKey, 0);
     }
 
-    public static LocationKey Create(string regionKey, int n)
+    public static LocationKey For(string regionKey, int n)
     {
         return new()
         {
@@ -691,7 +691,7 @@ public sealed record CheckedLocationRequirement : GameRequirement
 
     public static new CheckedLocationRequirement DeserializeFrom(YamlNode node)
     {
-        return new CheckedLocationRequirement { LocationKey = LocationKey.Create(((YamlScalarNode)node).Value!) };
+        return new CheckedLocationRequirement { LocationKey = LocationKey.For(((YamlScalarNode)node).Value!) };
     }
 
     public override bool StaticSatisfied(Game.State state)
