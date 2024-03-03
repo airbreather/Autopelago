@@ -13,21 +13,51 @@ public sealed class Game
 {
     public sealed record State
     {
-        public ulong Epoch { get; init; }
+        public State()
+        {
+        }
 
-        public int DiceModifier => RatCount / 3;
+        private State(State copyFrom)
+        {
+            Epoch = copyFrom.Epoch + 1;
+            CurrentLocation = copyFrom.CurrentLocation;
+            TargetLocation = copyFrom.TargetLocation;
+            ReceivedItems = copyFrom.ReceivedItems;
+            CheckedLocations = copyFrom.CheckedLocations;
+            PrngState = copyFrom.PrngState;
+            LocationCheckAttemptsThisStep = copyFrom.LocationCheckAttemptsThisStep;
+        }
 
-        public LocationDefinitionModel CurrentLocation { get; init; } = GameDefinitions.Instance.StartLocation;
+        public ulong Epoch { get; private init; }
 
-        public LocationDefinitionModel TargetLocation { get; init; } = GameDefinitions.Instance.StartLocation;
+        public required LocationDefinitionModel CurrentLocation { get; init; }
+
+        public required LocationDefinitionModel TargetLocation { get; init; }
+
+        public required ImmutableList<ItemDefinitionModel> ReceivedItems { get; init; }
+
+        public required ImmutableList<LocationDefinitionModel> CheckedLocations { get; init; }
+
+        public required int LocationCheckAttemptsThisStep { get; init; }
+
+        public required Prng.State PrngState { get; init; }
+
+        public int DiceModifier => (RatCount / 3) - (LocationCheckAttemptsThisStep * 5);
 
         public int RatCount => ReceivedItems.Sum(i => i.RatCount).GetValueOrDefault();
 
-        public ImmutableList<ItemDefinitionModel> ReceivedItems { get; init; } = [];
-
-        public ImmutableList<LocationDefinitionModel> CheckedLocations { get; init; } = [];
-
-        public Prng.State PrngState { get; init; }
+        public static State Start(Random? random = null)
+        {
+            return new()
+            {
+                CurrentLocation = GameDefinitions.Instance.StartLocation,
+                TargetLocation = GameDefinitions.Instance.StartLocation,
+                ReceivedItems = [],
+                CheckedLocations = [],
+                LocationCheckAttemptsThisStep = 0,
+                PrngState = Prng.State.Start(random),
+            };
+        }
 
         public static int NextD20(ref State state)
         {
@@ -43,7 +73,7 @@ public sealed class Game
                 result = Prng.NextDouble(ref s);
             } while (result == 1); // it's unbelievably unlikely, but if I want to make this method perfect, then I will.
 
-            state = state with { Epoch = state.Epoch + 1, PrngState = s };
+            state = state with { PrngState = s };
             return result;
         }
 
@@ -56,6 +86,7 @@ public sealed class Game
                 TargetLocation = TargetLocation.Name,
                 ReceivedItems = [.. ReceivedItems.Select(i => i.Name)],
                 CheckedLocations = [.. CheckedLocations.Select(l => l.Name)],
+                LocationCheckAttemptsThisStep = LocationCheckAttemptsThisStep,
                 PrngState = PrngState,
             };
         }
@@ -72,6 +103,8 @@ public sealed class Game
 
             public required ImmutableArray<string> CheckedLocations { get; init; }
 
+            public required int LocationCheckAttemptsThisStep { get; init; }
+
             public Prng.State PrngState { get; init; }
 
             public State ToState()
@@ -83,6 +116,7 @@ public sealed class Game
                     TargetLocation = GameDefinitions.Instance.LocationsByName[TargetLocation],
                     ReceivedItems = [.. ReceivedItems.Select(name => GameDefinitions.Instance.ItemsByName[name])],
                     CheckedLocations = [.. CheckedLocations.Select(name => GameDefinitions.Instance.LocationsByName[name])],
+                    LocationCheckAttemptsThisStep = LocationCheckAttemptsThisStep,
                     PrngState = PrngState,
                 };
             }
@@ -101,13 +135,12 @@ public sealed class Game
 
     private GameStateStorage? _stateStorage;
 
-    private State _state;
+    private State _state = State.Start(new Random(123));
 
     public Game(IAutopelagoClient client, TimeProvider timeProvider)
     {
         _client = client;
         _timeProvider = timeProvider;
-        _state = new() { PrngState = Prng.State.Start(new Random(123)) };
     }
 
     public event AsyncEventHandler<NextStepStartedEventArgs> NextStepStarted
@@ -182,11 +215,7 @@ public sealed class Game
             List<ItemDefinitionModel> newItems = [.. args.Items.Except(_state.ReceivedItems)];
             if (newItems.Count > 0)
             {
-                _state = _state with
-                {
-                    Epoch = _state.Epoch + 1,
-                    ReceivedItems = _state.ReceivedItems.AddRange(newItems),
-                };
+                _state = _state with { ReceivedItems = _state.ReceivedItems.AddRange(newItems) };
             }
         }
         finally

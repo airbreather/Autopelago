@@ -1,19 +1,16 @@
-using System.Collections;
 using System.Runtime.InteropServices;
 
 public sealed class Player
 {
-    private readonly Dictionary<RegionDefinitionModel, BitArray> _checkedLocations;
+    private readonly HashSet<LocationDefinitionModel> _checkedLocations = [];
 
     private readonly Dictionary<ItemDefinitionModel, int> _receivedItemsMap = [];
 
-    public Player()
-    {
-        _checkedLocations = GameDefinitions.Instance.Regions.AllRegions.Values.ToDictionary(r => r, r => new BitArray(r.Locations.Length));
-    }
-
     public Game.State Advance(Game.State state)
     {
+        _checkedLocations.Clear();
+        _checkedLocations.UnionWith(state.CheckedLocations);
+
         _receivedItemsMap.Clear();
         foreach (ItemDefinitionModel receivedItem in state.ReceivedItems)
         {
@@ -25,23 +22,30 @@ public sealed class Player
             LocationDefinitionModel bestTargetLocation = BestTargetLocation(state);
             if (state.TargetLocation != bestTargetLocation)
             {
-                state = state with { Epoch = state.Epoch + 1, TargetLocation = bestTargetLocation };
+                // changing your route takes an action
+                state = state with { TargetLocation = bestTargetLocation };
                 continue;
             }
 
             if (state.CurrentLocation != state.TargetLocation)
             {
-                state = state with { Epoch = state.Epoch + 1, CurrentLocation = GameDefinitions.Instance.FloydWarshall.GetPath(state.CurrentLocation, state.TargetLocation)[1] };
+                state = state with { CurrentLocation = GameDefinitions.Instance.FloydWarshall.GetPath(state.CurrentLocation, state.TargetLocation)[1] };
 
                 // movement takes an action
                 continue;
             }
 
-            if (state.CurrentLocation.Requirement.DynamicSatisfied(ref state))
+            bool success = state.CurrentLocation.TryCheck(ref state);
+            state = state with { LocationCheckAttemptsThisStep = state.LocationCheckAttemptsThisStep + 1 };
+            if (success)
             {
-                state = state with { Epoch = state.Epoch + 1, CheckedLocations = state.CheckedLocations.Add(state.CurrentLocation) };
-                _checkedLocations[state.CurrentLocation.Region][state.CurrentLocation.Key.N] = true;
+                _checkedLocations.Add(state.CurrentLocation);
             }
+        }
+
+        if (state.LocationCheckAttemptsThisStep > 0)
+        {
+            state = state with { LocationCheckAttemptsThisStep = 0 };
         }
 
         return state;
@@ -54,7 +58,7 @@ public sealed class Player
         // - "go mode"
         // - requests / hints from other players
         LocationDefinitionModel result = state.TargetLocation;
-        if (state.CurrentLocation == result && !_checkedLocations[result.Region][result.Key.N])
+        if (state.CurrentLocation == result && !_checkedLocations.Contains(result))
         {
             // TODO: this seems *somewhat* durable, but we will stil need to account for "go mode"
             // once that concept comes back in this.
@@ -67,19 +71,15 @@ public sealed class Player
         int bestDistanceSoFar = GameDefinitions.Instance.FloydWarshall.GetDistance(state.CurrentLocation, result);
         while (regionsToCheck.TryDequeue(out RegionDefinitionModel? region))
         {
-            BitArray checkedInThisRegion = _checkedLocations[region];
-            if (!checkedInThisRegion.HasAllSet())
+            foreach (LocationDefinitionModel candidate in region.Locations)
             {
-                foreach (LocationDefinitionModel candidate in region.Locations)
+                if (!_checkedLocations.Contains(candidate) && candidate.Requirement.StaticSatisfied(state))
                 {
-                    if (!checkedInThisRegion[candidate.Key.N] && candidate.Requirement.StaticSatisfied(state))
+                    int distance = GameDefinitions.Instance.FloydWarshall.GetDistance(state.CurrentLocation, candidate);
+                    if (distance < bestDistanceSoFar)
                     {
-                        int distance = GameDefinitions.Instance.FloydWarshall.GetDistance(state.CurrentLocation, candidate);
-                        if (distance < bestDistanceSoFar)
-                        {
-                            result = candidate;
-                            bestDistanceSoFar = distance;
-                        }
+                        result = candidate;
+                        bestDistanceSoFar = distance;
                     }
                 }
             }
