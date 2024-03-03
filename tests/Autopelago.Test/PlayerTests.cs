@@ -44,8 +44,9 @@ public sealed class PlayerTests
         Assert.Empty(state.CheckedLocations);
         Assert.Equal(prngState, state.PrngState);
 
-        // the next attempt should succeed, despite still rolling no higher than a 12, because it's
-        // our *first* attempt of this step.
+        // the next attempt should succeed, despite only rolling 1 higher than the first roll of the
+        // previous step (and a few points lower than the subsequent rolls of that step), because of
+        // the cumulative penalty that gets applied to attempts after the first.
         _ = Prng.NextD20(ref prngState);
         _ = Prng.NextD20(ref prngState);
 
