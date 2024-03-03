@@ -288,6 +288,8 @@ public sealed record RegionDefinitionsModel
 
     public required FrozenDictionary<string, FillerRegionDefinitionModel> FillerRegions { get; init; }
 
+    public required FloydWarshall FloydWarshall { get; init; }
+
     public static RegionDefinitionsModel DeserializeFrom(YamlMappingNode map, ItemDefinitionsModel items)
     {
         Dictionary<string, RegionDefinitionModel> allRegions = [];
@@ -313,6 +315,7 @@ public sealed record RegionDefinitionsModel
         return new()
         {
             AllRegions = allRegions.ToFrozenDictionary(),
+            FloydWarshall = FloydWarshall.Compute(allRegions.Values),
             LandmarkRegions = landmarkRegions.ToFrozenDictionary(),
             FillerRegions = fillerRegions.ToFrozenDictionary(),
         };
