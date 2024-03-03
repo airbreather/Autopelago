@@ -1,5 +1,3 @@
-using System.Collections.Concurrent;
-
 using Xunit.Abstractions;
 
 namespace Autopelago;
@@ -7,16 +5,23 @@ namespace Autopelago;
 public sealed class PlayerTests
 {
     private delegate TResult SpanFunc<TSource, TResult>(ReadOnlySpan<TSource> vals);
-
     private static readonly ItemDefinitionModel s_normalRat = GameDefinitions.Instance.Items.NormalRat;
 
     private static readonly LocationDefinitionModel s_startLocation = GameDefinitions.Instance.StartLocation;
 
     private static readonly RegionDefinitionModel s_startRegion = s_startLocation.Region;
 
+    private static readonly LocationDefinitionModel s_lastLocationBeforeBasketball = GameDefinitions.Instance.Regions.AllRegions["menu"].Locations[^1];
+
     private static readonly LocationDefinitionModel s_basketball = GameDefinitions.Instance.LocationsByKey[LocationKey.For("basketball")];
 
     private static readonly RegionDefinitionModel s_beforeMinotaur = GameDefinitions.Instance.Regions.AllRegions["before_minotaur"];
+
+    private static readonly RegionDefinitionModel s_beforePrawnStars = GameDefinitions.Instance.Regions.AllRegions["before_prawn_stars"];
+
+    private static readonly ItemDefinitionModel s_redMatadorCape = GameDefinitions.Instance.Items.ProgressionItems["red_matador_cape"];
+
+    private static readonly ItemDefinitionModel s_premiumCanOfPrawnFood = GameDefinitions.Instance.Items.ProgressionItems["premium_can_of_prawn_food"];
 
     private readonly ITestOutputHelper _output;
 
@@ -28,7 +33,6 @@ public sealed class PlayerTests
     [Fact]
     public void FirstAttemptsShouldMakeSense()
     {
-        // used a seed whose first few rolls happen to be right on the pass/fail thresholds.
         ulong seed = EnsureSeedProducesInitialD20Sequence(12999128, [9, 14, 19, 10, 14]);
         Prng.State prngState = Prng.State.Start(seed);
         Game.State state = Game.State.Start(prngState);
@@ -52,7 +56,7 @@ public sealed class PlayerTests
 
         state = player.Advance(state);
         Assert.Equal(s_startLocation, state.CheckedLocations.FirstOrDefault());
-        Assert.Equal(GameDefinitions.Instance.LocationsByKey[s_startLocation.Key with { N = s_startLocation.Key.N + 1 }], state.TargetLocation);
+        Assert.Equal(s_startRegion.Locations[1], state.TargetLocation);
 
         // because they succeeded on their first attempt, they have just enough actions to reach and
         // then make a feeble attempt at the next location on the route
@@ -90,23 +94,28 @@ public sealed class PlayerTests
         }
     }
 
-    [Fact]
-    public void ShouldHeadFurtherAfterCompletingBasketball()
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void ShouldHeadFurtherAfterCompletingBasketball(bool minotaur)
     {
-        Game.State state = Game.State.Start();
+        ulong seed = EnsureSeedProducesInitialD20Sequence(2449080649, [20, 20, 20, 20, 20, 20, 20, 20]);
+
+        Game.State state = Game.State.Start(seed);
         state = state with
         {
-            ReceivedItems = [.. Enumerable.Repeat(s_normalRat, 5)],
-            CheckedLocations = [.. s_startRegion.Locations, s_basketball],
-            CurrentLocation = s_basketball,
-            TargetLocation = s_beforeMinotaur.Locations[0],
+            ReceivedItems = [.. Enumerable.Repeat(s_normalRat, 5), minotaur ? s_redMatadorCape : s_premiumCanOfPrawnFood],
+            CheckedLocations = [.. s_startRegion.Locations.Except([s_lastLocationBeforeBasketball])],
+            CurrentLocation = s_lastLocationBeforeBasketball,
+            TargetLocation = s_lastLocationBeforeBasketball,
         };
 
         Player player = new();
 
         state = player.Advance(state);
 
-        Assert.Equal(s_beforeMinotaur, state.CurrentLocation.Region);
+        Assert.Equal(s_basketball, state.CurrentLocation);
+        Assert.Equal((minotaur ? s_beforeMinotaur : s_beforePrawnStars).Locations[0], state.TargetLocation);
     }
 
     private static ulong EnsureSeedProducesInitialD20Sequence(ulong seed, ReadOnlySpan<int> exactVals)
@@ -118,6 +127,11 @@ public sealed class PlayerTests
     private static ReadOnlySpan<int> Rolls(ulong searchSeed, Span<int> rolls)
     {
         Prng.State state = Prng.State.Start(searchSeed);
+        return Rolls(ref state, rolls);
+    }
+
+    private static ReadOnlySpan<int> Rolls(scoped ref Prng.State state, Span<int> rolls)
+    {
         for (int i = 0; i < rolls.Length; i++)
         {
             rolls[i] = Prng.NextD20(ref state);
@@ -128,32 +142,61 @@ public sealed class PlayerTests
 
     private ulong SearchForPrngSeed(int cnt, SpanFunc<int, bool> isMatch)
     {
-        ulong? seed = null;
-        Parallel.ForEach(Partitioner.Create(0, 2_000_000_000, 10_000), (part, state) =>
+        // seed 2449080649: eight natural 20s in a row.
+        SeedSearch box = new()
         {
-            if (state.ShouldExitCurrentIteration)
-            {
-                return;
-            }
-
-            Span<int> rolls = stackalloc int[cnt];
-            for (int i = part.Item1; i < part.Item2; i++)
-            {
-                if (isMatch(Rolls((ulong)i, rolls)))
-                {
-                    seed = (ulong)i;
-                    state.Stop();
-                    break;
-                }
-            }
-        });
-
-        if (seed is not ulong result)
+            Count = cnt,
+            IsMatch = isMatch,
+        };
+        Thread[] searchThreads = new Thread[Environment.ProcessorCount];
+        foreach (ref Thread th in searchThreads.AsSpan())
         {
-            throw new InvalidOperationException("The match function was so specific that it rejected all of the 2 billion random seeds that we tried. Try being a little bit more lenient, perhaps?");
+            th = new(Search) { IsBackground = true };
+            th.Start(box);
         }
 
+        foreach (Thread th in searchThreads)
+        {
+            th.Join();
+        }
+
+        ulong result = box.Seed!.Value;
         _output.WriteLine($"ulong seed = {nameof(EnsureSeedProducesInitialD20Sequence)}({result}, [{string.Join(", ", Rolls(result, stackalloc int[cnt]).ToArray())}]);");
         return result;
+        static void Search(object? obj)
+        {
+            SeedSearch search = (SeedSearch)obj!;
+            Span<int> rolls = stackalloc int[search.Count];
+            while (search.Seed is null)
+            {
+                for ((ulong i, ulong end) = search.NextRange(); i < end; i++)
+                {
+                    if (search.IsMatch(Rolls(i, rolls)))
+                    {
+                        search.Seed = i;
+                        return;
+                    }
+                }
+            }
+        }
+    }
+
+    private sealed record SeedSearch
+    {
+        private const ulong RangeSize = 10_000;
+
+        private ulong _nextRangeStart;
+
+        public required SpanFunc<int, bool> IsMatch { get; init; }
+
+        public required int Count { get; init; }
+
+        public ulong? Seed { get; set; }
+
+        public (ulong Start, ulong End) NextRange()
+        {
+            ulong end = Interlocked.Add(ref _nextRangeStart, RangeSize);
+            return (end - RangeSize, end);
+        }
     }
 }

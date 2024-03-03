@@ -69,12 +69,24 @@ public static class Prng
         return n / (double)ulong.MaxValue;
     }
 
+    public static State ShortJumped(State s)
+    {
+        ShortJump(ref s);
+        return s;
+    }
+
     // This is the jump function for the generator. It is equivalent
     // to 2^128 calls to next(); it can be used to generate 2^128
     // non-overlapping subsequences for parallel computations.
     public static void ShortJump(ref State s)
     {
         Jump(ref s, [0x180ec6d33cfd0aba, 0xd5a61266f0c9392c, 0xa9582618e03fc9aa, 0x39abdc4529b1661c]);
+    }
+
+    public static State LongJumped(State s)
+    {
+        LongJump(ref s);
+        return s;
     }
 
     // This is the long-jump function for the generator. It is equivalent to

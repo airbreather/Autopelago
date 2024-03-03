@@ -24,6 +24,10 @@ public sealed record GameDefinitions
 
     public required RegionDefinitionsModel Regions { get; init; }
 
+    public RegionDefinitionModel StartRegion => Regions.AllRegions["menu"];
+
+    public RegionDefinitionModel GoalRegion => Regions.AllRegions["goal"];
+
     public required LocationDefinitionModel StartLocation { get; init; }
 
     public required FrozenDictionary<string, ItemDefinitionModel> ItemsByName { get; init; }
@@ -292,8 +296,6 @@ public sealed record RegionDefinitionsModel
     public required FrozenDictionary<string, LandmarkRegionDefinitionModel> LandmarkRegions { get; init; }
 
     public required FrozenDictionary<string, FillerRegionDefinitionModel> FillerRegions { get; init; }
-
-    public RegionDefinitionModel StartRegion => AllRegions["menu"];
 
     public static RegionDefinitionsModel DeserializeFrom(YamlMappingNode map, ItemDefinitionsModel items)
     {

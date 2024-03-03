@@ -423,7 +423,7 @@ regions:
         - ability_check_with_dc: 12
       exits:
         - before_minotaur
-        - prawn_stars
+        - before_prawn_stars
 
   fillers:
     before_captured_goldfish:

@@ -1,17 +1,27 @@
+using System.Collections;
+using System.Collections.Frozen;
+using System.Numerics;
 using System.Runtime.InteropServices;
 
 namespace Autopelago;
 
 public sealed class Player
 {
-    private readonly HashSet<LocationDefinitionModel> _checkedLocations = [];
+    private readonly FrozenDictionary<string, BitArray> _checkedLocations = GameDefinitions.Instance.Regions.AllRegions.ToFrozenDictionary(kvp => kvp.Key, kvp => new BitArray(kvp.Value.Locations.Length));
 
     private readonly Dictionary<ItemDefinitionModel, int> _receivedItemsMap = [];
 
     public Game.State Advance(Game.State state)
     {
-        _checkedLocations.Clear();
-        _checkedLocations.UnionWith(state.CheckedLocations);
+        foreach (BitArray isChecked in _checkedLocations.Values)
+        {
+            isChecked.SetAll(false);
+        }
+
+        foreach (LocationDefinitionModel checkedLocation in state.CheckedLocations)
+        {
+            MarkLocationChecked(checkedLocation.Key);
+        }
 
         _receivedItemsMap.Clear();
         foreach (ItemDefinitionModel receivedItem in state.ReceivedItems)
@@ -37,7 +47,7 @@ public sealed class Player
                 continue;
             }
 
-            if (_checkedLocations.Contains(state.CurrentLocation))
+            if (LocationIsChecked(state.CurrentLocation.Key))
             {
                 // nowhere to move, nothing to do where we are.
                 break;
@@ -47,7 +57,7 @@ public sealed class Player
             state = state with { LocationCheckAttemptsThisStep = state.LocationCheckAttemptsThisStep + 1 };
             if (success)
             {
-                _checkedLocations.Add(state.CurrentLocation);
+                MarkLocationChecked(state.CurrentLocation.Key);
 
                 // pointing to the next target location on the current route does not take an action
                 state = state with { TargetLocation = BestTargetLocation(state) };
@@ -62,17 +72,35 @@ public sealed class Player
         return state;
     }
 
+    private static ulong StepsToBK(Game.State state)
+    {
+        Player player = new();
+        ulong orig = state.Epoch;
+        while (true)
+        {
+            ulong prev = state.Epoch;
+            state = player.Advance(state);
+            if (state.Epoch == prev)
+            {
+                return prev - orig;
+            }
+        }
+    }
+
+    private bool LocationIsChecked(LocationKey key) => _checkedLocations[key.RegionKey][key.N];
+
+    private void MarkLocationChecked(LocationKey key) => _checkedLocations[key.RegionKey][key.N] = true;
+
     private LocationDefinitionModel BestTargetLocation(Game.State state)
     {
         // TODO: *much* of this will need a revamp, taking into account things like:
         // - we want to be "stupid" by default until the player collects a "make us smarter" rat.
         // - "go mode"
         // - requests / hints from other players
-        LocationDefinitionModel result = state.TargetLocation;
-        int bestDistanceSoFar = state.CurrentLocation.DistanceTo(result);
-        if (state.CurrentLocation == result)
+        int bestDistanceSoFar = state.CurrentLocation.DistanceTo(state.TargetLocation);
+        if (state.CurrentLocation == state.TargetLocation)
         {
-            if (_checkedLocations.Contains(result))
+            if (LocationIsChecked(state.TargetLocation.Key))
             {
                 bestDistanceSoFar = int.MaxValue;
             }
@@ -80,24 +108,34 @@ public sealed class Player
             {
                 // TODO: this seems *somewhat* durable, but we will stil need to account for "go mode"
                 // once that concept comes back in this.
-                return result;
+                return state.TargetLocation;
             }
         }
 
+        HashSet<LocationDefinitionModel> candidates = [state.TargetLocation];
         HashSet<RegionDefinitionModel> enqueued = [];
         Queue<RegionDefinitionModel> regionsToCheck = new();
-        Enqueue(GameDefinitions.Instance.Regions.StartRegion);
+        Enqueue(GameDefinitions.Instance.StartRegion);
         while (regionsToCheck.TryDequeue(out RegionDefinitionModel? region))
         {
-            foreach (LocationDefinitionModel candidate in region.Locations)
+            BitArray regionCheckedLocations = _checkedLocations[region.Key];
+            if (!regionCheckedLocations.HasAllSet())
             {
-                if (!_checkedLocations.Contains(candidate) && candidate.Requirement.StaticSatisfied(state))
+                foreach (LocationDefinitionModel candidate in region.Locations)
                 {
-                    int distance = state.CurrentLocation.DistanceTo(candidate);
-                    if (distance < bestDistanceSoFar)
+                    if (!regionCheckedLocations[candidate.Key.N] && candidate.Requirement.StaticSatisfied(state))
                     {
-                        result = candidate;
-                        bestDistanceSoFar = distance;
+                        int distance = state.CurrentLocation.DistanceTo(candidate);
+                        if (distance <= bestDistanceSoFar)
+                        {
+                            if (distance < bestDistanceSoFar)
+                            {
+                                candidates.Clear();
+                                bestDistanceSoFar = distance;
+                            }
+
+                            candidates.Add(candidate);
+                        }
                     }
                 }
             }
@@ -111,7 +149,25 @@ public sealed class Player
             }
         }
 
-        return result;
+        if (candidates.Count == 1)
+        {
+            return candidates.First();
+        }
+
+        // distinguish by whichever leads to the end of everything that we can do most efficiently.
+        return (
+            from candidate in candidates.AsParallel()
+            let candidateState = state with { CurrentLocation = state.CurrentLocation.NextLocationTowards(candidate), TargetLocation = candidate }
+            from i in Enumerable.Range(0, Environment.ProcessorCount)
+            let iterState = candidateState with { PrngState = Prng.ShortJumped(candidateState.PrngState) }
+            group StepsToBK(iterState) by candidate into grp
+            let stepCount = grp.Aggregate((x, y) => x + y)
+            select new
+            {
+                TargetLocation = grp.Key,
+                StepCount = stepCount,
+            }
+        ).MinBy(x => x.StepCount)!.TargetLocation;
 
         void Enqueue(RegionDefinitionModel region)
         {
