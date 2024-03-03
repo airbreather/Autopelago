@@ -290,6 +290,8 @@ public sealed record RegionDefinitionsModel
 
     public required FloydWarshall FloydWarshall { get; init; }
 
+    public RegionDefinitionModel StartRegion => AllRegions["menu"];
+
     public static RegionDefinitionsModel DeserializeFrom(YamlMappingNode map, ItemDefinitionsModel items)
     {
         Dictionary<string, RegionDefinitionModel> allRegions = new()
@@ -304,7 +306,7 @@ public sealed record RegionDefinitionsModel
                     {
                         Key = LocationKey.Create("goal"),
                         Name = items.Goal.Name,
-                        Requires = GameRequirement.AlwaysSatisfied,
+                        Requirement = GameRequirement.AlwaysSatisfied,
                         UnrandomizedItem = items.Goal,
                     },
                 ],
@@ -343,19 +345,41 @@ public abstract record RegionDefinitionModel
 {
     public required string Key { get; init; }
 
-    public required ImmutableArray<string> Exits { get; init; }
+    public required ImmutableArray<RegionExitDefinitionModel> Exits { get; init; }
 
     public required ImmutableArray<LocationDefinitionModel> Locations { get; init; }
+}
+
+public sealed record RegionExitDefinitionModel
+{
+    public required string RegionKey { get; init; }
+
+    public required AllChildrenGameRequirement Requirement { get; init; }
+
+    public static RegionExitDefinitionModel DeserializeFrom(YamlNode node)
+    {
+        return DeserializeFrom(node, GameRequirement.AlwaysSatisfied);
+    }
+
+    public static RegionExitDefinitionModel DeserializeFrom(YamlNode node, AllChildrenGameRequirement requirement)
+    {
+        return new()
+        {
+            RegionKey = ((YamlScalarNode)node).Value!,
+            Requirement = requirement,
+        };
+    }
 }
 
 public sealed record LandmarkRegionDefinitionModel : RegionDefinitionModel
 {
     public static LandmarkRegionDefinitionModel DeserializeFrom(string key, YamlMappingNode map, ItemDefinitionsModel items)
     {
+        AllChildrenGameRequirement requirement = AllChildrenGameRequirement.DeserializeFrom(map["requires"]);
         return new()
         {
             Key = key,
-            Exits = [.. ((YamlSequenceNode)map["exits"]).Select(n => ((YamlScalarNode)n).Value!)],
+            Exits = [.. ((YamlSequenceNode)map["exits"]).Select(RegionExitDefinitionModel.DeserializeFrom)],
             Locations =
             [
                 new()
@@ -363,7 +387,7 @@ public sealed record LandmarkRegionDefinitionModel : RegionDefinitionModel
                     Key = LocationKey.Create(key),
                     Name = ((YamlScalarNode)map["name"]).Value!,
                     UnrandomizedItem = items.ProgressionItems[((YamlScalarNode)map["unrandomized_item"]).Value!],
-                    Requires = AllChildrenGameRequirement.DeserializeFrom(map["requires"]),
+                    Requirement = requirement,
                 },
             ],
         };
@@ -417,12 +441,12 @@ public sealed record FillerRegionDefinitionModel : RegionDefinitionModel
         return new()
         {
             Key = key,
-            Exits = [.. ((YamlSequenceNode)map["exits"]).Select(n => ((YamlScalarNode)n).Value!)],
+            Exits = [.. ((YamlSequenceNode)map["exits"]).Select(RegionExitDefinitionModel.DeserializeFrom)],
             Locations = [.. unrandomizedItems.Select((item, n) => new LocationDefinitionModel()
             {
                 Key = LocationKey.Create(key, n),
                 Name = nameTemplate.Replace("{n}", $"{n + 1}"),
-                Requires = eachRequires,
+                Requirement = eachRequires,
                 UnrandomizedItem = item,
             })],
         };
@@ -478,7 +502,7 @@ public sealed record LocationDefinitionModel
 
     public required string Name { get; init; }
 
-    public required AllChildrenGameRequirement Requires { get; init; }
+    public required AllChildrenGameRequirement Requirement { get; init; }
 
     public required ItemDefinitionModel UnrandomizedItem { get; init; }
 

@@ -59,9 +59,9 @@ public sealed class FloydWarshall
             }
 
             int xs = locIndex[region.Locations[^1]];
-            foreach (string exitKey in region.Exits)
+            foreach (RegionExitDefinitionModel exitSpec in region.Exits)
             {
-                RegionDefinitionModel exit = regionMap[exitKey];
+                RegionDefinitionModel exit = regionMap[exitSpec.RegionKey];
                 int et = locIndex[exit.Locations[0]];
                 ref int d = ref dist[xs][et];
                 if (d > 1)
