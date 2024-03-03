@@ -149,7 +149,7 @@ public sealed class Game
         {
             for (int i = args.Index; i < _state.ReceivedItems.Count; i++)
             {
-                if (args.Items[i] != _state.ReceivedItems[i - args.Index])
+                if (args.Items[i - args.Index] != _state.ReceivedItems[i])
                 {
                     throw new NotImplementedException("Need to resync.");
                 }
