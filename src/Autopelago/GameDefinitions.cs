@@ -292,7 +292,24 @@ public sealed record RegionDefinitionsModel
 
     public static RegionDefinitionsModel DeserializeFrom(YamlMappingNode map, ItemDefinitionsModel items)
     {
-        Dictionary<string, RegionDefinitionModel> allRegions = [];
+        Dictionary<string, RegionDefinitionModel> allRegions = new()
+        {
+            ["goal"] = new LandmarkRegionDefinitionModel
+            {
+                Key = "goal",
+                Exits = [],
+                Locations =
+                [
+                    new()
+                    {
+                        Key = LocationKey.Create("goal"),
+                        Name = items.Goal.Name,
+                        Requires = GameRequirement.AlwaysSatisfied,
+                        UnrandomizedItem = items.Goal,
+                    },
+                ],
+            },
+        };
 
         Dictionary<string, LandmarkRegionDefinitionModel> landmarkRegions = [];
         foreach ((YamlNode keyNode, YamlNode valueNode) in (YamlMappingNode)map["landmarks"])
@@ -508,7 +525,7 @@ public sealed record AllChildrenGameRequirement : GameRequirement
 
     public static new AllChildrenGameRequirement DeserializeFrom(YamlNode node)
     {
-        return new AllChildrenGameRequirement { Children = [.. ((YamlSequenceNode)node).Select(DeserializeFrom)] };
+        return new AllChildrenGameRequirement { Children = [.. ((YamlSequenceNode)node).Select(GameRequirement.DeserializeFrom)] };
     }
 
     public override bool StaticSatisfied(Game.State state)
@@ -544,7 +561,7 @@ public sealed record AnyChildGameRequirement : GameRequirement
 
     public static new AnyChildGameRequirement DeserializeFrom(YamlNode node)
     {
-        return new AnyChildGameRequirement { Children = [.. ((YamlSequenceNode)node).Select(DeserializeFrom)] };
+        return new AnyChildGameRequirement { Children = [.. ((YamlSequenceNode)node).Select(GameRequirement.DeserializeFrom)] };
     }
 
     public override bool StaticSatisfied(Game.State state)
