@@ -7,8 +7,6 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Autopelago", "src/Autopelag
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "ArchipelagoClientDotNet", "src/ArchipelagoClientDotNet/ArchipelagoClientDotNet.csproj", "{16A9858E-6C1B-4523-B375-FFE177F54C97}"
 EndProject
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "FixupSimpleProgressionSvg", "tools/FixupSimpleProgressionSvg/FixupSimpleProgressionSvg.csproj", "{6E133E77-509C-47CD-8B6C-79A591BAAF4A}"
-EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "tests", "tests", "{5A51FB37-5CB2-4F96-8573-660B36A6C445}"
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Autopelago.Test", "tests/Autopelago.Test/Autopelago.Test.csproj", "{F4894200-DE03-441C-A28C-880F8C97EF15}"
@@ -30,10 +28,6 @@ Global
 		{16A9858E-6C1B-4523-B375-FFE177F54C97}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{16A9858E-6C1B-4523-B375-FFE177F54C97}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{16A9858E-6C1B-4523-B375-FFE177F54C97}.Release|Any CPU.Build.0 = Release|Any CPU
-		{6E133E77-509C-47CD-8B6C-79A591BAAF4A}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
-		{6E133E77-509C-47CD-8B6C-79A591BAAF4A}.Debug|Any CPU.Build.0 = Debug|Any CPU
-		{6E133E77-509C-47CD-8B6C-79A591BAAF4A}.Release|Any CPU.ActiveCfg = Release|Any CPU
-		{6E133E77-509C-47CD-8B6C-79A591BAAF4A}.Release|Any CPU.Build.0 = Release|Any CPU
 		{F4894200-DE03-441C-A28C-880F8C97EF15}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
 		{F4894200-DE03-441C-A28C-880F8C97EF15}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{F4894200-DE03-441C-A28C-880F8C97EF15}.Release|Any CPU.ActiveCfg = Release|Any CPU
