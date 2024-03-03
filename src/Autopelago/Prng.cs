@@ -54,9 +54,19 @@ public static class Prng
         return result;
     }
 
+    public static int NextD20(ref State s)
+    {
+        return ((int)Math.Floor(NextDouble(ref s) * 20)) + 1;
+    }
+
     public static double NextDouble(ref State s)
     {
-        return Next(ref s) / (double)ulong.MaxValue;
+        ulong n;
+        do
+        {
+            n = Next(ref s);
+        } while (n == ulong.MaxValue);
+        return n / (double)ulong.MaxValue;
     }
 
     // This is the jump function for the generator. It is equivalent

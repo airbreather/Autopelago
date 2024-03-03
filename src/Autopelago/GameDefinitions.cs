@@ -512,12 +512,12 @@ public sealed record LocationDefinitionModel
 
     public bool TryCheck(ref Game.State state)
     {
-        if (!(Requirement.StaticSatisfied(state) && Requirement.DynamicSatisfied(state) is Game.State dynState))
+        if (!(Requirement.StaticSatisfied(state) && Requirement.DynamicSatisfied(ref state)))
         {
             return false;
         }
 
-        state = dynState with { CheckedLocations = dynState.CheckedLocations.Add(this) };
+        state = state with { CheckedLocations = state.CheckedLocations.Add(this) };
         return true;
     }
 }
@@ -531,9 +531,9 @@ public abstract record GameRequirement
         return true;
     }
 
-    public virtual Game.State? DynamicSatisfied(Game.State state)
+    public virtual bool DynamicSatisfied(ref Game.State state)
     {
-        return state;
+        return true;
     }
 
     public static GameRequirement DeserializeFrom(YamlNode node)
@@ -578,21 +578,29 @@ public sealed record AllChildrenGameRequirement : GameRequirement
         return true;
     }
 
-    public override Game.State? DynamicSatisfied(Game.State state)
+    public override bool DynamicSatisfied(ref Game.State state)
     {
         foreach (GameRequirement child in Children)
         {
-            if (child.DynamicSatisfied(state) is Game.State childState)
+            if (!child.DynamicSatisfied(ref state))
             {
-                state = childState;
-            }
-            else
-            {
-                return null;
+                return false;
             }
         }
 
-        return state;
+        return true;
+    }
+
+    public bool Equals(AllChildrenGameRequirement? other)
+    {
+        return
+            base.Equals(other) &&
+            Children.SequenceEqual(other.Children);
+    }
+
+    public override int GetHashCode()
+    {
+        return HashCode.Combine(Children.Length);
     }
 }
 
@@ -618,17 +626,29 @@ public sealed record AnyChildGameRequirement : GameRequirement
         return false;
     }
 
-    public override Game.State? DynamicSatisfied(Game.State state)
+    public override bool DynamicSatisfied(ref Game.State state)
     {
         foreach (GameRequirement child in Children)
         {
-            if (child.DynamicSatisfied(state) is Game.State childState)
+            if (child.DynamicSatisfied(ref state))
             {
-                return childState;
+                return true;
             }
         }
 
-        return null;
+        return false;
+    }
+
+    public bool Equals(AnyChildGameRequirement? other)
+    {
+        return
+            base.Equals(other) &&
+            Children.SequenceEqual(other.Children);
+    }
+
+    public override int GetHashCode()
+    {
+        return HashCode.Combine(Children.Length);
     }
 }
 
@@ -641,11 +661,9 @@ public sealed record AbilityCheckRequirement : GameRequirement
         return new AbilityCheckRequirement { DifficultyClass = int.Parse(((YamlScalarNode)node).Value!) };
     }
 
-    public override Game.State? DynamicSatisfied(Game.State state)
+    public override bool DynamicSatisfied(ref Game.State state)
     {
-        return Game.State.NextD20(ref state) + state.DiceModifier >= DifficultyClass
-            ? state
-            : null;
+        return Game.State.NextD20(ref state) + state.DiceModifier >= DifficultyClass;
     }
 }
 

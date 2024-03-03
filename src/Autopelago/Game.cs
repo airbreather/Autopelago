@@ -68,18 +68,8 @@ public sealed class Game
 
         public static int NextD20(ref State state)
         {
-            return ((int)Math.Floor(NextDouble(ref state) * 20)) + 1;
-        }
-
-        public static double NextDouble(ref State state)
-        {
             Prng.State s = state.PrngState;
-            double result;
-            do
-            {
-                result = Prng.NextDouble(ref s);
-            } while (result == 1); // it's unbelievably unlikely, but if I want to make this method perfect, then I will.
-
+            int result = Prng.NextD20(ref s);
             state = state with { PrngState = s };
             return result;
         }

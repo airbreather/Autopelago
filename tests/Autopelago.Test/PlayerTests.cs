@@ -1,3 +1,5 @@
+using Xunit.Sdk;
+
 namespace Autopelago;
 
 public sealed class PlayerTests
@@ -6,13 +8,47 @@ public sealed class PlayerTests
     public void FirstAttemptsShouldMakeSense()
     {
         // used a fixed seed and a PRNG whose outputs are completely defined.
-        Game.State state = Game.State.Start(seed: 1);
+        const ulong Seed = 13;
+        Prng.State prngState = Prng.State.Start(Seed);
+        ReadOnlySpan<int> expectedRolls = [ 2, 2, 12, 12, 4, 5 ];
+        for (int i = 0; i < expectedRolls.Length; i++)
+        {
+            if (expectedRolls[i] != Prng.NextD20(ref prngState))
+            {
+                throw SkipException.ForSkip("PRNG behavior has changed. time to find a different seed.");
+            }
+        }
+
+        Game.State state = Game.State.Start(Seed);
+
+        // follow along with how this should work.
+        prngState = Prng.State.Start(Seed);
 
         Player player = new();
 
-        // we start on the first location, so we should roll like this:
-        bool firstSucceeds = Game.State.NextD20(ref state) >= 10;
+        // we're on the first location. we should fail three times and then yield.
+        _ = Prng.NextD20(ref prngState);
+        _ = Prng.NextD20(ref prngState);
+        _ = Prng.NextD20(ref prngState);
 
         state = player.Advance(state);
+        Assert.Empty(state.CheckedLocations);
+        Assert.Equal(prngState, state.PrngState);
+
+        // the next attempt should succeed, despite still rolling no higher than a 12, because it's
+        // our *first* attempt of this step.
+        _ = Prng.NextD20(ref prngState);
+        _ = Prng.NextD20(ref prngState);
+
+        state = player.Advance(state);
+        LocationDefinitionModel startLocation = GameDefinitions.Instance.StartLocation;
+        Assert.Equal(startLocation, state.CheckedLocations.FirstOrDefault());
+        Assert.Equal(GameDefinitions.Instance.LocationsByKey[startLocation.Key with { N = startLocation.Key.N + 1 }], state.TargetLocation);
+
+        // because they succeeded on their first attempt, they have just enough actions to reach and
+        // then make a feeble attempt at the next location on the route
+        Assert.Equal(state.TargetLocation, state.CurrentLocation);
+        Assert.Single(state.CheckedLocations);
+        Assert.Equal(prngState, state.PrngState);
     }
 }

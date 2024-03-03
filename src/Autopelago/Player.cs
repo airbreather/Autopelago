@@ -42,6 +42,9 @@ public sealed class Player
             if (success)
             {
                 _checkedLocations.Add(state.CurrentLocation);
+
+                // pointing to the next target location on the current route does not take an action
+                state = state with { TargetLocation = BestTargetLocation(state) };
             }
         }
 
@@ -60,17 +63,24 @@ public sealed class Player
         // - "go mode"
         // - requests / hints from other players
         LocationDefinitionModel result = state.TargetLocation;
-        if (state.CurrentLocation == result && !_checkedLocations.Contains(result))
+        int bestDistanceSoFar = GameDefinitions.Instance.FloydWarshall.GetDistance(state.CurrentLocation, result);
+        if (state.CurrentLocation == result)
         {
-            // TODO: this seems *somewhat* durable, but we will stil need to account for "go mode"
-            // once that concept comes back in this.
-            return result;
+            if (_checkedLocations.Contains(result))
+            {
+                bestDistanceSoFar = int.MaxValue;
+            }
+            else
+            {
+                // TODO: this seems *somewhat* durable, but we will stil need to account for "go mode"
+                // once that concept comes back in this.
+                return result;
+            }
         }
 
         HashSet<RegionDefinitionModel> enqueued = [];
         Queue<RegionDefinitionModel> regionsToCheck = new();
         Enqueue(GameDefinitions.Instance.Regions.StartRegion);
-        int bestDistanceSoFar = GameDefinitions.Instance.FloydWarshall.GetDistance(state.CurrentLocation, result);
         while (regionsToCheck.TryDequeue(out RegionDefinitionModel? region))
         {
             foreach (LocationDefinitionModel candidate in region.Locations)
