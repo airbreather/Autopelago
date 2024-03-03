@@ -3,6 +3,8 @@ using System.Collections.Immutable;
 
 using ArchipelagoClientDotNet;
 
+namespace Autopelago;
+
 public sealed class RealAutopelagoClient : IAutopelagoClient
 {
     private readonly IArchipelagoClient _client;

@@ -10,6 +10,8 @@ using ArchipelagoClientDotNet;
 using YamlDotNet.RepresentationModel;
 using YamlDotNet.Serialization;
 
+namespace Autopelago;
+
 public sealed record GameDefinitions
 {
     public static readonly GameDefinitions Instance = LoadFromEmbeddedResource();

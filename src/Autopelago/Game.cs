@@ -3,6 +3,8 @@ using System.Diagnostics.CodeAnalysis;
 
 using ArchipelagoClientDotNet;
 
+namespace Autopelago;
+
 public sealed record NextStepStartedEventArgs
 {
     public required Game.State StateBeforeAdvance { get; init; }
@@ -13,7 +15,7 @@ public sealed class Game
 {
     public sealed record State
     {
-        public State()
+        private State()
         {
         }
 
@@ -48,6 +50,11 @@ public sealed class Game
 
         public static State Start(Random? random = null)
         {
+            return Start(unchecked((ulong)(random ?? Random.Shared).NextInt64()));
+        }
+
+        public static State Start(ulong seed)
+        {
             return new()
             {
                 CurrentLocation = GameDefinitions.Instance.StartLocation,
@@ -55,7 +62,7 @@ public sealed class Game
                 ReceivedItems = [],
                 CheckedLocations = [],
                 LocationCheckAttemptsThisStep = 0,
-                PrngState = Prng.State.Start(random),
+                PrngState = Prng.State.Start(seed),
             };
         }
 
@@ -90,6 +97,21 @@ public sealed class Game
                 PrngState = PrngState,
             };
         }
+
+        public bool Equals(State? other)
+        {
+            return
+                other is not null &&
+                Epoch == other.Epoch &&
+                PrngState == other.PrngState &&
+                CurrentLocation == other.CurrentLocation &&
+                TargetLocation == other.TargetLocation &&
+                LocationCheckAttemptsThisStep == other.LocationCheckAttemptsThisStep &&
+                ReceivedItems.SequenceEqual(other.ReceivedItems) &&
+                CheckedLocations.SequenceEqual(other.CheckedLocations);
+        }
+
+        public override int GetHashCode() => Epoch.GetHashCode();
 
         public sealed record Proxy
         {
@@ -135,12 +157,13 @@ public sealed class Game
 
     private GameStateStorage? _stateStorage;
 
-    private State _state = State.Start(new Random(123));
+    private State _state;
 
-    public Game(IAutopelagoClient client, TimeProvider timeProvider)
+    public Game(IAutopelagoClient client, TimeProvider timeProvider, Random? random = null)
     {
         _client = client;
         _timeProvider = timeProvider;
+        _state = State.Start(random);
     }
 
     public event AsyncEventHandler<NextStepStartedEventArgs> NextStepStarted

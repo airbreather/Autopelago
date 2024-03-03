@@ -1,3 +1,5 @@
+namespace Autopelago;
+
 public sealed class LocalGameStateStorage : GameStateStorage
 {
     public Game.State? State { get; set; }

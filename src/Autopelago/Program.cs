@@ -2,6 +2,8 @@
 
 using ArchipelagoClientDotNet;
 
+using Autopelago;
+
 using YamlDotNet.Serialization;
 using YamlDotNet.Serialization.NamingConventions;
 

@@ -2,6 +2,8 @@ using System.Text.Json;
 
 using ArchipelagoClientDotNet;
 
+namespace Autopelago;
+
 public sealed class FileGameStateStorage : GameStateStorage
 {
     private static readonly FileStreamOptions s_readOptions = new()

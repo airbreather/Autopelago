@@ -7,6 +7,8 @@ using System.Runtime.InteropServices;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 
+namespace Autopelago;
+
 public static class Prng
 {
     // retrieved with the following header from https://prng.di.unimi.it/xoshiro256plus.c
@@ -126,18 +128,17 @@ public static class Prng
 
     [InlineArray(4)]
     [JsonConverter(typeof(Converter))]
-    public struct State
+    public record struct State
     {
         private ulong _element0;
 
-        public static State Start(Random? random = null)
+        public static State Start(ulong x)
         {
             State state = default;
 
             // https://doi.org/10.1145/1276927.1276928 - apparently, initializing the state with a
-            // similar generator can be problematic. it's very likely that this instance violates
+            // similar generator can be problematic. it's very likely that Random instances violate
             // that rule, so use SplitMix64 (at the recommendation of the xoshiro256+ authors).
-            ulong x = (ulong)(random ?? Random.Shared).NextInt64();
             state[0] = NextSplitMix64(ref x);
             state[1] = NextSplitMix64(ref x);
             state[2] = NextSplitMix64(ref x);
@@ -146,6 +147,18 @@ public static class Prng
         }
 
         public readonly bool IsValid => !((ReadOnlySpan<ulong>)this).SequenceEqual([0ul, 0ul, 0ul, 0ul]);
+
+        public readonly bool Equals(State other)
+        {
+            return ((ReadOnlySpan<ulong>)this).SequenceEqual(other);
+        }
+
+        public override readonly int GetHashCode()
+        {
+            HashCode h = default;
+            h.AddBytes(MemoryMarshal.AsBytes((ReadOnlySpan<ulong>)this));
+            return h.ToHashCode();
+        }
 
         public sealed class Converter : JsonConverter<State>
         {

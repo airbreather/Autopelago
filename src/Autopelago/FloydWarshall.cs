@@ -2,6 +2,8 @@ using System.Collections.Frozen;
 using System.Collections.Immutable;
 using System.Runtime.InteropServices;
 
+namespace Autopelago;
+
 public sealed class FloydWarshall
 {
     private readonly ImmutableArray<LocationDefinitionModel> _locs;

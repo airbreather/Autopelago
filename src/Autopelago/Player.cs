@@ -1,5 +1,7 @@
 using System.Runtime.InteropServices;
 
+namespace Autopelago;
+
 public sealed class Player
 {
     private readonly HashSet<LocationDefinitionModel> _checkedLocations = [];

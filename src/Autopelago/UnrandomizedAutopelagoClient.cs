@@ -1,5 +1,7 @@
 using ArchipelagoClientDotNet;
 
+namespace Autopelago;
+
 public sealed class UnrandomizedAutopelagoClient : IAutopelagoClient
 {
     private readonly List<ItemDefinitionModel> _allReceivedItems = [];

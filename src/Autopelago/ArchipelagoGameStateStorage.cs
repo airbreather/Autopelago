@@ -2,6 +2,8 @@ using System.Text.Json;
 
 using ArchipelagoClientDotNet;
 
+namespace Autopelago;
+
 public sealed class ArchipelagoGameStateStorage : GameStateStorage
 {
     private readonly IArchipelagoClient _client;

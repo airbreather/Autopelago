@@ -1,5 +1,7 @@
 using System.Collections.ObjectModel;
 
+namespace Autopelago;
+
 public sealed record AutopelagoSettingsModel
 {
     public required string Server { get; init; }

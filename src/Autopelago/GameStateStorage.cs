@@ -3,6 +3,8 @@ using System.Text.Json.Serialization;
 
 using ArchipelagoClientDotNet;
 
+namespace Autopelago;
+
 [JsonSourceGenerationOptions(
     PropertyNamingPolicy = JsonKnownNamingPolicy.SnakeCaseLower,
     UseStringEnumConverter = true)]

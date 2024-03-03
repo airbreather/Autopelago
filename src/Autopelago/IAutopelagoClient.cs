@@ -2,6 +2,8 @@ using System.Collections.Immutable;
 
 using ArchipelagoClientDotNet;
 
+namespace Autopelago;
+
 public sealed record ReceivedItemsEventArgs
 {
     public required int Index { get; init; }
