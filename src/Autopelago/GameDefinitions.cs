@@ -22,11 +22,13 @@ public sealed record GameDefinitions
 
     public required RegionDefinitionsModel Regions { get; init; }
 
+    public required LocationDefinitionModel StartLocation { get; init; }
+
     public required FrozenDictionary<string, ItemDefinitionModel> ItemsByName { get; init; }
 
-    public required FrozenDictionary<string, LocationDefinitionModel> LocationsByName { get; init; }
+    public required FrozenDictionary<LocationKey, LocationDefinitionModel> LocationsByKey { get; init; }
 
-    public required FrozenDictionary<string, LocationDefinitionModel> LocationsByKey { get; init; }
+    public required FrozenDictionary<string, LocationDefinitionModel> LocationsByName { get; init; }
 
     private static GameDefinitions LoadFromEmbeddedResource()
     {
@@ -39,21 +41,19 @@ public sealed record GameDefinitions
 
         ItemDefinitionsModel items = ItemDefinitionsModel.DeserializeFrom(itemsMap, regionsMap);
         RegionDefinitionsModel regions = RegionDefinitionsModel.DeserializeFrom(regionsMap, items);
+        FrozenDictionary<LocationKey, LocationDefinitionModel> locationsByKey = (
+            from region in regions.AllRegions.Values
+            from location in region.Locations
+            select KeyValuePair.Create(location.Key, location)
+        ).ToFrozenDictionary();
         return new()
         {
             Items = items,
             Regions = regions,
+            StartLocation = locationsByKey[LocationKey.Create("menu", 0)],
             ItemsByName = items.AllItems.ToFrozenDictionary(i => i.Name),
-            LocationsByName = (
-                from region in regions.AllRegions.Values
-                from location in region.Locations
-                select KeyValuePair.Create(location.Name, location)
-            ).ToFrozenDictionary(),
-            LocationsByKey = (
-                from region in regions.AllRegions.Values
-                from location in region.Locations
-                select KeyValuePair.Create(location.Key, location)
-            ).ToFrozenDictionary(),
+            LocationsByKey = locationsByKey.Values.ToFrozenDictionary(location => location.Key),
+            LocationsByName = locationsByKey.Values.ToFrozenDictionary(location => location.Name),
         };
     }
 }
@@ -321,6 +321,8 @@ public sealed record RegionDefinitionsModel
 
 public abstract record RegionDefinitionModel
 {
+    public required string Key { get; init; }
+
     public required ImmutableArray<string> Exits { get; init; }
 
     public required ImmutableArray<LocationDefinitionModel> Locations { get; init; }
@@ -332,15 +334,16 @@ public sealed record LandmarkRegionDefinitionModel : RegionDefinitionModel
     {
         return new()
         {
+            Key = key,
             Exits = [.. ((YamlSequenceNode)map["exits"]).Select(n => ((YamlScalarNode)n).Value!)],
             Locations =
             [
                 new()
                 {
-                    Key = key,
+                    Key = LocationKey.Create(key),
                     Name = ((YamlScalarNode)map["name"]).Value!,
                     UnrandomizedItem = items.ProgressionItems[((YamlScalarNode)map["unrandomized_item"]).Value!],
-                    Requires = GameRequirement.DeserializeFrom(map["requires"]),
+                    Requires = AllChildrenGameRequirement.DeserializeFrom(map["requires"]),
                 },
             ],
         };
@@ -390,13 +393,14 @@ public sealed record FillerRegionDefinitionModel : RegionDefinitionModel
             }
         }
 
-        GameRequirement eachRequires = GameRequirement.DeserializeFrom(map["each_requires"]);
+        AllChildrenGameRequirement eachRequires = AllChildrenGameRequirement.DeserializeFrom(map["each_requires"]);
         return new()
         {
+            Key = key,
             Exits = [.. ((YamlSequenceNode)map["exits"]).Select(n => ((YamlScalarNode)n).Value!)],
             Locations = [.. unrandomizedItems.Select((item, n) => new LocationDefinitionModel()
             {
-                Key = $"{key}.{n}",
+                Key = LocationKey.Create(key, n),
                 Name = nameTemplate.Replace("{n}", $"{n + 1}"),
                 Requires = eachRequires,
                 UnrandomizedItem = item,
@@ -427,35 +431,56 @@ public sealed record FillerRegionDefinitionModel : RegionDefinitionModel
     }
 }
 
+public readonly record struct LocationKey
+{
+    public required string RegionKey { get; init; }
+
+    public required int N { get; init; }
+
+    public static LocationKey Create(string regionKey)
+    {
+        return Create(regionKey, 0);
+    }
+
+    public static LocationKey Create(string regionKey, int n)
+    {
+        return new()
+        {
+            RegionKey = regionKey,
+            N = n,
+        };
+    }
+}
+
 public sealed record LocationDefinitionModel
 {
-    public required string Key { get; init; }
+    public required LocationKey Key { get; init; }
 
     public required string Name { get; init; }
 
-    public required GameRequirement Requires { get; init; }
+    public required AllChildrenGameRequirement Requires { get; init; }
 
     public required ItemDefinitionModel UnrandomizedItem { get; init; }
+
+    public RegionDefinitionModel Region => GameDefinitions.Instance.Regions.AllRegions[Key.RegionKey];
 }
 
 public abstract record GameRequirement
 {
-    public static readonly GameRequirement AlwaysSatisfied = new AllGameRequirement { Requirements = [] };
+    public static readonly AllChildrenGameRequirement AlwaysSatisfied = new() { Children = [] };
 
-    public abstract bool Satisfied(ref Game.State state);
+    public virtual bool StaticSatisfied(Game.State state)
+    {
+        return true;
+    }
+
+    public virtual bool DynamicSatisfied(ref Game.State state)
+    {
+        return true;
+    }
 
     public static GameRequirement DeserializeFrom(YamlNode node)
     {
-        // special case: there's an implicit "all:" at the top, which means that we might be coming
-        // in partway through that. it's easy to test for this.
-        if (node is YamlSequenceNode seq)
-        {
-            return new AllGameRequirement
-            {
-                Requirements = [.. seq.Select(DeserializeFrom)],
-            };
-        }
-
         if (node is not YamlMappingNode { Children: [(YamlScalarNode keyNode, YamlNode valueNode)] } map)
         {
             throw new InvalidDataException("Bad node type");
@@ -467,27 +492,40 @@ public abstract record GameRequirement
             "rat_count" => RatCountRequirement.DeserializeFrom(valueNode),
             "location" => CheckedLocationRequirement.DeserializeFrom(valueNode),
             "item" => ReceivedItemRequirement.DeserializeFrom(valueNode),
-            "any" => AnyGameRequirement.DeserializeFrom(valueNode),
-            "all" => AllGameRequirement.DeserializeFrom(valueNode),
+            "any" => AnyChildGameRequirement.DeserializeFrom(valueNode),
+            "all" => AllChildrenGameRequirement.DeserializeFrom(valueNode),
             _ => throw new InvalidDataException($"Unrecognized requirement: {keyNode.Value}"),
         };
     }
 }
 
-public sealed record AllGameRequirement : GameRequirement
+public sealed record AllChildrenGameRequirement : GameRequirement
 {
-    public required ImmutableArray<GameRequirement> Requirements { get; init; }
+    public required ImmutableArray<GameRequirement> Children { get; init; }
 
-    public new static AllGameRequirement DeserializeFrom(YamlNode node)
+    public static new AllChildrenGameRequirement DeserializeFrom(YamlNode node)
     {
-        return new AllGameRequirement { Requirements = [.. ((YamlSequenceNode)node).Select(DeserializeFrom)] };
+        return new AllChildrenGameRequirement { Children = [.. ((YamlSequenceNode)node).Select(DeserializeFrom)] };
     }
 
-    public override bool Satisfied(ref Game.State state)
+    public override bool StaticSatisfied(Game.State state)
     {
-        foreach (GameRequirement child in Requirements)
+        foreach (GameRequirement child in Children)
         {
-            if (!child.Satisfied(ref state))
+            if (!child.StaticSatisfied(state))
+            {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    public override bool DynamicSatisfied(ref Game.State state)
+    {
+        foreach (GameRequirement child in Children)
+        {
+            if (!child.DynamicSatisfied(ref state))
             {
                 return false;
             }
@@ -497,20 +535,33 @@ public sealed record AllGameRequirement : GameRequirement
     }
 }
 
-public sealed record AnyGameRequirement : GameRequirement
+public sealed record AnyChildGameRequirement : GameRequirement
 {
-    public required ImmutableArray<GameRequirement> Requirements { get; init; }
+    public required ImmutableArray<GameRequirement> Children { get; init; }
 
-    public new static AnyGameRequirement DeserializeFrom(YamlNode node)
+    public static new AnyChildGameRequirement DeserializeFrom(YamlNode node)
     {
-        return new AnyGameRequirement { Requirements = [.. ((YamlSequenceNode)node).Select(DeserializeFrom)] };
+        return new AnyChildGameRequirement { Children = [.. ((YamlSequenceNode)node).Select(DeserializeFrom)] };
     }
 
-    public override bool Satisfied(ref Game.State state)
+    public override bool StaticSatisfied(Game.State state)
     {
-        foreach (GameRequirement child in Requirements)
+        foreach (GameRequirement child in Children)
         {
-            if (child.Satisfied(ref state))
+            if (child.StaticSatisfied(state))
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    public override bool DynamicSatisfied(ref Game.State state)
+    {
+        foreach (GameRequirement child in Children)
+        {
+            if (child.DynamicSatisfied(ref state))
             {
                 return true;
             }
@@ -524,12 +575,12 @@ public sealed record AbilityCheckRequirement : GameRequirement
 {
     public required int DifficultyClass { get; init; }
 
-    public new static AbilityCheckRequirement DeserializeFrom(YamlNode node)
+    public static new AbilityCheckRequirement DeserializeFrom(YamlNode node)
     {
         return new AbilityCheckRequirement { DifficultyClass = int.Parse(((YamlScalarNode)node).Value!) };
     }
 
-    public override bool Satisfied(ref Game.State state)
+    public override bool DynamicSatisfied(ref Game.State state)
     {
         return Game.State.NextD20(ref state) + state.DiceModifier >= DifficultyClass;
     }
@@ -539,12 +590,12 @@ public sealed record RatCountRequirement : GameRequirement
 {
     public required int RatCount { get; init; }
 
-    public new static RatCountRequirement DeserializeFrom(YamlNode node)
+    public static new RatCountRequirement DeserializeFrom(YamlNode node)
     {
         return new RatCountRequirement { RatCount = int.Parse(((YamlScalarNode)node).Value!) };
     }
 
-    public override bool Satisfied(ref Game.State state)
+    public override bool StaticSatisfied(Game.State state)
     {
         return state.RatCount >= RatCount;
     }
@@ -552,14 +603,14 @@ public sealed record RatCountRequirement : GameRequirement
 
 public sealed record CheckedLocationRequirement : GameRequirement
 {
-    public required string LocationKey { get; init; }
+    public required LocationKey LocationKey { get; init; }
 
-    public new static CheckedLocationRequirement DeserializeFrom(YamlNode node)
+    public static new CheckedLocationRequirement DeserializeFrom(YamlNode node)
     {
-        return new CheckedLocationRequirement { LocationKey = ((YamlScalarNode)node).Value! };
+        return new CheckedLocationRequirement { LocationKey = LocationKey.Create(((YamlScalarNode)node).Value!) };
     }
 
-    public override bool Satisfied(ref Game.State state)
+    public override bool StaticSatisfied(Game.State state)
     {
         return state.CheckedLocations.Contains(GameDefinitions.Instance.LocationsByKey[LocationKey]);
     }
@@ -569,12 +620,12 @@ public sealed record ReceivedItemRequirement : GameRequirement
 {
     public required string ItemKey { get; init; }
 
-    public new static ReceivedItemRequirement DeserializeFrom(YamlNode node)
+    public static new ReceivedItemRequirement DeserializeFrom(YamlNode node)
     {
         return new ReceivedItemRequirement { ItemKey = ((YamlScalarNode)node).Value! };
     }
 
-    public override bool Satisfied(ref Game.State state)
+    public override bool StaticSatisfied(Game.State state)
     {
         return state.ReceivedItems.Contains(GameDefinitions.Instance.Items.ProgressionItems[ItemKey]);
     }

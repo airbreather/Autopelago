@@ -17,9 +17,9 @@ public sealed class Game
 
         public int DiceModifier => RatCount / 3;
 
-        public LocationDefinitionModel? CurrentLocation { get; init; }
+        public LocationDefinitionModel CurrentLocation { get; init; } = GameDefinitions.Instance.StartLocation;
 
-        public LocationDefinitionModel? TargetLocation { get; init; }
+        public LocationDefinitionModel TargetLocation { get; init; } = GameDefinitions.Instance.StartLocation;
 
         public int RatCount => ReceivedItems.Sum(i => i.RatCount).GetValueOrDefault();
 
@@ -52,8 +52,8 @@ public sealed class Game
             return new()
             {
                 Epoch = Epoch,
-                CurrentLocation = CurrentLocation?.Name,
-                TargetLocation = TargetLocation?.Name,
+                CurrentLocation = CurrentLocation.Name,
+                TargetLocation = TargetLocation.Name,
                 ReceivedItems = [.. ReceivedItems.Select(i => i.Name)],
                 CheckedLocations = [.. CheckedLocations.Select(l => l.Name)],
                 PrngState = PrngState,
@@ -64,13 +64,13 @@ public sealed class Game
         {
             public ulong Epoch { get; init; }
 
-            public string? CurrentLocation { get; init; }
+            public required string CurrentLocation { get; init; }
 
-            public string? TargetLocation { get; init; }
+            public required string TargetLocation { get; init; }
 
-            public ImmutableArray<string> ReceivedItems { get; init; }
+            public required ImmutableArray<string> ReceivedItems { get; init; }
 
-            public ImmutableArray<string> CheckedLocations { get; init; }
+            public required ImmutableArray<string> CheckedLocations { get; init; }
 
             public Prng.State PrngState { get; init; }
 
@@ -79,8 +79,8 @@ public sealed class Game
                 return new()
                 {
                     Epoch = Epoch,
-                    CurrentLocation = CurrentLocation is null ? null : GameDefinitions.Instance.LocationsByName[CurrentLocation],
-                    TargetLocation = TargetLocation is null ? null : GameDefinitions.Instance.LocationsByName[TargetLocation],
+                    CurrentLocation = GameDefinitions.Instance.LocationsByName[CurrentLocation],
+                    TargetLocation = GameDefinitions.Instance.LocationsByName[TargetLocation],
                     ReceivedItems = [.. ReceivedItems.Select(name => GameDefinitions.Instance.ItemsByName[name])],
                     CheckedLocations = [.. CheckedLocations.Select(name => GameDefinitions.Instance.LocationsByName[name])],
                     PrngState = PrngState,
@@ -96,6 +96,8 @@ public sealed class Game
     private readonly SemaphoreSlim _mutex = new(1, 1);
 
     private readonly AsyncEvent<NextStepStartedEventArgs> _nextStepStarted = new();
+
+    private readonly Player _player = new();
 
     private GameStateStorage? _stateStorage;
 
@@ -141,20 +143,19 @@ public sealed class Game
             {
                 stateBeforeAdvance = _state;
                 await _nextStepStarted.InvokeAsync(this, new() { StateBeforeAdvance = stateBeforeAdvance }, cancellationToken);
-                stateAfterAdvance = Advance();
+                stateAfterAdvance = _player.Advance(stateBeforeAdvance);
             }
             finally
             {
                 _mutex.Release();
             }
 
-            if (stateBeforeAdvance == stateAfterAdvance)
+            if (stateBeforeAdvance.Epoch == stateAfterAdvance.Epoch)
             {
                 continue;
             }
 
             await _stateStorage.SaveAsync(stateAfterAdvance, cancellationToken);
-
             if (stateBeforeAdvance.CheckedLocations.Count < stateAfterAdvance.CheckedLocations.Count)
             {
                 await _client.SendLocationChecksAsync(stateAfterAdvance.CheckedLocations.Except(stateBeforeAdvance.CheckedLocations), cancellationToken);
@@ -192,14 +193,5 @@ public sealed class Game
         {
             _mutex.Release();
         }
-    }
-
-    private State Advance()
-    {
-        // TODO: actually everything here.
-        return _state with
-        {
-            Epoch = _state.Epoch + 1,
-        };
     }
 }
