@@ -155,16 +155,15 @@ public sealed class Game
                 }
             }
 
-            if (_state.ReceivedItems.Count - args.Index == args.Items.Length)
+            List<ItemDefinitionModel> newItems = [.. args.Items.Except(_state.ReceivedItems)];
+            if (newItems.Count > 0)
             {
-                return;
+                _state = _state with
+                {
+                    Epoch = _state.Epoch + 1,
+                    ReceivedItems = _state.ReceivedItems.AddRange(newItems),
+                };
             }
-
-            _state = _state with
-            {
-                Epoch = _state.Epoch + 1,
-                ReceivedItems = _state.ReceivedItems.AddRange(args.Items.Skip(_state.ReceivedItems.Count - args.Index)),
-            };
         }
         finally
         {
