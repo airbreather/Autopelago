@@ -463,12 +463,12 @@ public abstract record GameRequirement
 
         return keyNode.Value switch
         {
-            "ability_check_with_dc" => new AbilityCheckRequirement { DifficultyClass = int.Parse(((YamlScalarNode)valueNode).Value!) },
-            "rat_count" => new RatCountRequirement { RatCount = int.Parse(((YamlScalarNode)valueNode).Value!) },
-            "location" => new CheckedLocationRequirement { LocationKey = ((YamlScalarNode)valueNode).Value! },
-            "item" => new ReceivedItemRequirement { ItemKey = ((YamlScalarNode)valueNode).Value! },
-            "any" => new AnyGameRequirement { Requirements = [.. ((YamlSequenceNode)valueNode).Select(DeserializeFrom)] },
-            "all" => new AllGameRequirement { Requirements = [.. ((YamlSequenceNode)valueNode).Select(DeserializeFrom)] },
+            "ability_check_with_dc" => AbilityCheckRequirement.DeserializeFrom(valueNode),
+            "rat_count" => RatCountRequirement.DeserializeFrom(valueNode),
+            "location" => CheckedLocationRequirement.DeserializeFrom(valueNode),
+            "item" => ReceivedItemRequirement.DeserializeFrom(valueNode),
+            "any" => AnyGameRequirement.DeserializeFrom(valueNode),
+            "all" => AllGameRequirement.DeserializeFrom(valueNode),
             _ => throw new InvalidDataException($"Unrecognized requirement: {keyNode.Value}"),
         };
     }
@@ -477,6 +477,11 @@ public abstract record GameRequirement
 public sealed record AllGameRequirement : GameRequirement
 {
     public required ImmutableArray<GameRequirement> Requirements { get; init; }
+
+    public new static AllGameRequirement DeserializeFrom(YamlNode node)
+    {
+        return new AllGameRequirement { Requirements = [.. ((YamlSequenceNode)node).Select(DeserializeFrom)] };
+    }
 
     public override bool Satisfied(ref Game.State state)
     {
@@ -496,6 +501,11 @@ public sealed record AnyGameRequirement : GameRequirement
 {
     public required ImmutableArray<GameRequirement> Requirements { get; init; }
 
+    public new static AnyGameRequirement DeserializeFrom(YamlNode node)
+    {
+        return new AnyGameRequirement { Requirements = [.. ((YamlSequenceNode)node).Select(DeserializeFrom)] };
+    }
+
     public override bool Satisfied(ref Game.State state)
     {
         foreach (GameRequirement child in Requirements)
@@ -514,6 +524,11 @@ public sealed record AbilityCheckRequirement : GameRequirement
 {
     public required int DifficultyClass { get; init; }
 
+    public new static AbilityCheckRequirement DeserializeFrom(YamlNode node)
+    {
+        return new AbilityCheckRequirement { DifficultyClass = int.Parse(((YamlScalarNode)node).Value!) };
+    }
+
     public override bool Satisfied(ref Game.State state)
     {
         return Game.State.NextD20(ref state) + state.DiceModifier >= DifficultyClass;
@@ -523,6 +538,11 @@ public sealed record AbilityCheckRequirement : GameRequirement
 public sealed record RatCountRequirement : GameRequirement
 {
     public required int RatCount { get; init; }
+
+    public new static RatCountRequirement DeserializeFrom(YamlNode node)
+    {
+        return new RatCountRequirement { RatCount = int.Parse(((YamlScalarNode)node).Value!) };
+    }
 
     public override bool Satisfied(ref Game.State state)
     {
@@ -534,6 +554,11 @@ public sealed record CheckedLocationRequirement : GameRequirement
 {
     public required string LocationKey { get; init; }
 
+    public new static CheckedLocationRequirement DeserializeFrom(YamlNode node)
+    {
+        return new CheckedLocationRequirement { LocationKey = ((YamlScalarNode)node).Value! };
+    }
+
     public override bool Satisfied(ref Game.State state)
     {
         return state.CheckedLocations.Contains(GameDefinitions.Instance.LocationsByKey[LocationKey]);
@@ -543,6 +568,11 @@ public sealed record CheckedLocationRequirement : GameRequirement
 public sealed record ReceivedItemRequirement : GameRequirement
 {
     public required string ItemKey { get; init; }
+
+    public new static ReceivedItemRequirement DeserializeFrom(YamlNode node)
+    {
+        return new ReceivedItemRequirement { ItemKey = ((YamlScalarNode)node).Value! };
+    }
 
     public override bool Satisfied(ref Game.State state)
     {
