@@ -5,7 +5,7 @@ using ArchipelagoClientDotNet;
 
 public sealed record NextStepStartedEventArgs
 {
-    public required Game.State InitialState { get; init; }
+    public required Game.State StateBeforeAdvance { get; init; }
 }
 
 [SuppressMessage("Design", "CA1001:Types that own disposable fields should be disposable", Justification = "Lifetime is too close to the application's lifetime for me to care right now.")]
@@ -16,6 +16,10 @@ public sealed class Game
         public ulong Epoch { get; init; }
 
         public int DiceModifier => RatCount / 3;
+
+        public LocationDefinitionModel? CurrentLocation { get; init; }
+
+        public LocationDefinitionModel? TargetLocation { get; init; }
 
         public int RatCount => ReceivedItems.Sum(i => i.RatCount).GetValueOrDefault();
 
@@ -48,6 +52,8 @@ public sealed class Game
             return new()
             {
                 Epoch = Epoch,
+                CurrentLocation = CurrentLocation?.Name,
+                TargetLocation = TargetLocation?.Name,
                 ReceivedItems = [.. ReceivedItems.Select(i => i.Name)],
                 CheckedLocations = [.. CheckedLocations.Select(l => l.Name)],
                 PrngState = PrngState,
@@ -57,6 +63,10 @@ public sealed class Game
         public sealed record Proxy
         {
             public ulong Epoch { get; init; }
+
+            public string? CurrentLocation { get; init; }
+
+            public string? TargetLocation { get; init; }
 
             public ImmutableArray<string> ReceivedItems { get; init; }
 
@@ -69,6 +79,8 @@ public sealed class Game
                 return new()
                 {
                     Epoch = Epoch,
+                    CurrentLocation = CurrentLocation is null ? null : GameDefinitions.Instance.LocationsByName[CurrentLocation],
+                    TargetLocation = TargetLocation is null ? null : GameDefinitions.Instance.LocationsByName[TargetLocation],
                     ReceivedItems = [.. ReceivedItems.Select(name => GameDefinitions.Instance.ItemsByName[name])],
                     CheckedLocations = [.. CheckedLocations.Select(name => GameDefinitions.Instance.LocationsByName[name])],
                     PrngState = PrngState,
@@ -119,25 +131,36 @@ public sealed class Game
 
         while (true)
         {
+            State stateBeforeAdvance;
+            State stateAfterAdvance;
+
             // TODO: more control over the delay
             await Task.Delay(TimeSpan.FromSeconds(1), _timeProvider, cancellationToken);
             await _mutex.WaitAsync(cancellationToken);
             try
             {
-                await _nextStepStarted.InvokeAsync(this, new() { InitialState = _state }, cancellationToken);
-                State state = Advance();
-                if (_state != state)
-                {
-                    await _stateStorage.SaveAsync(state, cancellationToken);
-                    _state = state;
-                }
+                stateBeforeAdvance = _state;
+                await _nextStepStarted.InvokeAsync(this, new() { StateBeforeAdvance = stateBeforeAdvance }, cancellationToken);
+                stateAfterAdvance = Advance();
             }
             finally
             {
                 _mutex.Release();
             }
 
-            // TODO: send packets as appropriate for how the state has changed
+            if (stateBeforeAdvance == stateAfterAdvance)
+            {
+                continue;
+            }
+
+            await _stateStorage.SaveAsync(stateAfterAdvance, cancellationToken);
+
+            if (stateBeforeAdvance.CheckedLocations.Count < stateAfterAdvance.CheckedLocations.Count)
+            {
+                await _client.SendLocationChecksAsync(stateAfterAdvance.CheckedLocations.Except(stateBeforeAdvance.CheckedLocations), cancellationToken);
+            }
+
+            _state = stateAfterAdvance;
         }
     }
 
