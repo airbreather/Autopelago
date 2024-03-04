@@ -63,15 +63,8 @@ public sealed class PlayerTests
         });
     }
 
-    [TestCase(0)]
-    [TestCase(1)]
-    [TestCase(2)]
-    [TestCase(3)]
-    [TestCase(4)]
-    [TestCase(5)]
-    [TestCase(6)]
-    [TestCase(7)]
-    public void ShouldOnlyTryBasketballWithAtLeastFiveRats(int ratCount)
+    [Test]
+    public void ShouldOnlyTryBasketballWithAtLeastFiveRats([Range(0, 7)] int ratCount)
     {
         Game.State state = Game.State.Start();
         state = state with
@@ -84,9 +77,8 @@ public sealed class PlayerTests
         Assert.That(player.Advance(state), ratCount < 5 ? Is.EqualTo(state) : Is.Not.EqualTo(state));
     }
 
-    [TestCase(false)]
-    [TestCase(true)]
-    public void ShouldHeadFurtherAfterCompletingBasketball(bool unblockMinotaurFirst)
+    [Test]
+    public void ShouldHeadFurtherAfterCompletingBasketball([Values(true, false)] bool unblockMinotaurFirst)
     {
         ulong seed = EnsureSeedProducesInitialD20Sequence(2449080649, [20, 20, 20, 20, 20, 20, 20, 20]);
 
