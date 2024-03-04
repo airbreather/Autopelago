@@ -8,10 +8,11 @@
 
   <ItemGroup>
     <PackageReference Include="Microsoft.Extensions.TimeProvider.Testing" Version="8.2.0" />
-    <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.9.0" />
-    <PackageReference Include="xunit" Version="2.7.0" />
-    <PackageReference Include="xunit.runner.visualstudio" Version="2.5.7" PrivateAssets="all"/>
-    <PackageReference Include="coverlet.collector" Version="6.0.1" PrivateAssets="all"/>
+    <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.6.0" />
+    <PackageReference Include="NUnit" Version="4.1.0" />
+    <PackageReference Include="NUnit3TestAdapter" Version="4.5.0" />
+    <PackageReference Include="NUnit.Analyzers" Version="4.0.1" PrivateAssets="all" />
+    <PackageReference Include="coverlet.collector" Version="6.0.1" PrivateAssets="all" />
 
     <ProjectReference Include="$(SolutionDir)src/Autopelago/Autopelago.csproj" />
   </ItemGroup>

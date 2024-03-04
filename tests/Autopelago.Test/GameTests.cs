@@ -2,6 +2,7 @@ using Microsoft.Extensions.Time.Testing;
 
 namespace Autopelago;
 
+[TestFixture]
 public sealed class GameTests
 {
     private readonly UnrandomizedAutopelagoClient _client = new();
@@ -17,7 +18,7 @@ public sealed class GameTests
         _game = new(_client, _timeProvider);
     }
 
-    [Fact]
+    [Test]
     public void FirstStepShouldStartAfterOneSecond()
     {
         using CancellationTokenSource cts = new();
@@ -33,7 +34,7 @@ public sealed class GameTests
         TimeSpan interval = TimeSpan.FromMilliseconds(1);
         for (TimeSpan totalAdvanced = TimeSpan.Zero; totalAdvanced < TimeSpan.FromSeconds(1); _timeProvider.Advance(interval), totalAdvanced += interval)
         {
-            Assert.False(cts.IsCancellationRequested);
+            Assert.That(!cts.IsCancellationRequested);
         }
 
         if (!advanced)

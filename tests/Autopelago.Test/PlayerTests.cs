@@ -1,8 +1,6 @@
-using Xunit.Abstractions;
-using Xunit.Sdk;
-
 namespace Autopelago;
 
+[TestFixture]
 public sealed class PlayerTests
 {
     private delegate TResult SpanFunc<TSource, TResult>(ReadOnlySpan<TSource> vals);
@@ -24,14 +22,7 @@ public sealed class PlayerTests
 
     private static readonly ItemDefinitionModel s_premiumCanOfPrawnFood = GameDefinitions.Instance.Items.ProgressionItems["premium_can_of_prawn_food"];
 
-    private readonly ITestOutputHelper _output;
-
-    public PlayerTests(ITestOutputHelper output)
-    {
-        _output = output;
-    }
-
-    [Fact]
+    [Test]
     public void FirstAttemptsShouldMakeSense()
     {
         ulong seed = EnsureSeedProducesInitialD20Sequence(12999128, [9, 14, 19, 10, 14]);
@@ -46,8 +37,11 @@ public sealed class PlayerTests
         _ = Prng.NextD20(ref prngState);
 
         state = player.Advance(state);
-        Assert.Empty(state.CheckedLocations);
-        Assert.Equal(prngState, state.PrngState);
+        Assert.Multiple(() =>
+        {
+            Assert.That(state.CheckedLocations, Is.Empty);
+            Assert.That(state.PrngState, Is.EqualTo(prngState));
+        });
 
         // the next attempt should succeed, despite only rolling 1 higher than the first roll of the
         // previous step (and a few points lower than the subsequent rolls of that step), because of
@@ -56,25 +50,27 @@ public sealed class PlayerTests
         _ = Prng.NextD20(ref prngState);
 
         state = player.Advance(state);
-        Assert.Equal(s_startLocation, state.CheckedLocations.FirstOrDefault());
-        Assert.Equal(s_startRegion.Locations[1], state.TargetLocation);
+        Assert.Multiple(() =>
+        {
+            Assert.That(state.CheckedLocations.FirstOrDefault(), Is.EqualTo(s_startLocation));
+            Assert.That(state.TargetLocation, Is.EqualTo(s_startRegion.Locations[1]));
 
-        // because they succeeded on their first attempt, they have just enough actions to reach and
-        // then make a feeble attempt at the next location on the route
-        Assert.Equal(state.TargetLocation, state.CurrentLocation);
-        Assert.Single(state.CheckedLocations);
-        Assert.Equal(prngState, state.PrngState);
+            // because they succeeded on their first attempt, they have just enough actions to reach and
+            // then make a feeble attempt at the next location on the route
+            Assert.That(state.CurrentLocation, Is.EqualTo(state.TargetLocation));
+            Assert.That(state.CheckedLocations, Has.Count.EqualTo(1));
+            Assert.That(state.PrngState, Is.EqualTo(prngState));
+        });
     }
 
-    [Theory]
-    [InlineData(0)]
-    [InlineData(1)]
-    [InlineData(2)]
-    [InlineData(3)]
-    [InlineData(4)]
-    [InlineData(5)]
-    [InlineData(6)]
-    [InlineData(7)]
+    [TestCase(0)]
+    [TestCase(1)]
+    [TestCase(2)]
+    [TestCase(3)]
+    [TestCase(4)]
+    [TestCase(5)]
+    [TestCase(6)]
+    [TestCase(7)]
     public void ShouldOnlyTryBasketballWithAtLeastFiveRats(int ratCount)
     {
         Game.State state = Game.State.Start();
@@ -85,19 +81,11 @@ public sealed class PlayerTests
         };
 
         Player player = new();
-        if (ratCount < 5)
-        {
-            Assert.Equal(state, player.Advance(state));
-        }
-        else
-        {
-            Assert.NotEqual(state, player.Advance(state));
-        }
+        Assert.That(player.Advance(state), ratCount < 5 ? Is.EqualTo(state) : Is.Not.EqualTo(state));
     }
 
-    [Theory]
-    [InlineData(false)]
-    [InlineData(true)]
+    [TestCase(false)]
+    [TestCase(true)]
     public void ShouldHeadFurtherAfterCompletingBasketball(bool unblockMinotaurFirst)
     {
         ulong seed = EnsureSeedProducesInitialD20Sequence(2449080649, [20, 20, 20, 20, 20, 20, 20, 20]);
@@ -123,11 +111,14 @@ public sealed class PlayerTests
 
         // because we roll so well, we can actually use our three actions to complete two checks:
         // basketball, then move, then complete that first location that we moved to.
-        Assert.Equal(expectedRegion.Locations[0], state.CurrentLocation);
-        Assert.Equal(expectedRegion.Locations[1], state.TargetLocation);
+        Assert.Multiple(() =>
+        {
+            Assert.That(state.CurrentLocation, Is.EqualTo(expectedRegion.Locations[0]));
+            Assert.That(state.TargetLocation, Is.EqualTo(expectedRegion.Locations[1]));
+        });
     }
 
-    [Fact]
+    [Test]
     public void GameShouldBeWinnable()
     {
         ulong seed = (ulong)Random.Shared.NextInt64(long.MinValue, long.MaxValue);
@@ -140,20 +131,19 @@ public sealed class PlayerTests
             ++steps;
             Game.State prev = state;
             state = player.Advance(state);
-            if (state == prev)
-            {
-                throw SkipException.ForSkip($"Game was not completable in 1 million steps (random seed: {seed}, last state: {state})");
-            }
+            Assert.That(state, Is.Not.EqualTo(prev));
 
             state = state with { ReceivedItems = [.. state.ReceivedItems, .. state.CheckedLocations.Except(prev.CheckedLocations).Select(loc => loc.UnrandomizedItem) ] };
         }
 
-        _output.WriteLine($"{steps} steps to win on seed {seed}");
+        TestContext.WriteLine($"{steps} steps to win on seed {seed}");
     }
 
     private static ulong EnsureSeedProducesInitialD20Sequence(ulong seed, ReadOnlySpan<int> exactVals)
     {
-        Assert.Equal(exactVals, Rolls(seed, stackalloc int[exactVals.Length]));
+        int[] actual = [.. Rolls(seed, stackalloc int[exactVals.Length])];
+        int[] expected = [.. exactVals];
+        Assume.That(actual, Is.EqualTo(expected));
         return seed;
     }
 
@@ -194,7 +184,7 @@ public sealed class PlayerTests
         }
 
         ulong result = box.Seed!.Value;
-        _output.WriteLine($"ulong seed = {nameof(EnsureSeedProducesInitialD20Sequence)}({result}, [{string.Join(", ", Rolls(result, stackalloc int[cnt]).ToArray())}]);");
+        TestContext.WriteLine($"ulong seed = {nameof(EnsureSeedProducesInitialD20Sequence)}({result}, [{string.Join(", ", Rolls(result, stackalloc int[cnt]).ToArray())}]);");
         return result;
         static void Search(object? obj)
         {

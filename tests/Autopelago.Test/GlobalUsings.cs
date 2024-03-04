@@ -1,1 +1,3 @@
-global using Xunit;
+global using NUnit.Framework;
+
+[assembly: Parallelizable(ParallelScope.Children)]
