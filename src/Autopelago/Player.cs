@@ -1,6 +1,5 @@
 using System.Collections;
 using System.Collections.Frozen;
-using System.Numerics;
 using System.Runtime.InteropServices;
 
 namespace Autopelago;
@@ -10,6 +9,18 @@ public sealed class Player
     private readonly FrozenDictionary<string, BitArray> _checkedLocations = GameDefinitions.Instance.Regions.AllRegions.ToFrozenDictionary(kvp => kvp.Key, kvp => new BitArray(kvp.Value.Locations.Length));
 
     private readonly Dictionary<ItemDefinitionModel, int> _receivedItemsMap = [];
+
+    private readonly bool _autoSucceedDynamicChecks;
+
+    public Player()
+        : this(false)
+    {
+    }
+
+    private Player(bool autoSucceedDynamicChecks)
+    {
+        _autoSucceedDynamicChecks = autoSucceedDynamicChecks;
+    }
 
     public Game.State Advance(Game.State state)
     {
@@ -53,7 +64,7 @@ public sealed class Player
                 break;
             }
 
-            bool success = state.CurrentLocation.TryCheck(ref state);
+            bool success = state.CurrentLocation.TryCheck(ref state, autoSucceedDynamicChecks: _autoSucceedDynamicChecks);
             state = state with { LocationCheckAttemptsThisStep = state.LocationCheckAttemptsThisStep + 1 };
             if (success)
             {
@@ -70,21 +81,6 @@ public sealed class Player
         }
 
         return state;
-    }
-
-    private static ulong StepsToBK(Game.State state)
-    {
-        Player player = new();
-        ulong orig = state.Epoch;
-        while (true)
-        {
-            ulong prev = state.Epoch;
-            state = player.Advance(state);
-            if (state.Epoch == prev)
-            {
-                return prev - orig;
-            }
-        }
     }
 
     private bool LocationIsChecked(LocationKey key) => _checkedLocations[key.RegionKey][key.N];
@@ -155,19 +151,36 @@ public sealed class Player
         }
 
         // distinguish by whichever leads to the end of everything that we can do most efficiently.
-        return (
-            from candidate in candidates.AsParallel()
-            let candidateState = state with { CurrentLocation = state.CurrentLocation.NextLocationTowards(candidate), TargetLocation = candidate }
-            from i in Enumerable.Range(0, Environment.ProcessorCount)
-            let iterState = candidateState with { PrngState = Prng.ShortJumped(candidateState.PrngState) }
-            group StepsToBK(iterState) by candidate into grp
-            let stepCount = grp.Aggregate((x, y) => x + y)
-            select new
+        // because all viable routes will eventually put us in front of the same set of locations
+        // anyway, we can eliminate the luck factor by auto-succeeding all dynamic checks.
+        Player innerPlayer = new(autoSucceedDynamicChecks: true);
+        LocationDefinitionModel goal = GameDefinitions.Instance.LocationsByKey[LocationKey.For("goal")];
+        LocationDefinitionModel bestCandidate = null!;
+        ulong bestCandidateSteps = ulong.MaxValue;
+        foreach (LocationDefinitionModel candidate in candidates)
+        {
+            ulong steps = 0;
+            Game.State candidateState = state with { CurrentLocation = state.CurrentLocation.NextLocationTowards(candidate), TargetLocation = candidate };
+            while (true)
             {
-                TargetLocation = grp.Key,
-                StepCount = stepCount,
+                Game.State prev = candidateState;
+                candidateState = innerPlayer.Advance(candidateState);
+                if (prev.Epoch == candidateState.Epoch || candidateState.CheckedLocations[^1] == goal)
+                {
+                    break;
+                }
+
+                ++steps;
             }
-        ).MinBy(x => x.StepCount)!.TargetLocation;
+
+            if (steps < bestCandidateSteps)
+            {
+                bestCandidate = candidate;
+                bestCandidateSteps = steps;
+            }
+        }
+
+        return bestCandidate;
 
         void Enqueue(RegionDefinitionModel region)
         {

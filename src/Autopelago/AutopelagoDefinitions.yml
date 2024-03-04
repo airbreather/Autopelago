@@ -471,8 +471,9 @@ regions:
       unrandomized_items:
         key:
           - a_cookie
+          - normal_rat
         useful_nonprogression: 3
-        filler: 6
+        filler: 5
       each_requires:
         - ability_check_with_dc: 14
       exits:
@@ -483,8 +484,9 @@ regions:
       unrandomized_items:
         key:
           - bribe
+          - normal_rat
         useful_nonprogression: 3
-        filler: 6
+        filler: 5
       each_requires:
         - ability_check_with_dc: 14
       exits:
@@ -495,8 +497,10 @@ regions:
       unrandomized_items:
         key:
           - red_matador_cape
+          - item: normal_rat
+            count: 2
         useful_nonprogression: 3
-        filler: 6
+        filler: 4
       each_requires:
         - ability_check_with_dc: 12
       exits:
@@ -507,8 +511,10 @@ regions:
       unrandomized_items:
         key:
           - premium_can_of_prawn_food
+          - item: normal_rat
+            count: 2
         useful_nonprogression: 3
-        filler: 6
+        filler: 4
       each_requires:
         - ability_check_with_dc: 12
       exits:

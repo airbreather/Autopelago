@@ -1,4 +1,5 @@
 using Xunit.Abstractions;
+using Xunit.Sdk;
 
 namespace Autopelago;
 
@@ -97,25 +98,57 @@ public sealed class PlayerTests
     [Theory]
     [InlineData(false)]
     [InlineData(true)]
-    public void ShouldHeadFurtherAfterCompletingBasketball(bool minotaur)
+    public void ShouldHeadFurtherAfterCompletingBasketball(bool unblockMinotaurFirst)
     {
         ulong seed = EnsureSeedProducesInitialD20Sequence(2449080649, [20, 20, 20, 20, 20, 20, 20, 20]);
 
         Game.State state = Game.State.Start(seed);
         state = state with
         {
-            ReceivedItems = [.. Enumerable.Repeat(s_normalRat, 5), minotaur ? s_redMatadorCape : s_premiumCanOfPrawnFood],
-            CheckedLocations = [.. s_startRegion.Locations.Except([s_lastLocationBeforeBasketball])],
-            CurrentLocation = s_lastLocationBeforeBasketball,
-            TargetLocation = s_lastLocationBeforeBasketball,
+            ReceivedItems = [.. Enumerable.Repeat(s_normalRat, 5), unblockMinotaurFirst ? s_redMatadorCape : s_premiumCanOfPrawnFood],
+            CheckedLocations = [.. s_startRegion.Locations],
+            CurrentLocation = s_basketball,
+            TargetLocation = s_basketball,
         };
 
         Player player = new();
 
         state = player.Advance(state);
 
-        Assert.Equal(s_basketball, state.CurrentLocation);
-        Assert.Equal((minotaur ? s_beforeMinotaur : s_beforePrawnStars).Locations[0], state.TargetLocation);
+        // it's entirely counterintuitive, but correct according to the current logic: if we're at a
+        // branching path, and we can go further down branch A than branch B before getting BK'd,
+        // then we actually prefer to take branch B first so that we won't have as far to backtrack
+        // if nothing else comes in for us.
+        RegionDefinitionModel expectedRegion = unblockMinotaurFirst ? s_beforePrawnStars : s_beforeMinotaur;
+
+        // because we roll so well, we can actually use our three actions to complete two checks:
+        // basketball, then move, then complete that first location that we moved to.
+        Assert.Equal(expectedRegion.Locations[0], state.CurrentLocation);
+        Assert.Equal(expectedRegion.Locations[1], state.TargetLocation);
+    }
+
+    [Fact]
+    public void GameShouldBeWinnable()
+    {
+        ulong seed = (ulong)Random.Shared.NextInt64(long.MinValue, long.MaxValue);
+        LocationDefinitionModel goal = GameDefinitions.Instance.LocationsByKey[LocationKey.For("goal")];
+        Game.State state = Game.State.Start(seed);
+        Player player = new();
+        ulong steps = 0;
+        while (state.CurrentLocation != goal)
+        {
+            ++steps;
+            Game.State prev = state;
+            state = player.Advance(state);
+            if (state == prev)
+            {
+                throw SkipException.ForSkip($"Game was not completable in 1 million steps (random seed: {seed}, last state: {state})");
+            }
+
+            state = state with { ReceivedItems = [.. state.ReceivedItems, .. state.CheckedLocations.Except(prev.CheckedLocations).Select(loc => loc.UnrandomizedItem) ] };
+        }
+
+        _output.WriteLine($"{steps} steps to win on seed {seed}");
     }
 
     private static ulong EnsureSeedProducesInitialD20Sequence(ulong seed, ReadOnlySpan<int> exactVals)
