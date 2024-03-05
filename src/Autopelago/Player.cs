@@ -6,7 +6,7 @@ namespace Autopelago;
 
 public sealed class Player
 {
-    private readonly FrozenDictionary<string, BitArray> _checkedLocations = GameDefinitions.Instance.Regions.AllRegions.ToFrozenDictionary(kvp => kvp.Key, kvp => new BitArray(kvp.Value.Locations.Length));
+    private readonly FrozenDictionary<string, BitArray> _checkedLocations = GameDefinitions.Instance.AllRegions.ToFrozenDictionary(kvp => kvp.Key, kvp => new BitArray(kvp.Value.Locations.Length));
 
     private readonly Dictionary<ItemDefinitionModel, int> _receivedItemsMap = [];
 
@@ -24,6 +24,11 @@ public sealed class Player
 
     public Game.State Advance(Game.State state)
     {
+        if (state.CurrentLocation == GameDefinitions.Instance.GoalLocation)
+        {
+            return state;
+        }
+
         foreach (BitArray isChecked in _checkedLocations.Values)
         {
             isChecked.SetAll(false);

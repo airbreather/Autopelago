@@ -4,23 +4,23 @@ namespace Autopelago;
 public sealed class PlayerTests
 {
     private delegate TResult SpanFunc<TSource, TResult>(ReadOnlySpan<TSource> vals);
-    private static readonly ItemDefinitionModel s_normalRat = GameDefinitions.Instance.Items.NormalRat;
+    private static readonly ItemDefinitionModel s_normalRat = GameDefinitions.Instance.NormalRat;
 
     private static readonly LocationDefinitionModel s_startLocation = GameDefinitions.Instance.StartLocation;
 
     private static readonly RegionDefinitionModel s_startRegion = s_startLocation.Region;
 
-    private static readonly LocationDefinitionModel s_lastLocationBeforeBasketball = GameDefinitions.Instance.Regions.AllRegions["menu"].Locations[^1];
+    private static readonly LocationDefinitionModel s_lastLocationBeforeBasketball = GameDefinitions.Instance.StartRegion.Locations[^1];
 
     private static readonly LocationDefinitionModel s_basketball = GameDefinitions.Instance.LocationsByKey[LocationKey.For("basketball")];
 
-    private static readonly RegionDefinitionModel s_beforeMinotaur = GameDefinitions.Instance.Regions.AllRegions["before_minotaur"];
+    private static readonly RegionDefinitionModel s_beforeMinotaur = GameDefinitions.Instance.AllRegions["before_minotaur"];
 
-    private static readonly RegionDefinitionModel s_beforePrawnStars = GameDefinitions.Instance.Regions.AllRegions["before_prawn_stars"];
+    private static readonly RegionDefinitionModel s_beforePrawnStars = GameDefinitions.Instance.AllRegions["before_prawn_stars"];
 
-    private static readonly ItemDefinitionModel s_redMatadorCape = GameDefinitions.Instance.Items.ProgressionItems["red_matador_cape"];
+    private static readonly ItemDefinitionModel s_redMatadorCape = GameDefinitions.Instance.ProgressionItems["red_matador_cape"];
 
-    private static readonly ItemDefinitionModel s_premiumCanOfPrawnFood = GameDefinitions.Instance.Items.ProgressionItems["premium_can_of_prawn_food"];
+    private static readonly ItemDefinitionModel s_premiumCanOfPrawnFood = GameDefinitions.Instance.ProgressionItems["premium_can_of_prawn_food"];
 
     [Test]
     public void FirstAttemptsShouldMakeSense()

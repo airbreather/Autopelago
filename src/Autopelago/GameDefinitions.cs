@@ -20,15 +20,27 @@ public sealed record GameDefinitions
     {
     }
 
-    public required ItemDefinitionsModel Items { get; init; }
+    public required ItemDefinitionModel GoalItem { get; init; }
 
-    public required RegionDefinitionsModel Regions { get; init; }
+    public required ItemDefinitionModel NormalRat { get; init; }
 
-    public RegionDefinitionModel StartRegion => Regions.AllRegions["menu"];
+    public required ImmutableArray<ItemDefinitionModel> AllItems { get; init; }
 
-    public RegionDefinitionModel GoalRegion => Regions.AllRegions["goal"];
+    public required FrozenDictionary<string, ItemDefinitionModel> ProgressionItems { get; init; }
+
+    public required FrozenDictionary<string, RegionDefinitionModel> AllRegions { get; init; }
+
+    public required FrozenDictionary<string, LandmarkRegionDefinitionModel> LandmarkRegions { get; init; }
+
+    public required FrozenDictionary<string, FillerRegionDefinitionModel> FillerRegions { get; init; }
+
+    public required RegionDefinitionModel StartRegion { get; init; }
 
     public required LocationDefinitionModel StartLocation { get; init; }
+
+    public required RegionDefinitionModel GoalRegion { get; init; }
+
+    public required LocationDefinitionModel GoalLocation { get; init; }
 
     public required FrozenDictionary<string, ItemDefinitionModel> ItemsByName { get; init; }
 
@@ -56,10 +68,20 @@ public sealed record GameDefinitions
         ).ToFrozenDictionary();
         return new()
         {
-            Items = items,
-            Regions = regions,
-            StartLocation = locationsByKey[LocationKey.For("menu", 0)],
+            GoalItem = items.Goal,
+            NormalRat = items.NormalRat,
+            AllItems = items.AllItems,
+            ProgressionItems = items.ProgressionItems,
             ItemsByName = items.AllItems.ToFrozenDictionary(i => i.Name),
+
+            AllRegions = regions.AllRegions,
+            LandmarkRegions = regions.LandmarkRegions,
+            FillerRegions = regions.FillerRegions,
+            StartRegion = regions.AllRegions["menu"],
+            StartLocation = locationsByKey[LocationKey.For("menu", 0)],
+            GoalRegion = regions.AllRegions["goal"],
+            GoalLocation = locationsByKey[LocationKey.For("goal", 0)],
+
             LocationsByKey = locationsByKey.Values.ToFrozenDictionary(location => location.Key),
             LocationsByName = locationsByKey.Values.ToFrozenDictionary(location => location.Name),
             FloydWarshall = FloydWarshall.Compute(regions.AllRegions.Values),
@@ -358,7 +380,7 @@ public sealed record RegionExitDefinitionModel
 {
     public required string RegionKey { get; init; }
 
-    public RegionDefinitionModel Region => GameDefinitions.Instance.Regions.AllRegions[RegionKey];
+    public RegionDefinitionModel Region => GameDefinitions.Instance.AllRegions[RegionKey];
 
     public AllChildrenGameRequirement Requirement => Region is LandmarkRegionDefinitionModel
     {
@@ -509,7 +531,7 @@ public sealed record LocationDefinitionModel
 
     public required ItemDefinitionModel UnrandomizedItem { get; init; }
 
-    public RegionDefinitionModel Region => GameDefinitions.Instance.Regions.AllRegions[Key.RegionKey];
+    public RegionDefinitionModel Region => GameDefinitions.Instance.AllRegions[Key.RegionKey];
 
     public int DistanceTo(LocationDefinitionModel target) => GameDefinitions.Instance.FloydWarshall.GetDistance(this, target);
 
@@ -698,7 +720,7 @@ public sealed record CheckedLocationRequirement : GameRequirement
 
     public override bool StaticSatisfied(Game.State state)
     {
-        return state.CheckedLocations.Contains(GameDefinitions.Instance.LocationsByKey[LocationKey]);
+        return state.CheckedLocations.Any(k => k.Key == LocationKey);
     }
 }
 
@@ -713,7 +735,7 @@ public sealed record ReceivedItemRequirement : GameRequirement
 
     public override bool StaticSatisfied(Game.State state)
     {
-        return state.ReceivedItems.Contains(GameDefinitions.Instance.Items.ProgressionItems[ItemKey]);
+        return state.ReceivedItems.Contains(GameDefinitions.Instance.ProgressionItems[ItemKey]);
     }
 }
 
