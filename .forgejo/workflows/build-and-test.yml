@@ -7,7 +7,7 @@ jobs:
       image: airbreather/dotnet-sdk-8.0-forgejo-runner
 
     steps:
-      - name: Check out source code
+      - name: Check out repository
         uses: actions/checkout@v4
 
       - name: Restore cached packages
