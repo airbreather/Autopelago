@@ -111,9 +111,8 @@ public sealed class PlayerTests
     }
 
     [Test]
-    public void GameShouldBeWinnable()
+    public void GameShouldBeWinnable([Random(100, Distinct = true)] ulong seed)
     {
-        ulong seed = (ulong)Random.Shared.NextInt64(long.MinValue, long.MaxValue);
         LocationDefinitionModel goal = GameDefinitions.Instance.LocationsByKey[LocationKey.For("goal")];
         Game.State state = Game.State.Start(seed);
         Player player = new();
@@ -127,8 +126,6 @@ public sealed class PlayerTests
 
             state = state with { ReceivedItems = [.. state.ReceivedItems, .. state.CheckedLocations.Except(prev.CheckedLocations).Select(loc => loc.UnrandomizedItem) ] };
         }
-
-        TestContext.WriteLine($"{steps} steps to win on seed {seed}");
     }
 
     private static ulong EnsureSeedProducesInitialD20Sequence(ulong seed, ReadOnlySpan<int> exactVals)
