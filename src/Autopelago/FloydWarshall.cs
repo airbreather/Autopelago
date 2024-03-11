@@ -26,7 +26,7 @@ public sealed class FloydWarshall
     {
         FrozenDictionary<string, RegionDefinitionModel> regionMap = regions.ToFrozenDictionary(r => r.Key);
         ImmutableArray<LocationDefinitionModel> locs = [.. regionMap.Values.SelectMany(r => r.Locations)];
-        FrozenDictionary<LocationDefinitionModel, int> locIndex = locs.Select((loc, i) => KeyValuePair.Create(loc, i)).ToFrozenDictionary();
+        FrozenDictionary<LocationDefinitionModel, int> locIndex = locs.Select(KeyValuePair.Create).ToFrozenDictionary();
         int[][] dist = new int[locs.Length][];
         int[][] prev = new int[locs.Length][];
         for (int i = 0; i < locs.Length; i++)
@@ -148,8 +148,8 @@ public sealed class FloydWarshall
         {
             get
             {
-                int cnt, tt;
-                for (cnt = 1, tt = t; s != tt; tt = _prev[s][tt])
+                int cnt = 1;
+                for (int tt = t; tt != s; tt = _prev[s][tt])
                 {
                     ++cnt;
                 }
