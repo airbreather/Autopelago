@@ -144,20 +144,21 @@ public sealed class Game
 
     private readonly TimeProvider _timeProvider;
 
+    private readonly GameStateStorage _stateStorage;
+
     private readonly SemaphoreSlim _mutex = new(1, 1);
 
     private readonly AsyncEvent<NextStepStartedEventArgs> _nextStepStarted = new();
 
     private readonly Player _player = new();
 
-    private GameStateStorage? _stateStorage;
-
     private State _state;
 
-    public Game(IAutopelagoClient client, TimeProvider timeProvider, Random? random = null)
+    public Game(IAutopelagoClient client, TimeProvider timeProvider, GameStateStorage stateStorage, Random? random = null)
     {
         _client = client;
         _timeProvider = timeProvider;
+        _stateStorage = stateStorage;
         _state = State.Start(random);
     }
 
@@ -167,15 +168,9 @@ public sealed class Game
         remove => _nextStepStarted.Remove(value);
     }
 
-    public async ValueTask RunUntilCanceledAsync(GameStateStorage stateStorage, CancellationToken cancellationToken)
+    public async ValueTask RunUntilCanceledAsync(CancellationToken cancellationToken)
     {
-        if (_stateStorage is not null)
-        {
-            throw new InvalidOperationException("Already called this method before.");
-        }
-
-        _stateStorage = stateStorage;
-        if (await stateStorage.LoadAsync(cancellationToken) is State initialState)
+        if (await _stateStorage.LoadAsync(cancellationToken) is State initialState)
         {
             _state = initialState;
         }
@@ -195,24 +190,23 @@ public sealed class Game
                 stateBeforeAdvance = _state;
                 await _nextStepStarted.InvokeAsync(this, new() { StateBeforeAdvance = stateBeforeAdvance }, cancellationToken);
                 stateAfterAdvance = _player.Advance(stateBeforeAdvance);
+                if (stateBeforeAdvance.Epoch == stateAfterAdvance.Epoch)
+                {
+                    continue;
+                }
+
+                _state = stateAfterAdvance;
+                await _stateStorage.SaveAsync(stateAfterAdvance, cancellationToken);
             }
             finally
             {
                 _mutex.Release();
             }
 
-            if (stateBeforeAdvance.Epoch == stateAfterAdvance.Epoch)
-            {
-                continue;
-            }
-
-            await _stateStorage.SaveAsync(stateAfterAdvance, cancellationToken);
             if (stateBeforeAdvance.CheckedLocations.Count < stateAfterAdvance.CheckedLocations.Count)
             {
                 await _client.SendLocationChecksAsync(stateAfterAdvance.CheckedLocations.Except(stateBeforeAdvance.CheckedLocations), cancellationToken);
             }
-
-            _state = stateAfterAdvance;
         }
     }
 
@@ -234,6 +228,7 @@ public sealed class Game
             if (newItems.Count > 0)
             {
                 _state = _state with { ReceivedItems = _state.ReceivedItems.AddRange(newItems) };
+                await _stateStorage.SaveAsync(_state, cancellationToken);
             }
         }
         finally

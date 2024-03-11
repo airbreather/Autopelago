@@ -69,11 +69,11 @@ if (connectResponse is not ConnectedPacketModel { Team: int team, Slot: int slot
     throw new InvalidDataException("Connection refused.");
 }
 
-Game game = new(client, TimeProvider.System);
+ArchipelagoGameStateStorage gameStateStorage = new(archipelagoClient, $"autopelago_state_{team}_{slot}");
+Game game = new(client, TimeProvider.System, gameStateStorage);
 try
 {
-    ArchipelagoGameStateStorage gameStateStorage = new(archipelagoClient, $"autopelago_state_{team}_{slot}");
-    await game.RunUntilCanceledAsync(gameStateStorage, cts.Token);
+    await game.RunUntilCanceledAsync(cts.Token);
 }
 catch (OperationCanceledException)
 {
