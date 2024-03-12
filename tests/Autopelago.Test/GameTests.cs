@@ -30,7 +30,7 @@ public sealed class GameTests
             return ValueTask.CompletedTask;
         };
 
-        ValueTask gameTask = _game.RunUntilCanceledAsync(cts.Token);
+        ValueTask gameTask = _game.RunUntilCanceledOrCompletedAsync(cts.Token);
         TimeSpan interval = TimeSpan.FromMilliseconds(1);
         for (TimeSpan totalAdvanced = TimeSpan.Zero; totalAdvanced < TimeSpan.FromSeconds(1); _timeProvider.Advance(interval), totalAdvanced += interval)
         {

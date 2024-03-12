@@ -3,7 +3,7 @@ using System.Threading.Channels;
 
 namespace ArchipelagoClientDotNet;
 
-public sealed class ArchipelagoClient : IArchipelagoClient
+public sealed class ArchipelagoClient
 {
     private readonly Channel<ImmutableArray<ArchipelagoPacketModel>, ArchipelagoPacketModel> _channel;
 
@@ -44,7 +44,7 @@ public sealed class ArchipelagoClient : IArchipelagoClient
     {
         await Helper.ConfigureAwaitFalse();
 
-        await WriteNextPacketsAsync([getDataPackage], cancellationToken);
+        await WriteNextPacketAsync(getDataPackage, cancellationToken);
         _dataPackage = await _channel.Reader.ReadAsync(cancellationToken) as DataPackagePacketModel ?? throw new InvalidDataException("Server does not properly implement the Archipelago handshake protocol.");
         await _packetReceivedEvent.InvokeAsync(this, new() { Packet = _dataPackage }, cancellationToken);
         return _dataPackage;
@@ -64,10 +64,53 @@ public sealed class ArchipelagoClient : IArchipelagoClient
             throw new InvalidOperationException("Already finished the handshake.");
         }
 
-        await WriteNextPacketsAsync([connect], cancellationToken);
+        await WriteNextPacketAsync(connect, cancellationToken);
         _lastHandshakeResponse = await _channel.Reader.ReadAsync(cancellationToken) as ConnectResponsePacketModel ?? throw new InvalidDataException("Server does not properly implement the Archipelago handshake protocol.");
         await _packetReceivedEvent.InvokeAsync(this, new() { Packet = _lastHandshakeResponse }, cancellationToken);
         return _lastHandshakeResponse;
+    }
+
+    public async ValueTask<RetrievedPacketModel> GetAsync(GetPacketModel getPacket, CancellationToken cancellationToken)
+    {
+        await Helper.ConfigureAwaitFalse();
+        TaskCompletionSource<RetrievedPacketModel> tcs = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        PacketReceived += OnClientPacketReceived;
+        await WriteNextPacketAsync(getPacket, cancellationToken);
+        return await tcs.Task.ConfigureAwait(false);
+        ValueTask OnClientPacketReceived(object? sender, PacketReceivedEventArgs args, CancellationToken cancellationToken)
+        {
+            if (args.Packet is RetrievedPacketModel retrieved)
+            {
+                PacketReceived -= OnClientPacketReceived;
+                tcs.TrySetResult(retrieved);
+            }
+
+            return ValueTask.CompletedTask;
+        }
+    }
+
+    public async ValueTask<SetReplyPacketModel?> SetAsync(SetPacketModel setPacket, CancellationToken cancellationToken)
+    {
+        await Helper.ConfigureAwaitFalse();
+        if (setPacket.WantReply)
+        {
+            await WriteNextPacketAsync(setPacket, cancellationToken);
+            return null;
+        }
+
+        TaskCompletionSource<SetReplyPacketModel> tcs = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        PacketReceived += OnClientPacketReceived;
+        await WriteNextPacketAsync(setPacket, cancellationToken);
+        return await tcs.Task.ConfigureAwait(false);
+        ValueTask OnClientPacketReceived(object? sender, PacketReceivedEventArgs args, CancellationToken cancellationToken)
+        {
+            if (args.Packet is SetReplyPacketModel retrieved)
+            {
+                tcs.TrySetResult(retrieved);
+            }
+
+            return ValueTask.CompletedTask;
+        }
     }
 
     public async ValueTask RunUntilCanceledAsync(CancellationToken cancellationToken)
@@ -88,8 +131,18 @@ public sealed class ArchipelagoClient : IArchipelagoClient
         }
     }
 
+    public ValueTask WriteNextPacketAsync(ArchipelagoPacketModel nextPacket, CancellationToken cancellationToken)
+    {
+        return WriteNextPacketsAsync([nextPacket], cancellationToken);
+    }
+
     public ValueTask WriteNextPacketsAsync(ImmutableArray<ArchipelagoPacketModel> nextPackets, CancellationToken cancellationToken)
     {
         return _channel.Writer.WriteAsync(nextPackets, cancellationToken);
     }
+}
+
+public readonly record struct PacketReceivedEventArgs
+{
+    public required ArchipelagoPacketModel Packet { get; init; }
 }

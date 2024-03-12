@@ -6,11 +6,11 @@ namespace Autopelago;
 
 public sealed class ArchipelagoGameStateStorage : GameStateStorage
 {
-    private readonly IArchipelagoClient _client;
+    private readonly ArchipelagoClient _client;
 
     private readonly string _key;
 
-    public ArchipelagoGameStateStorage(IArchipelagoClient client, string key)
+    public ArchipelagoGameStateStorage(ArchipelagoClient client, string key)
     {
         _client = client;
         _key = key;

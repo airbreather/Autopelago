@@ -44,6 +44,8 @@ public sealed class Game
 
         public required Prng.State PrngState { get; init; }
 
+        public bool IsCompleted => ReceivedItems.Contains(GameDefinitions.Instance.GoalItem);
+
         public int DiceModifier => (RatCount / 3) - (LocationCheckAttemptsThisStep * 5);
 
         public int RatCount => ReceivedItems.Sum(i => i.RatCount).GetValueOrDefault();
@@ -140,7 +142,7 @@ public sealed class Game
         }
     }
 
-    private readonly IAutopelagoClient _client;
+    private readonly AutopelagoClient _client;
 
     private readonly TimeProvider _timeProvider;
 
@@ -154,7 +156,7 @@ public sealed class Game
 
     private State _state;
 
-    public Game(IAutopelagoClient client, TimeProvider timeProvider, GameStateStorage stateStorage, Random? random = null)
+    public Game(AutopelagoClient client, TimeProvider timeProvider, GameStateStorage stateStorage, Random? random = null)
     {
         _client = client;
         _timeProvider = timeProvider;
@@ -162,13 +164,15 @@ public sealed class Game
         _state = State.Start(random);
     }
 
+    public State CurrentState => _state;
+
     public event AsyncEventHandler<NextStepStartedEventArgs> NextStepStarted
     {
         add => _nextStepStarted.Add(value);
         remove => _nextStepStarted.Remove(value);
     }
 
-    public async ValueTask RunUntilCanceledAsync(CancellationToken cancellationToken)
+    public async ValueTask RunUntilCanceledOrCompletedAsync(CancellationToken cancellationToken)
     {
         if (await _stateStorage.LoadAsync(cancellationToken) is State initialState)
         {
@@ -177,7 +181,7 @@ public sealed class Game
 
         _client.ReceivedItems += OnClientReceivedItemsAsync;
 
-        while (true)
+        while (!_state.IsCompleted)
         {
             State stateBeforeAdvance;
             State stateAfterAdvance;
@@ -224,8 +228,8 @@ public sealed class Game
                 }
             }
 
-            List<ItemDefinitionModel> newItems = [.. args.Items.Except(_state.ReceivedItems)];
-            if (newItems.Count > 0)
+            ImmutableArray<ItemDefinitionModel> newItems = args.Items[(_state.ReceivedItems.Count - args.Index)..];
+            if (newItems.Length > 0)
             {
                 _state = _state with { ReceivedItems = _state.ReceivedItems.AddRange(newItems) };
                 await _stateStorage.SaveAsync(_state, cancellationToken);

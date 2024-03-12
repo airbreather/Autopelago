@@ -2,7 +2,7 @@ using ArchipelagoClientDotNet;
 
 namespace Autopelago;
 
-public sealed class UnrandomizedAutopelagoClient : IAutopelagoClient
+public sealed class UnrandomizedAutopelagoClient : AutopelagoClient
 {
     private readonly List<ItemDefinitionModel> _allReceivedItems = [];
 
@@ -10,13 +10,13 @@ public sealed class UnrandomizedAutopelagoClient : IAutopelagoClient
 
     private readonly AsyncEvent<ReceivedItemsEventArgs> _receivedItemsEvent = new();
 
-    public event AsyncEventHandler<ReceivedItemsEventArgs> ReceivedItems
+    public override event AsyncEventHandler<ReceivedItemsEventArgs> ReceivedItems
     {
         add => _receivedItemsEvent.Add(value);
         remove => _receivedItemsEvent.Remove(value);
     }
 
-    public async ValueTask SendLocationChecksAsync(IEnumerable<LocationDefinitionModel> locations, CancellationToken cancellationToken)
+    public override async ValueTask SendLocationChecksAsync(IEnumerable<LocationDefinitionModel> locations, CancellationToken cancellationToken)
     {
         List<LocationDefinitionModel> newLocations = [];
         foreach (LocationDefinitionModel location in locations)

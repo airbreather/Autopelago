@@ -5,9 +5,9 @@ using ArchipelagoClientDotNet;
 
 namespace Autopelago;
 
-public sealed class RealAutopelagoClient : IAutopelagoClient
+public sealed class RealAutopelagoClient : AutopelagoClient
 {
-    private readonly IArchipelagoClient _client;
+    private readonly ArchipelagoClient _client;
 
     private readonly AsyncEvent<ReceivedItemsEventArgs> _receivedItemsEvent = new();
 
@@ -15,19 +15,19 @@ public sealed class RealAutopelagoClient : IAutopelagoClient
 
     private FrozenDictionary<LocationDefinitionModel, long>? _locationsMapping;
 
-    public RealAutopelagoClient(IArchipelagoClient client)
+    public RealAutopelagoClient(ArchipelagoClient client)
     {
         _client = client;
         _client.PacketReceived += OnEarlyPacketReceivedAsync;
     }
 
-    public event AsyncEventHandler<ReceivedItemsEventArgs> ReceivedItems
+    public override event AsyncEventHandler<ReceivedItemsEventArgs> ReceivedItems
     {
         add => _receivedItemsEvent.Add(value);
         remove => _receivedItemsEvent.Remove(value);
     }
 
-    public async ValueTask SendLocationChecksAsync(IEnumerable<LocationDefinitionModel> locations, CancellationToken cancellationToken)
+    public override async ValueTask SendLocationChecksAsync(IEnumerable<LocationDefinitionModel> locations, CancellationToken cancellationToken)
     {
         await Helper.ConfigureAwaitFalse();
         LocationChecksPacketModel packet = new()

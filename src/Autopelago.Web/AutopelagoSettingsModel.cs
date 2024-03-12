@@ -1,6 +1,6 @@
 using System.Collections.ObjectModel;
 
-namespace Autopelago;
+namespace Autopelago.Web;
 
 public sealed record AutopelagoSettingsModel
 {

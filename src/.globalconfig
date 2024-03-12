@@ -15,3 +15,6 @@ dotnet_diagnostic.CA1711.severity = none
 
 # Mark members as static
 dotnet_diagnostic.CA1822.severity = none
+
+# Use the LoggerMessage delegates
+dotnet_diagnostic.CA1848.severity = none

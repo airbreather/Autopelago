@@ -1,0 +1,22 @@
+{
+  "version": 1,
+  "dependencies": {
+    "net8.0": {
+      "YamlDotNet": {
+        "type": "Transitive",
+        "resolved": "15.1.2",
+        "contentHash": "qeX0XhzOIcQEvnI5JxnPaIwcINwyY4Qy/LXhSfsdHkFrl9F41AT52UFfy2nIE7kgrhMg+cP7xuS+GtPJhmHmTA=="
+      },
+      "archipelagoclientdotnet": {
+        "type": "Project"
+      },
+      "autopelago": {
+        "type": "Project",
+        "dependencies": {
+          "ArchipelagoClientDotNet": "[1.0.0, )",
+          "YamlDotNet": "[15.1.2, )"
+        }
+      }
+    }
+  }
+}
