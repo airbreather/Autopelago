@@ -5,9 +5,16 @@ using ArchipelagoClientDotNet;
 
 namespace Autopelago;
 
-public sealed record NextStepStartedEventArgs
+public sealed record StepStartedEventArgs
 {
     public required Game.State StateBeforeAdvance { get; init; }
+}
+
+public sealed record StepFinishedEventArgs
+{
+    public required Game.State StateBeforeAdvance { get; init; }
+
+    public required Game.State StateAfterAdvance { get; init; }
 }
 
 [SuppressMessage("Design", "CA1001:Types that own disposable fields should be disposable", Justification = "Lifetime is too close to the application's lifetime for me to care right now.")]
@@ -150,7 +157,9 @@ public sealed class Game
 
     private readonly SemaphoreSlim _mutex = new(1, 1);
 
-    private readonly AsyncEvent<NextStepStartedEventArgs> _nextStepStarted = new();
+    private readonly AsyncEvent<StepStartedEventArgs> _stepStarted = new();
+
+    private readonly AsyncEvent<StepFinishedEventArgs> _stepFinished = new();
 
     private readonly Player _player = new();
 
@@ -166,10 +175,16 @@ public sealed class Game
 
     public State CurrentState => _state;
 
-    public event AsyncEventHandler<NextStepStartedEventArgs> NextStepStarted
+    public event AsyncEventHandler<StepStartedEventArgs> StepStarted
     {
-        add => _nextStepStarted.Add(value);
-        remove => _nextStepStarted.Remove(value);
+        add => _stepStarted.Add(value);
+        remove => _stepStarted.Remove(value);
+    }
+
+    public event AsyncEventHandler<StepFinishedEventArgs> StepFinished
+    {
+        add => _stepFinished.Add(value);
+        remove => _stepFinished.Remove(value);
     }
 
     public async ValueTask RunUntilCanceledOrCompletedAsync(CancellationToken cancellationToken)
@@ -192,8 +207,9 @@ public sealed class Game
             try
             {
                 stateBeforeAdvance = _state;
-                await _nextStepStarted.InvokeAsync(this, new() { StateBeforeAdvance = stateBeforeAdvance }, cancellationToken);
+                await _stepStarted.InvokeAsync(this, new() { StateBeforeAdvance = stateBeforeAdvance }, cancellationToken);
                 stateAfterAdvance = _player.Advance(stateBeforeAdvance);
+                await _stepFinished.InvokeAsync(this, new() { StateBeforeAdvance = stateBeforeAdvance, StateAfterAdvance = stateAfterAdvance }, cancellationToken);
                 if (stateBeforeAdvance.Epoch == stateAfterAdvance.Epoch)
                 {
                     continue;

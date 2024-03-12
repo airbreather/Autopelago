@@ -23,7 +23,7 @@ public sealed class GameTests
     {
         using CancellationTokenSource cts = new();
         bool advanced = false;
-        _game.NextStepStarted += (_, _, _) =>
+        _game.StepStarted += (_, _, _) =>
         {
             cts.Cancel();
             advanced = true;

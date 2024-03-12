@@ -9,12 +9,15 @@ namespace Autopelago.Web;
 
 public sealed class AutopelagoGameService : BackgroundService
 {
+    private readonly CurrentGameStates _currentGameStates;
+
     private readonly TimeProvider _timeProvider;
 
     private readonly ILogger<AutopelagoGameService> _logger;
 
-    public AutopelagoGameService(TimeProvider timeProvider, ILogger<AutopelagoGameService> logger)
+    public AutopelagoGameService(CurrentGameStates currentGameStates, TimeProvider timeProvider, ILogger<AutopelagoGameService> logger)
     {
+        _currentGameStates = currentGameStates;
         _timeProvider = timeProvider;
         _logger = logger;
     }
@@ -36,7 +39,7 @@ public sealed class AutopelagoGameService : BackgroundService
             edi = args.BackgroundException;
             cts.Cancel();
         };
-        await Task.WhenAll(settings.Slots.Select(slotName => Task.Run(async () =>
+        await Task.WhenAll(settings.Slots.Select(slot => Task.Run(async () =>
         {
             await Helper.ConfigureAwaitFalse();
 
@@ -89,6 +92,15 @@ public sealed class AutopelagoGameService : BackgroundService
             #endif
 
             Game game = new(client, _timeProvider, gameStateStorage);
+            game.StepFinished += (sender, args, cancellationToken) =>
+            {
+                if (args.StateBeforeAdvance.Epoch != args.StateAfterAdvance.Epoch)
+                {
+                    _currentGameStates.Set(slot.Name, args.StateAfterAdvance);
+                }
+
+                return ValueTask.CompletedTask;
+            };
             try
             {
                 await game.RunUntilCanceledOrCompletedAsync(cts.Token);
