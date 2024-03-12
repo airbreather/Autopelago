@@ -22,7 +22,7 @@ public sealed class ArchipelagoGameStateStorage : GameStateStorage
         GetPacketModel retrieveGameState = new() { Keys = [_key] };
         RetrievedPacketModel retrievedGameState = await _client.GetAsync(retrieveGameState, cancellationToken);
         return retrievedGameState.Keys.TryGetValue(_key, out JsonElement stateElement)
-            ? JsonSerializer.Deserialize<Game.State.Proxy>(stateElement, s_jsonSerializerOptions)
+            ? JsonSerializer.Deserialize<Game.State.Proxy>(stateElement, Game.State.Proxy.SerializerOptions)
             : null;
     }
 
@@ -32,7 +32,7 @@ public sealed class ArchipelagoGameStateStorage : GameStateStorage
         DataStorageOperationModel op = new()
         {
             Operation = ArchipelagoDataStorageOperationType.Replace,
-            Value = JsonSerializer.SerializeToNode(proxy, s_jsonSerializerOptions)!,
+            Value = JsonSerializer.SerializeToNode(proxy, Game.State.Proxy.SerializerOptions)!,
         };
         await _client.SetAsync(new() { Key = _key, Operations = [op] }, cancellationToken);
     }

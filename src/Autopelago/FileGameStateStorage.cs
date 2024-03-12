@@ -38,7 +38,7 @@ public sealed class FileGameStateStorage : GameStateStorage
         try
         {
             await using FileStream file = new(_path, s_readOptions);
-            return await JsonSerializer.DeserializeAsync<Game.State.Proxy>(file, s_jsonSerializerOptions, cancellationToken);
+            return await JsonSerializer.DeserializeAsync<Game.State.Proxy>(file, Game.State.Proxy.SerializerOptions, cancellationToken);
         }
         catch (IOException)
         {
@@ -51,7 +51,7 @@ public sealed class FileGameStateStorage : GameStateStorage
         await Helper.ConfigureAwaitFalse();
         await using (FileStream file = new(_tempPath, s_writeOptions))
         {
-            await JsonSerializer.SerializeAsync(file, proxy, s_jsonSerializerOptions, cancellationToken);
+            await JsonSerializer.SerializeAsync(file, proxy, Game.State.Proxy.SerializerOptions, cancellationToken);
         }
 
         File.Move(_tempPath, _path, overwrite: true);

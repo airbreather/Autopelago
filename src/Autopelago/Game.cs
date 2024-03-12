@@ -1,5 +1,7 @@
 using System.Collections.Immutable;
 using System.Diagnostics.CodeAnalysis;
+using System.Text.Json;
+using System.Text.Json.Serialization;
 
 using ArchipelagoClientDotNet;
 
@@ -15,6 +17,14 @@ public sealed record StepFinishedEventArgs
     public required Game.State StateBeforeAdvance { get; init; }
 
     public required Game.State StateAfterAdvance { get; init; }
+}
+
+[JsonSourceGenerationOptions(
+    PropertyNamingPolicy = JsonKnownNamingPolicy.SnakeCaseLower,
+    UseStringEnumConverter = true)]
+[JsonSerializable(typeof(Game.State.Proxy))]
+internal sealed partial class GameStateProxySerializerContext : JsonSerializerContext
+{
 }
 
 [SuppressMessage("Design", "CA1001:Types that own disposable fields should be disposable", Justification = "Lifetime is too close to the application's lifetime for me to care right now.")]
@@ -119,6 +129,13 @@ public sealed class Game
 
         public sealed record Proxy
         {
+            public static readonly JsonSerializerOptions SerializerOptions = new()
+            {
+                PropertyNamingPolicy = JsonNamingPolicy.SnakeCaseLower,
+                DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull,
+                TypeInfoResolver = GameStateProxySerializerContext.Default,
+            };
+
             public ulong Epoch { get; init; }
 
             public required string CurrentLocation { get; init; }

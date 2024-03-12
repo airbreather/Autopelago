@@ -92,14 +92,12 @@ public sealed class AutopelagoGameService : BackgroundService
             #endif
 
             Game game = new(client, _timeProvider, gameStateStorage);
-            game.StepFinished += (sender, args, cancellationToken) =>
+            game.StepFinished += async (sender, args, cancellationToken) =>
             {
                 if (args.StateBeforeAdvance.Epoch != args.StateAfterAdvance.Epoch)
                 {
-                    _currentGameStates.Set(slot.Name, args.StateAfterAdvance);
+                    await _currentGameStates.SetAsync(slot.Name, args.StateAfterAdvance, cancellationToken);
                 }
-
-                return ValueTask.CompletedTask;
             };
             try
             {
