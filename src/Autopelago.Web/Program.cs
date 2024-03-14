@@ -2,13 +2,15 @@ using System.Net.Mime;
 using System.Net.WebSockets;
 using System.Text;
 using System.Text.Json;
-
+using System.Web;
 using ArchipelagoClientDotNet;
 
 using Autopelago;
 using Autopelago.Web;
 
 using Microsoft.AspNetCore.Mvc;
+
+await Helper.ConfigureAwaitFalse();
 
 WebApplicationBuilder builder = WebApplication.CreateBuilder(args);
 
@@ -41,7 +43,7 @@ app.Use(async (context, next) =>
         return;
     }
 
-    string slotName = context.WebSockets.WebSocketRequestedProtocols[0];
+    string slotName = HttpUtility.UrlDecode(context.WebSockets.WebSocketRequestedProtocols[0]);
     CurrentGameStates currentGameStates = context.RequestServices.GetRequiredService<CurrentGameStates>();
     Game.State? prevState = currentGameStates.Get(slotName);
     using WebSocket ws = await context.WebSockets.AcceptWebSocketAsync(new WebSocketAcceptContext { DangerousEnableCompression = true });
@@ -81,7 +83,7 @@ app.Use(async (context, next) =>
     }
 });
 
-app.Run();
+await app.RunAsync();
 
 public class Home : ControllerBase
 {
@@ -93,7 +95,7 @@ public class Home : ControllerBase
     <head>
         <script type="text/javascript">
             window.addEventListener('DOMContentLoaded', async function() {
-                const webSocket = new WebSocket(`ws://${window.location.host}/ws`, `{{slotName.Replace("`", "\\`")}}`);
+                const webSocket = new WebSocket(`ws://${window.location.host}/ws`, `{{HttpUtility.UrlEncode(slotName).Replace("`", "\\`")}}`);
                 webSocket.onmessage = event => {
                     const dser = JSON.parse(event.data);
                     document.getElementById('curr').innerHTML = `

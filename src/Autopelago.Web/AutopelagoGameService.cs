@@ -43,8 +43,6 @@ public sealed class AutopelagoGameService : BackgroundService
         {
             await Helper.ConfigureAwaitFalse();
 
-            #if false
-
             await using WebSocketPacketChannel channel = new(settings.Server, settings.Port);
             await channel.ConnectAsync(cts.Token);
             ArchipelagoClient archipelagoClient = new(channel);
@@ -79,17 +77,12 @@ public sealed class AutopelagoGameService : BackgroundService
                 SlotData = true,
             }, cts.Token);
 
-            if (connectResponse is not ConnectedPacketModel { Team: int team, Slot: int slot })
+            if (connectResponse is not ConnectedPacketModel { Team: int team, Slot: int slotNumber })
             {
                 throw new InvalidDataException("Connection refused.");
             }
 
-            ArchipelagoGameStateStorage gameStateStorage = new(archipelagoClient, $"autopelago_state_{team}_{slot}");
-
-            #else
-            UnrandomizedAutopelagoClient client = new();
-            LocalGameStateStorage gameStateStorage = new();
-            #endif
+            ArchipelagoGameStateStorage gameStateStorage = new(archipelagoClient, $"autopelago_state_{team}_{slotNumber}");
 
             Game game = new(client, _timeProvider, gameStateStorage);
             game.StepFinished += async (sender, args, cancellationToken) =>
@@ -101,7 +94,9 @@ public sealed class AutopelagoGameService : BackgroundService
             };
             try
             {
-                await game.RunUntilCanceledOrCompletedAsync(cts.Token);
+                await Task.WhenAll(
+                    Task.Run(async () => await game.RunUntilCanceledOrCompletedAsync(cts.Token).ConfigureAwait(false)),
+                    Task.Run(async () => await archipelagoClient.RunUntilCanceledAsync(cts.Token).ConfigureAwait(false)));
             }
             catch (OperationCanceledException)
             {
