@@ -113,11 +113,10 @@ public sealed class PlayerTests
     [Test]
     public void GameShouldBeWinnable([Random(100, Distinct = true)] ulong seed)
     {
-        LocationDefinitionModel goal = GameDefinitions.Instance.LocationsByKey[LocationKey.For("goal")];
         Game.State state = Game.State.Start(seed);
         Player player = new();
         ulong steps = 0;
-        while (state.CurrentLocation != goal)
+        while (!state.IsCompleted)
         {
             ++steps;
             Game.State prev = state;

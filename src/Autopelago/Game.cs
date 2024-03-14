@@ -61,7 +61,7 @@ public sealed class Game
 
         public required Prng.State PrngState { get; init; }
 
-        public bool IsCompleted => ReceivedItems.Contains(GameDefinitions.Instance.GoalItem);
+        public bool IsCompleted => CurrentLocation == GameDefinitions.Instance.GoalLocation;
 
         public int DiceModifier => (RatCount / 3) - (LocationCheckAttemptsThisStep * 5);
 

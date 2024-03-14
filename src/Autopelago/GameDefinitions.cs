@@ -20,8 +20,6 @@ public sealed record GameDefinitions
     {
     }
 
-    public required ItemDefinitionModel GoalItem { get; init; }
-
     public required ItemDefinitionModel NormalRat { get; init; }
 
     public required ImmutableArray<ItemDefinitionModel> AllItems { get; init; }
@@ -68,7 +66,6 @@ public sealed record GameDefinitions
         ).ToFrozenDictionary();
         return new()
         {
-            GoalItem = items.Goal,
             NormalRat = items.NormalRat,
             AllItems = items.AllItems,
             ProgressionItems = items.ProgressionItems,
@@ -77,10 +74,10 @@ public sealed record GameDefinitions
             AllRegions = regions.AllRegions,
             LandmarkRegions = regions.LandmarkRegions,
             FillerRegions = regions.FillerRegions,
-            StartRegion = regions.AllRegions["menu"],
-            StartLocation = locationsByKey[LocationKey.For("menu", 0)],
-            GoalRegion = regions.AllRegions["goal"],
-            GoalLocation = locationsByKey[LocationKey.For("goal", 0)],
+            StartRegion = regions.AllRegions["Menu"],
+            StartLocation = locationsByKey[LocationKey.For("Menu", 0)],
+            GoalRegion = regions.AllRegions["Victory"],
+            GoalLocation = locationsByKey[LocationKey.For("Victory", 0)],
 
             LocationsByKey = locationsByKey.Values.ToFrozenDictionary(location => location.Key),
             LocationsByName = locationsByKey.Values.ToFrozenDictionary(location => location.Name),
@@ -99,8 +96,6 @@ public sealed record ItemDefinitionsModel
         ["uncategorized"] = ArchipelagoItemFlags.None,
     }.ToFrozenDictionary();
 
-    public required ItemDefinitionModel Goal { get; init; }
-
     public required ItemDefinitionModel NormalRat { get; init; }
 
     public required ImmutableArray<ItemDefinitionModel> AllItems { get; init; }
@@ -109,7 +104,6 @@ public sealed record ItemDefinitionsModel
 
     public static ItemDefinitionsModel DeserializeFrom(YamlMappingNode itemsMap, YamlMappingNode locationsMap)
     {
-        ItemDefinitionModel? goal = null;
         ItemDefinitionModel? normalRat = null;
         List<ItemDefinitionModel> allItems = [];
         Dictionary<string, ItemDefinitionModel> keyedItems = [];
@@ -143,12 +137,7 @@ public sealed record ItemDefinitionsModel
                     // though, because it would be a major problem if this got messed up.
                     allItems.Add(ItemDefinitionModel.DeserializeFrom(valueNode, ArchipelagoItemFlags.LogicalAdvancement));
                     keyedItems.Add(key, allItems[^1]);
-                    if (key == "goal")
-                    {
-                        // no need for validation.
-                        goal = allItems[^1];
-                    }
-                    else if (key == "normal_rat")
+                    if (key == "normal_rat")
                     {
                         // no need for validation
                         normalRat = allItems[^1];
@@ -166,16 +155,16 @@ public sealed record ItemDefinitionsModel
             }
         }
 
-        if ((goal, normalRat) is not ({ }, { RatCount: 1 }))
+        if (normalRat is not { RatCount: 1 })
         {
-            throw new InvalidDataException("'goal' and 'normal_rat' are required items (and 'normal_rat' needs to have a rat_count of 1).");
+            throw new InvalidDataException("'normal_rat' is required and needs to have a rat_count of 1.");
         }
 
         AllItemKeysVisitor itemKeysVisitor = new() { NeededItemsNotYetVisited = progressionItemKeysToValidate };
         locationsMap.Accept(itemKeysVisitor);
-        if (progressionItemKeysToValidate.Count > 0)
+        if (progressionItemKeysToValidate.Count > 1)
         {
-            throw new NotSupportedException($"All items with keys need to be progression items for now... these weren't found in 'locations': {string.Join(", ", progressionItemKeysToValidate)}");
+            throw new NotSupportedException($"All but one of the items with keys need to be progression items for now... these weren't found in 'locations': {string.Join(", ", progressionItemKeysToValidate)}");
         }
 
         List<string> progressionItemKeysNotMarkedAsSuch = [];
@@ -194,7 +183,6 @@ public sealed record ItemDefinitionsModel
 
         return new()
         {
-            Goal = goal,
             NormalRat = normalRat,
             AllItems = [.. allItems],
             ProgressionItems = keyedItems.ToFrozenDictionary(),
@@ -323,18 +311,18 @@ public sealed record RegionDefinitionsModel
     {
         Dictionary<string, RegionDefinitionModel> allRegions = new()
         {
-            ["goal"] = new LandmarkRegionDefinitionModel
+            ["Victory"] = new LandmarkRegionDefinitionModel
             {
-                Key = "goal",
+                Key = "Victory",
                 Exits = [],
                 Locations =
                 [
                     new()
                     {
-                        Key = LocationKey.For("goal"),
-                        Name = items.Goal.Name,
+                        Key = LocationKey.For("Victory"),
+                        Name = "Victory",
                         Requirement = GameRequirement.AlwaysSatisfied,
-                        UnrandomizedItem = items.Goal,
+                        UnrandomizedItem = null,
                     },
                 ],
             },
@@ -529,7 +517,7 @@ public sealed record LocationDefinitionModel
 
     public required AllChildrenGameRequirement Requirement { get; init; }
 
-    public required ItemDefinitionModel UnrandomizedItem { get; init; }
+    public required ItemDefinitionModel? UnrandomizedItem { get; init; }
 
     public RegionDefinitionModel Region => GameDefinitions.Instance.AllRegions[Key.RegionKey];
 

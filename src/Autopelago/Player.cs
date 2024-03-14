@@ -24,7 +24,7 @@ public sealed class Player
 
     public Game.State Advance(Game.State state)
     {
-        if (state.CurrentLocation == GameDefinitions.Instance.GoalLocation)
+        if (state.IsCompleted)
         {
             return state;
         }
@@ -159,7 +159,6 @@ public sealed class Player
         // because all viable routes will eventually put us in front of the same set of locations
         // anyway, we can eliminate the luck factor by auto-succeeding all dynamic checks.
         Player innerPlayer = new(autoSucceedDynamicChecks: true);
-        LocationDefinitionModel goal = GameDefinitions.Instance.LocationsByKey[LocationKey.For("goal")];
         LocationDefinitionModel bestCandidate = null!;
         ulong bestCandidateSteps = ulong.MaxValue;
         foreach (LocationDefinitionModel candidate in candidates)
@@ -170,7 +169,7 @@ public sealed class Player
             {
                 Game.State prev = candidateState;
                 candidateState = innerPlayer.Advance(candidateState);
-                if (prev.Epoch == candidateState.Epoch || candidateState.CheckedLocations[^1] == goal)
+                if (prev.Epoch == candidateState.Epoch || candidateState.IsCompleted)
                 {
                     break;
                 }
