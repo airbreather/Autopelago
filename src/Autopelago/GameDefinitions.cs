@@ -523,7 +523,7 @@ public sealed record LocationDefinitionModel
 
     public int DistanceTo(LocationDefinitionModel target) => GameDefinitions.Instance.FloydWarshall.GetDistance(this, target);
 
-    public LocationDefinitionModel NextLocationTowards(LocationDefinitionModel target) => this == target ? target : GameDefinitions.Instance.FloydWarshall.GetPath(this, target)[1];
+    public LocationDefinitionModel NextLocationTowards(LocationDefinitionModel target) => this == target ? target : GameDefinitions.Instance.FloydWarshall.GetNextOnPath(this, target);
 
     public bool TryCheck(ref Game.State state, bool autoSucceedDynamicChecks)
     {

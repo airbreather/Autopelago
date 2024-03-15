@@ -124,6 +124,11 @@ public sealed class FloydWarshall
         return _dist[_locIndex[source], _locIndex[target]];
     }
 
+    public LocationDefinitionModel GetNextOnPath(LocationDefinitionModel source, LocationDefinitionModel target)
+    {
+        return _locs[_path.GetNextOnPath(_locIndex[source], _locIndex[target])];
+    }
+
     public ImmutableArray<LocationDefinitionModel> GetPath(LocationDefinitionModel source, LocationDefinitionModel target)
     {
         return ImmutableArray.CreateRange(_path[_locIndex[source], _locIndex[target]], i => _locs[i]);
@@ -148,8 +153,9 @@ public sealed class FloydWarshall
         {
             get
             {
+                int[] prev = _prev[s];
                 int cnt = 1;
-                for (int tt = t; tt != s; tt = _prev[s][tt])
+                for (int tt = t; tt != s; tt = prev[tt])
                 {
                     ++cnt;
                 }
@@ -158,11 +164,18 @@ public sealed class FloydWarshall
                 do
                 {
                     result[--cnt] = t;
-                    t = _prev[s][t];
+                    t = prev[t];
                 } while (s != t);
 
                 return ImmutableCollectionsMarshal.AsImmutableArray(result);
             }
+        }
+
+        public int GetNextOnPath(int s, int t)
+        {
+            int[] prev = _prev[s];
+            for (; prev[t] != s; t = prev[t]) ;
+            return t;
         }
     }
 }
