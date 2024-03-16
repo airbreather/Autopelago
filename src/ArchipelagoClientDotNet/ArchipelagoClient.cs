@@ -14,7 +14,11 @@ public sealed class ArchipelagoClient
 
     private readonly AsyncEvent<PacketReceivedEventArgs> _packetReceivedEvent = new();
 
-    private RoomInfoPacketModel? _roomInfo;
+    private readonly TaskCompletionSource<RoomInfoPacketModel> _roomInfoBox = new(TaskCreationOptions.RunContinuationsAsynchronously);
+
+    private bool _running;
+
+    private bool _gotRoomInfo;
 
     private DataPackagePacketModel? _dataPackage;
 
@@ -23,6 +27,22 @@ public sealed class ArchipelagoClient
     public ArchipelagoClient(Channel<ImmutableArray<ArchipelagoPacketModel>, ArchipelagoPacketModel> channel)
     {
         _channel = channel;
+
+        PacketReceived += OnFirstPacketReceived;
+        ValueTask OnFirstPacketReceived(object? sender, PacketReceivedEventArgs args, CancellationToken cancellationToken)
+        {
+            PacketReceived -= OnFirstPacketReceived;
+            if (args.Packet is RoomInfoPacketModel roomInfo)
+            {
+                _roomInfoBox.TrySetResult(roomInfo);
+            }
+            else
+            {
+                _roomInfoBox.TrySetException(new InvalidDataException("Server does not properly implement the Archipelago handshake protocol."));
+            }
+
+            return ValueTask.CompletedTask;
+        }
     }
 
     public event AsyncEventHandler<PacketReceivedEventArgs> PacketReceived
@@ -31,23 +51,56 @@ public sealed class ArchipelagoClient
         remove => _packetReceivedEvent.Remove(value);
     }
 
+    public void RunInBackgroundUntilCanceled(CancellationToken cancellationToken)
+    {
+        if (_running)
+        {
+            throw new InvalidOperationException("Already running");
+        }
+
+        _running = true;
+        _ = BackgroundTaskRunner.Run(async () =>
+        {
+            await Helper.ConfigureAwaitFalse();
+
+            try
+            {
+                while (await _channel.Reader.WaitToReadAsync(cancellationToken))
+                {
+                    while (_channel.Reader.TryRead(out ArchipelagoPacketModel? packet))
+                    {
+                        await _packetReceivedEvent.InvokeAsync(this, new() { Packet = packet }, cancellationToken);
+                    }
+                }
+            }
+            catch (OperationCanceledException)
+            {
+            }
+        }, cancellationToken);
+    }
+
     public async ValueTask<RoomInfoPacketModel> Handshake1Async(CancellationToken cancellationToken)
     {
-        if (_roomInfo is not null)
+        if (!_running)
+        {
+            throw new InvalidOperationException("Start running first.");
+        }
+
+        if (_gotRoomInfo)
         {
             throw new InvalidOperationException("Already completed Handshake1.");
         }
 
         await Helper.ConfigureAwaitFalse();
 
-        _roomInfo = await _channel.Reader.ReadAsync(cancellationToken) as RoomInfoPacketModel ?? throw new InvalidDataException("Server does not properly implement the Archipelago handshake protocol.");
-        await _packetReceivedEvent.InvokeAsync(this, new() { Packet = _roomInfo }, cancellationToken);
-        return _roomInfo;
+        RoomInfoPacketModel roomInfo = await _roomInfoBox.Task.WaitAsync(cancellationToken);
+        _gotRoomInfo = true;
+        return roomInfo;
     }
 
     public async ValueTask<DataPackagePacketModel> Handshake2Async(GetDataPackagePacketModel getDataPackage, CancellationToken cancellationToken)
     {
-        if (_roomInfo is null)
+        if (_roomInfoBox is null)
         {
             throw new InvalidOperationException("Finish Handshake1 first.");
         }
@@ -59,10 +112,25 @@ public sealed class ArchipelagoClient
 
         await Helper.ConfigureAwaitFalse();
 
+        TaskCompletionSource<DataPackagePacketModel> dataPackageBox = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        PacketReceived += OnNextPacketReceived;
+        ValueTask OnNextPacketReceived(object? sender, PacketReceivedEventArgs args, CancellationToken cancellationToken)
+        {
+            PacketReceived -= OnNextPacketReceived;
+            if (args.Packet is DataPackagePacketModel dataPackage)
+            {
+                dataPackageBox.TrySetResult(dataPackage);
+            }
+            else
+            {
+                dataPackageBox.TrySetException(new InvalidDataException("Server does not properly implement the Archipelago handshake protocol."));
+            }
+
+            return ValueTask.CompletedTask;
+        }
+
         await WriteNextPacketAsync(getDataPackage, cancellationToken);
-        _dataPackage = await _channel.Reader.ReadAsync(cancellationToken) as DataPackagePacketModel ?? throw new InvalidDataException("Server does not properly implement the Archipelago handshake protocol.");
-        await _packetReceivedEvent.InvokeAsync(this, new() { Packet = _dataPackage }, cancellationToken);
-        return _dataPackage;
+        return _dataPackage = await dataPackageBox.Task.WaitAsync(cancellationToken);
     }
 
     public async ValueTask<ConnectResponsePacketModel> Handshake3Async(ConnectPacketModel connect, CancellationToken cancellationToken)
@@ -79,28 +147,25 @@ public sealed class ArchipelagoClient
 
         await Helper.ConfigureAwaitFalse();
 
-        await WriteNextPacketAsync(connect, cancellationToken);
-        _lastHandshakeResponse = await _channel.Reader.ReadAsync(cancellationToken) as ConnectResponsePacketModel ?? throw new InvalidDataException("Server does not properly implement the Archipelago handshake protocol.");
-        await _packetReceivedEvent.InvokeAsync(this, new() { Packet = _lastHandshakeResponse }, cancellationToken);
-        return _lastHandshakeResponse;
-    }
-
-    public async ValueTask RunUntilCanceledAsync(CancellationToken cancellationToken)
-    {
-        if (_lastHandshakeResponse is not ConnectedPacketModel)
+        TaskCompletionSource<ConnectResponsePacketModel> connectResponseBox = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        PacketReceived += OnNextPacketReceived;
+        ValueTask OnNextPacketReceived(object? sender, PacketReceivedEventArgs args, CancellationToken cancellationToken)
         {
-            throw new InvalidOperationException("Finish Handshake3 successfully first.");
-        }
-
-        await Helper.ConfigureAwaitFalse();
-
-        while (await _channel.Reader.WaitToReadAsync(cancellationToken))
-        {
-            while (_channel.Reader.TryRead(out ArchipelagoPacketModel? packet))
+            PacketReceived -= OnNextPacketReceived;
+            if (args.Packet is ConnectResponsePacketModel connectResponse)
             {
-                await _packetReceivedEvent.InvokeAsync(this, new() { Packet = packet }, cancellationToken);
+                connectResponseBox.TrySetResult(connectResponse);
             }
+            else
+            {
+                connectResponseBox.TrySetException(new InvalidDataException("Server does not properly implement the Archipelago handshake protocol."));
+            }
+
+            return ValueTask.CompletedTask;
         }
+
+        await WriteNextPacketAsync(connect, cancellationToken);
+        return _lastHandshakeResponse = await connectResponseBox.Task.WaitAsync(cancellationToken);
     }
 
     public async ValueTask<RetrievedPacketModel> GetAsync(GetPacketModel getPacket, CancellationToken cancellationToken)
@@ -112,16 +177,16 @@ public sealed class ArchipelagoClient
 
         await Helper.ConfigureAwaitFalse();
 
-        TaskCompletionSource<RetrievedPacketModel> tcs = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        TaskCompletionSource<RetrievedPacketModel> retrievedBox = new(TaskCreationOptions.RunContinuationsAsynchronously);
         PacketReceived += OnClientPacketReceived;
         await WriteNextPacketAsync(getPacket, cancellationToken);
-        return await tcs.Task.ConfigureAwait(false);
+        return await retrievedBox.Task.ConfigureAwait(false);
         ValueTask OnClientPacketReceived(object? sender, PacketReceivedEventArgs args, CancellationToken cancellationToken)
         {
             if (args.Packet is RetrievedPacketModel retrieved)
             {
                 PacketReceived -= OnClientPacketReceived;
-                tcs.TrySetResult(retrieved);
+                retrievedBox.TrySetResult(retrieved);
             }
 
             return ValueTask.CompletedTask;
@@ -137,15 +202,15 @@ public sealed class ArchipelagoClient
             return null;
         }
 
-        TaskCompletionSource<SetReplyPacketModel> tcs = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        TaskCompletionSource<SetReplyPacketModel> setReplyBox = new(TaskCreationOptions.RunContinuationsAsynchronously);
         PacketReceived += OnClientPacketReceived;
         await WriteNextPacketAsync(setPacket, cancellationToken);
-        return await tcs.Task.ConfigureAwait(false);
+        return await setReplyBox.Task.ConfigureAwait(false);
         ValueTask OnClientPacketReceived(object? sender, PacketReceivedEventArgs args, CancellationToken cancellationToken)
         {
             if (args.Packet is SetReplyPacketModel retrieved)
             {
-                tcs.TrySetResult(retrieved);
+                setReplyBox.TrySetResult(retrieved);
             }
 
             return ValueTask.CompletedTask;

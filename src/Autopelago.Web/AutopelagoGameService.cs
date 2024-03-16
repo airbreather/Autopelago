@@ -39,7 +39,7 @@ public sealed class AutopelagoGameService : BackgroundService
             edi = args.BackgroundException;
             cts.Cancel();
         };
-        await Task.WhenAll(settings.Slots.Select(slot => Task.Run(async () =>
+        await Task.WhenAll(settings.Slots.Select(slot => BackgroundTaskRunner.Run(async () =>
         {
             await Helper.ConfigureAwaitFalse();
 
@@ -62,7 +62,8 @@ public sealed class AutopelagoGameService : BackgroundService
                 return ValueTask.CompletedTask;
             }
 
-            RealAutopelagoClient client = new(archipelagoClient);
+            archipelagoClient.RunInBackgroundUntilCanceled(cts.Token);
+
             RoomInfoPacketModel roomInfo = await archipelagoClient.Handshake1Async(cts.Token);
             DataPackagePacketModel dataPackage = await archipelagoClient.Handshake2Async(new() { Games = [settings.GameName] }, cts.Token);
             ConnectResponsePacketModel connectResponse = await archipelagoClient.Handshake3Async(new()
@@ -84,6 +85,7 @@ public sealed class AutopelagoGameService : BackgroundService
 
             ArchipelagoGameStateStorage gameStateStorage = new(archipelagoClient, $"autopelago_state_{team}_{slotNumber}");
 
+            RealAutopelagoClient client = new(archipelagoClient);
             Game game = new(client, _timeProvider, gameStateStorage);
             game.StepFinished += async (sender, args, cancellationToken) =>
             {
@@ -94,9 +96,7 @@ public sealed class AutopelagoGameService : BackgroundService
             };
             try
             {
-                await Task.WhenAll(
-                    Task.Run(async () => await game.RunUntilCanceledOrCompletedAsync(cts.Token).ConfigureAwait(false)),
-                    Task.Run(async () => await archipelagoClient.RunUntilCanceledAsync(cts.Token).ConfigureAwait(false)));
+                await game.RunUntilCanceledOrCompletedAsync(cts.Token);
             }
             catch (OperationCanceledException)
             {
