@@ -3,6 +3,11 @@ using System.Threading.Channels;
 
 namespace ArchipelagoClientDotNet;
 
+public readonly record struct PacketReceivedEventArgs
+{
+    public required ArchipelagoPacketModel Packet { get; init; }
+}
+
 public sealed class ArchipelagoClient
 {
     private readonly Channel<ImmutableArray<ArchipelagoPacketModel>, ArchipelagoPacketModel> _channel;
@@ -28,12 +33,12 @@ public sealed class ArchipelagoClient
 
     public async ValueTask<RoomInfoPacketModel> Handshake1Async(CancellationToken cancellationToken)
     {
-        await Helper.ConfigureAwaitFalse();
-
         if (_roomInfo is not null)
         {
             throw new InvalidOperationException("Already completed Handshake1.");
         }
+
+        await Helper.ConfigureAwaitFalse();
 
         _roomInfo = await _channel.Reader.ReadAsync(cancellationToken) as RoomInfoPacketModel ?? throw new InvalidDataException("Server does not properly implement the Archipelago handshake protocol.");
         await _packetReceivedEvent.InvokeAsync(this, new() { Packet = _roomInfo }, cancellationToken);
@@ -42,6 +47,16 @@ public sealed class ArchipelagoClient
 
     public async ValueTask<DataPackagePacketModel> Handshake2Async(GetDataPackagePacketModel getDataPackage, CancellationToken cancellationToken)
     {
+        if (_roomInfo is null)
+        {
+            throw new InvalidOperationException("Finish Handshake1 first.");
+        }
+
+        if (_dataPackage is not null)
+        {
+            throw new InvalidOperationException("Already completed Handshake2.");
+        }
+
         await Helper.ConfigureAwaitFalse();
 
         await WriteNextPacketAsync(getDataPackage, cancellationToken);
@@ -52,8 +67,6 @@ public sealed class ArchipelagoClient
 
     public async ValueTask<ConnectResponsePacketModel> Handshake3Async(ConnectPacketModel connect, CancellationToken cancellationToken)
     {
-        await Helper.ConfigureAwaitFalse();
-
         if (_dataPackage is null)
         {
             throw new InvalidOperationException("Finish Handshake2 first (it's required here, even though it's not required by the protocol).");
@@ -64,15 +77,41 @@ public sealed class ArchipelagoClient
             throw new InvalidOperationException("Already finished the handshake.");
         }
 
+        await Helper.ConfigureAwaitFalse();
+
         await WriteNextPacketAsync(connect, cancellationToken);
         _lastHandshakeResponse = await _channel.Reader.ReadAsync(cancellationToken) as ConnectResponsePacketModel ?? throw new InvalidDataException("Server does not properly implement the Archipelago handshake protocol.");
         await _packetReceivedEvent.InvokeAsync(this, new() { Packet = _lastHandshakeResponse }, cancellationToken);
         return _lastHandshakeResponse;
     }
 
+    public async ValueTask RunUntilCanceledAsync(CancellationToken cancellationToken)
+    {
+        if (_lastHandshakeResponse is not ConnectedPacketModel)
+        {
+            throw new InvalidOperationException("Finish Handshake3 successfully first.");
+        }
+
+        await Helper.ConfigureAwaitFalse();
+
+        while (await _channel.Reader.WaitToReadAsync(cancellationToken))
+        {
+            while (_channel.Reader.TryRead(out ArchipelagoPacketModel? packet))
+            {
+                await _packetReceivedEvent.InvokeAsync(this, new() { Packet = packet }, cancellationToken);
+            }
+        }
+    }
+
     public async ValueTask<RetrievedPacketModel> GetAsync(GetPacketModel getPacket, CancellationToken cancellationToken)
     {
+        if (_lastHandshakeResponse is not ConnectedPacketModel)
+        {
+            throw new InvalidOperationException("Finish Handshake3 successfully first.");
+        }
+
         await Helper.ConfigureAwaitFalse();
+
         TaskCompletionSource<RetrievedPacketModel> tcs = new(TaskCreationOptions.RunContinuationsAsynchronously);
         PacketReceived += OnClientPacketReceived;
         await WriteNextPacketAsync(getPacket, cancellationToken);
@@ -113,24 +152,6 @@ public sealed class ArchipelagoClient
         }
     }
 
-    public async ValueTask RunUntilCanceledAsync(CancellationToken cancellationToken)
-    {
-        await Helper.ConfigureAwaitFalse();
-
-        if (_lastHandshakeResponse is not ConnectedPacketModel)
-        {
-            throw new InvalidOperationException("Finish Handshake3 successfully first.");
-        }
-
-        while (await _channel.Reader.WaitToReadAsync(cancellationToken))
-        {
-            while (_channel.Reader.TryRead(out ArchipelagoPacketModel? packet))
-            {
-                await _packetReceivedEvent.InvokeAsync(this, new() { Packet = packet }, cancellationToken);
-            }
-        }
-    }
-
     public ValueTask WriteNextPacketAsync(ArchipelagoPacketModel nextPacket, CancellationToken cancellationToken)
     {
         return WriteNextPacketsAsync([nextPacket], cancellationToken);
@@ -140,9 +161,4 @@ public sealed class ArchipelagoClient
     {
         return _channel.Writer.WriteAsync(nextPackets, cancellationToken);
     }
-}
-
-public readonly record struct PacketReceivedEventArgs
-{
-    public required ArchipelagoPacketModel Packet { get; init; }
 }
