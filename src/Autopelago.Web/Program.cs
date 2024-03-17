@@ -5,7 +5,6 @@ using System.Reactive.Linq;
 using System.Runtime.ExceptionServices;
 using System.Text;
 using System.Text.Json;
-using System.Web;
 
 using ArchipelagoClientDotNet;
 
@@ -13,6 +12,7 @@ using Autopelago;
 using Autopelago.Web;
 
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.Extensions.Primitives;
 
 await Helper.ConfigureAwaitFalse();
 
@@ -47,12 +47,17 @@ app.Use(async (context, next) =>
         return;
     }
 
+    if (!context.Request.Query.TryGetValue("slot", out StringValues slotNameValues))
+    {
+        context.Response.StatusCode = StatusCodes.Status400BadRequest;
+        return;
+    }
+
     SlotGameStates slotGameStates = context.RequestServices.GetRequiredService<SlotGameStates>();
     CancellationToken cancellationToken = app.Lifetime.ApplicationStopping;
     try
     {
-        string slotName = HttpUtility.UrlDecode(context.WebSockets.WebSocketRequestedProtocols[0]);
-        IObservable<Game.State>? gameStates = await slotGameStates.GetGameStatesAsync(slotName, cancellationToken);
+        IObservable<Game.State>? gameStates = await slotGameStates.GetGameStatesAsync($"{slotNameValues}", cancellationToken);
         if (gameStates is null)
         {
             context.Response.StatusCode = StatusCodes.Status400BadRequest;
@@ -98,8 +103,11 @@ public class Home : ControllerBase
 <html>
     <head>
         <script type="text/javascript">
+            const searchParams = new URLSearchParams({
+                'slot': `{{slotName.Replace("`", "\\`")}}`,
+            });
             window.addEventListener('DOMContentLoaded', async function() {
-                const webSocket = new WebSocket(`ws://${window.location.host}/ws`, `{{HttpUtility.UrlEncode(slotName).Replace("`", "\\`")}}`);
+                const webSocket = new WebSocket(`ws://${window.location.host}/ws?${searchParams}`);
                 webSocket.onmessage = event => {
                     const dser = JSON.parse(event.data);
                     document.getElementById('curr').innerHTML = `
