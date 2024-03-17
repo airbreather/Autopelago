@@ -45,7 +45,7 @@ public sealed class Player
             ++CollectionsMarshal.GetValueRefOrAddDefault(_receivedItemsMap, receivedItem, out _);
         }
 
-        for (int actionsRemainingThisStep = 3; actionsRemainingThisStep > 0; --actionsRemainingThisStep)
+        for (int actionsRemainingThisStep = 3; actionsRemainingThisStep > 0 && !state.IsCompleted; --actionsRemainingThisStep)
         {
             LocationDefinitionModel bestTargetLocation = BestTargetLocation(state);
             if (state.TargetLocation != bestTargetLocation)

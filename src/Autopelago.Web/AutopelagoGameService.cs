@@ -79,14 +79,13 @@ public sealed class AutopelagoGameService : BackgroundService
                 }
             });
             RealAutopelagoClient client = new(conn);
-            IConnectableObservable<Game.State> gameStates = Game.Run(Game.State.Start(), client, _timeProvider).Publish();
-            gameStates.Connect();
 
-            ConnectResponsePacketModel connectedResponse = null!;
+            ConnectedPacketModel? connected = null;
+            Game.State? state = null;
             BackgroundTaskRunner.Run(async () =>
             {
                 await Helper.ConfigureAwaitFalse();
-                connectedResponse = await conn.HandshakeAsync(new()
+                ConnectResponsePacketModel connectedResponse = await conn.HandshakeAsync(new()
                 {
                     Password = slot.Password,
                     Game = settings.GameName,
@@ -97,9 +96,34 @@ public sealed class AutopelagoGameService : BackgroundService
                     Tags = ["AP"],
                     SlotData = true,
                 }, stoppingToken);
+
+                if (connectedResponse is ConnectedPacketModel connected_)
+                {
+                    connected = connected_;
+                    state = await client.InitGameStateAsync(connected, null, stoppingToken);
+                }
             }, stoppingToken).GetAwaiter().GetResult();
 
-            return KeyValuePair.Create(slot.Name, (IObservable<Game.State>)gameStates);
+            if (connected is null || state is null)
+            {
+                return KeyValuePair.Create(slot.Name, Observable.Throw<Game.State>(new InvalidOperationException("Failed to connect")));
+            }
+
+            IConnectableObservable<Game.State> gameStates = Game.Run(state, client, _timeProvider)
+                .Do(state => BackgroundTaskRunner.Run(async () =>
+                {
+                    await Helper.ConfigureAwaitFalse();
+                    await client.SaveGameStateAsync(connected, state, stoppingToken);
+                    if (state.IsCompleted)
+                    {
+                        StatusUpdatePacketModel statusUpdate = new() { Status = ArchipelagoClientStatus.Goal };
+                        await conn.SendPacketsAsync([statusUpdate], stoppingToken);
+                    }
+                }, stoppingToken).GetAwaiter().GetResult())
+                .Publish();
+            gameStates.Connect();
+
+            return KeyValuePair.Create(slot.Name, gameStates.AsObservable());
         }).ToFrozenDictionary();
     }
 }
