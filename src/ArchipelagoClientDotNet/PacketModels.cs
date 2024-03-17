@@ -339,9 +339,9 @@ public sealed record RoomUpdatePacketModel : ArchipelagoPacketModel
 
     public ImmutableArray<long>? CheckedLocations { get; init; }
 
-    public Dictionary<string, JsonElement> SlotData { get; init; } = [];
+    public Dictionary<string, JsonElement>? SlotData { get; init; } = [];
 
-    public Dictionary<int, SlotModel> SlotInfo { get; init; } = [];
+    public Dictionary<int, SlotModel>? SlotInfo { get; init; } = [];
 
     public int? HintPoints { get; init; }
 }

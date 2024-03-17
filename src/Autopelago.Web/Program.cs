@@ -2,6 +2,7 @@ using System.Net.Mime;
 using System.Net.WebSockets;
 using System.Reactive.Concurrency;
 using System.Reactive.Linq;
+using System.Runtime.ExceptionServices;
 using System.Text;
 using System.Text.Json;
 using System.Web;
@@ -47,29 +48,47 @@ app.Use(async (context, next) =>
     }
 
     SlotGameStates slotGameStates = context.RequestServices.GetRequiredService<SlotGameStates>();
-
-    string slotName = HttpUtility.UrlDecode(context.WebSockets.WebSocketRequestedProtocols[0]);
-    IObservable<Game.State>? gameStates = await slotGameStates.GetGameStatesAsync(slotName, context.RequestAborted);
-    if (gameStates is null)
+    IHostApplicationLifetime lifetime = context.RequestServices.GetRequiredService<IHostApplicationLifetime>();
+    CancellationToken cancellationToken  = lifetime.ApplicationStopping;
+    try
     {
-        context.Response.StatusCode = StatusCodes.Status400BadRequest;
-        return;
-    }
-
-    using WebSocket ws = await context.WebSockets.AcceptWebSocketAsync(new WebSocketAcceptContext { DangerousEnableCompression = true });
-    byte[] buf = new byte[1];
-    await gameStates.ForEachAsync(nextState => BackgroundTaskRunner.Run(async () =>
-    {
-        await ws.SendAsync(JsonSerializer.SerializeToUtf8Bytes(nextState.ToProxy(), Game.State.Proxy.SerializerOptions), WebSocketMessageType.Text, true, CancellationToken.None);
-        WebSocketReceiveResult recv = await ws.ReceiveAsync(buf, context.RequestAborted);
-        if (recv.MessageType == WebSocketMessageType.Close)
+        string slotName = HttpUtility.UrlDecode(context.WebSockets.WebSocketRequestedProtocols[0]);
+        IObservable<Game.State>? gameStates = await slotGameStates.GetGameStatesAsync(slotName, cancellationToken);
+        if (gameStates is null)
         {
+            context.Response.StatusCode = StatusCodes.Status400BadRequest;
             return;
         }
-    }, context.RequestAborted).GetAwaiter().GetResult(), context.RequestAborted);
+
+        using WebSocket ws = await context.WebSockets.AcceptWebSocketAsync(new WebSocketAcceptContext { DangerousEnableCompression = true });
+        byte[] buf = new byte[1];
+        await gameStates.ForEachAsync(nextState => Task.Run(async () =>
+        {
+            await ws.SendAsync(JsonSerializer.SerializeToUtf8Bytes(nextState.ToProxy(), Game.State.Proxy.SerializerOptions), WebSocketMessageType.Text, true, cancellationToken);
+            WebSocketReceiveResult recv = await ws.ReceiveAsync(buf, cancellationToken);
+            if (recv.MessageType == WebSocketMessageType.Close)
+            {
+                throw new OperationCanceledException();
+            }
+        }, cancellationToken).GetAwaiter().GetResult(), cancellationToken);
+    }
+    catch (Exception ex) when (ex is OperationCanceledException or WebSocketException)
+    {
+    }
 });
 
+ExceptionDispatchInfo? edi = null;
+BackgroundTaskRunner.BackgroundException += (sender, args) =>
+{
+    if (args.BackgroundException.SourceException is not OperationCanceledException)
+    {
+        edi = args.BackgroundException;
+        app.Lifetime.StopApplication();
+    }
+};
+
 await app.RunAsync();
+edi?.Throw();
 
 public class Home : ControllerBase
 {

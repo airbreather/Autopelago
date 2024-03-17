@@ -3,6 +3,7 @@ using System.Collections.Immutable;
 using System.Reactive.Linq;
 using System.Reactive.Subjects;
 using System.Reactive.Threading.Tasks;
+using System.Text;
 using System.Text.Json;
 
 using ArchipelagoClientDotNet;
@@ -15,35 +16,72 @@ public sealed class RealAutopelagoClient : AutopelagoClient
 
     private readonly IConnectableObservable<Mappings> _mappings;
 
-    public RealAutopelagoClient(IArchipelagoConnection connection)
+    private readonly IDisposable? _printSubscription;
+
+    public RealAutopelagoClient(IArchipelagoConnection connection, bool print)
     {
         _connection = connection;
-        _mappings = connection.IncomingPackets
-            .OfType<DataPackagePacketModel>()
-            .Select(dataPackage =>
-            {
-                GameDataModel gameData = dataPackage.Data.Games["Autopelago"];
-                return new Mappings()
+        _mappings = Observable
+            .CombineLatest(
+                connection.IncomingPackets.OfType<DataPackagePacketModel>(),
+                Observable.Merge(
+                    connection.IncomingPackets.OfType<ConnectedPacketModel>().Select(p => p.SlotInfo),
+                    connection.IncomingPackets.OfType<RoomUpdatePacketModel>().Select(p => p.SlotInfo).Where(x => x is not null)),
+                (dataPackage, slotInfo) =>
                 {
-                    ItemsMapping = gameData.ItemNameToId.ToFrozenDictionary(kvp => GameDefinitions.Instance.ItemsByName[kvp.Key], kvp => kvp.Value),
-                    LocationsMapping = gameData.LocationNameToId.ToFrozenDictionary(kvp => GameDefinitions.Instance.LocationsByName[kvp.Key], kvp => kvp.Value),
-                    ItemsReverseMapping = gameData.ItemNameToId.ToFrozenDictionary(kvp => kvp.Value, kvp => GameDefinitions.Instance.ItemsByName[kvp.Key]),
-                    LocationsReverseMapping = gameData.LocationNameToId.ToFrozenDictionary(kvp => kvp.Value, kvp => GameDefinitions.Instance.LocationsByName[kvp.Key]),
-                };
-            })
+                    GameDataModel gameData = dataPackage.Data.Games["Autopelago"];
+                    return new Mappings()
+                    {
+                        PlayerNameMapping = slotInfo!.ToFrozenDictionary(kvp => kvp.Key, kvp => kvp.Value.Name),
+                        ItemsMapping = gameData.ItemNameToId.ToFrozenDictionary(kvp => GameDefinitions.Instance.ItemsByName[kvp.Key], kvp => kvp.Value),
+                        LocationsMapping = gameData.LocationNameToId.ToFrozenDictionary(kvp => GameDefinitions.Instance.LocationsByName[kvp.Key], kvp => kvp.Value),
+                        ItemsReverseMapping = gameData.ItemNameToId.ToFrozenDictionary(kvp => kvp.Value, kvp => GameDefinitions.Instance.ItemsByName[kvp.Key]),
+                        LocationsReverseMapping = gameData.LocationNameToId.ToFrozenDictionary(kvp => kvp.Value, kvp => GameDefinitions.Instance.LocationsByName[kvp.Key]),
+                    };
+                })
             .Replay(1);
 
-        ReceivedItemsEvents = _mappings
-            .CombineLatest(connection.IncomingPackets.OfType<ReceivedItemsPacketModel>(), (dataPackage, receivedItems) => new ReceivedItemsEventArgs
-            {
-                Index = receivedItems.Index,
-                Items = [.. receivedItems.Items.Select(i => dataPackage.ItemsReverseMapping[i.Item])],
-            });
+        ReceivedItemsEvents = connection.IncomingPackets.OfType<ReceivedItemsPacketModel>()
+            .WithLatestFrom(_mappings)
+            .Select(
+                tup => new ReceivedItemsEventArgs
+                {
+                    Index = tup.First.Index,
+                    Items = [.. tup.First.Items.Select(i => tup.Second.ItemsReverseMapping[i.Item])],
+                });
 
         _mappings.Connect();
+
+        if (print)
+        {
+            _printSubscription = connection.IncomingPackets.OfType<PrintJSONPacketModel>()
+                .WithLatestFrom(_mappings)
+                .Subscribe(
+                    tup =>
+                    {
+                        (PrintJSONPacketModel printJSON, Mappings mappings) = tup;
+
+                        StringBuilder sb = new();
+                        sb.Append($"[{DateTime.Now:G}] -> ");
+                        foreach (JSONMessagePartModel part in printJSON.Data)
+                        {
+                            sb.Append(part switch
+                            {
+                                PlayerIdJSONMessagePartModel playerId => mappings.PlayerNameMapping[int.Parse(playerId.Text)],
+                                ItemIdJSONMessagePartModel itemId => mappings.ItemsReverseMapping[long.Parse(itemId.Text)].Name,
+                                LocationIdJSONMessagePartModel locationId => mappings.LocationsReverseMapping[long.Parse(locationId.Text)].Name,
+                                _ => part.Text,
+                            });
+                        }
+
+                        Console.WriteLine(sb);
+                    });
+        }
     }
 
     public override IObservable<ReceivedItemsEventArgs> ReceivedItemsEvents { get; }
+
+    public IObservable<Mappings> LiveMappings => _mappings;
 
     public override async ValueTask SendLocationChecksAsync(IEnumerable<LocationDefinitionModel> locations, CancellationToken cancellationToken)
     {
@@ -107,8 +145,10 @@ public sealed class RealAutopelagoClient : AutopelagoClient
         return $"autopelago_state_{connected.Team}_{connected.Slot}";
     }
 
-    private sealed record Mappings
+    public sealed record Mappings
     {
+        public required FrozenDictionary<int, string> PlayerNameMapping { get; init; }
+
         public required FrozenDictionary<ItemDefinitionModel, long> ItemsMapping { get; init; }
 
         public required FrozenDictionary<LocationDefinitionModel, long> LocationsMapping { get; init; }

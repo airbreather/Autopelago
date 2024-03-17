@@ -2,7 +2,6 @@ using System.Collections.Frozen;
 using System.Reactive.Concurrency;
 using System.Reactive.Linq;
 using System.Reactive.Subjects;
-using System.Runtime.ExceptionServices;
 
 using ArchipelagoClientDotNet;
 
@@ -53,32 +52,12 @@ public sealed class AutopelagoGameService : BackgroundService
             .Build()
             .Deserialize<AutopelagoSettingsModel>(settingsYaml);
 
-        using CancellationTokenSource cts = CancellationTokenSource.CreateLinkedTokenSource(stoppingToken);
-        ExceptionDispatchInfo? edi = null;
-        BackgroundTaskRunner.BackgroundException += (sender, args) =>
-        {
-            edi = args.BackgroundException;
-            cts.Cancel();
-        };
-
-        return settings.Slots.Select(slot =>
+        return settings.Slots.Select((slot, i) =>
         {
             _logger.LogInformation("Starting for slot {Slot}", slot.Name);
 
             ArchipelagoConnection conn = new(settings.Server, settings.Port);
-            conn.IncomingPackets.Subscribe(packet =>
-            {
-                if (packet is PrintJSONPacketModel printJSON)
-                {
-                    foreach (JSONMessagePartModel part in printJSON.Data)
-                    {
-                        Console.Write(part.Text);
-                    }
-
-                    Console.WriteLine();
-                }
-            });
-            RealAutopelagoClient client = new(conn);
+            RealAutopelagoClient client = new(conn, i == 0);
 
             ConnectedPacketModel? connected = null;
             Game.State? state = null;
@@ -120,7 +99,7 @@ public sealed class AutopelagoGameService : BackgroundService
                         await conn.SendPacketsAsync([statusUpdate], stoppingToken);
                     }
                 }, stoppingToken).GetAwaiter().GetResult())
-                .Publish();
+                .Replay(1);
             gameStates.Connect();
 
             return KeyValuePair.Create(slot.Name, gameStates.AsObservable());
