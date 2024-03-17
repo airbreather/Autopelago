@@ -84,7 +84,11 @@ public sealed class RealAutopelagoClient : AutopelagoClient
         AutopelagoData data = await _serverGameData.FirstAsync().ToTask(cancellationToken);
         string stateKey = GetStateKey(data);
         Game.State? state = null;
-        if (connected.SlotData.TryGetValue(stateKey, out JsonElement json) &&
+        GetPacketModel get = new() { Keys = [stateKey] };
+        Task<RetrievedPacketModel> retrievedTask = _connection.IncomingPackets.OfType<RetrievedPacketModel>().FirstAsync().ToTask(cancellationToken);
+        await _connection.SendPacketsAsync([get], cancellationToken);
+        RetrievedPacketModel retrieved = await retrievedTask;
+        if (retrieved.Keys.TryGetValue(stateKey, out JsonElement json) &&
             JsonSerializer.Deserialize<Game.State.Proxy>(json, Game.State.Proxy.SerializerOptions) is Game.State.Proxy proxy)
         {
             state = proxy.ToState();
