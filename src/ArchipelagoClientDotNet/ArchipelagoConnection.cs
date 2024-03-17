@@ -15,16 +15,7 @@ internal sealed partial class SourceGenerationContext : JsonSerializerContext
 {
 }
 
-public interface IArchipelagoConnection
-{
-    IObservable<ArchipelagoPacketModel> IncomingPackets { get; }
-
-    ValueTask SendPacketsAsync(ImmutableArray<ArchipelagoPacketModel> packets, CancellationToken cancellationToken);
-
-    ValueTask<ConnectResponsePacketModel> HandshakeAsync(ConnectPacketModel connect, CancellationToken cancellationToken);
-}
-
-public sealed partial class ArchipelagoConnection : IArchipelagoConnection, IDisposable
+public sealed partial class ArchipelagoConnection : IDisposable
 {
     private static readonly JsonReaderOptions s_jsonReaderOptions = new()
     {
@@ -164,16 +155,23 @@ public sealed partial class ArchipelagoConnection : IArchipelagoConnection, IDis
         await _socket.SendAsync(bytes, WebSocketMessageType.Text, true, cancellationToken);
     }
 
-    public async ValueTask<ConnectResponsePacketModel> HandshakeAsync(ConnectPacketModel connect, CancellationToken cancellationToken)
+    public async ValueTask<ConnectResponsePacketModel> HandshakeAsync(Func<RoomInfoPacketModel, GetDataPackagePacketModel?> step1, Func<RoomInfoPacketModel, DataPackagePacketModel?, ConnectPacketModel> step2, CancellationToken cancellationToken)
     {
         await Helper.ConfigureAwaitFalse();
+
         Task<RoomInfoPacketModel> roomInfoTask = _incomingPackets.FirstAsync().Cast<RoomInfoPacketModel>().ToTask(cancellationToken);
         _incomingPackets.Connect();
         RoomInfoPacketModel roomInfo = await roomInfoTask;
-        GetDataPackagePacketModel getDataPackage = new() { Games = roomInfo.Games };
-        Task<DataPackagePacketModel> dataPackageTask = _incomingPackets.FirstAsync().Cast<DataPackagePacketModel>().ToTask(cancellationToken);
-        await SendPacketsAsync([getDataPackage], cancellationToken);
-        await dataPackageTask;
+
+        DataPackagePacketModel? dataPackage = null;
+        if (step1(roomInfo) is GetDataPackagePacketModel getDataPackage)
+        {
+            Task<DataPackagePacketModel> dataPackageTask = _incomingPackets.FirstAsync().Cast<DataPackagePacketModel>().ToTask(cancellationToken);
+            await SendPacketsAsync([getDataPackage], cancellationToken);
+            dataPackage = await dataPackageTask;
+        }
+
+        ConnectPacketModel connect = step2(roomInfo, dataPackage);
         Task<ConnectResponsePacketModel> connectResponseTask = _incomingPackets.FirstAsync().Cast<ConnectResponsePacketModel>().ToTask(cancellationToken);
         await SendPacketsAsync([connect], cancellationToken);
         return await connectResponseTask;

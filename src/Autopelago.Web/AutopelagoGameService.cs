@@ -53,20 +53,20 @@ public sealed class AutopelagoGameService : BackgroundService
             .Build()
             .Deserialize<AutopelagoSettingsModel>(settingsYaml);
 
-        return settings.Slots.Select((slot, i) =>
+        Dictionary<string, IObservable<Game.State>> result = [];
+        for (int i = 0; i < settings.Slots.Count; i++)
         {
-            _logger.LogInformation("Starting for slot {Slot}", slot.Name);
-
+            AutopelagoPlayerSettingsModel slot = settings.Slots[i];
             ArchipelagoConnection conn = new(settings.Server, settings.Port);
             RealAutopelagoClient client = new(conn);
             if (i == 0)
             {
                 conn.IncomingPackets.OfType<PrintJSONPacketModel>()
-                    .WithLatestFrom(client.LiveMappings)
+                    .WithLatestFrom(client.ServerGameData)
                     .Subscribe(
                         tup =>
                         {
-                            (PrintJSONPacketModel printJSON, RealAutopelagoClient.Mappings mappings) = tup;
+                            (PrintJSONPacketModel printJSON, RealAutopelagoClient.AutopelagoData data) = tup;
 
                             StringBuilder sb = new();
                             sb.Append($"[{DateTime.Now:G}] -> ");
@@ -74,9 +74,9 @@ public sealed class AutopelagoGameService : BackgroundService
                             {
                                 sb.Append(part switch
                                 {
-                                    PlayerIdJSONMessagePartModel playerId => mappings.PlayerNameMapping[int.Parse(playerId.Text)],
-                                    ItemIdJSONMessagePartModel itemId => mappings.ItemsReverseMapping[long.Parse(itemId.Text)].Name,
-                                    LocationIdJSONMessagePartModel locationId => mappings.LocationsReverseMapping[long.Parse(locationId.Text)].Name,
+                                    PlayerIdJSONMessagePartModel playerId => data.SlotInfo[int.Parse(playerId.Text)].Name,
+                                    ItemIdJSONMessagePartModel itemId => data.ItemsReverseMapping[long.Parse(itemId.Text)].Name,
+                                    LocationIdJSONMessagePartModel locationId => data.LocationsReverseMapping[long.Parse(locationId.Text)].Name,
                                     _ => part.Text,
                                 });
                             }
@@ -85,50 +85,39 @@ public sealed class AutopelagoGameService : BackgroundService
                         });
             }
 
-            ConnectedPacketModel? connected = null;
-            Game.State? state = null;
-            BackgroundTaskRunner.Run(async () =>
+            GetDataPackagePacketModel getDataPackage = new();
+            ConnectPacketModel connect = new()
             {
-                await Helper.ConfigureAwaitFalse();
-                ConnectResponsePacketModel connectedResponse = await conn.HandshakeAsync(new()
-                {
-                    Password = slot.Password,
-                    Game = settings.GameName,
-                    Name = slot.Name,
-                    Uuid = Guid.NewGuid(),
-                    Version = new(new Version("0.4.4")),
-                    ItemsHandling = ArchipelagoItemsHandlingFlags.All,
-                    Tags = ["AP"],
-                    SlotData = true,
-                }, stoppingToken);
-
-                if (connectedResponse is ConnectedPacketModel connected_)
-                {
-                    connected = connected_;
-                    state = await client.InitGameStateAsync(connected, null, stoppingToken);
-                }
-            }, stoppingToken).GetAwaiter().GetResult();
-
-            if (connected is null || state is null)
-            {
-                return KeyValuePair.Create(slot.Name, Observable.Throw<Game.State>(new InvalidOperationException("Failed to connect")));
-            }
+                Password = slot.Password,
+                Game = settings.GameName,
+                Name = slot.Name,
+                Uuid = Guid.NewGuid(),
+                Version = new(new Version("0.4.4")),
+                ItemsHandling = ArchipelagoItemsHandlingFlags.All,
+                Tags = ["AP"],
+                SlotData = true,
+            };
+            Game.State state =
+                await client.InitAsync(getDataPackage, connect, Random.Shared, stoppingToken) ??
+                throw new InvalidOperationException("Failed to connect");
 
             IConnectableObservable<Game.State> gameStates = Game.Run(state, client, _timeProvider)
-                .Do(state => BackgroundTaskRunner.Run(async () =>
+                .ObserveOn(TaskPoolScheduler.Default)
+                .Do(state =>
                 {
-                    await Helper.ConfigureAwaitFalse();
-                    await client.SaveGameStateAsync(connected, state, stoppingToken);
+                    client.SaveGameStateAsync(state, stoppingToken).AsTask().GetAwaiter().GetResult();
                     if (state.IsCompleted)
                     {
                         StatusUpdatePacketModel statusUpdate = new() { Status = ArchipelagoClientStatus.Goal };
-                        await conn.SendPacketsAsync([statusUpdate], stoppingToken);
+                        conn.SendPacketsAsync([statusUpdate], stoppingToken).AsTask().GetAwaiter().GetResult();
                     }
-                }, stoppingToken).GetAwaiter().GetResult())
+                })
                 .Replay(1);
             gameStates.Connect();
 
-            return KeyValuePair.Create(slot.Name, gameStates.AsObservable());
-        }).ToFrozenDictionary();
+            result.Add(slot.Name, gameStates);
+        }
+
+        return result.ToFrozenDictionary();
     }
 }
