@@ -177,6 +177,7 @@ public static class Game
 
         IObservable<State> receivedItemTransitions =
             client.ReceivedItemsEvents
+                .ObserveOn(timeScheduler)
                 .Select(args =>
                 {
                     for (int i = args.Index; i < state.ReceivedItems.Count; i++)
