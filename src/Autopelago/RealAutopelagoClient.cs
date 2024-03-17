@@ -3,7 +3,6 @@ using System.Collections.Immutable;
 using System.Reactive.Linq;
 using System.Reactive.Subjects;
 using System.Reactive.Threading.Tasks;
-using System.Text;
 using System.Text.Json;
 
 using ArchipelagoClientDotNet;
@@ -16,9 +15,7 @@ public sealed class RealAutopelagoClient : AutopelagoClient
 
     private readonly IConnectableObservable<Mappings> _mappings;
 
-    private readonly IDisposable? _printSubscription;
-
-    public RealAutopelagoClient(IArchipelagoConnection connection, bool print)
+    public RealAutopelagoClient(IArchipelagoConnection connection)
     {
         _connection = connection;
         _mappings = Observable
@@ -44,39 +41,17 @@ public sealed class RealAutopelagoClient : AutopelagoClient
         ReceivedItemsEvents = connection.IncomingPackets.OfType<ReceivedItemsPacketModel>()
             .WithLatestFrom(_mappings)
             .Select(
-                tup => new ReceivedItemsEventArgs
+                tup =>
                 {
-                    Index = tup.First.Index,
-                    Items = [.. tup.First.Items.Select(i => tup.Second.ItemsReverseMapping[i.Item])],
+                    (ReceivedItemsPacketModel receivedItems, Mappings mappings) = tup;
+                    return new ReceivedItemsEventArgs
+                    {
+                        Index = receivedItems.Index,
+                        Items = [.. receivedItems.Items.Select(i => mappings.ItemsReverseMapping[i.Item])],
+                    };
                 });
 
         _mappings.Connect();
-
-        if (print)
-        {
-            _printSubscription = connection.IncomingPackets.OfType<PrintJSONPacketModel>()
-                .WithLatestFrom(_mappings)
-                .Subscribe(
-                    tup =>
-                    {
-                        (PrintJSONPacketModel printJSON, Mappings mappings) = tup;
-
-                        StringBuilder sb = new();
-                        sb.Append($"[{DateTime.Now:G}] -> ");
-                        foreach (JSONMessagePartModel part in printJSON.Data)
-                        {
-                            sb.Append(part switch
-                            {
-                                PlayerIdJSONMessagePartModel playerId => mappings.PlayerNameMapping[int.Parse(playerId.Text)],
-                                ItemIdJSONMessagePartModel itemId => mappings.ItemsReverseMapping[long.Parse(itemId.Text)].Name,
-                                LocationIdJSONMessagePartModel locationId => mappings.LocationsReverseMapping[long.Parse(locationId.Text)].Name,
-                                _ => part.Text,
-                            });
-                        }
-
-                        Console.WriteLine(sb);
-                    });
-        }
     }
 
     public override IObservable<ReceivedItemsEventArgs> ReceivedItemsEvents { get; }

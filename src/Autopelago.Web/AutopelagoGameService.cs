@@ -2,6 +2,7 @@ using System.Collections.Frozen;
 using System.Reactive.Concurrency;
 using System.Reactive.Linq;
 using System.Reactive.Subjects;
+using System.Text;
 
 using ArchipelagoClientDotNet;
 
@@ -57,7 +58,32 @@ public sealed class AutopelagoGameService : BackgroundService
             _logger.LogInformation("Starting for slot {Slot}", slot.Name);
 
             ArchipelagoConnection conn = new(settings.Server, settings.Port);
-            RealAutopelagoClient client = new(conn, i == 0);
+            RealAutopelagoClient client = new(conn);
+            if (i == 0)
+            {
+                conn.IncomingPackets.OfType<PrintJSONPacketModel>()
+                    .WithLatestFrom(client.LiveMappings)
+                    .Subscribe(
+                        tup =>
+                        {
+                            (PrintJSONPacketModel printJSON, RealAutopelagoClient.Mappings mappings) = tup;
+
+                            StringBuilder sb = new();
+                            sb.Append($"[{DateTime.Now:G}] -> ");
+                            foreach (JSONMessagePartModel part in printJSON.Data)
+                            {
+                                sb.Append(part switch
+                                {
+                                    PlayerIdJSONMessagePartModel playerId => mappings.PlayerNameMapping[int.Parse(playerId.Text)],
+                                    ItemIdJSONMessagePartModel itemId => mappings.ItemsReverseMapping[long.Parse(itemId.Text)].Name,
+                                    LocationIdJSONMessagePartModel locationId => mappings.LocationsReverseMapping[long.Parse(locationId.Text)].Name,
+                                    _ => part.Text,
+                                });
+                            }
+
+                            Console.WriteLine(sb);
+                        });
+            }
 
             ConnectedPacketModel? connected = null;
             Game.State? state = null;
