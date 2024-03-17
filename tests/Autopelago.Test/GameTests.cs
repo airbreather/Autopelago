@@ -14,20 +14,17 @@ public sealed class GameTests
     [Test]
     public void FirstStepShouldStartAfterOneSecond()
     {
-        using CancellationTokenSource cts = new();
-        bool transitioned = false;
-
-        IObservable<Game.State> obs = Game.Run(Game.State.Start(), _client, _timeScheduler);
-        using (obs.Subscribe(_ => transitioned = true))
+        bool hitNextState = false;
+        using (Game.Run(Game.State.Start(), _client, _timeScheduler).Subscribe(_ => hitNextState = true))
         {
             TimeSpan interval = TimeSpan.FromMilliseconds(1);
             for (TimeSpan totalAdvanced = TimeSpan.Zero; totalAdvanced < TimeSpan.FromSeconds(1); _timeScheduler.AdvanceBy(interval.Ticks), totalAdvanced += interval)
             {
-                Assert.That(!transitioned);
+                Assert.That(!hitNextState);
             }
 
             _timeScheduler.AdvanceBy(interval.Ticks);
-            Assert.That(transitioned);
+            Assert.That(hitNextState);
         }
     }
 }
