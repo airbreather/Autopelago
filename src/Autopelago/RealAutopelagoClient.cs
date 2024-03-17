@@ -1,5 +1,6 @@
 using System.Collections.Frozen;
 using System.Collections.Immutable;
+using System.Reactive.Linq;
 
 using ArchipelagoClientDotNet;
 
@@ -7,66 +8,50 @@ namespace Autopelago;
 
 public sealed class RealAutopelagoClient : AutopelagoClient
 {
-    private readonly ArchipelagoClient _client;
+    private readonly IArchipelagoConnection _connection;
 
-    private readonly AsyncEvent<ReceivedItemsEventArgs> _receivedItemsEvent = new();
+    private readonly Task<FrozenDictionary<LocationDefinitionModel, long>> _locationsMapping;
 
-    private FrozenDictionary<long, ItemDefinitionModel>? _itemsMapping;
-
-    private FrozenDictionary<LocationDefinitionModel, long>? _locationsMapping;
-
-    public RealAutopelagoClient(ArchipelagoClient client)
+    public RealAutopelagoClient(IArchipelagoConnection connection)
     {
-        _client = client;
-        _client.PacketReceived += OnEarlyPacketReceivedAsync;
+        _connection = connection;
+        TaskCompletionSource<FrozenDictionary<LocationDefinitionModel, long>> locationsMappingBox = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        _locationsMapping = locationsMappingBox.Task;
+
+        ReceivedItemsEvents = connection.IncomingPackets
+            .OfType<DataPackagePacketModel>()
+            .Select(dataPackage =>
+            {
+                GameDataModel gameData = dataPackage.Data.Games["Autopelago"];
+                return new
+                {
+                    ItemsMapping = gameData.ItemNameToId.ToFrozenDictionary(kvp => kvp.Value, kvp => GameDefinitions.Instance.ItemsByName[kvp.Key]),
+                    LocationsMapping = gameData.LocationNameToId.ToFrozenDictionary(kvp => GameDefinitions.Instance.LocationsByName[kvp.Key], kvp => kvp.Value),
+                };
+            })
+            .FirstAsync()
+            .Do(
+                val => locationsMappingBox.TrySetResult(val.LocationsMapping),
+                err => locationsMappingBox.TrySetException(err)
+            )
+            .CombineLatest(connection.IncomingPackets.OfType<ReceivedItemsPacketModel>(), (dataPackage, receivedItems) => new ReceivedItemsEventArgs
+            {
+                Index = receivedItems.Index,
+                Items = [.. receivedItems.Items.Select(i => dataPackage.ItemsMapping[i.Item])],
+            });
     }
 
-    public override event AsyncEventHandler<ReceivedItemsEventArgs> ReceivedItems
-    {
-        add => _receivedItemsEvent.Add(value);
-        remove => _receivedItemsEvent.Remove(value);
-    }
+    public override IObservable<ReceivedItemsEventArgs> ReceivedItemsEvents { get; }
 
     public override async ValueTask SendLocationChecksAsync(IEnumerable<LocationDefinitionModel> locations, CancellationToken cancellationToken)
     {
         await Helper.ConfigureAwaitFalse();
+        FrozenDictionary<LocationDefinitionModel, long> locationsMapping = await _locationsMapping.WaitAsync(cancellationToken);
         LocationChecksPacketModel packet = new()
         {
-            Locations = locations.Select(l => _locationsMapping![l]).ToImmutableArray().AsMemory(),
+            Locations = locations.Select(l => locationsMapping[l]).ToImmutableArray().AsMemory(),
         };
 
-        await _client.WriteNextPacketAsync(packet, cancellationToken);
-    }
-
-    private ValueTask OnEarlyPacketReceivedAsync(object? sender, PacketReceivedEventArgs args, CancellationToken cancellationToken)
-    {
-        if (args.Packet is not DataPackagePacketModel dataPackage)
-        {
-            return ValueTask.CompletedTask;
-        }
-
-        _client.PacketReceived -= OnEarlyPacketReceivedAsync;
-        _client.PacketReceived += OnNormalPacketReceivedAsync;
-        GameDataModel gameData = dataPackage.Data.Games["Autopelago"];
-        _itemsMapping = gameData.ItemNameToId.ToFrozenDictionary(kvp => kvp.Value, kvp => GameDefinitions.Instance.ItemsByName[kvp.Key]);
-        _locationsMapping = gameData.LocationNameToId.ToFrozenDictionary(kvp => GameDefinitions.Instance.LocationsByName[kvp.Key], kvp => kvp.Value);
-        return ValueTask.CompletedTask;
-    }
-
-    private async ValueTask OnNormalPacketReceivedAsync(object? sender, PacketReceivedEventArgs args, CancellationToken cancellationToken)
-    {
-        if (args.Packet is not ReceivedItemsPacketModel receivedItems)
-        {
-            return;
-        }
-
-        await Helper.ConfigureAwaitFalse();
-        ReceivedItemsEventArgs newArgs = new()
-        {
-            Index = receivedItems.Index,
-            Items = [.. receivedItems.Items.Select(i => _itemsMapping![i.Item])],
-        };
-
-        await _receivedItemsEvent.InvokeAsync(this, newArgs, cancellationToken);
+        await _connection.SendPacketsAsync([packet], cancellationToken);
     }
 }

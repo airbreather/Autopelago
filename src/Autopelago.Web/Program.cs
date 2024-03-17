@@ -1,8 +1,11 @@
 using System.Net.Mime;
 using System.Net.WebSockets;
+using System.Reactive.Concurrency;
+using System.Reactive.Linq;
 using System.Text;
 using System.Text.Json;
 using System.Web;
+
 using ArchipelagoClientDotNet;
 
 using Autopelago;
@@ -14,8 +17,8 @@ await Helper.ConfigureAwaitFalse();
 
 WebApplicationBuilder builder = WebApplication.CreateBuilder(args);
 
-builder.Services.AddSingleton<CurrentGameStates>();
-builder.Services.AddSingleton(TimeProvider.System);
+builder.Services.AddSingleton<IScheduler>(DefaultScheduler.Instance);
+builder.Services.AddSingleton<SlotGameStates>();
 
 builder.Services.AddHostedService<AutopelagoGameService>();
 
@@ -43,44 +46,27 @@ app.Use(async (context, next) =>
         return;
     }
 
+    SlotGameStates slotGameStates = context.RequestServices.GetRequiredService<SlotGameStates>();
+
     string slotName = HttpUtility.UrlDecode(context.WebSockets.WebSocketRequestedProtocols[0]);
-    CurrentGameStates currentGameStates = context.RequestServices.GetRequiredService<CurrentGameStates>();
-    Game.State? prevState = currentGameStates.Get(slotName);
+    IObservable<Game.State>? gameStates = await slotGameStates.GetGameStatesAsync(slotName, context.RequestAborted);
+    if (gameStates is null)
+    {
+        context.Response.StatusCode = StatusCodes.Status400BadRequest;
+        return;
+    }
+
     using WebSocket ws = await context.WebSockets.AcceptWebSocketAsync(new WebSocketAcceptContext { DangerousEnableCompression = true });
     byte[] buf = new byte[1];
-    while (true)
+    await gameStates.ForEachAsync(nextState => BackgroundTaskRunner.Run(async () =>
     {
-        if (prevState is null)
-        {
-            TaskCompletionSource<Game.State> nextStateTcs = new(TaskCreationOptions.RunContinuationsAsynchronously);
-            currentGameStates.GameStateAdvancedEvent += OnGameStateAdvanced;
-            prevState = currentGameStates.Get(slotName);
-            ValueTask OnGameStateAdvanced(object? sender, GameStateAdvancedEventArgs args, CancellationToken cancellationToken)
-            {
-                currentGameStates.GameStateAdvancedEvent -= OnGameStateAdvanced;
-                nextStateTcs.TrySetResult(args.StateAfterAdvance);
-                return ValueTask.CompletedTask;
-            }
-
-            if (prevState is null)
-            {
-                prevState = await nextStateTcs.Task;
-            }
-            else
-            {
-                currentGameStates.GameStateAdvancedEvent -= OnGameStateAdvanced;
-            }
-        }
-
-        Game.State.Proxy proxy = prevState.ToProxy();
-        prevState = null;
-        await ws.SendAsync(JsonSerializer.SerializeToUtf8Bytes(proxy, Game.State.Proxy.SerializerOptions), WebSocketMessageType.Text, true, CancellationToken.None);
+        await ws.SendAsync(JsonSerializer.SerializeToUtf8Bytes(nextState.ToProxy(), Game.State.Proxy.SerializerOptions), WebSocketMessageType.Text, true, CancellationToken.None);
         WebSocketReceiveResult recv = await ws.ReceiveAsync(buf, context.RequestAborted);
         if (recv.MessageType == WebSocketMessageType.Close)
         {
-            break;
+            return;
         }
-    }
+    }, context.RequestAborted).GetAwaiter().GetResult(), context.RequestAborted);
 });
 
 await app.RunAsync();

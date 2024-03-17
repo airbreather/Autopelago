@@ -1,3 +1,7 @@
+using System.Collections.Frozen;
+using System.Reactive.Concurrency;
+using System.Reactive.Linq;
+using System.Reactive.Subjects;
 using System.Runtime.ExceptionServices;
 
 using ArchipelagoClientDotNet;
@@ -9,20 +13,37 @@ namespace Autopelago.Web;
 
 public sealed class AutopelagoGameService : BackgroundService
 {
-    private readonly CurrentGameStates _currentGameStates;
+    private readonly SlotGameStates _slotGameStates;
 
-    private readonly TimeProvider _timeProvider;
+    private readonly IScheduler _timeProvider;
 
     private readonly ILogger<AutopelagoGameService> _logger;
 
-    public AutopelagoGameService(CurrentGameStates currentGameStates, TimeProvider timeProvider, ILogger<AutopelagoGameService> logger)
+    public AutopelagoGameService(SlotGameStates slotGameStates, IScheduler timeProvider, ILogger<AutopelagoGameService> logger)
     {
-        _currentGameStates = currentGameStates;
+        _slotGameStates = slotGameStates;
         _timeProvider = timeProvider;
         _logger = logger;
     }
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
+    {
+        await Helper.ConfigureAwaitFalse();
+        try
+        {
+            _slotGameStates.GameStatesMappingBox.TrySetResult(await InnerExecuteAsync(stoppingToken));
+        }
+        catch (OperationCanceledException ex)
+        {
+            _slotGameStates.GameStatesMappingBox.TrySetCanceled(ex.CancellationToken);
+        }
+        catch (Exception ex)
+        {
+            _slotGameStates.GameStatesMappingBox.TrySetException(ex);
+        }
+    }
+
+    private async ValueTask<FrozenDictionary<string, IObservable<Game.State>>> InnerExecuteAsync(CancellationToken stoppingToken)
     {
         await Helper.ConfigureAwaitFalse();
 
@@ -39,17 +60,15 @@ public sealed class AutopelagoGameService : BackgroundService
             edi = args.BackgroundException;
             cts.Cancel();
         };
-        await Task.WhenAll(settings.Slots.Select(slot => BackgroundTaskRunner.Run(async () =>
-        {
-            await Helper.ConfigureAwaitFalse();
 
-            await using WebSocketPacketChannel channel = new(settings.Server, settings.Port);
-            await channel.ConnectAsync(cts.Token);
-            ArchipelagoClient archipelagoClient = new(channel);
-            archipelagoClient.PacketReceived += OnClientPacketReceived;
-            static ValueTask OnClientPacketReceived(object? sender, PacketReceivedEventArgs args, CancellationToken cancellationToken)
+        return settings.Slots.Select(slot =>
+        {
+            _logger.LogInformation("Starting for slot {Slot}", slot.Name);
+
+            ArchipelagoConnection conn = new(settings.Server, settings.Port);
+            conn.IncomingPackets.Subscribe(packet =>
             {
-                if (args.Packet is PrintJSONPacketModel printJSON)
+                if (packet is PrintJSONPacketModel printJSON)
                 {
                     foreach (JSONMessagePartModel part in printJSON.Data)
                     {
@@ -58,52 +77,29 @@ public sealed class AutopelagoGameService : BackgroundService
 
                     Console.WriteLine();
                 }
+            });
+            RealAutopelagoClient client = new(conn);
+            IConnectableObservable<Game.State> gameStates = Game.Run(Game.State.Start(), client, _timeProvider).Publish();
+            gameStates.Connect();
 
-                return ValueTask.CompletedTask;
-            }
-
-            archipelagoClient.RunInBackgroundUntilCanceled(cts.Token);
-
-            RoomInfoPacketModel roomInfo = await archipelagoClient.Handshake1Async(cts.Token);
-            DataPackagePacketModel dataPackage = await archipelagoClient.Handshake2Async(new() { Games = [settings.GameName] }, cts.Token);
-            ConnectResponsePacketModel connectResponse = await archipelagoClient.Handshake3Async(new()
+            ConnectResponsePacketModel connectedResponse = null!;
+            BackgroundTaskRunner.Run(async () =>
             {
-                Password = settings.Slots[0].Password,
-                Game = settings.GameName,
-                Name = settings.Slots[0].Name,
-                Uuid = Guid.NewGuid(),
-                Version = new(new Version("0.4.4")),
-                ItemsHandling = ArchipelagoItemsHandlingFlags.All,
-                Tags = ["AP"],
-                SlotData = true,
-            }, cts.Token);
-
-            if (connectResponse is not ConnectedPacketModel { Team: int team, Slot: int slotNumber })
-            {
-                throw new InvalidDataException("Connection refused.");
-            }
-
-            ArchipelagoGameStateStorage gameStateStorage = new(archipelagoClient, $"autopelago_state_{team}_{slotNumber}");
-
-            RealAutopelagoClient client = new(archipelagoClient);
-            Game game = new(client, _timeProvider, gameStateStorage);
-            game.StepFinished += async (sender, args, cancellationToken) =>
-            {
-                if (args.StateBeforeAdvance.Epoch != args.StateAfterAdvance.Epoch)
+                await Helper.ConfigureAwaitFalse();
+                connectedResponse = await conn.HandshakeAsync(new()
                 {
-                    await _currentGameStates.SetAsync(slot.Name, args.StateAfterAdvance, cancellationToken);
-                }
-            };
-            try
-            {
-                await game.RunUntilCanceledOrCompletedAsync(cts.Token);
-            }
-            catch (OperationCanceledException)
-            {
-            }
-        }, cts.Token)));
+                    Password = slot.Password,
+                    Game = settings.GameName,
+                    Name = slot.Name,
+                    Uuid = Guid.NewGuid(),
+                    Version = new(new Version("0.4.4")),
+                    ItemsHandling = ArchipelagoItemsHandlingFlags.All,
+                    Tags = ["AP"],
+                    SlotData = true,
+                }, stoppingToken);
+            }, stoppingToken).GetAwaiter().GetResult();
 
-        edi?.Throw();
-        _logger.LogInformation("Done");
+            return KeyValuePair.Create(slot.Name, (IObservable<Game.State>)gameStates);
+        }).ToFrozenDictionary();
     }
 }

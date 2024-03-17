@@ -1,4 +1,6 @@
-using Microsoft.Extensions.Time.Testing;
+using System.Reactive.Linq;
+
+using Microsoft.Reactive.Testing;
 
 namespace Autopelago;
 
@@ -7,40 +9,25 @@ public sealed class GameTests
 {
     private readonly UnrandomizedAutopelagoClient _client = new();
 
-    private readonly FakeTimeProvider _timeProvider = new();
-
-    private readonly LocalGameStateStorage _gameStateStorage = new();
-
-    private readonly Game _game;
-
-    public GameTests()
-    {
-        _game = new(_client, _timeProvider, _gameStateStorage);
-    }
+    private readonly TestScheduler _timeScheduler = new();
 
     [Test]
     public void FirstStepShouldStartAfterOneSecond()
     {
         using CancellationTokenSource cts = new();
-        bool advanced = false;
-        _game.StepStarted += (_, _, _) =>
-        {
-            cts.Cancel();
-            advanced = true;
-            return ValueTask.CompletedTask;
-        };
+        bool transitioned = false;
 
-        ValueTask gameTask = _game.RunUntilCanceledOrCompletedAsync(cts.Token);
-        TimeSpan interval = TimeSpan.FromMilliseconds(1);
-        for (TimeSpan totalAdvanced = TimeSpan.Zero; totalAdvanced < TimeSpan.FromSeconds(1); _timeProvider.Advance(interval), totalAdvanced += interval)
+        IObservable<Game.State> obs = Game.Run(Game.State.Start(), _client, _timeScheduler);
+        using (obs.Subscribe(_ => transitioned = true))
         {
-            Assert.That(!cts.IsCancellationRequested);
-        }
+            TimeSpan interval = TimeSpan.FromMilliseconds(1);
+            for (TimeSpan totalAdvanced = TimeSpan.Zero; totalAdvanced < TimeSpan.FromSeconds(1); _timeScheduler.AdvanceBy(interval.Ticks), totalAdvanced += interval)
+            {
+                Assert.That(!transitioned);
+            }
 
-        if (!advanced)
-        {
-            cts.Cancel();
-            Assert.Fail("Game did not advance after 1 second.");
+            _timeScheduler.AdvanceBy(interval.Ticks);
+            Assert.That(transitioned);
         }
     }
 }

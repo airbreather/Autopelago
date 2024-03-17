@@ -1,5 +1,6 @@
 using System.Collections.Immutable;
-using System.Diagnostics.CodeAnalysis;
+using System.Reactive.Concurrency;
+using System.Reactive.Linq;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 
@@ -27,8 +28,7 @@ internal sealed partial class GameStateProxySerializerContext : JsonSerializerCo
 {
 }
 
-[SuppressMessage("Design", "CA1001:Types that own disposable fields should be disposable", Justification = "Lifetime is too close to the application's lifetime for me to care right now.")]
-public sealed class Game
+public static class Game
 {
     public sealed record State
     {
@@ -166,111 +166,57 @@ public sealed class Game
         }
     }
 
-    private readonly AutopelagoClient _client;
-
-    private readonly TimeProvider _timeProvider;
-
-    private readonly GameStateStorage _stateStorage;
-
-    private readonly SemaphoreSlim _mutex = new(1, 1);
-
-    private readonly AsyncEvent<StepStartedEventArgs> _stepStarted = new();
-
-    private readonly AsyncEvent<StepFinishedEventArgs> _stepFinished = new();
-
-    private readonly Player _player = new();
-
-    private State _state;
-
-    public Game(AutopelagoClient client, TimeProvider timeProvider, GameStateStorage stateStorage, Random? random = null)
+    public static IObservable<State> Run(State state, AutopelagoClient client, IScheduler timeScheduler)
     {
-        _client = client;
-        _timeProvider = timeProvider;
-        _stateStorage = stateStorage;
-        _state = State.Start(random);
-    }
+        Player player = new();
 
-    public State CurrentState => _state;
+        IObservable<State> playerTransitions =
+            Observable
+                .Interval(TimeSpan.FromSeconds(1), timeScheduler)
+                .Select(_ => state = player.Advance(state));
 
-    public event AsyncEventHandler<StepStartedEventArgs> StepStarted
-    {
-        add => _stepStarted.Add(value);
-        remove => _stepStarted.Remove(value);
-    }
-
-    public event AsyncEventHandler<StepFinishedEventArgs> StepFinished
-    {
-        add => _stepFinished.Add(value);
-        remove => _stepFinished.Remove(value);
-    }
-
-    public async ValueTask RunUntilCanceledOrCompletedAsync(CancellationToken cancellationToken)
-    {
-        if (await _stateStorage.LoadAsync(cancellationToken) is State initialState)
-        {
-            _state = initialState;
-        }
-
-        _client.ReceivedItems += OnClientReceivedItemsAsync;
-
-        while (!_state.IsCompleted)
-        {
-            State stateBeforeAdvance;
-            State stateAfterAdvance;
-
-            // TODO: more control over the delay
-            await Task.Delay(TimeSpan.FromSeconds(1), _timeProvider, cancellationToken);
-            await _mutex.WaitAsync(cancellationToken);
-            try
-            {
-                stateBeforeAdvance = _state;
-                await _stepStarted.InvokeAsync(this, new() { StateBeforeAdvance = stateBeforeAdvance }, cancellationToken);
-                stateAfterAdvance = _player.Advance(stateBeforeAdvance);
-                await _stepFinished.InvokeAsync(this, new() { StateBeforeAdvance = stateBeforeAdvance, StateAfterAdvance = stateAfterAdvance }, cancellationToken);
-                if (stateBeforeAdvance.Epoch == stateAfterAdvance.Epoch)
+        IObservable<State> receivedItemTransitions =
+            client.ReceivedItemsEvents
+                .Select(args =>
                 {
-                    continue;
+                    for (int i = args.Index; i < state.ReceivedItems.Count; i++)
+                    {
+                        if (args.Items[i - args.Index] != state.ReceivedItems[i])
+                        {
+                            throw new NotImplementedException("Need to resync.");
+                        }
+                    }
+
+                    ImmutableArray<ItemDefinitionModel> newItems = args.Items[(state.ReceivedItems.Count - args.Index)..];
+                    if (newItems.Length > 0)
+                    {
+                        state = state with { ReceivedItems = state.ReceivedItems.AddRange(newItems) };
+                    }
+
+                    return state;
+                });
+
+        State stateAtLastUpdate = state;
+        return Observable
+            .Merge(playerTransitions, receivedItemTransitions)
+            .TakeUntil(_ => stateAtLastUpdate.IsCompleted)
+            .Do(_ => // ignore the incremental transition
+            {
+                State stateToUpdate = state;
+                if (stateAtLastUpdate.Epoch == stateToUpdate.Epoch)
+                {
+                    return;
                 }
 
-                _state = stateAfterAdvance;
-                await _stateStorage.SaveAsync(stateAfterAdvance, cancellationToken);
-            }
-            finally
-            {
-                _mutex.Release();
-            }
-
-            if (stateBeforeAdvance.CheckedLocations.Count < stateAfterAdvance.CheckedLocations.Count)
-            {
-                await _client.SendLocationChecksAsync(stateAfterAdvance.CheckedLocations.Except(stateBeforeAdvance.CheckedLocations), cancellationToken);
-            }
-        }
-    }
-
-    private async ValueTask OnClientReceivedItemsAsync(object? sender, ReceivedItemsEventArgs args, CancellationToken cancellationToken)
-    {
-        await Helper.ConfigureAwaitFalse();
-        await _mutex.WaitAsync(cancellationToken);
-        try
-        {
-            for (int i = args.Index; i < _state.ReceivedItems.Count; i++)
-            {
-                if (args.Items[i - args.Index] != _state.ReceivedItems[i])
+                if (stateAtLastUpdate.CheckedLocations.Count < stateToUpdate.CheckedLocations.Count)
                 {
-                    throw new NotImplementedException("Need to resync.");
+                    BackgroundTaskRunner.Run(async () =>
+                    {
+                        await client.SendLocationChecksAsync(stateToUpdate.CheckedLocations.Except(stateAtLastUpdate.CheckedLocations), CancellationToken.None);
+                    }, CancellationToken.None).GetAwaiter().GetResult();
                 }
-            }
 
-            ImmutableArray<ItemDefinitionModel> newItems = args.Items[(_state.ReceivedItems.Count - args.Index)..];
-            if (newItems.Length > 0)
-            {
-                _state = _state with { ReceivedItems = _state.ReceivedItems.AddRange(newItems) };
-                await _stateStorage.SaveAsync(_state, cancellationToken);
-            }
-        }
-        finally
-        {
-            _mutex.Release();
-        }
+                stateAtLastUpdate = stateToUpdate;
+            });
     }
 }

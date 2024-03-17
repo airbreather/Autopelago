@@ -1,17 +1,10 @@
 using System.Collections.Immutable;
 
-using ArchipelagoClientDotNet;
-
 namespace Autopelago;
-
-public abstract class AutopelagoClientFactory
-{
-    public abstract ValueTask<AutopelagoClient> CreateClientAsync(CancellationToken cancellationToken);
-}
 
 public abstract class AutopelagoClient
 {
-    public abstract event AsyncEventHandler<ReceivedItemsEventArgs> ReceivedItems;
+    public abstract IObservable<ReceivedItemsEventArgs> ReceivedItemsEvents { get; }
 
     public abstract ValueTask SendLocationChecksAsync(IEnumerable<LocationDefinitionModel> locations, CancellationToken cancellationToken);
 }
