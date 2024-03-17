@@ -30,12 +30,28 @@ public sealed class GameStateHub : Hub
             ++inventory[item.Name];
         }
 
+        HashSet<string> openRegions = [];
+        Queue<RegionDefinitionModel> regions = [];
+        regions.Enqueue(GameDefinitions.Instance.StartRegion);
+        while (regions.TryDequeue(out RegionDefinitionModel? region))
+        {
+            openRegions.Add(region.Key);
+            foreach (RegionExitDefinitionModel exit in region.Exits)
+            {
+                if (exit.Requirement.StaticSatisfied(state))
+                {
+                    regions.Enqueue(GameDefinitions.Instance.AllRegions[exit.RegionKey]);
+                }
+            }
+        }
+
         JsonObject obj = (JsonObject)JsonSerializer.SerializeToNode(state.ToProxy(), Game.State.Proxy.SerializerOptions)!;
         obj.Add("current_region", state.CurrentLocation.Key.RegionKey);
         obj.Add("rat_count", state.RatCount);
         obj.Add("completed_goal", state.IsCompleted);
         obj.Add("inventory", new JsonObject(inventory.Select(kvp => KeyValuePair.Create(kvp.Key, (JsonNode?)JsonValue.Create(kvp.Value)))));
         obj["checked_locations"] = new JsonArray([.. state.CheckedLocations.Where(l => l.Region is LandmarkRegionDefinitionModel).Select(l => l.Region.Key)]);
+        obj["open_regions"] = new JsonArray([.. openRegions]);
 
         await Clients.All.SendAsync("Updated", slotName, obj);
     }
