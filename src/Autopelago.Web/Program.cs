@@ -48,8 +48,7 @@ app.Use(async (context, next) =>
     }
 
     SlotGameStates slotGameStates = context.RequestServices.GetRequiredService<SlotGameStates>();
-    IHostApplicationLifetime lifetime = context.RequestServices.GetRequiredService<IHostApplicationLifetime>();
-    CancellationToken cancellationToken  = lifetime.ApplicationStopping;
+    CancellationToken cancellationToken =  app.Lifetime.ApplicationStopping;
     try
     {
         string slotName = HttpUtility.UrlDecode(context.WebSockets.WebSocketRequestedProtocols[0]);
