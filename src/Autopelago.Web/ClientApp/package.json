@@ -1,0 +1,16 @@
+{
+  "name": "autopelago",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "build": "tsc"
+  },
+  "author": "",
+  "license": "AGPL-3.0-only",
+  "devDependencies": {
+    "@microsoft/signalr": "=8.0.0",
+    "@tsconfig/recommended": "^1.0.3",
+    "typescript": "^5.4.2"
+  }
+}

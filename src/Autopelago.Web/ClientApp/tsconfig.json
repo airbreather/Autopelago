@@ -1,0 +1,9 @@
+{
+  "extends": "@tsconfig/recommended/tsconfig.json",
+  "compilerOptions": {
+    "target": "ES2022",
+    "outDir": "../wwwroot/dist",
+    "types": ["@microsoft/signalr"]
+  },
+  "include": ["./src/**/*"],
+}

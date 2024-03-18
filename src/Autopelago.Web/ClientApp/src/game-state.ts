@@ -1,15 +1,24 @@
-'use strict';
+interface GameState {
+    epoch: number;
+    current_region: string;
+    rat_count: number;
+    checked_locations: string[];
+    open_regions: string[];
+    completed_goal: boolean;
+    inventory: { [item: string]: number };
+}
+
 const connection = new signalR.HubConnectionBuilder().withUrl('/gameStateHub').build();
 const already_found = new Set();
 const already_checked = new Set();
-connection.on('Updated', function (slotName, state) {
+connection.on('Updated', function (slotName: string, state: GameState) {
     if (slotName !== 'Ratthew') {
         return;
     }
 
     try {
-        document.getElementById('title').text = `${slotName}'s Tracker`;
-        document.getElementById('rat-count').textContent = `${state.rat_count}`;
+        (<HTMLTitleElement>document.getElementById('title')).text = `${slotName}'s Tracker`;
+        (<HTMLSpanElement>document.getElementById('rat-count')).textContent = `${state.rat_count}`;
         for (const [item, count] of Object.entries(state.inventory)) {
             if (count > 0) {
                 if (already_found.has(item)) {
