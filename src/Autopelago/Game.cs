@@ -198,25 +198,23 @@ public static class Game
                 });
 
         State stateAtLastUpdate = state;
-        return Observable.Using(() => new EventLoopScheduler(), sch =>
-            Observable
-                .Merge(playerTransitions, receivedItemTransitions)
-                .TakeUntil(_ => stateAtLastUpdate.IsCompleted)
-                .ObserveOn(sch)
-                .Do(_ => // ignore the incremental transition
+        return Observable
+            .Merge(playerTransitions, receivedItemTransitions)
+            .TakeUntil(_ => stateAtLastUpdate.IsCompleted)
+            .Do(_ => // ignore the incremental transition
+            {
+                State stateToUpdate = state;
+                if (stateAtLastUpdate.Epoch == stateToUpdate.Epoch)
                 {
-                    State stateToUpdate = state;
-                    if (stateAtLastUpdate.Epoch == stateToUpdate.Epoch)
-                    {
-                        return;
-                    }
+                    return;
+                }
 
-                    if (stateAtLastUpdate.CheckedLocations.Count < stateToUpdate.CheckedLocations.Count)
-                    {
-                        client.SendLocationChecksAsync(stateToUpdate.CheckedLocations.Except(stateAtLastUpdate.CheckedLocations), CancellationToken.None).WaitMoreSafely();
-                    }
+                if (stateAtLastUpdate.CheckedLocations.Count < stateToUpdate.CheckedLocations.Count)
+                {
+                    client.SendLocationChecksAsync(stateToUpdate.CheckedLocations.Except(stateAtLastUpdate.CheckedLocations), CancellationToken.None).WaitMoreSafely();
+                }
 
-                    stateAtLastUpdate = stateToUpdate;
-                }));
+                stateAtLastUpdate = stateToUpdate;
+            });
     }
 }
