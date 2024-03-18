@@ -9,6 +9,18 @@ public static class Helper
     public static void Throw(this Exception[] exceptions) => throw new AggregateException(exceptions);
     public static void Throw(this Exception[] exceptions, string? message) => throw new AggregateException(message, exceptions);
 
+    public static void WaitMoreSafely(this ValueTask task)
+    {
+        if (task.IsCompleted)
+        {
+            task.GetAwaiter().GetResult();
+        }
+        else
+        {
+            Task.Run(async () => await task.ConfigureAwait(false)).GetAwaiter().GetResult();
+        }
+    }
+
     public static string FormatMyWay(this TimeSpan @this)
     {
         if (@this.TotalDays >= 1)

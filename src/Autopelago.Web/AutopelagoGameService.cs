@@ -101,21 +101,24 @@ public sealed class AutopelagoGameService : BackgroundService
                 await client.InitAsync(getDataPackage, connect, Random.Shared, stoppingToken) ??
                 throw new InvalidOperationException("Failed to connect");
 
-            IConnectableObservable<Game.State> gameStates = Game.Run(state, client, _timeProvider)
-                .ObserveOn(TaskPoolScheduler.Default)
-                .Do(state =>
-                {
-                    client.SaveGameStateAsync(state, stoppingToken).AsTask().GetAwaiter().GetResult();
-                    if (state.IsCompleted)
+            result.Add(slot.Name, Observable.Using(() => new EventLoopScheduler(), sch =>
+            {
+                IConnectableObservable<Game.State> multicast = Game.Run(state, client, _timeProvider)
+                    .ObserveOn(sch)
+                    .Do(state =>
                     {
-                        StatusUpdatePacketModel statusUpdate = new() { Status = ArchipelagoClientStatus.Goal };
-                        conn.SendPacketsAsync([statusUpdate], stoppingToken).AsTask().GetAwaiter().GetResult();
-                    }
-                })
-                .Replay(1);
-            gameStates.Connect();
+                        client.SaveGameStateAsync(state, stoppingToken).WaitMoreSafely();
+                        if (state.IsCompleted)
+                        {
+                            StatusUpdatePacketModel statusUpdate = new() { Status = ArchipelagoClientStatus.Goal };
+                            conn.SendPacketsAsync([statusUpdate], stoppingToken).WaitMoreSafely();
+                        }
+                    })
+                    .Replay(1);
 
-            result.Add(slot.Name, gameStates);
+                multicast.Connect();
+                return multicast;
+            }));
         }
 
         return result.ToFrozenDictionary();

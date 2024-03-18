@@ -1,6 +1,5 @@
 using System.Reactive.Concurrency;
 using System.Reactive.Linq;
-using System.Runtime.ExceptionServices;
 
 using ArchipelagoClientDotNet;
 
@@ -24,15 +23,4 @@ WebApplication app = builder.Build();
 app.UseStaticFiles();
 app.MapHub<GameStateHub>("/gameStateHub");
 
-ExceptionDispatchInfo? edi = null;
-BackgroundTaskRunner.BackgroundException += (sender, args) =>
-{
-    if (args.BackgroundException.SourceException is not OperationCanceledException)
-    {
-        edi = args.BackgroundException;
-        app.Lifetime.StopApplication();
-    }
-};
-
 await app.RunAsync();
-edi?.Throw();
