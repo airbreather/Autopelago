@@ -11,21 +11,24 @@ interface GameState {
 }
 
 const connection = new signalR.HubConnectionBuilder().withUrl('/gameStateHub').build();
-let removePreviousEventListener = () => { };
-connection.on('GotSlots', (slots: string[]) => {
-    const slotDropdown = (<HTMLSelectElement>document.getElementById('slot-dropdown'));
-    removePreviousEventListener();
-    const onChange = async () => {
-        try {
-            await connection.invoke('GetUpdate', slots[slotDropdown.selectedIndex], -1);
-        } catch (err) {
-            console.error(err);
-        }
-    };
-    slotDropdown.addEventListener('change', onChange);
-    removePreviousEventListener = () => slotDropdown.removeEventListener('change', onChange);
+const slotDropdown = (<HTMLSelectElement>document.getElementById('slot-dropdown'));
+let lastEpoch = -1;
+const getUpdate = async () => {
+    try {
+        await connection.invoke('GetUpdate', slotDropdown[slotDropdown.selectedIndex].textContent, lastEpoch);
+    } catch (err) {
+        console.error(err);
+    }
+}
+connection.on('GotSlots', async (slots: string[]) => {
+    slotDropdown.addEventListener('change', getUpdate);
     slotDropdown.replaceChildren(...slots.map(slot => new Option(slot)));
-    setTimeout(onChange);
+    await getUpdate();
+});
+
+connection.on('NoUpdate', async () => {
+    await new Promise(resolve => setTimeout(resolve, 100));
+    await getUpdate();
 });
 
 const already_found = new Set();
@@ -77,12 +80,9 @@ connection.on('Updated', (slotName: string, state: GameState) => async () => {
         console.error(error);
     }
 
+    lastEpoch = state.epoch;
     if (!state.completed_goal) {
-        try {
-            await connection.invoke('GetUpdate', slotName, state.epoch);
-        } catch (err) {
-            console.error(err);
-        }
+        await getUpdate();
     }
 });
 

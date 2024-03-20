@@ -32,7 +32,12 @@ public sealed class GameStateHub : Hub
     {
         await Helper.ConfigureAwaitFalse();
         IObservable<Game.State> gameStates = await _slotGameStates.GetGameStatesAsync(slotName, CancellationToken.None) ?? throw new InvalidOperationException("Bad slot name");
-        Game.State state = await gameStates.FirstAsync(s => (long)s.Epoch > epoch).ToTask();
+        Game.State state = await gameStates.FirstAsync().ToTask();
+        if ((long)state.Epoch <= epoch)
+        {
+            await Clients.All.SendAsync("NoUpdate", slotName);
+            return;
+        }
 
         Dictionary<string, int> inventory = GameDefinitions.Instance.ItemsByName.Keys.ToDictionary(k => k, _ => 0);
         foreach (ItemDefinitionModel item in state.ReceivedItems)
