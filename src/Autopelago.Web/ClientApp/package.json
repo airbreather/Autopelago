@@ -1,16 +1,17 @@
 {
-  "name": "autopelago",
-  "version": "1.0.0",
-  "description": "",
-  "main": "index.js",
+  "private": true,
   "scripts": {
-    "build": "tsc"
+    "build": "parcel build src/index.html --dist-dir ../wwwroot"
   },
-  "author": "",
-  "license": "AGPL-3.0-only",
+  "browserslist": "> 0.001%, not dead",
+  "packageManager": "pnpm@8.15.5",
+  "dependencies": {
+    "@microsoft/signalr": "^8.0.0"
+  },
   "devDependencies": {
-    "@microsoft/signalr": "=8.0.0",
-    "@tsconfig/recommended": "^1.0.3",
-    "typescript": "^5.4.2"
+    "@tsconfig/recommended": "latest",
+    "parcel": "latest",
+    "process": "^0.11.10",
+    "typescript": "latest"
   }
 }

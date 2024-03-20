@@ -1,3 +1,5 @@
+import * as signalR from '@microsoft/signalr';
+
 interface GameState {
     epoch: number;
     current_region: string;

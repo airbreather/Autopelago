@@ -9,12 +9,12 @@
   </ItemGroup>
 
   <Target Name="InstallNodePackages" Inputs="ClientApp/package.json" Outputs="ClientApp/node_modules/.msbuild-output">
-    <Exec WorkingDirectory="ClientApp" Command="npm i" />
+    <Exec WorkingDirectory="ClientApp" Command="pnpm i" />
     <Touch Files="ClientApp/node_modules/.msbuild-output" AlwaysCreate="true" ForceTouch="true" />
   </Target>
 
-  <Target Name="BuildTypeScript" DependsOnTargets="InstallNodePackages" BeforeTargets="BeforeBuild">
-    <Exec WorkingDirectory="ClientApp" Command="npm run build" />
+  <Target Name="BuildClientApp" DependsOnTargets="InstallNodePackages" BeforeTargets="BeforeBuild">
+    <Exec WorkingDirectory="ClientApp" Command="pnpm run build" />
   </Target>
 
 </Project>

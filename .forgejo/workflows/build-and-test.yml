@@ -7,15 +7,31 @@ jobs:
       image: airbreather/dotnet-sdk-8.0-forgejo-runner
 
     steps:
+      - name: Install pnpm
+        uses: pnpm/action-setup@v3
+
+      - name: Get pnpm store directory
+        shell: bash
+        run: |
+          echo "STORE_PATH=$(pnpm store path --silent)" >> $GITHUB_ENV
+
       - name: Check out repository
         uses: actions/checkout@v4
 
-      - name: Restore cached packages
+      - name: Restore cached packages (NuGet)
         uses: actions/cache@v4
         with:
           path: ~/.nuget/packages
           key: ${{ runner.os }}-nuget-${{ hashFiles('**/packages.lock.json') }}
           restore-keys: ${{ runner.os }}-nuget-
+
+      - name: Restore cached packages (pnpm)
+        uses: actions/cache@v4
+        with:
+          path: ${{ env.STORE_PATH }}
+          key: ${{ runner.os }}-pnpm-store-${{ hashFiles('**/pnpm-lock.yaml') }}
+          restore-keys: |
+            ${{ runner.os }}-pnpm-store-
 
       - name: Restore
         run: dotnet restore --locked-mode
