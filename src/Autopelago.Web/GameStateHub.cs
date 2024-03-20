@@ -1,3 +1,4 @@
+using System.Collections.Frozen;
 using System.Reactive.Linq;
 using System.Reactive.Threading.Tasks;
 using System.Text.Json;
@@ -16,6 +17,15 @@ public sealed class GameStateHub : Hub
     public GameStateHub(SlotGameStates slotGameStates)
     {
         _slotGameStates = slotGameStates;
+    }
+
+    public async ValueTask GetSlots()
+    {
+        await Helper.ConfigureAwaitFalse();
+
+        FrozenDictionary<string, IObservable<Game.State>> allStates = await _slotGameStates.GameStatesMappingBox.Task;
+
+        await Clients.All.SendAsync("GotSlots", allStates.Keys.Order());
     }
 
     public async ValueTask GetUpdate(string slotName, ulong epoch)

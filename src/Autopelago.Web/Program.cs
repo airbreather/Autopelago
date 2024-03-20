@@ -20,7 +20,7 @@ builder.Services.AddControllers();
 
 WebApplication app = builder.Build();
 
-app.UseStaticFiles();
+app.UseFileServer();
 app.MapHub<GameStateHub>("/gameStateHub");
 
 await app.RunAsync();

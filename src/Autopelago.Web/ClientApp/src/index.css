@@ -9,6 +9,7 @@
 
 * {
     font-family: 'Public Pixel';
+    font-size: small;
 }
 
 :root {
@@ -29,23 +30,12 @@ body {
     object-fit: scale-down;
 }
 
-.received-normal-rat {
-    position: relative;
-}
-
 .received-item:not(.not-found) img {
     filter: var(--found-filter-drop-shadow);
 }
 
 .received-item.not-found img {
     filter: var(--not-found-filter-recolor) var(--not-found-filter-drop-shadow);
-}
-
-.overlaid-text {
-    position: absolute;
-    bottom: 0;
-    left: 50%;
-    transform: translateX(-50%);
 }
 
 .arrow-line,.arrow-head {
