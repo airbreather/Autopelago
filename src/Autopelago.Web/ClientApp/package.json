@@ -4,7 +4,6 @@
     "build": "parcel build src/index.html --dist-dir ../wwwroot"
   },
   "browserslist": "> 0.001%, not dead",
-  "packageManager": "pnpm@8.15.5",
   "dependencies": {
     "@microsoft/signalr": "^8.0.0"
   },
