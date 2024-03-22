@@ -7,7 +7,7 @@ using System.Reactive.Threading.Tasks;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 
-namespace ArchipelagoClientDotNet;
+namespace Autopelago;
 
 [JsonSourceGenerationOptions(PropertyNamingPolicy = JsonKnownNamingPolicy.SnakeCaseLower)]
 [JsonSerializable(typeof(ImmutableArray<ArchipelagoPacketModel>))]

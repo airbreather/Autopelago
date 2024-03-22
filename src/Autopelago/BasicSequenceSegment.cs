@@ -1,6 +1,6 @@
 using System.Buffers;
 
-namespace ArchipelagoClientDotNet;
+namespace Autopelago;
 
 internal sealed class BasicSequenceSegment : ReadOnlySequenceSegment<byte>
 {

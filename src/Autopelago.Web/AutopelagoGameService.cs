@@ -4,8 +4,6 @@ using System.Reactive.Linq;
 using System.Reactive.Subjects;
 using System.Text;
 
-using ArchipelagoClientDotNet;
-
 using YamlDotNet.Serialization;
 using YamlDotNet.Serialization.NamingConventions;
 

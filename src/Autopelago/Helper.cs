@@ -1,6 +1,6 @@
 using System.Runtime.CompilerServices;
 
-namespace ArchipelagoClientDotNet;
+namespace Autopelago;
 
 public static class Helper
 {

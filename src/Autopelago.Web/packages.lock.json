@@ -12,16 +12,10 @@
         "resolved": "15.1.2",
         "contentHash": "qeX0XhzOIcQEvnI5JxnPaIwcINwyY4Qy/LXhSfsdHkFrl9F41AT52UFfy2nIE7kgrhMg+cP7xuS+GtPJhmHmTA=="
       },
-      "archipelagoclientdotnet": {
-        "type": "Project",
-        "dependencies": {
-          "System.Reactive": "[6.0.0, )"
-        }
-      },
       "autopelago": {
         "type": "Project",
         "dependencies": {
-          "ArchipelagoClientDotNet": "[1.0.0, )",
+          "System.Reactive": "[6.0.0, )",
           "YamlDotNet": "[15.1.2, )"
         }
       }

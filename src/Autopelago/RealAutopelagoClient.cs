@@ -5,8 +5,6 @@ using System.Reactive.Subjects;
 using System.Reactive.Threading.Tasks;
 using System.Text.Json;
 
-using ArchipelagoClientDotNet;
-
 namespace Autopelago;
 
 public sealed class RealAutopelagoClient : AutopelagoClient

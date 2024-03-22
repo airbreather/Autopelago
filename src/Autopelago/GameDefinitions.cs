@@ -5,8 +5,6 @@ using System.Reflection;
 using System.Runtime.InteropServices;
 using System.Text;
 
-using ArchipelagoClientDotNet;
-
 using YamlDotNet.RepresentationModel;
 using YamlDotNet.Serialization;
 

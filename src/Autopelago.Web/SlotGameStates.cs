@@ -1,7 +1,5 @@
 using System.Collections.Frozen;
 
-using ArchipelagoClientDotNet;
-
 namespace Autopelago.Web;
 
 public sealed class SlotGameStates

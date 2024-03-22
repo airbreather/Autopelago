@@ -4,8 +4,6 @@ using System.Reactive.Linq;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 
-using ArchipelagoClientDotNet;
-
 namespace Autopelago;
 
 public sealed record StepStartedEventArgs
@@ -172,7 +170,7 @@ public static class Game
 
         IObservable<State> playerTransitions =
             Observable
-                .Interval(TimeSpan.FromSeconds(1), timeScheduler)
+                .Interval(TimeSpan.FromSeconds(1000), timeScheduler)
                 .Select(_ => state = player.Advance(state));
 
         IObservable<State> receivedItemTransitions =
@@ -200,6 +198,7 @@ public static class Game
         State stateAtLastUpdate = state;
         return Observable
             .Merge(playerTransitions, receivedItemTransitions)
+            .StartWith(state)
             .TakeUntil(_ => stateAtLastUpdate.IsCompleted)
             .Do(_ => // ignore the incremental transition
             {

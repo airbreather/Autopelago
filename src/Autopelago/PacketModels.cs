@@ -5,7 +5,7 @@ using System.Text.Json;
 using System.Text.Json.Nodes;
 using System.Text.Json.Serialization;
 
-namespace ArchipelagoClientDotNet;
+namespace Autopelago;
 
 public enum ArchipelagoDataStorageOperationType
 {
