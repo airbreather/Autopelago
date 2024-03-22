@@ -4,7 +4,7 @@ namespace Autopelago;
 
 public abstract class AutopelagoClient
 {
-    public abstract IObservable<ReceivedItemsEventArgs> ReceivedItemsEvents { get; }
+    public abstract event AsyncEventHandler<ReceivedItemsEventArgs> ReceivedItems;
 
     public abstract ValueTask SendLocationChecksAsync(IEnumerable<LocationDefinitionModel> locations, CancellationToken cancellationToken);
 }

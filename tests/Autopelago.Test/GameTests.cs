@@ -1,6 +1,4 @@
-using System.Reactive.Linq;
-
-using Microsoft.Reactive.Testing;
+using Microsoft.Extensions.Time.Testing;
 
 namespace Autopelago;
 
@@ -9,22 +7,23 @@ public sealed class GameTests
 {
     private readonly UnrandomizedAutopelagoClient _client = new();
 
-    private readonly TestScheduler _timeScheduler = new();
+    private readonly FakeTimeProvider _timeProvider = new();
 
     [Test]
     public void FirstStepShouldStartAfterOneSecond()
     {
         bool hitNextState = false;
-        using (Game.Run(Game.State.Start(), _client, _timeScheduler).Subscribe(_ => hitNextState = true))
+        Game game = new(TimeSpan.FromSeconds(1), TimeSpan.FromSeconds(1), _client, _timeProvider);
+        game.StepStarted += (_, _, _) => { hitNextState = true; return ValueTask.CompletedTask; };
+        using CancellationTokenSource cts = game.RunGameLoop(Game.State.Start());
+        TimeSpan interval = TimeSpan.FromMilliseconds(1);
+        for (TimeSpan totalAdvanced = TimeSpan.Zero; totalAdvanced < TimeSpan.FromSeconds(1); _timeProvider.Advance(interval), totalAdvanced += interval)
         {
-            TimeSpan interval = TimeSpan.FromMilliseconds(1);
-            for (TimeSpan totalAdvanced = TimeSpan.Zero; totalAdvanced < TimeSpan.FromSeconds(1); _timeScheduler.AdvanceBy(interval.Ticks), totalAdvanced += interval)
-            {
-                Assert.That(!hitNextState);
-            }
-
-            _timeScheduler.AdvanceBy(interval.Ticks);
-            Assert.That(hitNextState);
+            Assert.That(!hitNextState);
         }
+
+        _timeProvider.Advance(interval);
+        cts.Cancel();
+        Assert.That(hitNextState);
     }
 }

@@ -1,8 +1,6 @@
-using System.Collections.Frozen;
-using System.Reactive.Linq;
-using System.Reactive.Threading.Tasks;
 using System.Text.Json;
 using System.Text.Json.Nodes;
+using System.Threading.Channels;
 
 using Microsoft.AspNetCore.SignalR;
 
@@ -10,28 +8,86 @@ namespace Autopelago;
 
 public sealed class GameStateHub : Hub
 {
-    private readonly SlotGameStates _slotGameStates;
-
-    public GameStateHub(SlotGameStates slotGameStates)
+    private static readonly BoundedChannelOptions s_boundedChannelOptions = new(1)
     {
-        _slotGameStates = slotGameStates;
+        SingleReader = true,
+        SingleWriter = true,
+        FullMode = BoundedChannelFullMode.DropOldest,
+    };
+
+    private readonly AutopelagoSettingsModel _settings;
+
+    private readonly SlotGameLookup _slotGameLookup;
+
+    public GameStateHub(AutopelagoSettingsModel settings, SlotGameLookup slotGameLookup)
+    {
+        _settings = settings;
+        _slotGameLookup = slotGameLookup;
     }
 
     public async ValueTask GetSlots()
     {
         await Helper.ConfigureAwaitFalse();
-
-        FrozenDictionary<string, IObservable<Game.State>> allStates = await _slotGameStates.GameStatesMappingBox.Task;
-
-        await Clients.All.SendAsync("GotSlots", allStates.Keys.Order());
+        await Clients.All.SendAsync("GotSlots", _settings.Slots.Select(s => s.Name));
     }
 
-    public async ValueTask GetUpdate(string slotName, long epoch)
+    public ChannelReader<JsonObject> GetSlotUpdates(string slotName, CancellationToken cancellationToken)
+    {
+        Channel<JsonObject> channel = Channel.CreateBounded<JsonObject>(s_boundedChannelOptions);
+        ValueTask<Game?> gameTask = _slotGameLookup.GetGameAsync(slotName, cancellationToken);
+        if (gameTask.IsCompletedSuccessfully && gameTask.GetAwaiter().GetResult() is null)
+        {
+            channel.Writer.Complete(new ArgumentException("Slot was not from GotSlots.", nameof(slotName)));
+            return channel.Reader;
+        }
+
+        _ = Task.Run(async () => await WriteSlotUpdatesAsync(gameTask, channel.Writer, cancellationToken), cancellationToken);
+        return channel.Reader;
+    }
+
+    private static async Task WriteSlotUpdatesAsync(ValueTask<Game?> gameTask, ChannelWriter<JsonObject> writer, CancellationToken cancellationToken)
     {
         await Helper.ConfigureAwaitFalse();
-        IObservable<Game.State> gameStates = await _slotGameStates.GetGameStatesAsync(slotName, CancellationToken.None) ?? throw new InvalidOperationException("Bad slot name");
-        Game.State state = await gameStates.FirstAsync().ToTask();
+        Exception? ex = null;
+        try
+        {
+            Game game = (await gameTask) ??
+                throw new InvalidOperationException("Game task should only be able to yield null in the synchronous part. This is a programming error in the backend.");
 
+            Game.State next = game.CurrentState;
+            while (true)
+            {
+                await writer.WriteAsync(ToJsonObject(next), cancellationToken);
+                if (next.IsCompleted)
+                {
+                    break;
+                }
+
+                next = await NextGameStateAsync(game, next.Epoch, cancellationToken);
+            }
+        }
+        catch (Exception innerEx)
+        {
+            ex = innerEx;
+        }
+        finally
+        {
+            writer.Complete(ex);
+        }
+    }
+
+    private static ValueTask<Game.State> NextGameStateAsync(Game game, ulong prevEpoch, CancellationToken cancellationToken)
+    {
+        return Helper.NextAsync<StepFinishedEventArgs, Game.State>(
+            subscribe: e => game.StepFinished += e,
+            unsubscribe: e => game.StepFinished -= e,
+            predicate: args => args.StateAfterAdvance.Epoch > prevEpoch,
+            selector: args => args.StateAfterAdvance,
+            cancellationToken: cancellationToken);
+    }
+
+    private static JsonObject ToJsonObject(Game.State state)
+    {
         Dictionary<string, int> inventory = GameDefinitions.Instance.ItemsByName.Keys.ToDictionary(k => k, _ => 0);
         foreach (ItemDefinitionModel item in state.ReceivedItems)
         {
@@ -61,6 +117,6 @@ public sealed class GameStateHub : Hub
         obj["checked_locations"] = new JsonArray([.. state.CheckedLocations.Where(l => l.Region is LandmarkRegionDefinitionModel).Select(l => l.Region.Key)]);
         obj["open_regions"] = new JsonArray([.. openRegions]);
 
-        await Clients.All.SendAsync("Updated", slotName, obj);
+        return obj;
     }
 }

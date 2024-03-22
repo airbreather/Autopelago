@@ -1,6 +1,4 @@
 using System.Collections.Immutable;
-using System.Reactive.Concurrency;
-using System.Reactive.Linq;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 
@@ -26,7 +24,7 @@ internal sealed partial class GameStateProxySerializerContext : JsonSerializerCo
 {
 }
 
-public static class Game
+public sealed class Game
 {
     public sealed record State
     {
@@ -164,56 +162,133 @@ public static class Game
         }
     }
 
-    public static IObservable<State> Run(State state, AutopelagoClient client, IScheduler timeScheduler)
+    private readonly AsyncEvent<StepStartedEventArgs> _stepStartedEvent = new();
+
+    private readonly AsyncEvent<StepFinishedEventArgs> _stepFinishedEvent = new();
+
+    private readonly TimeSpan _minInterval;
+
+    private readonly TimeSpan _maxInterval;
+
+    private readonly AutopelagoClient _client;
+
+    private readonly TimeProvider _timeProvider;
+
+    private State? _state;
+
+    private Prng.State _intervalPrngState = Prng.State.Start((ulong)Random.Shared.NextInt64(long.MinValue, long.MaxValue));
+
+    public Game(TimeSpan minInterval, TimeSpan maxInterval, AutopelagoClient client, TimeProvider timeProvider)
     {
-        Player player = new();
+        _minInterval = minInterval;
+        _maxInterval = maxInterval;
+        _client = client;
+        _timeProvider = timeProvider;
+    }
 
-        IObservable<State> playerTransitions =
-            Observable
-                .Interval(TimeSpan.FromSeconds(1000), timeScheduler)
-                .Select(_ => state = player.Advance(state));
+    public State CurrentState => _state ?? throw new InvalidOperationException("Not running yet.");
 
-        IObservable<State> receivedItemTransitions =
-            client.ReceivedItemsEvents
-                .ObserveOn(timeScheduler)
-                .Select(args =>
-                {
-                    for (int i = args.Index; i < state.ReceivedItems.Count; i++)
-                    {
-                        if (args.Items[i - args.Index] != state.ReceivedItems[i])
-                        {
-                            throw new NotImplementedException("Need to resync.");
-                        }
-                    }
+    public event AsyncEventHandler<StepStartedEventArgs> StepStarted
+    {
+        add { _stepStartedEvent.Add(value); }
+        remove { _stepStartedEvent.Remove(value); }
+    }
 
-                    ImmutableArray<ItemDefinitionModel> newItems = args.Items[(state.ReceivedItems.Count - args.Index)..];
-                    if (newItems.Length > 0)
-                    {
-                        state = state with { ReceivedItems = state.ReceivedItems.AddRange(newItems) };
-                    }
+    public event AsyncEventHandler<StepFinishedEventArgs> StepFinished
+    {
+        add { _stepFinishedEvent.Add(value); }
+        remove { _stepFinishedEvent.Remove(value); }
+    }
 
-                    return state;
-                });
+    public CancellationTokenSource RunGameLoop(State initialState)
+    {
+        if (_state is not null)
+        {
+            throw new InvalidOperationException("Already running.");
+        }
 
-        State stateAtLastUpdate = state;
-        return Observable
-            .Merge(playerTransitions, receivedItemTransitions)
-            .StartWith(state)
-            .TakeUntil(_ => stateAtLastUpdate.IsCompleted)
-            .Do(_ => // ignore the incremental transition
+        _state = initialState;
+        CancellationTokenSource cts = new();
+        SemaphoreSlim mutex = new(1, 1);
+        SyncOverAsync.FireAndForget(async () => await GameLoopAsync(cts.Token));
+        _client.ReceivedItems += OnReceivedItemsAsync;
+        return cts;
+
+        async ValueTask GameLoopAsync(CancellationToken cancellationToken)
+        {
+            Player player = new();
+            Task nextDelay = Task.Delay(NextInterval(), _timeProvider, cancellationToken);
+            while (true)
             {
-                State stateToUpdate = state;
-                if (stateAtLastUpdate.Epoch == stateToUpdate.Epoch)
+                await nextDelay;
+                nextDelay = Task.Delay(NextInterval(), _timeProvider, cancellationToken);
+                State prevState, nextState;
+                await mutex.WaitAsync(cancellationToken);
+                try
+                {
+                    StepStartedEventArgs stepStarted = new()
+                    {
+                        StateBeforeAdvance = prevState = _state,
+                    };
+                    await _stepStartedEvent.InvokeAsync(this, stepStarted, cancellationToken);
+
+                    StepFinishedEventArgs stepFinished = new()
+                    {
+                        StateBeforeAdvance = _state,
+                        StateAfterAdvance = nextState = player.Advance(prevState),
+                    };
+                    await _stepFinishedEvent.InvokeAsync(this, stepFinished, cancellationToken);
+                }
+                finally
+                {
+                    mutex.Release();
+                }
+
+                if (prevState.Epoch == nextState.Epoch)
+                {
+                    continue;
+                }
+
+                await _client.SendLocationChecksAsync(nextState.CheckedLocations.Except(prevState.CheckedLocations), cancellationToken);
+                if (nextState.IsCompleted)
+                {
+                    break;
+                }
+            }
+        }
+
+        async ValueTask OnReceivedItemsAsync(object? sender, ReceivedItemsEventArgs args, CancellationToken cancellationToken)
+        {
+            using CancellationTokenSource cts2 = CancellationTokenSource.CreateLinkedTokenSource(cts.Token, cancellationToken);
+            await mutex.WaitAsync(cts2.Token);
+            try
+            {
+                for (int i = args.Index; i < _state.ReceivedItems.Count; i++)
+                {
+                    if (args.Items[i - args.Index] != _state.ReceivedItems[i])
+                    {
+                        throw new NotImplementedException("Need to resync.");
+                    }
+                }
+
+                ImmutableArray<ItemDefinitionModel> newItems = args.Items[(_state.ReceivedItems.Count - args.Index)..];
+                if (newItems.Length == 0)
                 {
                     return;
                 }
 
-                if (stateAtLastUpdate.CheckedLocations.Count < stateToUpdate.CheckedLocations.Count)
-                {
-                    client.SendLocationChecksAsync(stateToUpdate.CheckedLocations.Except(stateAtLastUpdate.CheckedLocations), CancellationToken.None).WaitMoreSafely();
-                }
+                _state = _state with { ReceivedItems = _state.ReceivedItems.AddRange(newItems) };
+            }
+            finally
+            {
+                mutex.Release();
+            }
+        }
+    }
 
-                stateAtLastUpdate = stateToUpdate;
-            });
+    private TimeSpan NextInterval()
+    {
+        TimeSpan range = _maxInterval - _minInterval;
+        return _minInterval + (range * Prng.NextDouble(ref _intervalPrngState));
     }
 }

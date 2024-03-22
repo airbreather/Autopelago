@@ -1,93 +1,74 @@
-using System.Collections.Frozen;
-using System.Reactive.Concurrency;
-using System.Reactive.Linq;
-using System.Reactive.Subjects;
 using System.Text;
-
-using YamlDotNet.Serialization;
-using YamlDotNet.Serialization.NamingConventions;
 
 namespace Autopelago;
 
 public sealed class AutopelagoGameService : BackgroundService
 {
-    private readonly SlotGameStates _slotGameStates;
+    private readonly AutopelagoSettingsModel _settings;
 
-    private readonly IScheduler _timeProvider;
+    private readonly SlotGameLookup _slotGameStates;
 
-    private readonly ILogger<AutopelagoGameService> _logger;
+    private readonly TimeProvider _timeProvider;
 
-    public AutopelagoGameService(SlotGameStates slotGameStates, IScheduler timeProvider, ILogger<AutopelagoGameService> logger)
+    public AutopelagoGameService(AutopelagoSettingsModel settings, SlotGameLookup slotGameStates, TimeProvider timeProvider)
     {
+        _settings = settings;
         _slotGameStates = slotGameStates;
         _timeProvider = timeProvider;
-        _logger = logger;
     }
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
         await Helper.ConfigureAwaitFalse();
-        try
+        await Parallel.ForAsync(0, _settings.Slots.Count, stoppingToken, async (i, cancellationToken) =>
         {
-            _slotGameStates.GameStatesMappingBox.TrySetResult(await InnerExecuteAsync(stoppingToken));
-        }
-        catch (OperationCanceledException ex)
-        {
-            _slotGameStates.GameStatesMappingBox.TrySetCanceled(ex.CancellationToken);
-        }
-        catch (Exception ex)
-        {
-            _slotGameStates.GameStatesMappingBox.TrySetException(ex);
-        }
-    }
-
-    private async ValueTask<FrozenDictionary<string, IObservable<Game.State>>> InnerExecuteAsync(CancellationToken stoppingToken)
-    {
-        await Helper.ConfigureAwaitFalse();
-
-        string settingsYaml = await File.ReadAllTextAsync(Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), "game-config.yaml"), stoppingToken);
-        AutopelagoSettingsModel settings = new DeserializerBuilder()
-            .WithNamingConvention(CamelCaseNamingConvention.Instance)
-            .Build()
-            .Deserialize<AutopelagoSettingsModel>(settingsYaml);
-
-        Dictionary<string, IObservable<Game.State>> result = [];
-        for (int i = 0; i < settings.Slots.Count; i++)
-        {
-            AutopelagoPlayerSettingsModel slot = settings.Slots[i];
-            ArchipelagoConnection conn = new(settings.Server, settings.Port);
+            AutopelagoPlayerSettingsModel slot = _settings.Slots[i];
+            ArchipelagoConnection conn = new(_settings.Server, _settings.Port);
             RealAutopelagoClient client = new(conn);
+            TimeSpan minInterval = TimeSpan.FromSeconds(slot.OverriddenSettings?.MinSecondsPerGameStep ?? _settings.DefaultSettings.MinSecondsPerGameStep);
+            TimeSpan maxInterval = TimeSpan.FromSeconds(slot.OverriddenSettings?.MaxSecondsPerGameStep ?? _settings.DefaultSettings.MaxSecondsPerGameStep);
+            Game game = new(minInterval, maxInterval, client, _timeProvider);
             if (i == 0)
             {
-                conn.IncomingPackets.OfType<PrintJSONPacketModel>()
-                    .WithLatestFrom(client.ServerGameData)
-                    .Subscribe(
-                        tup =>
+                RealAutopelagoClient.AutopelagoData? latestData = null;
+                client.ServerGameData += OnServerGameDataUpdatedAsync;
+                ValueTask OnServerGameDataUpdatedAsync(object? sender, RealAutopelagoClient.AutopelagoData data, CancellationToken cancellationToken)
+                {
+                    latestData = data;
+                    return ValueTask.CompletedTask;
+                }
+
+                conn.IncomingPacket += OnIncomingPacketAsync;
+                ValueTask OnIncomingPacketAsync(object? sender, ArchipelagoPacketModel packet, CancellationToken cancellationToken)
+                {
+                    if (packet is not PrintJSONPacketModel printJSON || latestData is null)
+                    {
+                        return ValueTask.CompletedTask;
+                    }
+
+                    StringBuilder sb = new();
+                    sb.Append($"[{DateTime.Now:G}] -> ");
+                    foreach (JSONMessagePartModel part in printJSON.Data)
+                    {
+                        sb.Append(part switch
                         {
-                            (PrintJSONPacketModel printJSON, RealAutopelagoClient.AutopelagoData data) = tup;
-
-                            StringBuilder sb = new();
-                            sb.Append($"[{DateTime.Now:G}] -> ");
-                            foreach (JSONMessagePartModel part in printJSON.Data)
-                            {
-                                sb.Append(part switch
-                                {
-                                    PlayerIdJSONMessagePartModel playerId => data.SlotInfo[int.Parse(playerId.Text)].Name,
-                                    ItemIdJSONMessagePartModel itemId => data.ItemsReverseMapping[long.Parse(itemId.Text)].Name,
-                                    LocationIdJSONMessagePartModel locationId => data.LocationsReverseMapping[long.Parse(locationId.Text)].Name,
-                                    _ => part.Text,
-                                });
-                            }
-
-                            Console.WriteLine(sb);
+                            PlayerIdJSONMessagePartModel playerId => latestData.SlotInfo[int.Parse(playerId.Text)].Name,
+                            ItemIdJSONMessagePartModel itemId => latestData.ItemsReverseMapping[long.Parse(itemId.Text)].Name,
+                            LocationIdJSONMessagePartModel locationId => latestData.LocationsReverseMapping[long.Parse(locationId.Text)].Name,
+                            _ => part.Text,
                         });
+                    }
+
+                    Console.WriteLine(sb);
+                    return ValueTask.CompletedTask;
+                }
             }
 
             GetDataPackagePacketModel getDataPackage = new();
             ConnectPacketModel connect = new()
             {
                 Password = slot.Password,
-                Game = settings.GameName,
+                Game = _settings.GameName,
                 Name = slot.Name,
                 Uuid = Guid.NewGuid(),
                 Version = new(new Version("0.4.4")),
@@ -96,29 +77,15 @@ public sealed class AutopelagoGameService : BackgroundService
                 SlotData = true,
             };
             Game.State state =
-                await client.InitAsync(getDataPackage, connect, Random.Shared, stoppingToken) ??
+                await client.InitAsync(getDataPackage, connect, Random.Shared, cancellationToken) ??
                 throw new InvalidOperationException("Failed to connect");
 
-            result.Add(slot.Name, Observable.Using(() => new EventLoopScheduler(), sch =>
+            if (!_slotGameStates.InitGame(slot.Name, game))
             {
-                IConnectableObservable<Game.State> multicast = Game.Run(state, client, _timeProvider)
-                    .ObserveOn(sch)
-                    .Do(state =>
-                    {
-                        client.SaveGameStateAsync(state, stoppingToken).WaitMoreSafely();
-                        if (state.IsCompleted)
-                        {
-                            StatusUpdatePacketModel statusUpdate = new() { Status = ArchipelagoClientStatus.Goal };
-                            conn.SendPacketsAsync([statusUpdate], stoppingToken).WaitMoreSafely();
-                        }
-                    })
-                    .Replay(1);
+                throw new InvalidOperationException("Someone else is calling InitGame improperly.");
+            }
 
-                multicast.Connect();
-                return multicast;
-            }));
-        }
-
-        return result.ToFrozenDictionary();
+            game.RunGameLoop(state);
+        });
     }
 }

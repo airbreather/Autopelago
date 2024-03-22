@@ -1,20 +1,20 @@
-using System.Diagnostics.CodeAnalysis;
-using System.Reactive.Subjects;
-
 namespace Autopelago;
 
-[SuppressMessage("Design", "CA1001:Types that own disposable fields should be disposable", Justification = "Subject<T> does not need to be disposed.")]
 public sealed class UnrandomizedAutopelagoClient : AutopelagoClient
 {
     private readonly List<ItemDefinitionModel> _allReceivedItems = [];
 
     private readonly HashSet<LocationDefinitionModel> _allCheckedLocations = [];
 
-    private readonly Subject<ReceivedItemsEventArgs> _receivedItemsEvents = new();
+    private readonly AsyncEvent<ReceivedItemsEventArgs> _receivedItemsEvent = new();
 
-    public override IObservable<ReceivedItemsEventArgs> ReceivedItemsEvents => _receivedItemsEvents;
+    public override event AsyncEventHandler<ReceivedItemsEventArgs> ReceivedItems
+    {
+        add { _receivedItemsEvent.Add(value); }
+        remove { _receivedItemsEvent.Remove(value); }
+    }
 
-    public override ValueTask SendLocationChecksAsync(IEnumerable<LocationDefinitionModel> locations, CancellationToken cancellationToken)
+    public override async ValueTask SendLocationChecksAsync(IEnumerable<LocationDefinitionModel> locations, CancellationToken cancellationToken)
     {
         List<LocationDefinitionModel> newLocations = [];
         foreach (LocationDefinitionModel location in locations)
@@ -33,9 +33,8 @@ public sealed class UnrandomizedAutopelagoClient : AutopelagoClient
                 Items = [.. newLocations.Select(l => l.UnrandomizedItem)],
             };
             _allReceivedItems.AddRange(args.Items);
-            _receivedItemsEvents.OnNext(args);
+            await Helper.ConfigureAwaitFalse();
+            await _receivedItemsEvent.InvokeAsync(this, args, cancellationToken);
         }
-
-        return ValueTask.CompletedTask;
     }
 }

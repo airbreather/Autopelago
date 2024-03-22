@@ -1,9 +1,6 @@
 using System.Buffers;
 using System.Collections.Immutable;
 using System.Net.WebSockets;
-using System.Reactive.Linq;
-using System.Reactive.Subjects;
-using System.Reactive.Threading.Tasks;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 
@@ -32,7 +29,7 @@ public sealed partial class ArchipelagoConnection : IDisposable
 
     private readonly ushort _port;
 
-    private readonly IConnectableObservable<ArchipelagoPacketModel> _incomingPackets;
+    private readonly AsyncEvent<ArchipelagoPacketModel> _incomingPacket = new();
 
     private ClientWebSocket _socket = new() { Options = { DangerousDeflateOptions = new() } };
 
@@ -42,8 +39,20 @@ public sealed partial class ArchipelagoConnection : IDisposable
     {
         _server = server;
         _port = port;
+    }
 
-        _incomingPackets = Observable.Create<ArchipelagoPacketModel>(async (observer, cancellationToken) =>
+    public event AsyncEventHandler<ArchipelagoPacketModel> IncomingPacket
+    {
+        add { _incomingPacket.Add(value); }
+        remove { _incomingPacket.Remove(value); }
+    }
+
+    public CancellationTokenSource StartInBackground()
+    {
+        CancellationTokenSource cts = new();
+        SyncOverAsync.FireAndForget(async () => await RunAsync(cts.Token));
+        return cts;
+        async ValueTask RunAsync(CancellationToken cancellationToken)
         {
             await Helper.ConfigureAwaitFalse();
 
@@ -94,7 +103,7 @@ public sealed partial class ArchipelagoConnection : IDisposable
                 while (TryGetNextPacket(new(firstBuf[startIndex..]), prevReceiveResult.EndOfMessage, ref readerState) is (ArchipelagoPacketModel packet, long bytesConsumed))
                 {
                     startIndex = checked((int)(startIndex + bytesConsumed));
-                    observer.OnNext(packet);
+                    await _incomingPacket.InvokeAsync(this, packet, cancellationToken);
                 }
 
                 if (prevReceiveResult.EndOfMessage)
@@ -125,7 +134,7 @@ public sealed partial class ArchipelagoConnection : IDisposable
                             }
 
                             startIndex = checked((int)totalBytesConsumed);
-                            observer.OnNext(packet);
+                            await _incomingPacket.InvokeAsync(this, packet, cancellationToken);
                         }
                     }
                 }
@@ -137,10 +146,8 @@ public sealed partial class ArchipelagoConnection : IDisposable
                     }
                 }
             }
-        }).Publish();
+        }
     }
-
-    public IObservable<ArchipelagoPacketModel> IncomingPackets => _incomingPackets;
 
     public async ValueTask SendPacketsAsync(ImmutableArray<ArchipelagoPacketModel> packets, CancellationToken cancellationToken)
     {
@@ -159,20 +166,20 @@ public sealed partial class ArchipelagoConnection : IDisposable
     {
         await Helper.ConfigureAwaitFalse();
 
-        Task<RoomInfoPacketModel> roomInfoTask = _incomingPackets.FirstAsync().Cast<RoomInfoPacketModel>().ToTask(cancellationToken);
-        _incomingPackets.Connect();
+        ValueTask<RoomInfoPacketModel> roomInfoTask = NextPacketOfTypeAsync<RoomInfoPacketModel>(cancellationToken);
+        StartInBackground();
         RoomInfoPacketModel roomInfo = await roomInfoTask;
 
         DataPackagePacketModel? dataPackage = null;
         if (step1(roomInfo) is GetDataPackagePacketModel getDataPackage)
         {
-            Task<DataPackagePacketModel> dataPackageTask = _incomingPackets.FirstAsync().Cast<DataPackagePacketModel>().ToTask(cancellationToken);
+            ValueTask<DataPackagePacketModel> dataPackageTask = NextPacketOfTypeAsync<DataPackagePacketModel>(cancellationToken);
             await SendPacketsAsync([getDataPackage], cancellationToken);
             dataPackage = await dataPackageTask;
         }
 
         ConnectPacketModel connect = step2(roomInfo, dataPackage);
-        Task<ConnectResponsePacketModel> connectResponseTask = _incomingPackets.FirstAsync().Cast<ConnectResponsePacketModel>().ToTask(cancellationToken);
+        ValueTask<ConnectResponsePacketModel> connectResponseTask = NextPacketOfTypeAsync<ConnectResponsePacketModel>(cancellationToken);
         await SendPacketsAsync([connect], cancellationToken);
         return await connectResponseTask;
     }
@@ -223,5 +230,16 @@ public sealed partial class ArchipelagoConnection : IDisposable
         ArchipelagoPacketModel packet = JsonSerializer.Deserialize<ArchipelagoPacketModel>(ref reader, s_jsonSerializerOptions)!;
         readerState = reader.CurrentState;
         return (packet, reader.BytesConsumed);
+    }
+
+    private ValueTask<T> NextPacketOfTypeAsync<T>(CancellationToken cancellationToken)
+        where T : ArchipelagoPacketModel
+    {
+        return Helper.NextAsync<ArchipelagoPacketModel, T>(
+            subscribe: e => IncomingPacket += e,
+            unsubscribe: e => IncomingPacket -= e,
+            predicate: p => p is T,
+            selector: p => (T)p,
+            cancellationToken: cancellationToken);
     }
 }

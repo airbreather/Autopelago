@@ -1,70 +1,106 @@
 using System.Collections.Frozen;
 using System.Collections.Immutable;
-using System.Reactive.Linq;
-using System.Reactive.Subjects;
-using System.Reactive.Threading.Tasks;
 using System.Text.Json;
 
 namespace Autopelago;
 
 public sealed class RealAutopelagoClient : AutopelagoClient
 {
+    private readonly AsyncEvent<ReceivedItemsEventArgs> _receivedItemsEvent = new();
+
+    private readonly AsyncEvent<AutopelagoData> _serverGameDataEvent = new();
+
     private readonly ArchipelagoConnection _connection;
 
-    private readonly IConnectableObservable<AutopelagoData> _serverGameData;
+    private AutopelagoData? _lastServerGameData;
 
     public RealAutopelagoClient(ArchipelagoConnection connection)
     {
         _connection = connection;
-        _serverGameData = Observable
-            .CombineLatest(
-                connection.IncomingPackets.OfType<DataPackagePacketModel>(),
-                connection.IncomingPackets.OfType<ConnectedPacketModel>(),
-                connection.IncomingPackets.OfType<RoomUpdatePacketModel>().StartWith(default(RoomUpdatePacketModel)),
-                (dataPackage, connected, roomUpdate) =>
-                {
-                    GameDataModel gameData = dataPackage.Data.Games["Autopelago"];
-                    return new AutopelagoData()
-                    {
-                        TeamNumber = connected.Team,
-                        SlotNumber = connected.Slot,
-                        SlotInfo = (roomUpdate?.SlotInfo ?? connected.SlotInfo).ToFrozenDictionary(),
-                        InitialSlotData = connected.SlotData.ToFrozenDictionary(),
-                        ItemsMapping = gameData.ItemNameToId.ToFrozenDictionary(kvp => GameDefinitions.Instance.ItemsByName[kvp.Key], kvp => kvp.Value),
-                        LocationsMapping = gameData.LocationNameToId.ToFrozenDictionary(kvp => GameDefinitions.Instance.LocationsByName[kvp.Key], kvp => kvp.Value),
-                        ItemsReverseMapping = gameData.ItemNameToId.ToFrozenDictionary(kvp => kvp.Value, kvp => GameDefinitions.Instance.ItemsByName[kvp.Key]),
-                        LocationsReverseMapping = gameData.LocationNameToId.ToFrozenDictionary(kvp => kvp.Value, kvp => GameDefinitions.Instance.LocationsByName[kvp.Key]),
-                    };
-                })
-            .Replay(1);
 
-        ReceivedItemsEvents = connection.IncomingPackets.OfType<ReceivedItemsPacketModel>()
-            .WithLatestFrom(_serverGameData)
-            .Select(
-                tup =>
-                {
-                    (ReceivedItemsPacketModel receivedItems, AutopelagoData mappings) = tup;
-                    return new ReceivedItemsEventArgs
-                    {
-                        Index = receivedItems.Index,
-                        Items = [.. receivedItems.Items.Select(i => mappings.ItemsReverseMapping[i.Item])],
-                    };
-                });
+        DataPackagePacketModel? lastDataPackage = null;
+        ConnectedPacketModel? lastConnected = null;
+        RoomUpdatePacketModel? lastRoomUpdate = null;
+        connection.IncomingPacket += OnIncomingPacketAsync;
+        ValueTask OnIncomingPacketAsync(object? sender, ArchipelagoPacketModel packet, CancellationToken cancellationToken)
+        {
+            bool updateServerGameData = false;
+            ReceivedItemsPacketModel? currentReceivedItems = null;
+            switch (packet)
+            {
+                case DataPackagePacketModel dataPackage:
+                    lastDataPackage = dataPackage;
+                    updateServerGameData = true;
+                    break;
 
-        _serverGameData.Connect();
+                case ConnectedPacketModel connected:
+                    lastConnected = connected;
+                    updateServerGameData = true;
+                    break;
+
+                case RoomUpdatePacketModel roomUpdate:
+                    lastRoomUpdate = roomUpdate;
+                    updateServerGameData = true;
+                    break;
+
+                case ReceivedItemsPacketModel receivedItems:
+                    currentReceivedItems = receivedItems;
+                    break;
+            }
+
+            if (updateServerGameData && lastDataPackage != null && lastConnected != null)
+            {
+                GameDataModel gameData = lastDataPackage.Data.Games["Autopelago"];
+                _lastServerGameData = new AutopelagoData()
+                {
+                    TeamNumber = lastConnected.Team,
+                    SlotNumber = lastConnected.Slot,
+                    SlotInfo = (lastRoomUpdate?.SlotInfo ?? lastConnected.SlotInfo).ToFrozenDictionary(),
+                    InitialSlotData = lastConnected.SlotData.ToFrozenDictionary(),
+                    ItemsMapping = gameData.ItemNameToId.ToFrozenDictionary(kvp => GameDefinitions.Instance.ItemsByName[kvp.Key], kvp => kvp.Value),
+                    LocationsMapping = gameData.LocationNameToId.ToFrozenDictionary(kvp => GameDefinitions.Instance.LocationsByName[kvp.Key], kvp => kvp.Value),
+                    ItemsReverseMapping = gameData.ItemNameToId.ToFrozenDictionary(kvp => kvp.Value, kvp => GameDefinitions.Instance.ItemsByName[kvp.Key]),
+                    LocationsReverseMapping = gameData.LocationNameToId.ToFrozenDictionary(kvp => kvp.Value, kvp => GameDefinitions.Instance.LocationsByName[kvp.Key]),
+                };
+
+                return _serverGameDataEvent.InvokeAsync(this, _lastServerGameData, cancellationToken);
+            }
+
+            if (currentReceivedItems is not null && _lastServerGameData is not null)
+            {
+                ReceivedItemsEventArgs args = new()
+                {
+                    Index = currentReceivedItems.Index,
+                    Items = [.. currentReceivedItems.Items.Select(i => _lastServerGameData.ItemsReverseMapping[i.Item])],
+                };
+                return _receivedItemsEvent.InvokeAsync(this, args, cancellationToken);
+            }
+
+            return ValueTask.CompletedTask;
+        }
     }
 
-    public override IObservable<ReceivedItemsEventArgs> ReceivedItemsEvents { get; }
+    public override event AsyncEventHandler<ReceivedItemsEventArgs> ReceivedItems
+    {
+        add { _receivedItemsEvent.Add(value); }
+        remove { _receivedItemsEvent.Remove(value); }
+    }
 
-    public IObservable<AutopelagoData> ServerGameData => _serverGameData;
+    public AutopelagoData? LastServerGameData => _lastServerGameData;
+
+    public event AsyncEventHandler<AutopelagoData> ServerGameData
+    {
+        add { _serverGameDataEvent.Add(value); }
+        remove { _serverGameDataEvent.Remove(value); }
+    }
 
     public override async ValueTask SendLocationChecksAsync(IEnumerable<LocationDefinitionModel> locations, CancellationToken cancellationToken)
     {
         await Helper.ConfigureAwaitFalse();
-        AutopelagoData mappings = await _serverGameData.FirstAsync().ToTask(cancellationToken);
+        AutopelagoData serverGameData = await CurrentOrNextServerGameDataAsync(cancellationToken);
         LocationChecksPacketModel packet = new()
         {
-            Locations = locations.Select(l => mappings.LocationsMapping[l]).ToImmutableArray().AsMemory(),
+            Locations = locations.Select(l => serverGameData.LocationsMapping[l]).ToImmutableArray().AsMemory(),
         };
 
         await _connection.SendPacketsAsync([packet], cancellationToken);
@@ -79,11 +115,16 @@ public sealed class RealAutopelagoClient : AutopelagoClient
             return null;
         }
 
-        AutopelagoData data = await _serverGameData.FirstAsync().ToTask(cancellationToken);
+        AutopelagoData data = await CurrentOrNextServerGameDataAsync(cancellationToken);
         string stateKey = GetStateKey(data);
         Game.State? state = null;
         GetPacketModel get = new() { Keys = [stateKey] };
-        Task<RetrievedPacketModel> retrievedTask = _connection.IncomingPackets.OfType<RetrievedPacketModel>().FirstAsync().ToTask(cancellationToken);
+        ValueTask<RetrievedPacketModel> retrievedTask = Helper.NextAsync(
+            subscribe: e => _connection.IncomingPacket += e,
+            unsubscribe: e => _connection.IncomingPacket -= e,
+            predicate: p => p is RetrievedPacketModel,
+            selector: (ArchipelagoPacketModel p) => (RetrievedPacketModel)p,
+            cancellationToken: cancellationToken);
         await _connection.SendPacketsAsync([get], cancellationToken);
         RetrievedPacketModel retrieved = await retrievedTask;
         if (retrieved.Keys.TryGetValue(stateKey, out JsonElement json) &&
@@ -105,7 +146,7 @@ public sealed class RealAutopelagoClient : AutopelagoClient
     public async ValueTask SaveGameStateAsync(Game.State state, CancellationToken cancellationToken)
     {
         await Helper.ConfigureAwaitFalse();
-        AutopelagoData data = await _serverGameData.FirstAsync().ToTask(cancellationToken);
+        AutopelagoData data = await CurrentOrNextServerGameDataAsync(cancellationToken);
         DataStorageOperationModel op = new()
         {
             Operation = ArchipelagoDataStorageOperationType.Replace,
@@ -124,6 +165,35 @@ public sealed class RealAutopelagoClient : AutopelagoClient
     private static string GetStateKey(AutopelagoData data)
     {
         return $"autopelago_state_{data.TeamNumber}_{data.SlotNumber}";
+    }
+
+    private ValueTask<AutopelagoData> CurrentOrNextServerGameDataAsync(CancellationToken cancellationToken)
+    {
+        return _lastServerGameData is AutopelagoData serverGameData
+            ? ValueTask.FromResult(serverGameData)
+            : CurrentOrNextServerGameDataRareAsync(cancellationToken);
+    }
+
+    private async ValueTask<AutopelagoData> CurrentOrNextServerGameDataRareAsync(CancellationToken cancellationToken)
+    {
+        await Helper.ConfigureAwaitFalse();
+        using CancellationTokenSource cts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+        ValueTask<AutopelagoData> next = Helper.NextAsync(
+            subscribe: e => ServerGameData += e,
+            unsubscribe: e => ServerGameData -= e,
+            predicate: _ => true,
+            selector: (AutopelagoData d) => d,
+            cancellationToken: cts.Token
+        );
+
+        // check if the data came in between when we last checked and when we just subscribed.
+        if (_lastServerGameData is AutopelagoData serverGameData)
+        {
+            await cts.CancelAsync();
+            return serverGameData;
+        }
+
+        return await next;
     }
 
     public sealed record AutopelagoData
