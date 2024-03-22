@@ -7,7 +7,7 @@ using System.Text;
 using YamlDotNet.Serialization;
 using YamlDotNet.Serialization.NamingConventions;
 
-namespace Autopelago.Web;
+namespace Autopelago;
 
 public sealed class AutopelagoGameService : BackgroundService
 {

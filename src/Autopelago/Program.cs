@@ -2,7 +2,6 @@ using System.Reactive.Concurrency;
 using System.Reactive.Linq;
 
 using Autopelago;
-using Autopelago.Web;
 
 await Helper.ConfigureAwaitFalse();
 

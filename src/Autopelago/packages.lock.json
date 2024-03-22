@@ -13,12 +13,6 @@
         "requested": "[15.1.2, )",
         "resolved": "15.1.2",
         "contentHash": "qeX0XhzOIcQEvnI5JxnPaIwcINwyY4Qy/LXhSfsdHkFrl9F41AT52UFfy2nIE7kgrhMg+cP7xuS+GtPJhmHmTA=="
-      },
-      "archipelagoclientdotnet": {
-        "type": "Project",
-        "dependencies": {
-          "System.Reactive": "[6.0.0, )"
-        }
       }
     }
   }

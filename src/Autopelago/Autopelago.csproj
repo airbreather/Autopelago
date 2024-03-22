@@ -1,4 +1,4 @@
-﻿<Project Sdk="Microsoft.NET.Sdk">
+<Project Sdk="Microsoft.NET.Sdk.Web">
 
   <PropertyGroup>
     <TargetFramework>net8.0</TargetFramework>
@@ -13,5 +13,14 @@
   <ItemGroup>
     <EmbeddedResource Include="AutopelagoDefinitions.yml" LogicalName="AutopelagoDefinitions.yml" />
   </ItemGroup>
+
+  <Target Name="InstallNodePackages" Inputs="ClientApp/package.json" Outputs="ClientApp/node_modules/.msbuild-output">
+    <Exec WorkingDirectory="ClientApp" Command="pnpm i" />
+    <Touch Files="ClientApp/node_modules/.msbuild-output" AlwaysCreate="true" ForceTouch="true" />
+  </Target>
+
+  <Target Name="BuildClientApp" DependsOnTargets="InstallNodePackages" BeforeTargets="BeforeBuild">
+    <Exec WorkingDirectory="ClientApp" Command="pnpm run build" />
+  </Target>
 
 </Project>

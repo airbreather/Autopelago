@@ -6,7 +6,7 @@ using System.Text.Json.Nodes;
 
 using Microsoft.AspNetCore.SignalR;
 
-namespace Autopelago.Web;
+namespace Autopelago;
 
 public sealed class GameStateHub : Hub
 {

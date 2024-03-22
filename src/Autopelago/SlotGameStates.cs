@@ -1,6 +1,6 @@
 using System.Collections.Frozen;
 
-namespace Autopelago.Web;
+namespace Autopelago;
 
 public sealed class SlotGameStates
 {
