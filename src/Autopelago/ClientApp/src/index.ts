@@ -12,28 +12,11 @@ interface GameState {
 
 const connection = new signalR.HubConnectionBuilder().withUrl('/gameStateHub').build();
 const slotDropdown = (<HTMLSelectElement>document.getElementById('slot-dropdown'));
-let lastEpoch = -1;
-const getUpdate = async () => {
-    try {
-        await connection.invoke('GetUpdate', slotDropdown[slotDropdown.selectedIndex].textContent, lastEpoch);
-    } catch (err) {
-        console.error(err);
-    }
-}
-connection.on('GotSlots', async (slots: string[]) => {
-    slotDropdown.addEventListener('change', getUpdate);
-    slotDropdown.replaceChildren(...slots.map(slot => new Option(slot)));
-    await getUpdate();
-});
-
-connection.on('NoUpdate', async () => {
-    await new Promise(resolve => setTimeout(resolve, 100));
-    await getUpdate();
-});
+let subscription: signalR.ISubscription<GameState> | null = null;
 
 const already_found = new Set();
 const already_checked = new Set();
-connection.on('Updated', (slotName: string, state: GameState) => async () => {
+const update = (state: GameState) => {
     try {
         (<HTMLSpanElement>document.getElementById('rat-count')).textContent = `${state.rat_count}`;
         for (const [item, count] of Object.entries(state.inventory)) {
@@ -79,11 +62,26 @@ connection.on('Updated', (slotName: string, state: GameState) => async () => {
         // log it, but don't let that stop the next interval
         console.error(error);
     }
+};
 
-    lastEpoch = state.epoch;
-    if (!state.completed_goal) {
-        await getUpdate();
+const getUpdate = async () => {
+    try {
+        subscription?.dispose();
+        subscription = connection.stream<GameState>('GetSlotUpdates', slotDropdown[slotDropdown.selectedIndex].textContent)
+            .subscribe({
+                next: update,
+                error: (err) => console.error(err),
+                complete: () => { },
+            });
+    } catch (err) {
+        console.error(err);
     }
+}
+
+connection.on('GotSlots', async (slots: string[]) => {
+    slotDropdown.addEventListener('change', getUpdate);
+    slotDropdown.replaceChildren(...slots.map(slot => new Option(slot)));
+    await getUpdate();
 });
 
 (async () => {
