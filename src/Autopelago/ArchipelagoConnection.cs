@@ -235,11 +235,11 @@ public sealed partial class ArchipelagoConnection : IDisposable
     private ValueTask<T> NextPacketOfTypeAsync<T>(CancellationToken cancellationToken)
         where T : ArchipelagoPacketModel
     {
-        return Helper.NextAsync<ArchipelagoPacketModel, T>(
+        return Helper.NextAsync(
             subscribe: e => IncomingPacket += e,
             unsubscribe: e => IncomingPacket -= e,
             predicate: p => p is T,
-            selector: p => (T)p,
+            selector: (ArchipelagoPacketModel p) => (T)p,
             cancellationToken: cancellationToken);
     }
 }

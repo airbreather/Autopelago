@@ -82,11 +82,11 @@ public sealed class GameStateHub : Hub
 
     private static ValueTask<Game.State> NextGameStateAsync(Game game, ulong? prevEpochOrNull, CancellationToken cancellationToken)
     {
-        return Helper.NextAsync<GameStateEventArgs, Game.State>(
+        return Helper.NextAsync(
             subscribe: e => game.StateChanged += e,
             unsubscribe: e => game.StateChanged -= e,
             predicate: args => prevEpochOrNull is not ulong prevEpoch || args.CurrentState.Epoch > prevEpoch,
-            selector: args => args.CurrentState,
+            selector: (GameStateEventArgs args) => args.CurrentState,
             cancellationToken: cancellationToken);
     }
 

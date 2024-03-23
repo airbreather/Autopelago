@@ -259,7 +259,7 @@ public sealed class Game
                     StepFinishedEventArgs stepFinished = new()
                     {
                         StateBeforeAdvance = prevState,
-                        CurrentState = nextState = player.Advance(prevState),
+                        CurrentState = _state = nextState = player.Advance(prevState),
                     };
                     await _stepFinishedEvent.InvokeAsync(this, stepFinished, cancellationToken);
 
