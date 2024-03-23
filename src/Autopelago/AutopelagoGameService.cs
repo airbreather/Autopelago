@@ -86,10 +86,9 @@ public sealed class AutopelagoGameService : BackgroundService
             }
 
             game.StateChanged += OnGameStateChangedAsync;
-            async ValueTask OnGameStateChangedAsync(object? sender, GameStateEventArgs args, CancellationToken cancellationToken)
+            ValueTask OnGameStateChangedAsync(object? sender, GameStateEventArgs args, CancellationToken cancellationToken)
             {
-                await Helper.ConfigureAwaitFalse();
-                await client.SaveGameStateAsync(args.CurrentState, cancellationToken);
+                return client.SaveGameStateAsync(args.CurrentState, cancellationToken);
             }
 
             game.RunGameLoop(state);

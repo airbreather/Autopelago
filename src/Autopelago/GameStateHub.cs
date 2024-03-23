@@ -28,7 +28,7 @@ public sealed class GameStateHub : Hub
     public async ValueTask GetSlots()
     {
         await Helper.ConfigureAwaitFalse();
-        await Clients.All.SendAsync("GotSlots", _settings.Slots.Select(s => s.Name));
+        await Clients.Caller.SendAsync("GotSlots", _settings.Slots.Select(s => s.Name));
     }
 
     public ChannelReader<JsonObject> GetSlotUpdates(string slotName, CancellationToken cancellationToken)
@@ -103,12 +103,16 @@ public sealed class GameStateHub : Hub
         regions.Enqueue(GameDefinitions.Instance.StartRegion);
         while (regions.TryDequeue(out RegionDefinitionModel? region))
         {
-            openRegions.Add(region.Key);
+            if (!openRegions.Add(region.Key))
+            {
+                continue;
+            }
+
             foreach (RegionExitDefinitionModel exit in region.Exits)
             {
                 if (exit.Requirement.StaticSatisfied(state))
                 {
-                    regions.Enqueue(GameDefinitions.Instance.AllRegions[exit.RegionKey]);
+                    regions.Enqueue(exit.Region);
                 }
             }
         }

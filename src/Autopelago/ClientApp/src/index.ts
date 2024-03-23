@@ -10,7 +10,10 @@ interface GameState {
     inventory: { [item: string]: number };
 }
 
-const connection = new signalR.HubConnectionBuilder().withUrl('/gameStateHub').build();
+const connection = new signalR.HubConnectionBuilder()
+    .withUrl('/gameStateHub')
+    .withServerTimeout(600000)
+    .build();
 const slotDropdown = (<HTMLSelectElement>document.getElementById('slot-dropdown'));
 let subscription: signalR.ISubscription<GameState> | null = null;
 
