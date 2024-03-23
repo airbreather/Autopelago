@@ -1,4 +1,5 @@
 using System.Collections.Immutable;
+using System.Diagnostics.CodeAnalysis;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 
@@ -26,6 +27,7 @@ internal sealed partial class GameStateProxySerializerContext : JsonSerializerCo
 {
 }
 
+[SuppressMessage("Design", "CA1001:Types that own disposable fields should be disposable", Justification = "Game has a lifetime that's basically the same as the application's own, so this would be overkill at this time.")]
 public sealed class Game
 {
     public sealed record State
