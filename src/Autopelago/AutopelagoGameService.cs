@@ -85,6 +85,13 @@ public sealed class AutopelagoGameService : BackgroundService
                 throw new InvalidOperationException("Someone else is calling InitGame improperly.");
             }
 
+            game.StateChanged += OnGameStateChangedAsync;
+            async ValueTask OnGameStateChangedAsync(object? sender, GameStateEventArgs args, CancellationToken cancellationToken)
+            {
+                await Helper.ConfigureAwaitFalse();
+                await client.SaveGameStateAsync(args.CurrentState, cancellationToken);
+            }
+
             game.RunGameLoop(state);
         });
     }

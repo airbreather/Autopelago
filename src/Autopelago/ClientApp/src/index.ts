@@ -67,6 +67,21 @@ const update = (state: GameState) => {
 const getUpdate = async () => {
     try {
         subscription?.dispose();
+
+        already_found.clear();
+        already_checked.clear();
+        for (const container of document.getElementsByClassName('received-item')) {
+            container.classList.add('not-found');
+        }
+
+        for (const container of document.getElementsByClassName('checked-location')) {
+            container.classList.add('not-checked', 'not-open');
+        }
+
+        for (const container of document.getElementsByClassName('current-region')) {
+            container.classList.remove('current-region');
+        }
+
         subscription = connection.stream<GameState>('GetSlotUpdates', slotDropdown[slotDropdown.selectedIndex].textContent)
             .subscribe({
                 next: update,

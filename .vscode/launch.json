@@ -5,7 +5,7 @@
             // Use IntelliSense to find out which attributes exist for C# debugging
             // Use hover for the description of the existing attributes
             // For further information visit https://github.com/dotnet/vscode-csharp/blob/main/debugger-launchjson.md
-            "name": ".NET Core Launch (console)",
+            "name": "dotnet launch",
             "type": "coreclr",
             "request": "launch",
             "preLaunchTask": "build",
@@ -18,9 +18,24 @@
             "stopAtEntry": false
         },
         {
-            "name": ".NET Core Attach",
+            "name": "dotnet attach",
             "type": "coreclr",
             "request": "attach"
+        },
+        {
+            "name": "parcel",
+            "type": "firefox",
+            "request": "launch",
+            "reAttach": true,
+            "url": "http://localhost:5159",
+            "webRoot": "${workspaceFolder}/src/Autopelago/ClientApp"
+        }
+    ],
+    "compounds": [
+        {
+            "name": "dotnet/parcel",
+            "configurations": ["dotnet launch", "parcel"],
+            "stopAll": true
         }
     ]
 }

@@ -4,16 +4,18 @@ using System.Text.Json.Serialization;
 
 namespace Autopelago;
 
-public sealed record StepStartedEventArgs
+public record GameStateEventArgs
 {
-    public required Game.State StateBeforeAdvance { get; init; }
+    public required Game.State CurrentState { get; init; }
 }
 
-public sealed record StepFinishedEventArgs
+public sealed record StepStartedEventArgs : GameStateEventArgs
+{
+}
+
+public sealed record StepFinishedEventArgs : GameStateEventArgs
 {
     public required Game.State StateBeforeAdvance { get; init; }
-
-    public required Game.State StateAfterAdvance { get; init; }
 }
 
 [JsonSourceGenerationOptions(
@@ -162,9 +164,15 @@ public sealed class Game
         }
     }
 
+    private readonly AsyncEvent<GameStateEventArgs> _stateChangedEvent = new();
+
     private readonly AsyncEvent<StepStartedEventArgs> _stepStartedEvent = new();
 
     private readonly AsyncEvent<StepFinishedEventArgs> _stepFinishedEvent = new();
+
+    private readonly SemaphoreSlim _mutex = new(1, 1);
+
+    private readonly CancellationTokenSource _cts = new();
 
     private readonly TimeSpan _minInterval;
 
@@ -176,6 +184,8 @@ public sealed class Game
 
     private State? _state;
 
+    private ReceivedItemsEventArgs? _awaitingItems;
+
     private Prng.State _intervalPrngState = Prng.State.Start((ulong)Random.Shared.NextInt64(long.MinValue, long.MaxValue));
 
     public Game(TimeSpan minInterval, TimeSpan maxInterval, AutopelagoClient client, TimeProvider timeProvider)
@@ -183,10 +193,17 @@ public sealed class Game
         _minInterval = minInterval;
         _maxInterval = maxInterval;
         _client = client;
+        _client.ReceivedItems += OnReceivedItemsAsync;
         _timeProvider = timeProvider;
     }
 
-    public State CurrentState => _state ?? throw new InvalidOperationException("Not running yet.");
+    public State? CurrentState => _state;
+
+    public event AsyncEventHandler<GameStateEventArgs> StateChanged
+    {
+        add { _stateChangedEvent.Add(value); }
+        remove { _stateChangedEvent.Remove(value); }
+    }
 
     public event AsyncEventHandler<StepStartedEventArgs> StepStarted
     {
@@ -208,14 +225,21 @@ public sealed class Game
         }
 
         _state = initialState;
-        CancellationTokenSource cts = new();
-        SemaphoreSlim mutex = new(1, 1);
-        SyncOverAsync.FireAndForget(async () => await GameLoopAsync(cts.Token));
-        _client.ReceivedItems += OnReceivedItemsAsync;
-        return cts;
+        SyncOverAsync.FireAndForget(async () => await GameLoopAsync(_cts.Token));
+        return _cts;
 
         async ValueTask GameLoopAsync(CancellationToken cancellationToken)
         {
+            if (_awaitingItems is ReceivedItemsEventArgs awaitingItems)
+            {
+                ulong prevEpoch = _state.Epoch;
+                Handle(ref _state, awaitingItems);
+                if (_state.Epoch != prevEpoch)
+                {
+                    await _stateChangedEvent.InvokeAsync(this, new() { CurrentState = _state }, _cts.Token);
+                }
+            }
+
             Player player = new();
             Task nextDelay = Task.Delay(NextInterval(), _timeProvider, cancellationToken);
             while (true)
@@ -223,66 +247,86 @@ public sealed class Game
                 await nextDelay;
                 nextDelay = Task.Delay(NextInterval(), _timeProvider, cancellationToken);
                 State prevState, nextState;
-                await mutex.WaitAsync(cancellationToken);
+                await _mutex.WaitAsync(cancellationToken);
                 try
                 {
                     StepStartedEventArgs stepStarted = new()
                     {
-                        StateBeforeAdvance = prevState = _state,
+                        CurrentState = prevState = _state,
                     };
                     await _stepStartedEvent.InvokeAsync(this, stepStarted, cancellationToken);
 
                     StepFinishedEventArgs stepFinished = new()
                     {
-                        StateBeforeAdvance = _state,
-                        StateAfterAdvance = nextState = player.Advance(prevState),
+                        StateBeforeAdvance = prevState,
+                        CurrentState = nextState = player.Advance(prevState),
                     };
                     await _stepFinishedEvent.InvokeAsync(this, stepFinished, cancellationToken);
+
+                    if (prevState.Epoch == nextState.Epoch)
+                    {
+                        continue;
+                    }
+
+                    await _stateChangedEvent.InvokeAsync(this, stepFinished, cancellationToken);
                 }
                 finally
                 {
-                    mutex.Release();
+                    _mutex.Release();
                 }
 
-                if (prevState.Epoch == nextState.Epoch)
+                if (nextState.CheckedLocations.Count > prevState.CheckedLocations.Count)
                 {
-                    continue;
+                    await _client.SendLocationChecksAsync(nextState.CheckedLocations.Except(prevState.CheckedLocations), cancellationToken);
                 }
 
-                await _client.SendLocationChecksAsync(nextState.CheckedLocations.Except(prevState.CheckedLocations), cancellationToken);
                 if (nextState.IsCompleted)
                 {
                     break;
                 }
             }
         }
+    }
 
-        async ValueTask OnReceivedItemsAsync(object? sender, ReceivedItemsEventArgs args, CancellationToken cancellationToken)
+    private async ValueTask OnReceivedItemsAsync(object? sender, ReceivedItemsEventArgs args, CancellationToken cancellationToken)
+    {
+        if (_state is null)
         {
-            using CancellationTokenSource cts2 = CancellationTokenSource.CreateLinkedTokenSource(cts.Token, cancellationToken);
-            await mutex.WaitAsync(cts2.Token);
-            try
-            {
-                for (int i = args.Index; i < _state.ReceivedItems.Count; i++)
-                {
-                    if (args.Items[i - args.Index] != _state.ReceivedItems[i])
-                    {
-                        throw new NotImplementedException("Need to resync.");
-                    }
-                }
+            _awaitingItems = args;
+            return;
+        }
 
-                ImmutableArray<ItemDefinitionModel> newItems = args.Items[(_state.ReceivedItems.Count - args.Index)..];
-                if (newItems.Length == 0)
-                {
-                    return;
-                }
-
-                _state = _state with { ReceivedItems = _state.ReceivedItems.AddRange(newItems) };
-            }
-            finally
+        using CancellationTokenSource cts2 = CancellationTokenSource.CreateLinkedTokenSource(_cts.Token, cancellationToken);
+        await _mutex.WaitAsync(cts2.Token);
+        try
+        {
+            ulong prevEpoch = _state.Epoch;
+            Handle(ref _state, args);
+            if (_state.Epoch != prevEpoch)
             {
-                mutex.Release();
+                await _stateChangedEvent.InvokeAsync(this, new() { CurrentState = _state }, cancellationToken);
             }
+        }
+        finally
+        {
+            _mutex.Release();
+        }
+    }
+
+    private void Handle(ref State state, ReceivedItemsEventArgs args)
+    {
+        for (int i = args.Index; i < state.ReceivedItems.Count; i++)
+        {
+            if (args.Items[i - args.Index] != state.ReceivedItems[i])
+            {
+                throw new NotImplementedException("Need to resync.");
+            }
+        }
+
+        ImmutableArray<ItemDefinitionModel> newItems = args.Items[(state.ReceivedItems.Count - args.Index)..];
+        if (newItems.Length > 0)
+        {
+            state = state with { ReceivedItems = state.ReceivedItems.AddRange(newItems) };
         }
     }
 

@@ -54,16 +54,20 @@ public sealed class GameStateHub : Hub
             Game game = (await gameTask) ??
                 throw new InvalidOperationException("Game task should only be able to yield null in the synchronous part. This is a programming error in the backend.");
 
-            Game.State next = game.CurrentState;
+            Game.State? next = game.CurrentState;
             while (true)
             {
-                await writer.WriteAsync(ToJsonObject(next), cancellationToken);
-                if (next.IsCompleted)
+                ValueTask<Game.State> nextTask = NextGameStateAsync(game, next?.Epoch, cancellationToken);
+                if (next is not null)
                 {
-                    break;
+                    await writer.WriteAsync(ToJsonObject(next), cancellationToken);
+                    if (next.IsCompleted)
+                    {
+                        break;
+                    }
                 }
 
-                next = await NextGameStateAsync(game, next.Epoch, cancellationToken);
+                next = await nextTask;
             }
         }
         catch (Exception innerEx)
@@ -76,13 +80,13 @@ public sealed class GameStateHub : Hub
         }
     }
 
-    private static ValueTask<Game.State> NextGameStateAsync(Game game, ulong prevEpoch, CancellationToken cancellationToken)
+    private static ValueTask<Game.State> NextGameStateAsync(Game game, ulong? prevEpochOrNull, CancellationToken cancellationToken)
     {
-        return Helper.NextAsync<StepFinishedEventArgs, Game.State>(
-            subscribe: e => game.StepFinished += e,
-            unsubscribe: e => game.StepFinished -= e,
-            predicate: args => args.StateAfterAdvance.Epoch > prevEpoch,
-            selector: args => args.StateAfterAdvance,
+        return Helper.NextAsync<GameStateEventArgs, Game.State>(
+            subscribe: e => game.StateChanged += e,
+            unsubscribe: e => game.StateChanged -= e,
+            predicate: args => prevEpochOrNull is not ulong prevEpoch || args.CurrentState.Epoch > prevEpoch,
+            selector: args => args.CurrentState,
             cancellationToken: cancellationToken);
     }
 
