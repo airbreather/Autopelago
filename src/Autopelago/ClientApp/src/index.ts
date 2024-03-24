@@ -10,6 +10,7 @@ interface GameState {
     inventory: { [item: string]: number };
 }
 
+const loadingOverlay = <HTMLDivElement>document.getElementById('loading-overlay');
 const ratCountSpan = <HTMLSpanElement>document.getElementById('rat-count');
 const receivedItemElements = new Map<string, HTMLElement>();
 for (const receivedItemElement of document.getElementsByClassName('received-item')) {
@@ -107,6 +108,7 @@ const streamSlotUpdates = () => {
                 next: update,
                 error: (err) => {
                     console.error(err);
+                    loadingOverlay.classList.remove('collapse');
 
                     // if the error is caused by a disconnect, then for some reason we get invoked
                     // at a point where connection.state is still Connected. work around that with a
@@ -129,16 +131,21 @@ const streamSlotUpdates = () => {
     }
 };
 
-connection.on('GotSlots', async (slots: string[]) => {
-    slotDropdown.addEventListener('change', streamSlotUpdates);
-    slotDropdown.replaceChildren(...slots.map(slot => new Option(slot)));
-    streamSlotUpdates();
-});
-
 (async () => {
     try {
         await connection.start();
+
+        connection.on('GotSlots', async (slots: string[]) => {
+            loadingOverlay.classList.add('collapse');
+            slotDropdown.addEventListener('change', streamSlotUpdates);
+            slotDropdown.replaceChildren(...slots.map(slot => new Option(slot)));
+            streamSlotUpdates();
+        });
+
         await connection.invoke('GetSlots');
+        connection.onreconnected(() => {
+            loadingOverlay.classList.add('collapse');
+        });
     } catch (err) {
         console.error(err);
     }
