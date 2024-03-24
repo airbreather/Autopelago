@@ -2,64 +2,95 @@ import * as signalR from '@microsoft/signalr';
 
 interface GameState {
     epoch: number;
-    current_region: string;
     rat_count: number;
-    checked_locations: string[];
-    open_regions: string[];
+    current_region_first_location: string;
+    cleared_landmarks: string[];
+    open_region_first_locations: string[];
     completed_goal: boolean;
     inventory: { [item: string]: number };
+}
+
+const ratCountSpan = <HTMLSpanElement>document.getElementById('rat-count');
+const receivedItemElements = new Map<string, HTMLElement>();
+for (const receivedItemElement of document.getElementsByClassName('received-item')) {
+    if (receivedItemElement instanceof HTMLElement) {
+        receivedItemElements.set(<string>receivedItemElement.dataset.exactItemName, receivedItemElement);
+    }
+}
+
+const landmarkRegionElements = new Map<string, SVGElement>();
+for (const landmarkRegionElement of document.getElementsByClassName('landmark')) {
+    if (landmarkRegionElement instanceof SVGElement) {
+        landmarkRegionElements.set(<string>landmarkRegionElement.dataset.exactLocationName, landmarkRegionElement);
+    }
+}
+
+const fillerRegionElements = new Map<string, SVGElement>();
+for (const fillerRegionElement of document.getElementsByClassName('filler-region')) {
+    if (fillerRegionElement instanceof SVGElement) {
+        fillerRegionElements.set(<string>fillerRegionElement.dataset.firstLocationName, fillerRegionElement);
+    }
 }
 
 const connection = new signalR.HubConnectionBuilder()
     .withUrl('/gameStateHub')
     .withServerTimeout(600000)
+    .withAutomaticReconnect({
+        nextRetryDelayInMilliseconds: ctx => {
+            // default is to retry after 0, 2, 10, then 30 seconds, then never again.
+            // howzabout let's do it 0, 2, 4, then 5 forever... this should be local-only anyway.
+            return Math.min(5000, ctx.previousRetryCount * 2000);
+        },
+    })
     .build();
 const slotDropdown = (<HTMLSelectElement>document.getElementById('slot-dropdown'));
 let subscription: signalR.ISubscription<GameState> | null = null;
 
-const already_found = new Set();
-const already_checked = new Set();
 const update = (state: GameState) => {
     try {
-        (<HTMLSpanElement>document.getElementById('rat-count')).textContent = `${state.rat_count}`;
-        for (const [item, count] of Object.entries(state.inventory)) {
-            if (count > 0) {
-                if (already_found.has(item)) {
-                    continue;
+        ratCountSpan.textContent = `${state.rat_count}`;
+        const receivedItems = new Set<string>(Object.keys(state.inventory));
+        for (const [itemName, itemElement] of receivedItemElements.entries()) {
+            if (receivedItems.has(itemName)) {
+                itemElement.classList.remove('not-found');
+            } else {
+                itemElement.classList.add('not-found');
+            }
+        }
+
+        const openRegionFirstLocations = new Set<string>(state.open_region_first_locations);
+        const clearedLandmarks = new Set<string>(state.cleared_landmarks);
+        for (const [exactLocationName, landmarkRegionElement] of landmarkRegionElements.entries()) {
+            if (state.current_region_first_location == exactLocationName) {
+                landmarkRegionElement.classList.add('current-region');
+            } else {
+                landmarkRegionElement.classList.remove('current-region');
+            }
+
+            if (openRegionFirstLocations.has(exactLocationName)) {
+                landmarkRegionElement.classList.remove('not-open');
+                if (clearedLandmarks.has(exactLocationName)) {
+                    landmarkRegionElement.classList.remove('not-cleared');
+                } else {
+                    landmarkRegionElement.classList.add('not-cleared');
                 }
-
-                for (const container of document.getElementsByClassName('received-' + item.replaceAll(' ', '-').replaceAll('\'s', '').toLowerCase())) {
-                    container.classList.remove('not-found');
-                }
-
-                already_found.add(item);
+            } else {
+                landmarkRegionElement.classList.add('not-open', 'not-cleared');
             }
         }
 
-        for (const loc of state.checked_locations) {
-            if (already_checked.has(loc)) {
-                continue;
+        for (const [firstLocationName, fillerRegionElement] of fillerRegionElements.entries()) {
+            if (state.current_region_first_location == firstLocationName) {
+                fillerRegionElement.classList.add('current-region');
+            } else {
+                fillerRegionElement.classList.remove('current-region');
             }
 
-            for (const container of document.getElementsByClassName(loc.replaceAll('_', '-'))) {
-                container.classList.remove('not-checked');
+            if (openRegionFirstLocations.has(firstLocationName)) {
+                fillerRegionElement.classList.remove('not-open');
+            } else {
+                fillerRegionElement.classList.add('not-open');
             }
-
-            already_checked.add(loc);
-        }
-
-        for (const reg of state.open_regions) {
-            for (const container of document.getElementsByClassName(reg.replaceAll('_', '-'))) {
-                container.classList.remove('not-open');
-            }
-        }
-
-        for (const container of document.getElementsByClassName('current-region')) {
-            container.classList.remove('current-region');
-        }
-
-        for (const container of document.getElementsByClassName(state.current_region.replaceAll('_', '-'))) {
-            container.classList.add('current-region');
         }
     } catch (error) {
         // log it, but don't let that stop the next interval
@@ -67,39 +98,41 @@ const update = (state: GameState) => {
     }
 };
 
-const getUpdate = async () => {
-    try {
+let wiredReconnectedHandler = false;
+const streamSlotUpdates = () => {
+    const streamSlotUpdatesInner = () => {
         subscription?.dispose();
-
-        already_found.clear();
-        already_checked.clear();
-        for (const container of document.getElementsByClassName('received-item')) {
-            container.classList.add('not-found');
-        }
-
-        for (const container of document.getElementsByClassName('checked-location')) {
-            container.classList.add('not-checked', 'not-open');
-        }
-
-        for (const container of document.getElementsByClassName('current-region')) {
-            container.classList.remove('current-region');
-        }
-
         subscription = connection.stream<GameState>('GetSlotUpdates', slotDropdown[slotDropdown.selectedIndex].textContent)
             .subscribe({
                 next: update,
-                error: (err) => console.error(err),
+                error: (err) => {
+                    console.error(err);
+
+                    // if the error is caused by a disconnect, then for some reason we get invoked
+                    // at a point where connection.state is still Connected. work around that with a
+                    // setTimeout to allow the rest of the disconnect to propagate through signalR
+                    // before we check connection.state...
+                    setTimeout(streamSlotUpdates);
+                },
                 complete: () => { },
             });
-    } catch (err) {
-        console.error(err);
     }
-}
+
+    if (connection.state == signalR.HubConnectionState.Connected) {
+        streamSlotUpdatesInner();
+    } else if (!wiredReconnectedHandler) {
+        wiredReconnectedHandler = true;
+        connection.onreconnected(() => {
+            streamSlotUpdatesInner();
+            wiredReconnectedHandler = false;
+        });
+    }
+};
 
 connection.on('GotSlots', async (slots: string[]) => {
-    slotDropdown.addEventListener('change', getUpdate);
+    slotDropdown.addEventListener('change', streamSlotUpdates);
     slotDropdown.replaceChildren(...slots.map(slot => new Option(slot)));
-    await getUpdate();
+    streamSlotUpdates();
 });
 
 (async () => {

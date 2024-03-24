@@ -36,7 +36,10 @@ builder.Services.AddControllers();
 WebApplication app = builder.Build();
 
 app.UseFileServer();
-app.MapHub<GameStateHub>("/gameStateHub");
+app.MapHub<GameStateHub>("/gameStateHub", options =>
+{
+    options.AllowStatefulReconnects = true;
+});
 
 using CancellationTokenSource cts = new();
 ExceptionDispatchInfo? thrownException = null;

@@ -30,11 +30,11 @@ body {
     object-fit: scale-down;
 }
 
-.received-item:not(.not-found) img {
+.received-item:not(.not-found) {
     filter: var(--found-filter-drop-shadow);
 }
 
-.received-item.not-found img {
+.received-item.not-found {
     filter: var(--not-found-filter-recolor) var(--not-found-filter-drop-shadow);
 }
 
@@ -43,15 +43,15 @@ body {
     fill: Canvas;
 }
 
-.checked-location:not(.not-checked,not-open) {
+.landmark:not(.not-cleared,not-open) {
     filter: var(--found-filter-drop-shadow);
 }
 
-.checked-location.not-checked.not-open {
+.landmark.not-cleared.not-open {
     filter: var(--not-found-filter-recolor) var(--not-found-filter-drop-shadow);
 }
 
-.checked-location.current-region {
+.landmark.current-region {
     transform-box: fill-box;
     transform-origin: center;
     animation: 1s linear 0s infinite wiggle;

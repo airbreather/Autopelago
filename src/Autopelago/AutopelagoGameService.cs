@@ -10,11 +10,14 @@ public sealed class AutopelagoGameService : BackgroundService
 
     private readonly TimeProvider _timeProvider;
 
-    public AutopelagoGameService(AutopelagoSettingsModel settings, SlotGameLookup slotGameStates, TimeProvider timeProvider)
+    private readonly IHostApplicationLifetime _lifetime;
+
+    public AutopelagoGameService(AutopelagoSettingsModel settings, SlotGameLookup slotGameStates, TimeProvider timeProvider, IHostApplicationLifetime lifetime)
     {
         _settings = settings;
         _slotGameStates = slotGameStates;
         _timeProvider = timeProvider;
+        _lifetime = lifetime;
     }
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
@@ -91,7 +94,8 @@ public sealed class AutopelagoGameService : BackgroundService
                 return client.SaveGameStateAsync(args.CurrentState, cancellationToken);
             }
 
-            game.RunGameLoop(state);
+            CancellationTokenSource cts = game.RunGameLoop(state);
+            _lifetime.ApplicationStopping.Register(cts.Cancel);
         });
     }
 }

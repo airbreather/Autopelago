@@ -92,18 +92,14 @@ public sealed class GameStateHub : Hub
 
     private static JsonObject ToJsonObject(Game.State state)
     {
-        Dictionary<string, int> inventory = GameDefinitions.Instance.ItemsByName.Keys.ToDictionary(k => k, _ => 0);
-        foreach (ItemDefinitionModel item in state.ReceivedItems)
-        {
-            ++inventory[item.Name];
-        }
+        Dictionary<string, int> inventory = state.ReceivedItems.GroupBy(i => i.Name).ToDictionary(grp => grp.Key, grp => grp.Count());
 
-        HashSet<string> openRegions = [];
+        HashSet<RegionDefinitionModel> openRegions = [];
         Queue<RegionDefinitionModel> regions = [];
         regions.Enqueue(GameDefinitions.Instance.StartRegion);
         while (regions.TryDequeue(out RegionDefinitionModel? region))
         {
-            if (!openRegions.Add(region.Key))
+            if (!openRegions.Add(region))
             {
                 continue;
             }
@@ -118,12 +114,12 @@ public sealed class GameStateHub : Hub
         }
 
         JsonObject obj = (JsonObject)JsonSerializer.SerializeToNode(state.ToProxy(), Game.State.Proxy.SerializerOptions)!;
-        obj.Add("current_region", state.CurrentLocation.Key.RegionKey);
+        obj.Add("current_region_first_location", state.CurrentLocation.Region.Locations[0].Name);
         obj.Add("rat_count", state.RatCount);
         obj.Add("completed_goal", state.IsCompleted);
         obj.Add("inventory", new JsonObject(inventory.Select(kvp => KeyValuePair.Create(kvp.Key, (JsonNode?)JsonValue.Create(kvp.Value)))));
-        obj["checked_locations"] = new JsonArray([.. state.CheckedLocations.Where(l => l.Region is LandmarkRegionDefinitionModel).Select(l => l.Region.Key)]);
-        obj["open_regions"] = new JsonArray([.. openRegions]);
+        obj["cleared_landmarks"] = new JsonArray([.. state.CheckedLocations.Select(l => l.Name)]);
+        obj["open_region_first_locations"] = new JsonArray([.. openRegions.Select(r => r.Locations[0].Name)]);
 
         return obj;
     }
