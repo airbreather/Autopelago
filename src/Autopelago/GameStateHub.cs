@@ -19,10 +19,13 @@ public sealed class GameStateHub : Hub
 
     private readonly SlotGameLookup _slotGameLookup;
 
-    public GameStateHub(AutopelagoSettingsModel settings, SlotGameLookup slotGameLookup)
+    private readonly IHostApplicationLifetime _lifetime;
+
+    public GameStateHub(AutopelagoSettingsModel settings, SlotGameLookup slotGameLookup, IHostApplicationLifetime lifetime)
     {
         _settings = settings;
         _slotGameLookup = slotGameLookup;
+        _lifetime = lifetime;
     }
 
     public async ValueTask GetSlots()
@@ -33,6 +36,7 @@ public sealed class GameStateHub : Hub
 
     public ChannelReader<JsonObject> GetSlotUpdates(string slotName, CancellationToken cancellationToken)
     {
+        _lifetime.ApplicationStopping.ThrowIfCancellationRequested();
         Channel<JsonObject> channel = Channel.CreateBounded<JsonObject>(s_boundedChannelOptions);
         ValueTask<Game?> gameTask = _slotGameLookup.GetGameAsync(slotName, cancellationToken);
         if (gameTask.IsCompletedSuccessfully && gameTask.GetAwaiter().GetResult() is null)
@@ -41,7 +45,14 @@ public sealed class GameStateHub : Hub
             return channel.Reader;
         }
 
-        _ = Task.Run(async () => await WriteSlotUpdatesAsync(gameTask, channel.Writer, cancellationToken), cancellationToken);
+        CancellationTokenSource cts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken, _lifetime.ApplicationStopping);
+        _ = Task.Run(async () =>
+        {
+            using (cts)
+            {
+                await WriteSlotUpdatesAsync(gameTask, channel.Writer, cts.Token);
+            }
+        }, cts.Token);
         return channel.Reader;
     }
 

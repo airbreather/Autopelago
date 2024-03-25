@@ -94,8 +94,7 @@ public sealed class AutopelagoGameService : BackgroundService
                 return client.SaveGameStateAsync(args.CurrentState, cancellationToken);
             }
 
-            CancellationTokenSource cts = game.RunGameLoop(state);
-            _lifetime.ApplicationStopping.Register(cts.Cancel);
+            game.RunGameLoop(state);
         });
     }
 }
