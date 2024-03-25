@@ -10,14 +10,14 @@ public sealed class AutopelagoGameService : BackgroundService
 
     private readonly TimeProvider _timeProvider;
 
-    private readonly IHostApplicationLifetime _lifetime;
+    private readonly Serilog.ILogger _logger;
 
-    public AutopelagoGameService(AutopelagoSettingsModel settings, SlotGameLookup slotGameStates, TimeProvider timeProvider, IHostApplicationLifetime lifetime)
+    public AutopelagoGameService(AutopelagoSettingsModel settings, SlotGameLookup slotGameStates, TimeProvider timeProvider, Serilog.ILogger logger)
     {
         _settings = settings;
         _slotGameStates = slotGameStates;
         _timeProvider = timeProvider;
-        _lifetime = lifetime;
+        _logger = logger;
     }
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
@@ -50,7 +50,6 @@ public sealed class AutopelagoGameService : BackgroundService
                     }
 
                     StringBuilder sb = new();
-                    sb.Append($"[{DateTime.Now:G}] -> ");
                     foreach (JSONMessagePartModel part in printJSON.Data)
                     {
                         sb.Append(part switch
@@ -62,7 +61,7 @@ public sealed class AutopelagoGameService : BackgroundService
                         });
                     }
 
-                    Console.WriteLine(sb);
+                    _logger.Information($"{sb}");
                     return ValueTask.CompletedTask;
                 }
             }

@@ -4,12 +4,24 @@ using Autopelago;
 
 using Microsoft.AspNetCore.ResponseCompression;
 
+using Serilog;
+using Serilog.Events;
+
 using YamlDotNet.Serialization;
 using YamlDotNet.Serialization.NamingConventions;
 
 await Helper.ConfigureAwaitFalse();
 
 WebApplicationBuilder builder = WebApplication.CreateBuilder(args);
+
+builder.Host.UseSerilog((ctx, services, cfg) =>
+{
+    cfg
+        .MinimumLevel.Override("Microsoft.AspNetCore", LogEventLevel.Warning)
+        .Filter.ByExcluding(evt => evt.Exception is OperationCanceledException)
+        .Enrich.FromLogContext()
+        .WriteTo.Console();
+});
 
 builder.Services.AddSingleton(sp =>
 {
@@ -44,6 +56,8 @@ builder.Services.AddResponseCompression(options =>
 
 WebApplication app = builder.Build();
 
+app.UseSerilogRequestLogging();
+
 app.UseResponseCompression();
 
 app.UseFileServer();
@@ -63,9 +77,16 @@ SyncOverAsync.BackgroundException += (sender, args) =>
 try
 {
     await app.RunAsync(cts.Token);
+    thrownException?.Throw();
 }
 catch (OperationCanceledException)
 {
 }
-
-thrownException?.Throw();
+catch (Exception ex)
+{
+    Log.Fatal(ex, "Application terminated unexpectedly.");
+}
+finally
+{
+    await Log.CloseAndFlushAsync();
+}
