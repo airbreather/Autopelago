@@ -36,7 +36,6 @@ public sealed class GameStateHub : Hub
 
     public ChannelReader<JsonObject> GetSlotUpdates(string slotName, CancellationToken cancellationToken)
     {
-        _lifetime.ApplicationStopping.ThrowIfCancellationRequested();
         Channel<JsonObject> channel = Channel.CreateBounded<JsonObject>(s_boundedChannelOptions);
         ValueTask<Game?> gameTask = _slotGameLookup.GetGameAsync(slotName, cancellationToken);
         if (gameTask.IsCompletedSuccessfully && gameTask.GetAwaiter().GetResult() is null)
@@ -46,6 +45,7 @@ public sealed class GameStateHub : Hub
         }
 
         CancellationTokenSource cts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken, _lifetime.ApplicationStopping);
+        cts.Token.ThrowIfCancellationRequested();
         _ = Task.Run(async () =>
         {
             using (cts)
