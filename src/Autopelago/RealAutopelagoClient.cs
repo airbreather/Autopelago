@@ -57,6 +57,8 @@ public sealed class RealAutopelagoClient : AutopelagoClient
                     SlotNumber = lastConnected.Slot,
                     SlotInfo = (lastRoomUpdate?.SlotInfo ?? lastConnected.SlotInfo).ToFrozenDictionary(),
                     InitialSlotData = lastConnected.SlotData.ToFrozenDictionary(),
+                    GeneralItemNameMapping = lastDataPackage.Data.Games.SelectMany(game => game.Value.ItemNameToId).ToFrozenDictionary(kvp => kvp.Value, kvp => kvp.Key),
+                    GeneralLocationNameMapping = lastDataPackage.Data.Games.SelectMany(game => game.Value.LocationNameToId).ToFrozenDictionary(kvp => kvp.Value, kvp => kvp.Key),
                     ItemsMapping = gameData.ItemNameToId.ToFrozenDictionary(kvp => GameDefinitions.Instance.ItemsByName[kvp.Key], kvp => kvp.Value),
                     LocationsMapping = gameData.LocationNameToId.ToFrozenDictionary(kvp => GameDefinitions.Instance.LocationsByName[kvp.Key], kvp => kvp.Value),
                     ItemsReverseMapping = gameData.ItemNameToId.ToFrozenDictionary(kvp => kvp.Value, kvp => GameDefinitions.Instance.ItemsByName[kvp.Key]),
@@ -104,6 +106,26 @@ public sealed class RealAutopelagoClient : AutopelagoClient
         };
 
         await _connection.SendPacketsAsync([packet], cancellationToken);
+    }
+
+    public override async ValueTask SendMessageAsync(string message, CancellationToken cancellationToken)
+    {
+        await Helper.ConfigureAwaitFalse();
+        SayPacketModel say = new()
+        {
+            Text = message,
+        };
+        await _connection.SendPacketsAsync([say], cancellationToken);
+    }
+
+    public override async ValueTask IWonAsync(CancellationToken cancellationToken)
+    {
+        await Helper.ConfigureAwaitFalse();
+        StatusUpdatePacketModel statusUpdate = new()
+        {
+            Status = ArchipelagoClientStatus.Goal,
+        };
+        await _connection.SendPacketsAsync([statusUpdate], cancellationToken);
     }
 
     public async ValueTask<Game.State?> InitAsync(GetDataPackagePacketModel getDataPackage, ConnectPacketModel connect, Random? random, CancellationToken cancellationToken)
@@ -201,6 +223,10 @@ public sealed class RealAutopelagoClient : AutopelagoClient
         public required int TeamNumber { get; init; }
 
         public required int SlotNumber { get; init; }
+
+        public required FrozenDictionary<long, string> GeneralItemNameMapping { get; init; }
+
+        public required FrozenDictionary<long, string> GeneralLocationNameMapping { get; init; }
 
         public required FrozenDictionary<int, SlotModel> SlotInfo { get; init; }
 

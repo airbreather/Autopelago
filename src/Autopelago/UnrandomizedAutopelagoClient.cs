@@ -14,6 +14,17 @@ public sealed class UnrandomizedAutopelagoClient : AutopelagoClient
         remove { _receivedItemsEvent.Remove(value); }
     }
 
+    public override ValueTask SendMessageAsync(string message, CancellationToken cancellationToken)
+    {
+        Console.WriteLine(message);
+        return ValueTask.CompletedTask;
+    }
+
+    public override ValueTask IWonAsync(CancellationToken cancellationToken)
+    {
+        return ValueTask.CompletedTask;
+    }
+
     public override async ValueTask SendLocationChecksAsync(IEnumerable<LocationDefinitionModel> locations, CancellationToken cancellationToken)
     {
         List<LocationDefinitionModel> newLocations = [];

@@ -1,7 +1,7 @@
 using System.Runtime.ExceptionServices;
 
 using Autopelago;
-
+using Microsoft.AspNetCore.ResponseCompression;
 using YamlDotNet.Serialization;
 using YamlDotNet.Serialization.NamingConventions;
 
@@ -33,7 +33,16 @@ builder.Services.AddHostedService<AutopelagoGameService>();
 
 builder.Services.AddControllers();
 
+builder.Services.AddResponseCompression(options =>
+{
+    options.EnableForHttps = true;
+    options.MimeTypes = ResponseCompressionDefaults.MimeTypes
+        .Append("application/x-font-ttf");
+});
+
 WebApplication app = builder.Build();
+
+app.UseResponseCompression();
 
 app.UseFileServer();
 app.MapHub<GameStateHub>("/gameStateHub", options =>

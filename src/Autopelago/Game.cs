@@ -242,6 +242,12 @@ public sealed class Game
                 }
             }
 
+            if (_state.IsCompleted)
+            {
+                await _client.IWonAsync(cancellationToken);
+                return;
+            }
+
             Player player = new();
             Task nextDelay = Task.Delay(NextInterval(), _timeProvider, cancellationToken);
             while (true)
@@ -267,6 +273,7 @@ public sealed class Game
 
                     if (prevState.Epoch == nextState.Epoch)
                     {
+                        await _client.SendMessageAsync("Blocked!", cancellationToken);
                         continue;
                     }
 

@@ -56,8 +56,8 @@ public sealed class AutopelagoGameService : BackgroundService
                         sb.Append(part switch
                         {
                             PlayerIdJSONMessagePartModel playerId => latestData.SlotInfo[int.Parse(playerId.Text)].Name,
-                            ItemIdJSONMessagePartModel itemId => latestData.ItemsReverseMapping[long.Parse(itemId.Text)].Name,
-                            LocationIdJSONMessagePartModel locationId => latestData.LocationsReverseMapping[long.Parse(locationId.Text)].Name,
+                            ItemIdJSONMessagePartModel itemId => latestData.GeneralItemNameMapping[long.Parse(itemId.Text)],
+                            LocationIdJSONMessagePartModel locationId => latestData.GeneralLocationNameMapping[long.Parse(locationId.Text)],
                             _ => part.Text,
                         });
                     }
