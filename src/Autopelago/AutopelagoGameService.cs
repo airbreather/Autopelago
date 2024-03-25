@@ -1,4 +1,5 @@
 using System.Text;
+using Serilog.Context;
 
 namespace Autopelago;
 
@@ -49,19 +50,51 @@ public sealed class AutopelagoGameService : BackgroundService
                         return ValueTask.CompletedTask;
                     }
 
-                    StringBuilder sb = new();
-                    foreach (JSONMessagePartModel part in printJSON.Data)
+                    StringBuilder messageTemplateBuilder = new();
+                    Stack<IDisposable> ctxStack = [];
+                    try
                     {
-                        sb.Append(part switch
+                        int nextPlayerPlaceholder = 0;
+                        int nextItemPlaceholder = 0;
+                        int nextLocationPlaceholder = 0;
+                        foreach (JSONMessagePartModel part in printJSON.Data)
                         {
-                            PlayerIdJSONMessagePartModel playerId => latestData.SlotInfo[int.Parse(playerId.Text)].Name,
-                            ItemIdJSONMessagePartModel itemId => latestData.GeneralItemNameMapping[long.Parse(itemId.Text)],
-                            LocationIdJSONMessagePartModel locationId => latestData.GeneralLocationNameMapping[long.Parse(locationId.Text)],
-                            _ => part.Text,
-                        });
+                            switch (part)
+                            {
+                                case PlayerIdJSONMessagePartModel playerId:
+                                    string playerPlaceholder = $"Player{nextPlayerPlaceholder++}";
+                                    ctxStack.Push(LogContext.PushProperty(playerPlaceholder, latestData.SlotInfo[int.Parse(playerId.Text)].Name));
+                                    messageTemplateBuilder.Append($"{{{playerPlaceholder}}}");
+                                    break;
+
+                                case ItemIdJSONMessagePartModel itemId:
+                                    string itemPlaceholder = $"Item{nextItemPlaceholder++}";
+                                    ctxStack.Push(LogContext.PushProperty(itemPlaceholder, latestData.GeneralItemNameMapping[long.Parse(itemId.Text)]));
+                                    messageTemplateBuilder.Append($"{{{itemPlaceholder}}}");
+                                    break;
+
+                                case LocationIdJSONMessagePartModel locationId:
+                                    string locationPlaceholder = $"Location{nextLocationPlaceholder++}";
+                                    ctxStack.Push(LogContext.PushProperty(locationPlaceholder, latestData.GeneralLocationNameMapping[long.Parse(locationId.Text)]));
+                                    messageTemplateBuilder.Append($"{{{locationPlaceholder}}}");
+                                    break;
+
+                                default:
+                                    messageTemplateBuilder.Append(part.Text);
+                                    break;
+                            }
+                        }
+
+                        _logger.Information($"{messageTemplateBuilder}");
+                    }
+                    finally
+                    {
+                        while (ctxStack.TryPop(out IDisposable? ctx))
+                        {
+                            ctx.Dispose();
+                        }
                     }
 
-                    _logger.Information($"{sb}");
                     return ValueTask.CompletedTask;
                 }
             }
