@@ -48,6 +48,7 @@ public sealed class GameStateHub : Hub
         cts.Token.ThrowIfCancellationRequested();
         _ = Task.Run(async () =>
         {
+            await Helper.ConfigureAwaitFalse();
             using (cts)
             {
                 await WriteSlotUpdatesAsync(gameTask, channel.Writer, cts.Token);
