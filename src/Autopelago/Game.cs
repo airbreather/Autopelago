@@ -190,6 +190,8 @@ public sealed class Game
 
     private Prng.State _intervalPrngState = Prng.State.Start((ulong)Random.Shared.NextInt64(long.MinValue, long.MaxValue));
 
+    private DateTime? _lastBlockedReportUtc;
+
     public Game(TimeSpan minInterval, TimeSpan maxInterval, AutopelagoClient client, TimeProvider timeProvider)
     {
         _minInterval = minInterval;
@@ -273,10 +275,17 @@ public sealed class Game
 
                     if (prevState.Epoch == nextState.Epoch)
                     {
-                        await _client.SendMessageAsync("Blocked!", cancellationToken);
+                        DateTime utcNow = _timeProvider.GetUtcNow().UtcDateTime;
+                        if (!(_lastBlockedReportUtc + TimeSpan.FromMinutes(5) > utcNow))
+                        {
+                            await _client.SendMessageAsync("Blocked!", cancellationToken);
+                            _lastBlockedReportUtc = _timeProvider.GetUtcNow().UtcDateTime;
+                        }
+
                         continue;
                     }
 
+                    _lastBlockedReportUtc = null;
                     await _stateChangedEvent.InvokeAsync(this, stepFinished, cancellationToken);
                 }
                 finally

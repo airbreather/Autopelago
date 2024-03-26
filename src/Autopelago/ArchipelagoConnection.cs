@@ -31,6 +31,8 @@ public sealed partial class ArchipelagoConnection : IDisposable
 
     private readonly AsyncEvent<ArchipelagoPacketModel> _incomingPacket = new();
 
+    private readonly SemaphoreSlim _mutex = new(1, 1);
+
     private ClientWebSocket _socket = new() { Options = { DangerousDeflateOptions = new() } };
 
     private bool _disposed;
@@ -159,7 +161,15 @@ public sealed partial class ArchipelagoConnection : IDisposable
 
         await Helper.ConfigureAwaitFalse();
         byte[] bytes = JsonSerializer.SerializeToUtf8Bytes(packets, s_jsonSerializerOptions);
-        await _socket.SendAsync(bytes, WebSocketMessageType.Text, true, cancellationToken);
+        await _mutex.WaitAsync(cancellationToken);
+        try
+        {
+            await _socket.SendAsync(bytes, WebSocketMessageType.Text, true, cancellationToken);
+        }
+        finally
+        {
+            _mutex.Release();
+        }
     }
 
     public async ValueTask<ConnectResponsePacketModel> HandshakeAsync(Func<RoomInfoPacketModel, GetDataPackagePacketModel?> step1, Func<RoomInfoPacketModel, DataPackagePacketModel?, ConnectPacketModel> step2, CancellationToken cancellationToken)
@@ -192,6 +202,7 @@ public sealed partial class ArchipelagoConnection : IDisposable
         }
 
         _socket.Dispose();
+        _mutex.Dispose();
         _disposed = true;
     }
 

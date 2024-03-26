@@ -24,6 +24,19 @@ public sealed class AutopelagoGameService : BackgroundService
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
         await Helper.ConfigureAwaitFalse();
+
+        AsyncEvent<object?> keepAliveEvent = new();
+        SyncOverAsync.FireAndForget(async () =>
+        {
+            await Helper.ConfigureAwaitFalse();
+            TimeSpan keepAliveInterval = TimeSpan.FromMinutes(2);
+            while (!stoppingToken.IsCancellationRequested)
+            {
+                await Task.Delay(keepAliveInterval, _timeProvider, stoppingToken);
+                await keepAliveEvent.InvokeAsync(null, null, stoppingToken);
+            }
+        });
+
         await Parallel.ForAsync(0, _settings.Slots.Count, stoppingToken, async (i, cancellationToken) =>
         {
             AutopelagoPlayerSettingsModel slot = _settings.Slots[i];
@@ -127,6 +140,13 @@ public sealed class AutopelagoGameService : BackgroundService
             }
 
             game.RunGameLoop(state);
+
+            keepAliveEvent.Add(async (sender, args, cancellationToken) =>
+            {
+                await Helper.ConfigureAwaitFalse();
+                StatusUpdatePacketModel statusUpdate = new() { Status = ArchipelagoClientStatus.Playing };
+                await conn.SendPacketsAsync([statusUpdate], cancellationToken);
+            });
         });
     }
 }
