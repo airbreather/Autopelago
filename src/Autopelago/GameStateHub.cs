@@ -1,10 +1,17 @@
 using System.Text.Json;
 using System.Text.Json.Nodes;
+using System.Text.Json.Serialization;
 using System.Threading.Channels;
 
 using Microsoft.AspNetCore.SignalR;
 
 namespace Autopelago;
+
+[JsonSerializable(typeof(string[]))]
+[JsonSerializable(typeof(JsonObject))]
+internal sealed partial class SignalRSerializerContext : JsonSerializerContext
+{
+}
 
 public sealed class GameStateHub : Hub
 {
@@ -31,7 +38,7 @@ public sealed class GameStateHub : Hub
     public async ValueTask GetSlots()
     {
         await Helper.ConfigureAwaitFalse();
-        await Clients.Caller.SendAsync("GotSlots", _settings.Slots.Select(s => s.Name));
+        await Clients.Caller.SendAsync("GotSlots", _settings.Slots.Select(s => s.Name).ToArray());
     }
 
     public ChannelReader<JsonObject> GetSlotUpdates(string slotName, CancellationToken cancellationToken)

@@ -38,7 +38,11 @@ builder.Services.AddSingleton(sp =>
         .Deserialize<AutopelagoSettingsModel>(settingsYaml);
 });
 
-builder.Services.AddSignalR();
+builder.Services.AddSignalR()
+    .AddJsonProtocol(options =>
+    {
+        options.PayloadSerializerOptions.TypeInfoResolver = SignalRSerializerContext.Default;
+    });
 
 builder.Services.AddSingleton(TimeProvider.System);
 builder.Services.AddSingleton<SlotGameLookup>();
