@@ -42,7 +42,7 @@ jobs:
         run: dotnet build -c Release --no-restore
 
       - name: Publish (win-x64)
-        run: dotnet publish -c Release -r win-x64 -o artifacts/win-x64
+        run: dotnet publish src/Autopelago/Autopelago.csproj -c Release -r win-x64 -o artifacts/win-x64
 
       - name: Upload (win-x64)
         uses: actions/upload-artifact@v3 # https://code.forgejo.org/forgejo/runner/issues/144
@@ -51,7 +51,7 @@ jobs:
           path: artifacts/win-x64
 
       - name: Publish (linux-x64)
-        run: dotnet publish -c Release -r linux-x64 -o artifacts/linux-x64
+        run: dotnet publish src/Autopelago/Autopelago.csproj -c Release -r linux-x64 -o artifacts/linux-x64
 
       - name: Upload (linux-x64)
         uses: actions/upload-artifact@v3 # https://code.forgejo.org/forgejo/runner/issues/144
