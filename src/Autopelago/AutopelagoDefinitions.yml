@@ -53,7 +53,7 @@ items:
     - 'Freshly Baked Bread'
     - 'Taco Salad that is Only Tacos'
     - 'Subscription to the Cheese of the Month Club'
-    - { 'name': 'Soup with a Hair in it', 'tags': [food, gross] }
+    - ['Soup with a Hair in it', [food, gross]]
     - 'Can of Spam'
     - 'Fruit Rollup'
     - 'Fresh-baked Apple Pie'
