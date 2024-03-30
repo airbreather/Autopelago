@@ -39,7 +39,8 @@ jobs:
         run: dotnet restore --locked-mode
 
       - name: Build
-        run: dotnet build -c Release --no-restore
+        shell: bash
+        run: scripts/build-and-publish-all-targets.sh
 
       - name: Run tests
         run: dotnet test -c Release --no-build --logger 'console;verbosity=detailed' --logger trx --results-directory=TestResults
@@ -51,17 +52,11 @@ jobs:
           path: TestResults
         if: always()
 
-      - name: Publish (win-x64)
-        run: dotnet publish src/Autopelago/Autopelago.csproj -c Release -r win-x64 -o artifacts/win-x64
-
       - name: Upload (win-x64)
         uses: actions/upload-artifact@v3
         with:
           name: win-x64
           path: artifacts/win-x64
-
-      - name: Publish (linux-x64)
-        run: dotnet publish src/Autopelago/Autopelago.csproj -c Release -r linux-x64 -o artifacts/linux-x64
 
       - name: Upload (linux-x64)
         uses: actions/upload-artifact@v3
