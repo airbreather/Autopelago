@@ -8,12 +8,6 @@
         "resolved": "6.0.1",
         "contentHash": "q/8r0muHlF7TbhMUTBAk43KteZYG2ECV96pbzkToQwgjp3BvbS766svUcO6va+cohWOkigeBWmHs0Vu5vQnESA=="
       },
-      "JunitXml.TestLogger": {
-        "type": "Direct",
-        "requested": "[3.1.12, )",
-        "resolved": "3.1.12",
-        "contentHash": "XHeSTfBj6/kLNcfbOoaoVogamaOcKXOENQ3epo616EjnnGJHFNzuNFI6TGXgL+lYwtX4E8cpCGu6UfhYrOtHGQ=="
-      },
       "Microsoft.Extensions.TimeProvider.Testing": {
         "type": "Direct",
         "requested": "[8.3.0, )",
