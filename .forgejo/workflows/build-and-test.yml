@@ -42,14 +42,20 @@ jobs:
         run: dotnet build -c Release --no-restore
 
       - name: Run tests
-        run: dotnet test -c Release --no-build --logger 'console;verbosity=detailed' --logger trx --results-directory=TestResults
+        run: dotnet test -c Release --no-build --logger 'console;verbosity=detailed' --logger trx --results-directory=TestResults --logger 'junit;LogFilePath=${{ github.WORKSPACE }}/TestResults/junit.xml'
 
       - name: Upload test results
         uses: actions/upload-artifact@v3 # https://code.forgejo.org/forgejo/runner/issues/144
         with:
           name: dotnet-test-results
           path: TestResults
-        if: ${{ always() }}
+        if: always()
+
+      - name: Set test summary
+        uses: test-summary/action@v2
+        with:
+          paths: "TestResults/junit.xml"
+        if: always()
 
       - name: Publish (win-x64)
         run: dotnet publish src/Autopelago/Autopelago.csproj -c Release -r win-x64 -o artifacts/win-x64
