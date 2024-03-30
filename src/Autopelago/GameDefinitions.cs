@@ -236,6 +236,8 @@ public record ItemDefinitionModel
 
     public required ArchipelagoItemFlags ArchipelagoFlags { get; init; }
 
+    public ImmutableArray<string> AurasGranted { get; init; } = [];
+
     public string? FlavorText { get; init; }
 
     public int? RatCount { get; init; }
@@ -245,6 +247,7 @@ public record ItemDefinitionModel
         return node switch
         {
             YamlScalarNode scalar => DeserializeFrom(scalar, archipelagoFlags, associatedGame, defaultRatCount),
+            YamlSequenceNode sequence => DeserializeFrom(sequence, archipelagoFlags, associatedGame, defaultRatCount),
             YamlMappingNode map => DeserializeFrom(map, archipelagoFlags, associatedGame, defaultRatCount),
             _ => throw new InvalidDataException("Bad node type"),
         };
@@ -261,23 +264,45 @@ public record ItemDefinitionModel
         };
     }
 
+    private static ItemDefinitionModel DeserializeFrom(YamlSequenceNode sequence, ArchipelagoItemFlags archipelagoFlags, string? associatedGame = null, int? defaultRatCount = null)
+    {
+        if (sequence.Children is not [YamlScalarNode { Value: string itemName }, YamlSequenceNode aurasGranted])
+        {
+            throw new InvalidDataException("Bad format.");
+        }
+
+        return new()
+        {
+            AssociatedGame = associatedGame,
+            Name = itemName,
+            ArchipelagoFlags = archipelagoFlags,
+            AurasGranted = [.. aurasGranted.Select(a => ((YamlScalarNode)a).Value!)],
+            RatCount = defaultRatCount,
+        };
+    }
+
     private static ItemDefinitionModel DeserializeFrom(YamlMappingNode map, ArchipelagoItemFlags archipelagoFlags, string? associatedGame = null, int? defaultRatCount = null)
     {
         string? name = null;
         int? ratCount = defaultRatCount;
         string? flavorText = null;
+        ImmutableArray<string> aurasGranted = [];
         foreach ((YamlNode keyNode, YamlNode valueNode) in map)
         {
             string key = ((YamlScalarNode)keyNode).Value!;
-            string value = ((YamlScalarNode)valueNode).Value!;
+            string? value = (valueNode as YamlScalarNode)?.Value;
             switch (key)
             {
                 case "name":
                     name = value;
                     break;
 
+                case "auras_granted":
+                    aurasGranted = [.. ((YamlSequenceNode)valueNode).Select(a => ((YamlScalarNode)a).Value!)];
+                    break;
+
                 case "rat_count":
-                    ratCount = int.Parse(value);
+                    ratCount = int.Parse(value!);
                     break;
 
                 case "flavor_text":
@@ -291,6 +316,7 @@ public record ItemDefinitionModel
             AssociatedGame = associatedGame,
             Name = name ?? throw new InvalidDataException("name is required."),
             ArchipelagoFlags = archipelagoFlags,
+            AurasGranted = aurasGranted,
             RatCount = ratCount,
             FlavorText = flavorText,
         };
