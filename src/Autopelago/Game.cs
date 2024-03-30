@@ -268,7 +268,11 @@ public sealed class Game
                 await _mutex.WaitAsync(cancellationToken);
                 try
                 {
-                    nextDelay = Task.Delay(NextInterval(_state) - _timeProvider.GetElapsedTime(beforeEnteringMutex), _timeProvider, cancellationToken);
+                    TimeSpan nextInterval = NextInterval(_state);
+                    TimeSpan consumed = _timeProvider.GetElapsedTime(beforeEnteringMutex);
+                    nextDelay = consumed < nextInterval
+                        ? Task.Delay(nextInterval - consumed, _timeProvider, cancellationToken)
+                        : Task.CompletedTask;
                     StepStartedEventArgs stepStarted = new()
                     {
                         CurrentState = prevState = _state,
@@ -351,10 +355,12 @@ public sealed class Game
         }
 
         ImmutableArray<ItemDefinitionModel> newItems = args.Items[(state.ReceivedItems.Count - args.Index)..];
-        if (newItems.Length > 0)
+        if (newItems.IsEmpty)
         {
-            state = state with { ReceivedItems = state.ReceivedItems.AddRange(newItems) };
+            return;
         }
+
+        state = state with { ReceivedItems = state.ReceivedItems.AddRange(newItems) };
     }
 
     private TimeSpan NextInterval(State state)

@@ -24,6 +24,8 @@ public sealed class Player
 
     public Game.State Advance(Game.State state)
     {
+        ulong initialEpoch = state.Epoch;
+
         if (state.IsCompleted)
         {
             return state;
@@ -85,7 +87,9 @@ public sealed class Player
             state = state with { LocationCheckAttemptsThisStep = 0 };
         }
 
-        return state with { TotalNontrivialStepCount = state.TotalNontrivialStepCount + 1 };
+        return state.Epoch == initialEpoch
+            ? state
+            : state with { TotalNontrivialStepCount = state.TotalNontrivialStepCount + 1 };
     }
 
     private bool LocationIsChecked(LocationKey key) => _checkedLocations[key.RegionKey][key.N];
