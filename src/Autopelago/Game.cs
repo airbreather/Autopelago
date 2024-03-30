@@ -39,6 +39,7 @@ public sealed class Game
         private State(State copyFrom)
         {
             Epoch = copyFrom.Epoch + 1;
+            TotalNontrivialStepCount = copyFrom.TotalNontrivialStepCount;
             CurrentLocation = copyFrom.CurrentLocation;
             TargetLocation = copyFrom.TargetLocation;
             ReceivedItems = copyFrom.ReceivedItems;
@@ -48,6 +49,8 @@ public sealed class Game
         }
 
         public ulong Epoch { get; private init; }
+
+        public required ulong TotalNontrivialStepCount { get; init; }
 
         public required LocationDefinitionModel CurrentLocation { get; init; }
 
@@ -81,6 +84,7 @@ public sealed class Game
         {
             return new()
             {
+                TotalNontrivialStepCount = 0,
                 CurrentLocation = GameDefinitions.Instance.StartLocation,
                 TargetLocation = GameDefinitions.Instance.StartLocation,
                 ReceivedItems = [],
@@ -103,6 +107,7 @@ public sealed class Game
             return new()
             {
                 Epoch = Epoch,
+                TotalNontrivialStepCount = TotalNontrivialStepCount,
                 CurrentLocation = CurrentLocation.Name,
                 TargetLocation = TargetLocation.Name,
                 ReceivedItems = [.. ReceivedItems.Select(i => i.Name)],
@@ -138,6 +143,8 @@ public sealed class Game
 
             public ulong Epoch { get; init; }
 
+            public required ulong TotalNontrivialStepCount { get; init; }
+
             public required string CurrentLocation { get; init; }
 
             public required string TargetLocation { get; init; }
@@ -155,6 +162,7 @@ public sealed class Game
                 return new()
                 {
                     Epoch = Epoch,
+                    TotalNontrivialStepCount = TotalNontrivialStepCount,
                     CurrentLocation = GameDefinitions.Instance.LocationsByName[CurrentLocation],
                     TargetLocation = GameDefinitions.Instance.LocationsByName[TargetLocation],
                     ReceivedItems = [.. ReceivedItems.Select(name => GameDefinitions.Instance.ItemsByName[name])],
@@ -251,15 +259,16 @@ public sealed class Game
             }
 
             Player player = new();
-            Task nextDelay = Task.Delay(NextInterval(), _timeProvider, cancellationToken);
+            Task nextDelay = Task.Delay(NextInterval(_state), _timeProvider, cancellationToken);
             while (true)
             {
                 await nextDelay;
-                nextDelay = Task.Delay(NextInterval(), _timeProvider, cancellationToken);
                 State prevState, nextState;
+                long beforeEnteringMutex = _timeProvider.GetTimestamp();
                 await _mutex.WaitAsync(cancellationToken);
                 try
                 {
+                    nextDelay = Task.Delay(NextInterval(_state) - _timeProvider.GetElapsedTime(beforeEnteringMutex), _timeProvider, cancellationToken);
                     StepStartedEventArgs stepStarted = new()
                     {
                         CurrentState = prevState = _state,
@@ -348,7 +357,7 @@ public sealed class Game
         }
     }
 
-    private TimeSpan NextInterval()
+    private TimeSpan NextInterval(State state)
     {
         TimeSpan range = _maxInterval - _minInterval;
         return _minInterval + (range * Prng.NextDouble(ref _intervalPrngState));
