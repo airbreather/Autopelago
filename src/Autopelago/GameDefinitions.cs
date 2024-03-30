@@ -702,6 +702,16 @@ public sealed record AbilityCheckRequirement : GameRequirement
 
     public override bool DynamicSatisfied(ref Game.State state)
     {
+        ImmutableList<AuraEffect> activeAuraEffects = state.ActiveAuraEffects;
+        for (int i = activeAuraEffects.Count - 1; i >= 0; i--)
+        {
+            if (activeAuraEffects[i] is LuckyEffect)
+            {
+                state = state with { ActiveAuraEffects = activeAuraEffects.RemoveAt(i) };
+                return true;
+            }
+        }
+
         return Game.State.NextD20(ref state) + state.DiceModifier >= DifficultyClass;
     }
 }

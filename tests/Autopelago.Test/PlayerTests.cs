@@ -127,6 +127,21 @@ public sealed class PlayerTests
         }
     }
 
+    [Test]
+    public void LuckyAuraShouldForceSuccess([Values(1, 2, 3)] int effectCount)
+    {
+        ulong seed = EnsureSeedProducesInitialD20Sequence(8626806680, [1, 1, 1, 1, 1, 1, 1, 1]);
+        Game.State state = Game.State.Start(seed);
+
+        state = state with { ActiveAuraEffects = [.. Enumerable.Repeat(new LuckyEffect(), effectCount) ] };
+        Player player = new();
+
+        state = player.Advance(state);
+        state = player.Advance(state);
+        state = player.Advance(state);
+        Assert.That(state.CheckedLocations, Has.Count.EqualTo(effectCount));
+    }
+
     private static ulong EnsureSeedProducesInitialD20Sequence(ulong seed, ReadOnlySpan<int> exactVals)
     {
         int[] actual = [.. Rolls(seed, stackalloc int[exactVals.Length])];
@@ -154,6 +169,7 @@ public sealed class PlayerTests
     private ulong SearchForPrngSeed(int cnt, SpanFunc<int, bool> isMatch)
     {
         // seed 2449080649: eight natural 20s in a row.
+        // seed 8626806680: eight natural 1s in a row.
         SeedSearch box = new()
         {
             Count = cnt,

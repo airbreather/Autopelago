@@ -1,5 +1,6 @@
 using System.Collections;
 using System.Collections.Frozen;
+using System.Collections.Immutable;
 using System.Runtime.InteropServices;
 
 namespace Autopelago;
@@ -87,9 +88,21 @@ public sealed class Player
             state = state with { LocationCheckAttemptsThisStep = 0 };
         }
 
-        return state.Epoch == initialEpoch
-            ? state
-            : state with { TotalNontrivialStepCount = state.TotalNontrivialStepCount + 1 };
+        ImmutableList<AuraEffect> tickingAuraEffects = state.ActiveAuraEffects.RemoveAll(a => a.Deadline is null);
+        if (tickingAuraEffects.IsEmpty && state.Epoch == initialEpoch)
+        {
+            // no aura effects to tick, and we haven't made any other changes. this was a completely
+            // trivial step.
+            return state;
+        }
+
+        // at least one aura effect needs to be ticked, or else we've made SOME other change, so we
+        // will definitely be incrementing the nontrivial step count.
+        return state with
+        {
+            ActiveAuraEffects = state.ActiveAuraEffects.RemoveAll(a => a.Deadline <= state.TotalNontrivialStepCount),
+            TotalNontrivialStepCount = state.TotalNontrivialStepCount + 1,
+        };
     }
 
     private bool LocationIsChecked(LocationKey key) => _checkedLocations[key.RegionKey][key.N];

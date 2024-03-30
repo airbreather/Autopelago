@@ -44,6 +44,7 @@ public sealed class Game
             TargetLocation = copyFrom.TargetLocation;
             ReceivedItems = copyFrom.ReceivedItems;
             CheckedLocations = copyFrom.CheckedLocations;
+            ActiveAuraEffects = copyFrom.ActiveAuraEffects;
             PrngState = copyFrom.PrngState;
             LocationCheckAttemptsThisStep = copyFrom.LocationCheckAttemptsThisStep;
         }
@@ -60,9 +61,13 @@ public sealed class Game
 
         public required ImmutableList<LocationDefinitionModel> CheckedLocations { get; init; }
 
+        public required ImmutableList<AuraEffect> ActiveAuraEffects { get; init; }
+
         public required int LocationCheckAttemptsThisStep { get; init; }
 
         public required Prng.State PrngState { get; init; }
+
+        public double IntervalDurationMultiplier => 1;
 
         public bool IsCompleted => CurrentLocation == GameDefinitions.Instance.GoalLocation;
 
@@ -89,6 +94,7 @@ public sealed class Game
                 TargetLocation = GameDefinitions.Instance.StartLocation,
                 ReceivedItems = [],
                 CheckedLocations = [],
+                ActiveAuraEffects = [],
                 LocationCheckAttemptsThisStep = 0,
                 PrngState = prngState,
             };
@@ -112,6 +118,7 @@ public sealed class Game
                 TargetLocation = TargetLocation.Name,
                 ReceivedItems = [.. ReceivedItems.Select(i => i.Name)],
                 CheckedLocations = [.. CheckedLocations.Select(l => l.Name)],
+                ActiveAuraEffects = ActiveAuraEffects,
                 LocationCheckAttemptsThisStep = LocationCheckAttemptsThisStep,
                 PrngState = PrngState,
             };
@@ -123,11 +130,13 @@ public sealed class Game
                 other is not null &&
                 Epoch == other.Epoch &&
                 PrngState == other.PrngState &&
+                TotalNontrivialStepCount == other.TotalNontrivialStepCount &&
                 CurrentLocation == other.CurrentLocation &&
                 TargetLocation == other.TargetLocation &&
                 LocationCheckAttemptsThisStep == other.LocationCheckAttemptsThisStep &&
                 ReceivedItems.SequenceEqual(other.ReceivedItems) &&
-                CheckedLocations.SequenceEqual(other.CheckedLocations);
+                CheckedLocations.SequenceEqual(other.CheckedLocations) &&
+                ActiveAuraEffects.SequenceEqual(other.ActiveAuraEffects);
         }
 
         public override int GetHashCode() => Epoch.GetHashCode();
@@ -153,6 +162,8 @@ public sealed class Game
 
             public required ImmutableArray<string> CheckedLocations { get; init; }
 
+            public required ImmutableList<AuraEffect> ActiveAuraEffects { get; init; }
+
             public required int LocationCheckAttemptsThisStep { get; init; }
 
             public Prng.State PrngState { get; init; }
@@ -167,6 +178,7 @@ public sealed class Game
                     TargetLocation = GameDefinitions.Instance.LocationsByName[TargetLocation],
                     ReceivedItems = [.. ReceivedItems.Select(name => GameDefinitions.Instance.ItemsByName[name])],
                     CheckedLocations = [.. CheckedLocations.Select(name => GameDefinitions.Instance.LocationsByName[name])],
+                    ActiveAuraEffects = ActiveAuraEffects,
                     LocationCheckAttemptsThisStep = LocationCheckAttemptsThisStep,
                     PrngState = PrngState,
                 };
@@ -180,9 +192,9 @@ public sealed class Game
 
     private readonly AsyncEvent<StepFinishedEventArgs> _stepFinishedEvent = new();
 
-    private readonly SemaphoreSlim _mutex = new(1, 1);
+    private readonly Player _player = new();
 
-    private readonly CancellationTokenSource _cts = new();
+    private readonly SemaphoreSlim _mutex = new(1, 1);
 
     private readonly TimeSpan _minInterval;
 
@@ -198,6 +210,10 @@ public sealed class Game
 
     private Prng.State _intervalPrngState = Prng.State.Start((ulong)Random.Shared.NextInt64(long.MinValue, long.MaxValue));
 
+    private long _prevStartTimestamp;
+
+    private TimeSpan _nextFullInterval;
+
     private DateTime? _lastBlockedReportUtc;
 
     public Game(TimeSpan minInterval, TimeSpan maxInterval, AutopelagoClient client, TimeProvider timeProvider)
@@ -207,6 +223,7 @@ public sealed class Game
         _client = client;
         _client.ReceivedItems += OnReceivedItemsAsync;
         _timeProvider = timeProvider;
+        _prevStartTimestamp = _timeProvider.GetTimestamp();
     }
 
     public State? CurrentState => _state;
@@ -229,7 +246,7 @@ public sealed class Game
         remove { _stepFinishedEvent.Remove(value); }
     }
 
-    public CancellationTokenSource RunGameLoop(State initialState)
+    public async ValueTask<State> AdvanceFirstAsync(State initialState, CancellationToken cancellationToken)
     {
         if (_state is not null)
         {
@@ -237,86 +254,80 @@ public sealed class Game
         }
 
         _state = initialState;
-        SyncOverAsync.FireAndForget(async () => await GameLoopAsync(_cts.Token));
-        return _cts;
-
-        async ValueTask GameLoopAsync(CancellationToken cancellationToken)
+        _nextFullInterval = NextInterval(_state);
+        if (_awaitingItems is ReceivedItemsEventArgs awaitingItems)
         {
-            if (_awaitingItems is ReceivedItemsEventArgs awaitingItems)
+            ulong prevEpoch = _state.Epoch;
+            Handle(ref _state, awaitingItems);
+            if (_state.Epoch != prevEpoch)
             {
-                ulong prevEpoch = _state.Epoch;
-                Handle(ref _state, awaitingItems);
-                if (_state.Epoch != prevEpoch)
-                {
-                    await _stateChangedEvent.InvokeAsync(this, new() { CurrentState = _state }, _cts.Token);
-                }
-            }
-
-            if (_state.IsCompleted)
-            {
-                await _client.IWonAsync(cancellationToken);
-                return;
-            }
-
-            Player player = new();
-            Task nextDelay = Task.Delay(NextInterval(_state), _timeProvider, cancellationToken);
-            while (true)
-            {
-                await nextDelay;
-                State prevState, nextState;
-                long beforeEnteringMutex = _timeProvider.GetTimestamp();
-                await _mutex.WaitAsync(cancellationToken);
-                try
-                {
-                    TimeSpan nextInterval = NextInterval(_state);
-                    TimeSpan consumed = _timeProvider.GetElapsedTime(beforeEnteringMutex);
-                    nextDelay = consumed < nextInterval
-                        ? Task.Delay(nextInterval - consumed, _timeProvider, cancellationToken)
-                        : Task.CompletedTask;
-                    StepStartedEventArgs stepStarted = new()
-                    {
-                        CurrentState = prevState = _state,
-                    };
-                    await _stepStartedEvent.InvokeAsync(this, stepStarted, cancellationToken);
-
-                    StepFinishedEventArgs stepFinished = new()
-                    {
-                        StateBeforeAdvance = prevState,
-                        CurrentState = _state = nextState = player.Advance(prevState),
-                    };
-                    await _stepFinishedEvent.InvokeAsync(this, stepFinished, cancellationToken);
-
-                    if (prevState.Epoch == nextState.Epoch)
-                    {
-                        DateTime utcNow = _timeProvider.GetUtcNow().UtcDateTime;
-                        if (!(_lastBlockedReportUtc + TimeSpan.FromMinutes(5) > utcNow))
-                        {
-                            await _client.SendMessageAsync("Blocked!", cancellationToken);
-                            _lastBlockedReportUtc = _timeProvider.GetUtcNow().UtcDateTime;
-                        }
-
-                        continue;
-                    }
-
-                    _lastBlockedReportUtc = null;
-                    await _stateChangedEvent.InvokeAsync(this, stepFinished, cancellationToken);
-                }
-                finally
-                {
-                    _mutex.Release();
-                }
-
-                if (nextState.CheckedLocations.Count > prevState.CheckedLocations.Count)
-                {
-                    await _client.SendLocationChecksAsync(nextState.CheckedLocations.Except(prevState.CheckedLocations), cancellationToken);
-                }
-
-                if (nextState.IsCompleted)
-                {
-                    break;
-                }
+                await _stateChangedEvent.InvokeAsync(this, new() { CurrentState = _state }, cancellationToken);
             }
         }
+
+        return _state.IsCompleted
+            ? _state
+            : await AdvanceOnceAsync(cancellationToken);
+    }
+
+    public async ValueTask<State> AdvanceOnceAsync(CancellationToken cancellationToken)
+    {
+        if (_state is null)
+        {
+            throw new InvalidOperationException("Must call AdvanceFirstAsync first.");
+        }
+
+        TimeSpan remaining = _nextFullInterval - _timeProvider.GetElapsedTime(_prevStartTimestamp);
+        if (remaining > TimeSpan.Zero)
+        {
+            await Task.Delay(remaining, _timeProvider, cancellationToken);
+        }
+
+        State prevState, nextState;
+        _prevStartTimestamp = _timeProvider.GetTimestamp();
+        await _mutex.WaitAsync(cancellationToken);
+        try
+        {
+            _nextFullInterval = NextInterval(_state);
+            StepStartedEventArgs stepStarted = new()
+            {
+                CurrentState = prevState = _state,
+            };
+            await _stepStartedEvent.InvokeAsync(this, stepStarted, cancellationToken);
+
+            StepFinishedEventArgs stepFinished = new()
+            {
+                StateBeforeAdvance = prevState,
+                CurrentState = _state = nextState = _player.Advance(prevState),
+            };
+            await _stepFinishedEvent.InvokeAsync(this, stepFinished, cancellationToken);
+
+            if (prevState.Epoch == nextState.Epoch)
+            {
+                DateTime utcNow = _timeProvider.GetUtcNow().UtcDateTime;
+                if (!(_lastBlockedReportUtc + TimeSpan.FromMinutes(5) > utcNow))
+                {
+                    await _client.SendMessageAsync("Blocked!", cancellationToken);
+                    _lastBlockedReportUtc = _timeProvider.GetUtcNow().UtcDateTime;
+                }
+
+                return nextState;
+            }
+
+            _lastBlockedReportUtc = null;
+            await _stateChangedEvent.InvokeAsync(this, stepFinished, cancellationToken);
+        }
+        finally
+        {
+            _mutex.Release();
+        }
+
+        if (nextState.CheckedLocations.Count > prevState.CheckedLocations.Count)
+        {
+            await _client.SendLocationChecksAsync(nextState.CheckedLocations.Except(prevState.CheckedLocations), cancellationToken);
+        }
+
+        return nextState;
     }
 
     private async ValueTask OnReceivedItemsAsync(object? sender, ReceivedItemsEventArgs args, CancellationToken cancellationToken)
@@ -327,8 +338,7 @@ public sealed class Game
             return;
         }
 
-        using CancellationTokenSource cts2 = CancellationTokenSource.CreateLinkedTokenSource(_cts.Token, cancellationToken);
-        await _mutex.WaitAsync(cts2.Token);
+        await _mutex.WaitAsync(cancellationToken);
         try
         {
             ulong prevEpoch = _state.Epoch;
@@ -355,17 +365,20 @@ public sealed class Game
         }
 
         ImmutableArray<ItemDefinitionModel> newItems = args.Items[(state.ReceivedItems.Count - args.Index)..];
-        if (newItems.IsEmpty)
+        if (!newItems.IsEmpty)
         {
-            return;
+            state = state with
+            {
+                ReceivedItems = state.ReceivedItems.AddRange(newItems),
+                ActiveAuraEffects = state.ActiveAuraEffects.AddRange(newItems.SelectMany(i => i.AurasGranted.Select(AuraEffect.Parse))),
+            };
         }
-
-        state = state with { ReceivedItems = state.ReceivedItems.AddRange(newItems) };
     }
 
     private TimeSpan NextInterval(State state)
     {
         TimeSpan range = _maxInterval - _minInterval;
-        return _minInterval + (range * Prng.NextDouble(ref _intervalPrngState));
+        TimeSpan baseInterval = _minInterval + (range * Prng.NextDouble(ref _intervalPrngState));
+        return baseInterval * state.IntervalDurationMultiplier;
     }
 }

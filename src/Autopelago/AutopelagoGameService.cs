@@ -1,4 +1,5 @@
 using System.Text;
+
 using Serilog.Context;
 
 namespace Autopelago;
@@ -139,14 +140,20 @@ public sealed class AutopelagoGameService : BackgroundService
                 return client.SaveGameStateAsync(args.CurrentState, cancellationToken);
             }
 
-            game.RunGameLoop(state);
-
             keepAliveEvent.Add(async (sender, args, cancellationToken) =>
             {
                 await Helper.ConfigureAwaitFalse();
                 StatusUpdatePacketModel statusUpdate = new() { Status = ArchipelagoClientStatus.Playing };
                 await conn.SendPacketsAsync([statusUpdate], cancellationToken);
             });
+
+            state = await game.AdvanceFirstAsync(state, cancellationToken);
+            while (!state.IsCompleted)
+            {
+                state = await game.AdvanceOnceAsync(cancellationToken);
+            }
+
+            await client.IWonAsync(cancellationToken);
         });
     }
 }

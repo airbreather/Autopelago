@@ -18,3 +18,6 @@ dotnet_diagnostic.CA1822.severity = none
 
 # Use the LoggerMessage delegates
 dotnet_diagnostic.CA1848.severity = none
+
+# The switch expression does not handle all possible values of its input type (it is not exhaustive).
+dotnet_diagnostic.CS8509.severity = suggestion
