@@ -123,7 +123,7 @@ public sealed class PlayerTests
             state = player.Advance(state);
             Assert.That(state, Is.Not.EqualTo(prev));
 
-            state = state with { ReceivedItems = [.. state.ReceivedItems, .. state.CheckedLocations.Except(prev.CheckedLocations).Select(loc => loc.UnrandomizedItem) ] };
+            state = state with { ReceivedItems = [.. state.ReceivedItems, .. state.CheckedLocations.Except(prev.CheckedLocations).Select(loc => loc.UnrandomizedItem)] };
         }
     }
 
@@ -133,13 +133,34 @@ public sealed class PlayerTests
         ulong seed = EnsureSeedProducesInitialD20Sequence(8626806680, [1, 1, 1, 1, 1, 1, 1, 1]);
         Game.State state = Game.State.Start(seed);
 
-        state = state with { ActiveAuraEffects = [.. Enumerable.Repeat(new LuckyEffect(), effectCount) ] };
+        state = state with { ActiveAuraEffects = [.. Enumerable.Repeat(LuckyEffect.Instance, effectCount)] };
         Player player = new();
 
         state = player.Advance(state);
         state = player.Advance(state);
         state = player.Advance(state);
         Assert.That(state.CheckedLocations, Has.Count.EqualTo(effectCount));
+    }
+
+    [Test]
+    public void UnluckyAuraShouldReduceModifier()
+    {
+        ulong seed = EnsureSeedProducesInitialD20Sequence(2242996, [14, 19, 20, 14, 15]);
+        Game.State state = Game.State.Start(seed);
+
+        state = state with { ActiveAuraEffects = [.. Enumerable.Repeat(UnluckyEffect.Instance, 4)] };
+        Player player = new();
+
+        // normally, a 14 as your first roll should pass, but with Unlucky it's not enough. the 19
+        // also fails because -5 from the aura and -5 from the second attempt. even a natural 20
+        // can't save you from a -15, so this first Advance call should utterly fail.
+        state = player.Advance(state);
+        Assert.That(state.CheckedLocations, Is.Empty);
+
+        // the 14 burns the final Unlucky buff, so following it up with a 15 overcomes the mere -5
+        // from trying a second time on the same Advance call.
+        state = player.Advance(state);
+        Assert.That(state.CheckedLocations, Has.Count.EqualTo(1));
     }
 
     private static ulong EnsureSeedProducesInitialD20Sequence(ulong seed, ReadOnlySpan<int> exactVals)

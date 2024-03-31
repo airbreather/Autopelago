@@ -71,7 +71,7 @@ public sealed class Game
 
         public bool IsCompleted => CurrentLocation == GameDefinitions.Instance.GoalLocation;
 
-        public int DiceModifier => (RatCount / 3) - (LocationCheckAttemptsThisStep * 5);
+        public int DiceModifier => (RatCount / 3) - (LocationCheckAttemptsThisStep * 5) - (ActiveAuraEffects.Any(a => a is UnluckyEffect) ? 5 : 0);
 
         public int RatCount => ReceivedItems.Sum(i => i.RatCount).GetValueOrDefault();
 

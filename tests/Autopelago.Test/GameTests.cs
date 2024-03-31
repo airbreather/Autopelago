@@ -45,7 +45,7 @@ public sealed class GameTests
         Assert.Multiple(() =>
         {
             Assert.That(receivedItemsEventTask.IsCompletedSuccessfully);
-            Assert.That(game.CurrentState?.ActiveAuraEffects, Is.EqualTo(new[] { new LuckyEffect() }));
+            Assert.That(game.CurrentState?.ActiveAuraEffects, Is.EqualTo(new[] { LuckyEffect.Instance }));
         });
     }
 }
