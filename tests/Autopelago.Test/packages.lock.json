@@ -8,15 +8,6 @@
         "resolved": "6.0.1",
         "contentHash": "q/8r0muHlF7TbhMUTBAk43KteZYG2ECV96pbzkToQwgjp3BvbS766svUcO6va+cohWOkigeBWmHs0Vu5vQnESA=="
       },
-      "Microsoft.Extensions.TimeProvider.Testing": {
-        "type": "Direct",
-        "requested": "[8.3.0, )",
-        "resolved": "8.3.0",
-        "contentHash": "t6iLSj9LwVaNA/Em4PS8mAMqg87HVFD6PhBS2gF3f1oouVF+xPLPtGS0dalTeLlulMCB4Dq1xx6U/Zjly5mIgg==",
-        "dependencies": {
-          "Microsoft.Bcl.TimeProvider": "8.0.1"
-        }
-      },
       "Microsoft.NET.Test.Sdk": {
         "type": "Direct",
         "requested": "[17.6.0, )",
@@ -44,11 +35,6 @@
         "requested": "[4.5.0, )",
         "resolved": "4.5.0",
         "contentHash": "s8JpqTe9bI2f49Pfr3dFRfoVSuFQyraTj68c3XXjIS/MRGvvkLnrg6RLqnTjdShX+AdFUCCU/4Xex58AdUfs6A=="
-      },
-      "Microsoft.Bcl.TimeProvider": {
-        "type": "Transitive",
-        "resolved": "8.0.1",
-        "contentHash": "C7kWHJnMRY7EvJev2S8+yJHZ1y7A4ZlLbA4NE+O23BDIAN5mHeqND1m+SKv1ChRS5YlCDW7yAMUe7lttRsJaAA=="
       },
       "Microsoft.CodeCoverage": {
         "type": "Transitive",
