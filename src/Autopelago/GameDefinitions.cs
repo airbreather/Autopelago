@@ -242,6 +242,8 @@ public record ItemDefinitionModel
 
     public int? RatCount { get; init; }
 
+    public int EnergyFactorGranted => AurasGranted.Sum(a => a switch { "energized" => 5, "sluggish" => -5, _ => 0 });
+
     public static ItemDefinitionModel DeserializeFrom(YamlNode node, ArchipelagoItemFlags archipelagoFlags, string? associatedGame = null, int? defaultRatCount = null)
     {
         return node switch

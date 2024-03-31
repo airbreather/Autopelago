@@ -7,16 +7,6 @@ namespace Autopelago;
 [JsonDerivedType(typeof(UnluckyEffect), "unlucky")]
 public abstract record AuraEffect
 {
-    public ulong? Deadline { get; init; }
-
-    public static AuraEffect Parse(string name)
-    {
-        return name switch
-        {
-            "lucky" => LuckyEffect.Instance,
-            "unlucky" => UnluckyEffect.Instance,
-        };
-    }
 }
 
 public sealed record LuckyEffect : AuraEffect

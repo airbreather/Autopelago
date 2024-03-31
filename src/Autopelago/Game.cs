@@ -44,9 +44,11 @@ public sealed class Game
             TargetLocation = copyFrom.TargetLocation;
             ReceivedItems = copyFrom.ReceivedItems;
             CheckedLocations = copyFrom.CheckedLocations;
+            EnergyFactor = copyFrom.EnergyFactor;
             ActiveAuraEffects = copyFrom.ActiveAuraEffects;
-            PrngState = copyFrom.PrngState;
             LocationCheckAttemptsThisStep = copyFrom.LocationCheckAttemptsThisStep;
+            ActionBalanceAfterPreviousStep = copyFrom.ActionBalanceAfterPreviousStep;
+            PrngState = copyFrom.PrngState;
         }
 
         public ulong Epoch { get; private init; }
@@ -61,9 +63,13 @@ public sealed class Game
 
         public required ImmutableList<LocationDefinitionModel> CheckedLocations { get; init; }
 
+        public required int EnergyFactor { get; init; }
+
         public required ImmutableList<AuraEffect> ActiveAuraEffects { get; init; }
 
         public required int LocationCheckAttemptsThisStep { get; init; }
+
+        public required int ActionBalanceAfterPreviousStep { get; init; }
 
         public required Prng.State PrngState { get; init; }
 
@@ -94,8 +100,10 @@ public sealed class Game
                 TargetLocation = GameDefinitions.Instance.StartLocation,
                 ReceivedItems = [],
                 CheckedLocations = [],
+                EnergyFactor = 0,
                 ActiveAuraEffects = [],
                 LocationCheckAttemptsThisStep = 0,
+                ActionBalanceAfterPreviousStep = 0,
                 PrngState = prngState,
             };
         }
@@ -118,8 +126,10 @@ public sealed class Game
                 TargetLocation = TargetLocation.Name,
                 ReceivedItems = [.. ReceivedItems.Select(i => i.Name)],
                 CheckedLocations = [.. CheckedLocations.Select(l => l.Name)],
+                EnergyFactor = EnergyFactor,
                 ActiveAuraEffects = ActiveAuraEffects,
                 LocationCheckAttemptsThisStep = LocationCheckAttemptsThisStep,
+                ActionBalanceAfterPreviousStep = ActionBalanceAfterPreviousStep,
                 PrngState = PrngState,
             };
         }
@@ -134,6 +144,8 @@ public sealed class Game
                 CurrentLocation == other.CurrentLocation &&
                 TargetLocation == other.TargetLocation &&
                 LocationCheckAttemptsThisStep == other.LocationCheckAttemptsThisStep &&
+                ActionBalanceAfterPreviousStep == other.ActionBalanceAfterPreviousStep &&
+                EnergyFactor == other.EnergyFactor &&
                 ReceivedItems.SequenceEqual(other.ReceivedItems) &&
                 CheckedLocations.SequenceEqual(other.CheckedLocations) &&
                 ActiveAuraEffects.SequenceEqual(other.ActiveAuraEffects);
@@ -162,9 +174,13 @@ public sealed class Game
 
             public required ImmutableArray<string> CheckedLocations { get; init; }
 
+            public required int EnergyFactor { get; init; }
+
             public required ImmutableList<AuraEffect> ActiveAuraEffects { get; init; }
 
             public required int LocationCheckAttemptsThisStep { get; init; }
+
+            public required int ActionBalanceAfterPreviousStep { get; init; }
 
             public Prng.State PrngState { get; init; }
 
@@ -178,8 +194,10 @@ public sealed class Game
                     TargetLocation = GameDefinitions.Instance.LocationsByName[TargetLocation],
                     ReceivedItems = [.. ReceivedItems.Select(name => GameDefinitions.Instance.ItemsByName[name])],
                     CheckedLocations = [.. CheckedLocations.Select(name => GameDefinitions.Instance.LocationsByName[name])],
+                    EnergyFactor = EnergyFactor,
                     ActiveAuraEffects = ActiveAuraEffects,
                     LocationCheckAttemptsThisStep = LocationCheckAttemptsThisStep,
+                    ActionBalanceAfterPreviousStep = ActionBalanceAfterPreviousStep,
                     PrngState = PrngState,
                 };
             }
@@ -367,10 +385,39 @@ public sealed class Game
         ImmutableArray<ItemDefinitionModel> newItems = args.Items[(state.ReceivedItems.Count - args.Index)..];
         if (!newItems.IsEmpty)
         {
+            int energyFactorMod = 0;
+            List<AuraEffect> newAuraEffects = [];
+            foreach (ItemDefinitionModel newItem in newItems)
+            {
+                foreach (string aura in newItem.AurasGranted)
+                {
+                    switch (aura)
+                    {
+                        case "lucky":
+                            newAuraEffects.Add(LuckyEffect.Instance);
+                            break;
+
+                        case "unlucky":
+                            newAuraEffects.Add(UnluckyEffect.Instance);
+                            break;
+
+                        case "energized":
+                            // just have it take effect immediately.
+                            energyFactorMod += 5;
+                            break;
+
+                        case "sluggish":
+                            energyFactorMod -= 5;
+                            break;
+                    }
+                }
+            }
+
             state = state with
             {
                 ReceivedItems = state.ReceivedItems.AddRange(newItems),
-                ActiveAuraEffects = state.ActiveAuraEffects.AddRange(newItems.SelectMany(i => i.AurasGranted.Select(AuraEffect.Parse))),
+                EnergyFactor = state.EnergyFactor + energyFactorMod,
+                ActiveAuraEffects = state.ActiveAuraEffects.AddRange(newAuraEffects),
             };
         }
     }

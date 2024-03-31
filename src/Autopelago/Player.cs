@@ -1,6 +1,5 @@
 using System.Collections;
 using System.Collections.Frozen;
-using System.Collections.Immutable;
 using System.Runtime.InteropServices;
 
 namespace Autopelago;
@@ -48,7 +47,8 @@ public sealed class Player
             ++CollectionsMarshal.GetValueRefOrAddDefault(_receivedItemsMap, receivedItem, out _);
         }
 
-        for (int actionsRemainingThisStep = 3; actionsRemainingThisStep > 0 && !state.IsCompleted; --actionsRemainingThisStep)
+        int actionBalance;
+        for (actionBalance = 3 + state.ActionBalanceAfterPreviousStep; actionBalance > 0 && !state.IsCompleted; --actionBalance)
         {
             LocationDefinitionModel bestTargetLocation = BestTargetLocation(state);
             if (state.TargetLocation != bestTargetLocation)
@@ -60,6 +60,19 @@ public sealed class Player
 
             if (state.CurrentLocation != state.TargetLocation)
             {
+                switch (state.EnergyFactor)
+                {
+                    case < 0:
+                        --actionBalance;
+                        state = state with { EnergyFactor = state.EnergyFactor + 1 };
+                        break;
+
+                    case > 0:
+                        ++actionBalance;
+                        state = state with { EnergyFactor = state.EnergyFactor - 1 };
+                        break;
+                }
+
                 state = state with { CurrentLocation = state.CurrentLocation.NextLocationTowards(state.TargetLocation) };
 
                 // movement takes an action
@@ -83,26 +96,27 @@ public sealed class Player
             }
         }
 
-        if (state.LocationCheckAttemptsThisStep > 0)
+        if (actionBalance > 0)
+        {
+            // it's possible to have a negative action counter due to a negative state.EnergyFactor,
+            // and so we smear that move action across two rounds. but otherwise, this is very much
+            // a "use it or lose it" system.
+            actionBalance = 0;
+        }
+
+        if (state.LocationCheckAttemptsThisStep != 0)
         {
             state = state with { LocationCheckAttemptsThisStep = 0 };
         }
 
-        ImmutableList<AuraEffect> tickingAuraEffects = state.ActiveAuraEffects.RemoveAll(a => a.Deadline is null);
-        if (tickingAuraEffects.IsEmpty && state.Epoch == initialEpoch)
+        if (state.ActionBalanceAfterPreviousStep != actionBalance)
         {
-            // no aura effects to tick, and we haven't made any other changes. this was a completely
-            // trivial step.
-            return state;
+            state = state with { ActionBalanceAfterPreviousStep = actionBalance };
         }
 
-        // at least one aura effect needs to be ticked, or else we've made SOME other change, so we
-        // will definitely be incrementing the nontrivial step count.
-        return state with
-        {
-            ActiveAuraEffects = state.ActiveAuraEffects.RemoveAll(a => a.Deadline <= state.TotalNontrivialStepCount),
-            TotalNontrivialStepCount = state.TotalNontrivialStepCount + 1,
-        };
+        return state.Epoch == initialEpoch
+            ? state
+            : state with { TotalNontrivialStepCount = state.TotalNontrivialStepCount + 1 };
     }
 
     private bool LocationIsChecked(LocationKey key) => _checkedLocations[key.RegionKey][key.N];

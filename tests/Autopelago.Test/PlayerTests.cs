@@ -163,6 +163,69 @@ public sealed class PlayerTests
         Assert.That(state.CheckedLocations, Has.Count.EqualTo(1));
     }
 
+    [Test]
+    public void PositiveEnergyFactorShouldGiveFreeMovement()
+    {
+        ulong seed = EnsureSeedProducesInitialD20Sequence(8626806680, [1, 1, 1, 1, 1, 1, 1, 1]);
+        Game.State state = Game.State.Start(seed);
+
+        // with an "energy factor" of 5, you can make up to a total of 6 checks in two rounds before
+        // needing to spend any actions to move, if you are lucky enough.
+        state = state with
+        {
+            EnergyFactor = 5,
+            ActiveAuraEffects = [.. Enumerable.Repeat(LuckyEffect.Instance, 9) ],
+        };
+
+        Player player = new();
+
+        state = player.Advance(state);
+        Assert.That(state.CheckedLocations, Has.Count.EqualTo(3));
+
+        state = player.Advance(state);
+        Assert.That(state.CheckedLocations, Has.Count.EqualTo(6));
+
+        // the energy factor wears off after that, though. in fact, the next round, there's only
+        // enough actions to do "move, check, move".
+        state = player.Advance(state);
+        Assert.That(state.CheckedLocations, Has.Count.EqualTo(7));
+
+        // one more round: "check, move, check"
+        state = player.Advance(state);
+        Assert.That(state.CheckedLocations, Has.Count.EqualTo(9));
+    }
+
+    [Test]
+    public void NegativeEnergyFactorShouldEncumberMovement()
+    {
+        ulong seed = EnsureSeedProducesInitialD20Sequence(13033555434, [20, 20, 1, 20, 20, 20, 20, 1]);
+        Game.State state = Game.State.Start(seed);
+
+        state = state with { EnergyFactor = -3 };
+
+        Player player = new();
+
+        // 3 actions are "check, move, (movement penalty)".
+        state = player.Advance(state);
+        Assert.That(state.CheckedLocations, Has.Count.EqualTo(1));
+
+        // 3 actions are "check, move, (movement penalty)" again.
+        state = player.Advance(state);
+        Assert.That(state.CheckedLocations, Has.Count.EqualTo(2));
+
+        // 3 actions are "fail, check, move".
+        state = player.Advance(state);
+        Assert.That(state.CheckedLocations, Has.Count.EqualTo(3));
+
+        // 3 actions are "(movement penalty), check, move".
+        state = player.Advance(state);
+        Assert.That(state.CheckedLocations, Has.Count.EqualTo(4));
+
+        // 3 actions are "check, move, check".
+        state = player.Advance(state);
+        Assert.That(state.CheckedLocations, Has.Count.EqualTo(6));
+    }
+
     private static ulong EnsureSeedProducesInitialD20Sequence(ulong seed, ReadOnlySpan<int> exactVals)
     {
         int[] actual = [.. Rolls(seed, stackalloc int[exactVals.Length])];
