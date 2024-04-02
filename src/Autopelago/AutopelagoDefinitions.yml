@@ -45,119 +45,119 @@ items:
   # they are in the file that I'm replacing with this, but we really ought to
   # have a way to specify the auras that they grant in this file...
   useful_nonprogression:
-    - 'Refreshing Glass of Lemonade'
-    - 'Bag of Powdered Sugar'
-    - 'Organic Apple Core'
-    - 'An Entire Roast Chicken'
-    - 'Plate of Spaghetti'
-    - 'Freshly Baked Bread'
-    - 'Taco Salad that is Only Tacos'
-    - 'Subscription to the Cheese of the Month Club'
-    - 'Soup with a Hair in it'
-    - 'Can of Spam'
-    - 'Fruit Rollup'
-    - 'Fresh-baked Apple Pie'
-    - 'Dark Blue Ghost'
-    - 'Mundane Pickle'
-    - 'Finest Potion'
-    - 'Extra Crunchy Peanutbutter'
-    - 'Cheesnado'
-    - 'Bowl of Cereal'
-    - 'Cake'
-    - 'Dungeon Bread'
-    - 'Gallon of Diet Soda'
-    - 'Apple wearing Jeans'
-    - 'Macaroni and Cheese'
-    - 'Pint of Ice Cream'
-    - 'Protein Shake'
-    - 'Tray of Lasagna'
-    - 'Best Burgers in Town'
-    - 'Pack of Pickled Peppers'
-    - 'Sword made out of Chocolate'
-    - 'Lovely Bunch of Coconuts'
-    - 'Faux Dalmation-Skin Coat'
-    - 'Bedazzled Cowboy Boots'
-    - 'Fancy Rat-sized Tophat'
-    - 'Tin-Foil Hat'
-    - 'Backwards Cap'
-    - 'Fake Moustache'
-    - 'Pair of 3D Glasses'
-    - 'Comfy Shorts'
-    - 'Jetpack'
-    - 'Plague Doctor''s Mask'
+    - ['Refreshing Glass of Lemonade', []]
+    - ['Bag of Powdered Sugar', []]
+    - ['Organic Apple Core', []]
+    - ['An Entire Roast Chicken', []]
+    - ['Plate of Spaghetti', []]
+    - ['Freshly Baked Bread', []]
+    - ['Taco Salad that is Only Tacos', []]
+    - ['Subscription to the Cheese of the Month Club', []]
+    - ['Soup with a Hair in it', []]
+    - ['Can of Spam', []]
+    - ['Fruit Rollup', []]
+    - ['Fresh-baked Apple Pie', []]
+    - ['Dark Blue Ghost', []]
+    - ['Mundane Pickle', []]
+    - ['Finest Potion', []]
+    - ['Extra Crunchy Peanutbutter', []]
+    - ['Cheesnado', []]
+    - ['Bowl of Cereal', []]
+    - ['Cake', []]
+    - ['Dungeon Bread', []]
+    - ['Gallon of Diet Soda', []]
+    - ['Apple wearing Jeans', []]
+    - ['Macaroni and Cheese', []]
+    - ['Pint of Ice Cream', []]
+    - ['Protein Shake', []]
+    - ['Tray of Lasagna', []]
+    - ['Best Burgers in Town', []]
+    - ['Pack of Pickled Peppers', []]
+    - ['Sword made out of Chocolate', []]
+    - ['Lovely Bunch of Coconuts', []]
+    - ['Faux Dalmation-Skin Coat', []]
+    - ['Bedazzled Cowboy Boots', []]
+    - ['Fancy Rat-sized Tophat', []]
+    - ['Tin-Foil Hat', []]
+    - ['Backwards Cap', []]
+    - ['Fake Moustache', []]
+    - ['Pair of 3D Glasses', []]
+    - ['Comfy Shorts', []]
+    - ['Jetpack', []]
+    - ['Plague Doctor''s Mask', []]
     - ['5th Ace', [lucky]]
-    - 'Get Out of Jail Free Card'
-    - 'Winning Lottery Ticket'
-    - 'Holographic Draw Four Card'
-    - 'Letter from a Secret Admirer'
-    - 'Line-shaped Tetris Block'
-    - 'Inspiring Montage'
+    - ['Get Out of Jail Free Card', []]
+    - ['Winning Lottery Ticket', []]
+    - ['Holographic Draw Four Card', []]
+    - ['Letter from a Secret Admirer', []]
+    - ['Line-shaped Tetris Block', []]
+    - ['Inspiring Montage', []]
     - game_specific:
         'Pokemon Red and Blue':
-          - 'Very Common Candy'
-          - 'Icy Blue Feather'
-          - 'Burning Orange Feather'
-          - 'Charged Yellow Feather'
+          - ['Very Common Candy', []]
+          - ['Icy Blue Feather', []]
+          - ['Burning Orange Feather', []]
+          - ['Charged Yellow Feather', []]
 
         'Ocarina of Time':
-          - 'Silver Skulltula Token'
-          - 'Pickled Cucco Feet'
+          - ['Silver Skulltula Token', []]
+          - ['Pickled Cucco Feet', []]
 
         'Stardew Valley':
-          - 'Prismatic Chard'
-          - 'Cheese Seeds'
+          - ['Prismatic Chard', []]
+          - ['Cheese Seeds', []]
 
   trap:
-    - 'Half of a Worm'
-    - 'Extra-welldone Steak'
-    - 'Your Friendly Neighborhood Tapeworm'
-    - 'Honey Roasted Packing Peanuts'
-    - 'Rat Poison'
-    - 'Poisonous Mushroom'
-    - 'Too Much Eggnog'
-    - 'Peanut Boulder and Jelly Sandwich'
-    - 'Forgotten Moldy Fruitbasket'
-    - 'Pie with a Bird Hiding Inside'
-    - 'Expired Health Potion'
-    - 'Gas Station Sushi'
-    - 'Carbon Monoxide'
-    - 'Circus Flea'
-    - 'Game Bug'
-    - 'Too Many Crabs'
-    - 'Ticket for the Off-broadway Musical Rats'
-    - 'Polybius Arcade Cabinet'
-    - 'An Illusion'
-    - 'Cartoonishly Large Bomb'
-    - 'Hungry Hippopotamus'
-    - 'Malfunctioning Boomerang'
-    - 'Song that Never Ends'
-    - 'Bubble Wrap'
-    - 'Box of Fireworks'
-    - 'Cabin Fever'
-    - 'Self-destruct Button'
-    - 'Train with a Scary Face'
-    - 'Greater White Shark'
-    - 'Rude Internet Comment'
-    - 'Extra Premium Currency best value'
-    - 'Distracting Squirrel'
-    - 'Itchy Iron Wool Sweater'
-    - 'Mail-in Rebate for 11 cents'
-    - 'Spicy Magazine'
-    - 'Wooden Splinters'
-    - 'Box Set of a Canceled TV Show'
-    - 'Burning Phone'
-    - 'One-way Ticket to Ohio'
-    - 'Deceased Pet Rock'
-    - 'Cursed Slab'
+    - ['Half of a Worm', []]
+    - ['Extra-welldone Steak', []]
+    - ['Your Friendly Neighborhood Tapeworm', []]
+    - ['Honey Roasted Packing Peanuts', []]
+    - ['Rat Poison', []]
+    - ['Poisonous Mushroom', []]
+    - ['Too Much Eggnog', []]
+    - ['Peanut Boulder and Jelly Sandwich', []]
+    - ['Forgotten Moldy Fruitbasket', []]
+    - ['Pie with a Bird Hiding Inside', []]
+    - ['Expired Health Potion', []]
+    - ['Gas Station Sushi', []]
+    - ['Carbon Monoxide', []]
+    - ['Circus Flea', []]
+    - ['Game Bug', []]
+    - ['Too Many Crabs', []]
+    - ['Ticket for the Off-broadway Musical Rats', []]
+    - ['Polybius Arcade Cabinet', []]
+    - ['An Illusion', []]
+    - ['Cartoonishly Large Bomb', []]
+    - ['Hungry Hippopotamus', []]
+    - ['Malfunctioning Boomerang', []]
+    - ['Song that Never Ends', []]
+    - ['Bubble Wrap', []]
+    - ['Box of Fireworks', []]
+    - ['Cabin Fever', []]
+    - ['Self-destruct Button', []]
+    - ['Train with a Scary Face', []]
+    - ['Greater White Shark', []]
+    - ['Rude Internet Comment', []]
+    - ['Extra Premium Currency best value', []]
+    - ['Distracting Squirrel', []]
+    - ['Itchy Iron Wool Sweater', []]
+    - ['Mail-in Rebate for 11 cents', []]
+    - ['Spicy Magazine', []]
+    - ['Wooden Splinters', []]
+    - ['Box Set of a Canceled TV Show', []]
+    - ['Burning Phone', []]
+    - ['One-way Ticket to Ohio', []]
+    - ['Deceased Pet Rock', []]
+    - ['Cursed Slab', []]
     - game_specific:
         'Pokemon Red and Blue':
-          - 'Item-Hider'
+          - ['Item-Hider', []]
 
         'Ocarina of Time':
-          - 'Overly-Talkative Fairy in a Bottle'
+          - ['Overly-Talkative Fairy in a Bottle', []]
 
         'Stardew Valley':
-          - 'Rotten Parsnip'
+          - ['Rotten Parsnip', []]
 
   filler:
     - 'Empty Snail Shell'
