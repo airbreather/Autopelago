@@ -49,6 +49,7 @@ public sealed class Game
             EnergyFactor = copyFrom.EnergyFactor;
             StyleFactor = copyFrom.StyleFactor;
             DistractionCounter = copyFrom.DistractionCounter;
+            HasConfidence = copyFrom.HasConfidence;
             LocationCheckAttemptsThisStep = copyFrom.LocationCheckAttemptsThisStep;
             ActionBalanceAfterPreviousStep = copyFrom.ActionBalanceAfterPreviousStep;
             PrngState = copyFrom.PrngState;
@@ -75,6 +76,8 @@ public sealed class Game
         public required int StyleFactor { get; init; }
 
         public required int DistractionCounter { get; init; }
+
+        public required bool HasConfidence { get; init; }
 
         public required int LocationCheckAttemptsThisStep { get; init; }
 
@@ -114,6 +117,7 @@ public sealed class Game
                 EnergyFactor = 0,
                 StyleFactor = 0,
                 DistractionCounter = 0,
+                HasConfidence = false,
                 LocationCheckAttemptsThisStep = 0,
                 ActionBalanceAfterPreviousStep = 0,
                 PrngState = prngState,
@@ -143,6 +147,7 @@ public sealed class Game
                 EnergyFactor = EnergyFactor,
                 StyleFactor = StyleFactor,
                 DistractionCounter = DistractionCounter,
+                HasConfidence = HasConfidence,
                 LocationCheckAttemptsThisStep = LocationCheckAttemptsThisStep,
                 ActionBalanceAfterPreviousStep = ActionBalanceAfterPreviousStep,
                 PrngState = PrngState,
@@ -165,6 +170,7 @@ public sealed class Game
                 EnergyFactor == other.EnergyFactor &&
                 StyleFactor == other.StyleFactor &&
                 DistractionCounter == other.DistractionCounter &&
+                HasConfidence == other.HasConfidence &&
                 ReceivedItems.SequenceEqual(other.ReceivedItems) &&
                 CheckedLocations.SequenceEqual(other.CheckedLocations);
         }
@@ -202,6 +208,8 @@ public sealed class Game
 
             public required int DistractionCounter { get; init; }
 
+            public required bool HasConfidence { get; init; }
+
             public required int LocationCheckAttemptsThisStep { get; init; }
 
             public required int ActionBalanceAfterPreviousStep { get; init; }
@@ -223,6 +231,7 @@ public sealed class Game
                     EnergyFactor = EnergyFactor,
                     StyleFactor = StyleFactor,
                     DistractionCounter = DistractionCounter,
+                    HasConfidence = HasConfidence,
                     LocationCheckAttemptsThisStep = LocationCheckAttemptsThisStep,
                     ActionBalanceAfterPreviousStep = ActionBalanceAfterPreviousStep,
                     PrngState = PrngState,
@@ -419,10 +428,20 @@ public sealed class Game
             int stylishMod = 0;
             foreach (ItemDefinitionModel newItem in newItems)
             {
+                // "confidence" takes place right away: it could apply to another item in the batch.
+                bool addConfidence = false;
+                bool subtractConfidence = false;
                 foreach (string aura in newItem.AurasGranted)
                 {
                     switch (aura)
                     {
+                        case "upset_tummy" when state.HasConfidence:
+                        case "unlucky" when state.HasConfidence:
+                        case "sluggish" when state.HasConfidence:
+                        case "distracted" when state.HasConfidence:
+                            subtractConfidence = true;
+                            break;
+
                         case "well_fed":
                             ++foodMod;
                             break;
@@ -454,7 +473,22 @@ public sealed class Game
                         case "stylish":
                             ++stylishMod;
                             break;
+
+                        case "confident":
+                            addConfidence = true;
+                            break;
                     }
+                }
+
+                // subtract first
+                if (subtractConfidence)
+                {
+                    state = state with { HasConfidence = false };
+                }
+
+                if (addConfidence)
+                {
+                    state = state with { HasConfidence = true };
                 }
             }
 
