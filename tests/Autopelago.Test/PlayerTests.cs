@@ -226,6 +226,100 @@ public sealed class PlayerTests
         Assert.That(state.CheckedLocations, Has.Count.EqualTo(6));
     }
 
+    [Test]
+    public void PositiveFoodFactorShouldGrantOneExtraAction()
+    {
+        ulong seed = EnsureSeedProducesInitialD20Sequence(2449080649, [20, 20, 20, 20, 20, 20, 20, 20]);
+        Game.State state = Game.State.Start(seed);
+
+        state = state with { FoodFactor = 2 };
+
+        Player player = new();
+
+        // 4 actions are "check, move, check, move".
+        state = player.Advance(state);
+        Assert.Multiple(() =>
+        {
+            Assert.That(state.CheckedLocations, Has.Count.EqualTo(2));
+            Assert.That(state.CurrentLocation.Key.N, Is.EqualTo(2));
+        });
+
+        // 4 actions are "check, move, check, move".
+        state = player.Advance(state);
+        Assert.Multiple(() =>
+        {
+            Assert.That(state.CheckedLocations, Has.Count.EqualTo(4));
+            Assert.That(state.CurrentLocation.Key.N, Is.EqualTo(4));
+        });
+
+        // 3 actions are "check, move, check".
+        state = player.Advance(state);
+        Assert.Multiple(() =>
+        {
+            Assert.That(state.CheckedLocations, Has.Count.EqualTo(6));
+            Assert.That(state.CurrentLocation.Key.N, Is.EqualTo(5));
+            Assert.That(state.TargetLocation.Key.N, Is.EqualTo(6));
+        });
+
+        state = state with { FoodFactor = 1 };
+
+        // 4 actions are "move, check, move, check".
+        state = player.Advance(state);
+        Assert.Multiple(() =>
+        {
+            Assert.That(state.CheckedLocations, Has.Count.EqualTo(8));
+            Assert.That(state.CurrentLocation.Key.N, Is.EqualTo(7));
+            Assert.That(state.TargetLocation.Key.N, Is.EqualTo(8));
+        });
+    }
+
+    [Test]
+    public void NegativeFoodFactorShouldSubtractOneAction()
+    {
+        ulong seed = EnsureSeedProducesInitialD20Sequence(2449080649, [20, 20, 20, 20, 20, 20, 20, 20]);
+        Game.State state = Game.State.Start(seed);
+
+        state = state with { FoodFactor = -2 };
+
+        Player player = new();
+
+        // 2 actions are "check, move".
+        state = player.Advance(state);
+        Assert.Multiple(() =>
+        {
+            Assert.That(state.CheckedLocations, Has.Count.EqualTo(1));
+            Assert.That(state.CurrentLocation.Key.N, Is.EqualTo(1));
+        });
+
+        // 2 actions are "check, move".
+        state = player.Advance(state);
+        Assert.Multiple(() =>
+        {
+            Assert.That(state.CheckedLocations, Has.Count.EqualTo(2));
+            Assert.That(state.CurrentLocation.Key.N, Is.EqualTo(2));
+        });
+
+        // 3 actions are "check, move, check".
+        state = player.Advance(state);
+        Assert.Multiple(() =>
+        {
+            Assert.That(state.CheckedLocations, Has.Count.EqualTo(4));
+            Assert.That(state.CurrentLocation.Key.N, Is.EqualTo(3));
+            Assert.That(state.TargetLocation.Key.N, Is.EqualTo(4));
+        });
+
+        state = state with { FoodFactor = -1 };
+
+        // 2 actions are "move, check".
+        state = player.Advance(state);
+        Assert.Multiple(() =>
+        {
+            Assert.That(state.CheckedLocations, Has.Count.EqualTo(5));
+            Assert.That(state.CurrentLocation.Key.N, Is.EqualTo(4));
+            Assert.That(state.TargetLocation.Key.N, Is.EqualTo(5));
+        });
+    }
+
     private static ulong EnsureSeedProducesInitialD20Sequence(ulong seed, ReadOnlySpan<int> exactVals)
     {
         int[] actual = [.. Rolls(seed, stackalloc int[exactVals.Length])];
