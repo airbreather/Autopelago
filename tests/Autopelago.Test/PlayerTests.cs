@@ -133,7 +133,7 @@ public sealed class PlayerTests
         ulong seed = EnsureSeedProducesInitialD20Sequence(8626806680, [1, 1, 1, 1, 1, 1, 1, 1]);
         Game.State state = Game.State.Start(seed);
 
-        state = state with { ActiveAuraEffects = [.. Enumerable.Repeat(LuckyEffect.Instance, effectCount)] };
+        state = state with { LuckFactor = effectCount };
         Player player = new();
 
         state = player.Advance(state);
@@ -148,7 +148,7 @@ public sealed class PlayerTests
         ulong seed = EnsureSeedProducesInitialD20Sequence(2242996, [14, 19, 20, 14, 15]);
         Game.State state = Game.State.Start(seed);
 
-        state = state with { ActiveAuraEffects = [.. Enumerable.Repeat(UnluckyEffect.Instance, 4)] };
+        state = state with { LuckFactor = -4 };
         Player player = new();
 
         // normally, a 14 as your first roll should pass, but with Unlucky it's not enough. the 19
@@ -174,7 +174,7 @@ public sealed class PlayerTests
         state = state with
         {
             EnergyFactor = 5,
-            ActiveAuraEffects = [.. Enumerable.Repeat(LuckyEffect.Instance, 9) ],
+            LuckFactor = 9,
         };
 
         Player player = new();

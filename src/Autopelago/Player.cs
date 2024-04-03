@@ -47,9 +47,24 @@ public sealed class Player
             ++CollectionsMarshal.GetValueRefOrAddDefault(_receivedItemsMap, receivedItem, out _);
         }
 
-        int actionBalance;
-        for (actionBalance = 3 + state.ActionBalanceAfterPreviousStep; actionBalance > 0 && !state.IsCompleted; --actionBalance)
+        int actionBalance = 3 + state.ActionBalanceAfterPreviousStep;
+        switch (state.FoodFactor)
         {
+            case < 0:
+                --actionBalance;
+                state = state with { FoodFactor = state.FoodFactor + 1 };
+                break;
+
+            case > 0:
+                ++actionBalance;
+                state = state with { FoodFactor = state.FoodFactor - 1 };
+                break;
+        }
+
+        while (actionBalance > 0 && !state.IsCompleted)
+        {
+            --actionBalance;
+
             LocationDefinitionModel bestTargetLocation = BestTargetLocation(state);
             if (state.TargetLocation != bestTargetLocation)
             {

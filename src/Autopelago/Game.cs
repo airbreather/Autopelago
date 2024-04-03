@@ -44,8 +44,9 @@ public sealed class Game
             TargetLocation = copyFrom.TargetLocation;
             ReceivedItems = copyFrom.ReceivedItems;
             CheckedLocations = copyFrom.CheckedLocations;
+            FoodFactor = copyFrom.FoodFactor;
+            LuckFactor = copyFrom.LuckFactor;
             EnergyFactor = copyFrom.EnergyFactor;
-            ActiveAuraEffects = copyFrom.ActiveAuraEffects;
             LocationCheckAttemptsThisStep = copyFrom.LocationCheckAttemptsThisStep;
             ActionBalanceAfterPreviousStep = copyFrom.ActionBalanceAfterPreviousStep;
             PrngState = copyFrom.PrngState;
@@ -63,9 +64,11 @@ public sealed class Game
 
         public required ImmutableList<LocationDefinitionModel> CheckedLocations { get; init; }
 
-        public required int EnergyFactor { get; init; }
+        public required int FoodFactor { get; init; }
 
-        public required ImmutableList<AuraEffect> ActiveAuraEffects { get; init; }
+        public required int LuckFactor { get; init; }
+
+        public required int EnergyFactor { get; init; }
 
         public required int LocationCheckAttemptsThisStep { get; init; }
 
@@ -77,7 +80,7 @@ public sealed class Game
 
         public bool IsCompleted => CurrentLocation == GameDefinitions.Instance.GoalLocation;
 
-        public int DiceModifier => (RatCount / 3) - (LocationCheckAttemptsThisStep * 5) - (ActiveAuraEffects.Any(a => a is UnluckyEffect) ? 5 : 0);
+        public int DiceModifier => (RatCount / 3) - (LocationCheckAttemptsThisStep * 5);
 
         public int RatCount => ReceivedItems.Sum(i => i.RatCount).GetValueOrDefault();
 
@@ -100,8 +103,9 @@ public sealed class Game
                 TargetLocation = GameDefinitions.Instance.StartLocation,
                 ReceivedItems = [],
                 CheckedLocations = [],
+                FoodFactor = 0,
+                LuckFactor = 0,
                 EnergyFactor = 0,
-                ActiveAuraEffects = [],
                 LocationCheckAttemptsThisStep = 0,
                 ActionBalanceAfterPreviousStep = 0,
                 PrngState = prngState,
@@ -126,8 +130,9 @@ public sealed class Game
                 TargetLocation = TargetLocation.Name,
                 ReceivedItems = [.. ReceivedItems.Select(i => i.Name)],
                 CheckedLocations = [.. CheckedLocations.Select(l => l.Name)],
+                FoodFactor = FoodFactor,
+                LuckFactor = LuckFactor,
                 EnergyFactor = EnergyFactor,
-                ActiveAuraEffects = ActiveAuraEffects,
                 LocationCheckAttemptsThisStep = LocationCheckAttemptsThisStep,
                 ActionBalanceAfterPreviousStep = ActionBalanceAfterPreviousStep,
                 PrngState = PrngState,
@@ -145,10 +150,11 @@ public sealed class Game
                 TargetLocation == other.TargetLocation &&
                 LocationCheckAttemptsThisStep == other.LocationCheckAttemptsThisStep &&
                 ActionBalanceAfterPreviousStep == other.ActionBalanceAfterPreviousStep &&
+                FoodFactor == other.FoodFactor &&
+                LuckFactor == other.LuckFactor &&
                 EnergyFactor == other.EnergyFactor &&
                 ReceivedItems.SequenceEqual(other.ReceivedItems) &&
-                CheckedLocations.SequenceEqual(other.CheckedLocations) &&
-                ActiveAuraEffects.SequenceEqual(other.ActiveAuraEffects);
+                CheckedLocations.SequenceEqual(other.CheckedLocations);
         }
 
         public override int GetHashCode() => Epoch.GetHashCode();
@@ -174,9 +180,11 @@ public sealed class Game
 
             public required ImmutableArray<string> CheckedLocations { get; init; }
 
-            public required int EnergyFactor { get; init; }
+            public required int FoodFactor { get; init; }
 
-            public required ImmutableList<AuraEffect> ActiveAuraEffects { get; init; }
+            public required int LuckFactor { get; init; }
+
+            public required int EnergyFactor { get; init; }
 
             public required int LocationCheckAttemptsThisStep { get; init; }
 
@@ -194,8 +202,9 @@ public sealed class Game
                     TargetLocation = GameDefinitions.Instance.LocationsByName[TargetLocation],
                     ReceivedItems = [.. ReceivedItems.Select(name => GameDefinitions.Instance.ItemsByName[name])],
                     CheckedLocations = [.. CheckedLocations.Select(name => GameDefinitions.Instance.LocationsByName[name])],
+                    FoodFactor = FoodFactor,
+                    LuckFactor = LuckFactor,
                     EnergyFactor = EnergyFactor,
-                    ActiveAuraEffects = ActiveAuraEffects,
                     LocationCheckAttemptsThisStep = LocationCheckAttemptsThisStep,
                     ActionBalanceAfterPreviousStep = ActionBalanceAfterPreviousStep,
                     PrngState = PrngState,
@@ -385,29 +394,47 @@ public sealed class Game
         ImmutableArray<ItemDefinitionModel> newItems = args.Items[(state.ReceivedItems.Count - args.Index)..];
         if (!newItems.IsEmpty)
         {
+            int foodMod = 0;
             int energyFactorMod = 0;
-            List<AuraEffect> newAuraEffects = [];
+            int luckFactorMod = 0;
+            int distractedMod = 0;
+            int stylishMod = 0;
             foreach (ItemDefinitionModel newItem in newItems)
             {
                 foreach (string aura in newItem.AurasGranted)
                 {
                     switch (aura)
                     {
+                        case "well_fed":
+                            ++foodMod;
+                            break;
+
+                        case "upset_tummy":
+                            --foodMod;
+                            break;
+
                         case "lucky":
-                            newAuraEffects.Add(LuckyEffect.Instance);
+                            ++luckFactorMod;
                             break;
 
                         case "unlucky":
-                            newAuraEffects.Add(UnluckyEffect.Instance);
+                            --luckFactorMod;
                             break;
 
                         case "energized":
-                            // just have it take effect immediately.
-                            energyFactorMod += 5;
+                            ++energyFactorMod;
                             break;
 
                         case "sluggish":
-                            energyFactorMod -= 5;
+                            --energyFactorMod;
+                            break;
+
+                        case "distracted":
+                            ++distractedMod;
+                            break;
+
+                        case "stylish":
+                            ++stylishMod;
                             break;
                     }
                 }
@@ -416,8 +443,9 @@ public sealed class Game
             state = state with
             {
                 ReceivedItems = state.ReceivedItems.AddRange(newItems),
-                EnergyFactor = state.EnergyFactor + energyFactorMod,
-                ActiveAuraEffects = state.ActiveAuraEffects.AddRange(newAuraEffects),
+                FoodFactor = state.FoodFactor + (foodMod * 5),
+                EnergyFactor = state.EnergyFactor + (energyFactorMod * 5),
+                LuckFactor = state.LuckFactor + luckFactorMod,
             };
         }
     }
