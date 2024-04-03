@@ -352,6 +352,26 @@ public sealed class PlayerTests
         });
     }
 
+    [Test]
+    public void StyleFactorShouldImproveModifier()
+    {
+        ulong seed = EnsureSeedProducesInitialD20Sequence(80387, [5, 10]);
+        Game.State state = Game.State.Start(seed);
+
+        state = state with { StyleFactor = 2 };
+
+        Player player = new();
+
+        // 3 actions are "check, move, check".
+        state = player.Advance(state);
+        Assert.Multiple(() =>
+        {
+            Assert.That(state.CheckedLocations, Has.Count.EqualTo(2));
+            Assert.That(state.CurrentLocation.Key.N, Is.EqualTo(1));
+            Assert.That(state.TargetLocation.Key.N, Is.EqualTo(2));
+        });
+    }
+
     private static ulong EnsureSeedProducesInitialD20Sequence(ulong seed, ReadOnlySpan<int> exactVals)
     {
         int[] actual = [.. Rolls(seed, stackalloc int[exactVals.Length])];

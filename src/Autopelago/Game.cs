@@ -47,6 +47,7 @@ public sealed class Game
             FoodFactor = copyFrom.FoodFactor;
             LuckFactor = copyFrom.LuckFactor;
             EnergyFactor = copyFrom.EnergyFactor;
+            StyleFactor = copyFrom.StyleFactor;
             DistractionCounter = copyFrom.DistractionCounter;
             LocationCheckAttemptsThisStep = copyFrom.LocationCheckAttemptsThisStep;
             ActionBalanceAfterPreviousStep = copyFrom.ActionBalanceAfterPreviousStep;
@@ -70,6 +71,8 @@ public sealed class Game
         public required int LuckFactor { get; init; }
 
         public required int EnergyFactor { get; init; }
+
+        public required int StyleFactor { get; init; }
 
         public required int DistractionCounter { get; init; }
 
@@ -109,6 +112,7 @@ public sealed class Game
                 FoodFactor = 0,
                 LuckFactor = 0,
                 EnergyFactor = 0,
+                StyleFactor = 0,
                 DistractionCounter = 0,
                 LocationCheckAttemptsThisStep = 0,
                 ActionBalanceAfterPreviousStep = 0,
@@ -137,6 +141,7 @@ public sealed class Game
                 FoodFactor = FoodFactor,
                 LuckFactor = LuckFactor,
                 EnergyFactor = EnergyFactor,
+                StyleFactor = StyleFactor,
                 DistractionCounter = DistractionCounter,
                 LocationCheckAttemptsThisStep = LocationCheckAttemptsThisStep,
                 ActionBalanceAfterPreviousStep = ActionBalanceAfterPreviousStep,
@@ -158,6 +163,7 @@ public sealed class Game
                 FoodFactor == other.FoodFactor &&
                 LuckFactor == other.LuckFactor &&
                 EnergyFactor == other.EnergyFactor &&
+                StyleFactor == other.StyleFactor &&
                 DistractionCounter == other.DistractionCounter &&
                 ReceivedItems.SequenceEqual(other.ReceivedItems) &&
                 CheckedLocations.SequenceEqual(other.CheckedLocations);
@@ -192,6 +198,8 @@ public sealed class Game
 
             public required int EnergyFactor { get; init; }
 
+            public required int StyleFactor { get; init; }
+
             public required int DistractionCounter { get; init; }
 
             public required int LocationCheckAttemptsThisStep { get; init; }
@@ -213,6 +221,7 @@ public sealed class Game
                     FoodFactor = FoodFactor,
                     LuckFactor = LuckFactor,
                     EnergyFactor = EnergyFactor,
+                    StyleFactor = StyleFactor,
                     DistractionCounter = DistractionCounter,
                     LocationCheckAttemptsThisStep = LocationCheckAttemptsThisStep,
                     ActionBalanceAfterPreviousStep = ActionBalanceAfterPreviousStep,
@@ -455,6 +464,8 @@ public sealed class Game
                 FoodFactor = state.FoodFactor + (foodMod * 5),
                 EnergyFactor = state.EnergyFactor + (energyFactorMod * 5),
                 LuckFactor = state.LuckFactor + luckFactorMod,
+                StyleFactor = state.StyleFactor + (stylishMod * 2),
+                DistractionCounter = state.DistractionCounter + distractedMod,
             };
         }
     }

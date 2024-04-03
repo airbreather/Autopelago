@@ -717,6 +717,12 @@ public sealed record AbilityCheckRequirement : GameRequirement
                 return true;
         }
 
+        if (state.StyleFactor > 0)
+        {
+            extraDiceModifier += 5;
+            state = state with { StyleFactor = state.StyleFactor - 1 };
+        }
+
         return Game.State.NextD20(ref state) + state.DiceModifier + extraDiceModifier >= DifficultyClass;
     }
 }
