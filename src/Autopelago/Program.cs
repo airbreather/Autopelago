@@ -71,24 +71,18 @@ app.MapHub<GameStateHub>("/gameStateHub", options =>
 });
 
 using CancellationTokenSource cts = new();
-ExceptionDispatchInfo? thrownException = null;
 SyncOverAsync.BackgroundException += (sender, args) =>
 {
-    thrownException = args;
+    Log.Fatal(args.SourceException, "An unexpected error occurred.");
     cts.Cancel();
 };
 
 try
 {
     await app.RunAsync(cts.Token);
-    thrownException?.Throw();
 }
 catch (OperationCanceledException)
 {
-}
-catch (Exception ex)
-{
-    Log.Fatal(ex, "Application terminated unexpectedly.");
 }
 finally
 {
