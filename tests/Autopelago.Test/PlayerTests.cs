@@ -320,6 +320,38 @@ public sealed class PlayerTests
         });
     }
 
+    [Test]
+    public void DistractionCounterShouldWasteEntireRound()
+    {
+        ulong seed = EnsureSeedProducesInitialD20Sequence(2449080649, [20, 20, 20, 20, 20, 20, 20, 20]);
+        Game.State state = Game.State.Start(seed);
+
+        state = state with
+        {
+            DistractionCounter = 2,
+
+            // distraction should also burn through your food factor.
+            FoodFactor = 2,
+        };
+
+        Player player = new();
+
+        // 0 actions
+        state = player.Advance(state);
+
+        // 0 actions
+        state = player.Advance(state);
+
+        // 3 actions are "check, move, check"
+        state = player.Advance(state);
+        Assert.Multiple(() =>
+        {
+            Assert.That(state.CheckedLocations, Has.Count.EqualTo(2));
+            Assert.That(state.CurrentLocation.Key.N, Is.EqualTo(1));
+            Assert.That(state.TargetLocation.Key.N, Is.EqualTo(2));
+        });
+    }
+
     private static ulong EnsureSeedProducesInitialD20Sequence(ulong seed, ReadOnlySpan<int> exactVals)
     {
         int[] actual = [.. Rolls(seed, stackalloc int[exactVals.Length])];

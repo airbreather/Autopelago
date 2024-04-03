@@ -61,6 +61,12 @@ public sealed class Player
                 break;
         }
 
+        if (state.DistractionCounter > 0)
+        {
+            actionBalance = 0;
+            state = state with { DistractionCounter = state.DistractionCounter - 1 };
+        }
+
         while (actionBalance > 0 && !state.IsCompleted)
         {
             --actionBalance;
