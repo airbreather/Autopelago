@@ -1,8 +1,11 @@
 using System.Collections.ObjectModel;
 using System.Reactive;
+using System.Reactive.Linq;
 
 using Avalonia.Platform.Storage;
 using Avalonia.Threading;
+
+using DynamicData;
 
 using ReactiveUI;
 
@@ -11,14 +14,26 @@ using YamlDotNet.Serialization.NamingConventions;
 
 namespace Autopelago.UI;
 
-public sealed class MainWindowViewModel : ViewModelBase
+public sealed class MainWindowViewModel : ViewModelBase, IDisposable
 {
+    private readonly SourceList<GameStateViewModel> _games = new();
+
+    private readonly IDisposable _gamesSubscription;
+
+    private bool _disposed;
+
     public MainWindowViewModel()
     {
         OpenSettingsCommand = ReactiveCommand.CreateFromTask(OpenSettingsAsync);
+
+        _gamesSubscription = _games.Connect()
+            .ObserveOn(RxApp.MainThreadScheduler)
+            .Bind(out ReadOnlyObservableCollection<GameStateViewModel> gamesReadOnly)
+            .Subscribe();
+        Games = gamesReadOnly;
     }
 
-    public ObservableCollection<GameStateViewModel> Games { get; } = [];
+    public ReadOnlyObservableCollection<GameStateViewModel> Games { get; }
 
     private GameStateViewModel? _currentGame;
     public GameStateViewModel? CurrentGame
@@ -28,6 +43,18 @@ public sealed class MainWindowViewModel : ViewModelBase
     }
 
     public ReactiveCommand<Unit, Unit> OpenSettingsCommand { get; }
+
+    public void Dispose()
+    {
+        if (_disposed)
+        {
+            return;
+        }
+
+        _gamesSubscription.Dispose();
+        _games.Dispose();
+        _disposed = true;
+    }
 
     private async Task OpenSettingsAsync()
     {
@@ -63,13 +90,18 @@ public sealed class MainWindowViewModel : ViewModelBase
                 .Build()
                 .Deserialize<AutopelagoSettingsModel>(settingsYaml);
 
-            Games.Clear();
             CurrentGame = null;
-            foreach (AutopelagoPlayerSettingsModel slot in settings.Slots)
+            GameStateViewModel? newCurrentGame = null;
+            _games.Edit(games =>
             {
-                Games.Add(new GameStateViewModel(slot.Name));
-                CurrentGame ??= Games[^1];
-            }
+                games.Clear();
+                foreach (AutopelagoPlayerSettingsModel slot in settings.Slots)
+                {
+                    games.Add(new GameStateViewModel(slot.Name));
+                    newCurrentGame ??= games[^1];
+                }
+            });
+            CurrentGame = newCurrentGame;
         });
     }
 }
