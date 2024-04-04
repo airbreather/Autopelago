@@ -1,90 +1,27 @@
-using System.Runtime.ExceptionServices;
+using Autopelago.UI;
 
-using Autopelago;
+using Avalonia;
+using Avalonia.ReactiveUI;
+using Avalonia.Svg;
 
-using Microsoft.AspNetCore.ResponseCompression;
-
-using Serilog;
-using Serilog.Events;
-
-using YamlDotNet.Serialization;
-using YamlDotNet.Serialization.NamingConventions;
-
-await Helper.ConfigureAwaitFalse();
-
-WebApplicationBuilder builder = WebApplication.CreateBuilder(args);
-
-builder.Host.UseSerilog((ctx, services, cfg) =>
+internal static class Program
 {
-    cfg
-        .MinimumLevel.Override("Microsoft.AspNetCore", LogEventLevel.Warning)
-        .Filter.ByExcluding(evt => evt.Exception is OperationCanceledException)
-        .Enrich.FromLogContext()
-        .WriteTo.Console();
-});
-
-builder.Services.AddSingleton(sp =>
-{
-    IHostApplicationLifetime lifetime = sp.GetRequiredService<IHostApplicationLifetime>();
-
-    string path = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), "game-config.yaml");
-    string settingsYaml = File.ReadAllTextAsync(path, lifetime.ApplicationStopping)
-        .GetAwaiter()
-        .GetResult();
-
-    return new DeserializerBuilder()
-        .WithNamingConvention(CamelCaseNamingConvention.Instance)
-        .Build()
-        .Deserialize<AutopelagoSettingsModel>(settingsYaml);
-});
-
-builder.Services.AddSignalR()
-    .AddJsonProtocol(options =>
+    [STAThread]
+    private static int Main(string[] args)
     {
-        options.PayloadSerializerOptions.TypeInfoResolver = SignalRSerializerContext.Default;
-    });
+        return BuildAvaloniaApp()
+            .StartWithClassicDesktopLifetime(args);
+    }
 
-builder.Services.AddSingleton(TimeProvider.System);
-builder.Services.AddSingleton<SlotGameLookup>();
-
-builder.Services.AddHostedService<AutopelagoGameService>();
-
-builder.Services.AddControllers();
-
-builder.Services.AddResponseCompression(options =>
-{
-    options.EnableForHttps = true;
-    options.MimeTypes = ResponseCompressionDefaults.MimeTypes
-        .Append("application/x-font-ttf");
-});
-
-WebApplication app = builder.Build();
-
-app.UseSerilogRequestLogging();
-
-app.UseResponseCompression();
-
-app.UseFileServer();
-app.MapHub<GameStateHub>("/gameStateHub", options =>
-{
-    options.AllowStatefulReconnects = true;
-});
-
-using CancellationTokenSource cts = new();
-SyncOverAsync.BackgroundException += (sender, args) =>
-{
-    Log.Fatal(args.SourceException, "An unexpected error occurred.");
-    cts.Cancel();
-};
-
-try
-{
-    await app.RunAsync(cts.Token);
-}
-catch (OperationCanceledException)
-{
-}
-finally
-{
-    await Log.CloseAndFlushAsync();
+    // Avalonia configuration, don't remove; also used by visual designer.
+    public static AppBuilder BuildAvaloniaApp()
+    {
+        GC.KeepAlive(typeof(SvgImageExtension).Assembly);
+        GC.KeepAlive(typeof(Avalonia.Svg.Svg).Assembly);
+        return AppBuilder.Configure<App>()
+            .UsePlatformDetect()
+            .UseReactiveUI()
+            .WithInterFont()
+            .LogToTrace();
+    }
 }

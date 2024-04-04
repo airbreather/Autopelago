@@ -1,0 +1,27 @@
+using Avalonia;
+using Avalonia.Controls.ApplicationLifetimes;
+using Avalonia.Markup.Xaml;
+
+namespace Autopelago.UI;
+
+public partial class App : Application
+{
+    public override void Initialize()
+    {
+        AvaloniaXamlLoader.Load(this);
+    }
+
+    public static new App? Current => (App?)Application.Current;
+
+    public MainWindow? MainWindow { get; private set; }
+
+    public override void OnFrameworkInitializationCompleted()
+    {
+        if (ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop)
+        {
+            desktop.MainWindow = MainWindow = new MainWindow { DataContext = new MainWindowViewModel() };
+        }
+
+        base.OnFrameworkInitializationCompleted();
+    }
+}

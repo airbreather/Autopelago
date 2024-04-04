@@ -21,21 +21,6 @@
             "name": "dotnet attach",
             "type": "coreclr",
             "request": "attach"
-        },
-        {
-            "name": "parcel",
-            "type": "firefox",
-            "request": "launch",
-            "reAttach": true,
-            "url": "http://localhost:5159",
-            "webRoot": "${workspaceFolder}/src/Autopelago/ClientApp"
-        }
-    ],
-    "compounds": [
-        {
-            "name": "dotnet/parcel",
-            "configurations": ["dotnet launch", "parcel"],
-            "stopAll": true
         }
     ]
 }

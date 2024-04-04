@@ -4,7 +4,7 @@ using Serilog.Context;
 
 namespace Autopelago;
 
-public sealed class AutopelagoGameService : BackgroundService
+public sealed class AutopelagoGameService
 {
     private readonly AutopelagoSettingsModel _settings;
 
@@ -22,7 +22,7 @@ public sealed class AutopelagoGameService : BackgroundService
         _logger = logger;
     }
 
-    protected override async Task ExecuteAsync(CancellationToken stoppingToken)
+    private async Task ExecuteAsync(CancellationToken stoppingToken)
     {
         await Helper.ConfigureAwaitFalse();
 

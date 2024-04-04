@@ -1,5 +1,6 @@
 {
     "recommendations": [
+        "avaloniateam.vscode-avalonia",
         "ms-dotnettools.csharp",
         "EditorConfig.EditorConfig",
         "Stephanvs.dot",
