@@ -1,6 +1,6 @@
 using ReactiveUI;
 
-namespace Autopelago.UI;
+namespace Autopelago.ViewModels;
 
 public abstract class ViewModelBase : ReactiveObject
 {

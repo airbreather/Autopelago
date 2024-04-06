@@ -1,5 +1,3 @@
-using Autopelago.UI;
-
 using Avalonia;
 using Avalonia.ReactiveUI;
 using Avalonia.Svg;
@@ -22,8 +20,8 @@ internal static class Program
         GC.KeepAlive(typeof(Avalonia.Svg.Svg).Assembly);
         return AppBuilder.Configure<App>()
             .UsePlatformDetect()
-            .UseReactiveUI()
             .WithInterFont()
-            .LogToTrace();
+            .LogToTrace()
+            .UseReactiveUI();
     }
 }

@@ -1,0 +1,36 @@
+<reactiveUi:ReactiveUserControl
+    xmlns="https://github.com/avaloniaui"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+    xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+    xmlns:viewModels="clr-namespace:Autopelago.ViewModels"
+    xmlns:reactiveUi="http://reactiveui.net"
+    mc:Ignorable="d" d:DesignWidth="800" d:DesignHeight="450"
+    x:Class="Autopelago.Views.GameStateView"
+    x:DataType="viewModels:GameStateViewModel"
+    x:TypeArguments="viewModels:GameStateViewModel">
+    
+    <Control.Styles>
+        <Style Selector="Border.ap-self">
+            <Setter Property="BorderBrush" Value="{DynamicResource MaterialDividerBrush}" />
+            <Setter Property="BorderThickness" Value="2" />
+        </Style>
+    </Control.Styles>
+
+    <Design.DataContext>
+        <viewModels:GameStateViewModel />
+    </Design.DataContext>
+    
+    <Grid ColumnDefinitions="*,4*">
+        <Border Margin="5" Grid.Column="0" Classes="ap-self">
+            <Grid RowDefinitions="Auto,*,Auto">
+            </Grid>
+        </Border>
+        <Border Margin="5" Grid.Column="1" Classes="ap-self">
+            <ScrollViewer HorizontalScrollBarVisibility="Disabled" VerticalScrollBarVisibility="Auto">
+                <Svg Path="/Assets/Images/Map.svg" />
+            </ScrollViewer>
+        </Border>
+    </Grid>
+    
+</reactiveUi:ReactiveUserControl>

@@ -163,14 +163,6 @@
           "Svg.Model": "1.0.0.17"
         }
       },
-      "Avalonia.Themes.Fluent": {
-        "type": "Transitive",
-        "resolved": "11.0.10",
-        "contentHash": "V7xu7ddtUFwYHb+u3S4he2/PGGUHkeTI66j3PyGTZi0Uz8Ma4prb/Lgz7Qd/vpO4lukxw1G4DmxB1tClNS9qUw==",
-        "dependencies": {
-          "Avalonia": "11.0.10"
-        }
-      },
       "Avalonia.Themes.Simple": {
         "type": "Transitive",
         "resolved": "11.0.10",
@@ -243,6 +235,28 @@
         "type": "Transitive",
         "resolved": "7.3.0",
         "contentHash": "ulEewLMk+dNmbmpy15ny/YusI6JNUWqchF080TV2jgfFBXPXjWm767JleDi/S7hp8eDeEN6GYIIxpvNr5fLvIw=="
+      },
+      "Material.Avalonia": {
+        "type": "Transitive",
+        "resolved": "3.5.0",
+        "contentHash": "CZEUp4KeYyLMOp4trZEEk8hg2m5YUteabHVsyvVOqZTa/nFI3PfC/sQghskGAAPSjKShqWgIuaRweKiTrO9ILQ==",
+        "dependencies": {
+          "Avalonia": "11.0.9"
+        }
+      },
+      "Material.Icons": {
+        "type": "Transitive",
+        "resolved": "2.1.0",
+        "contentHash": "oMMrh8mKnZwOKZJEI3hc4Y18+/FQDfXSMv21xbX4kq05gcvcD1M2zxrjgNQvygHhP4DTcFmDidqUJRmuPyV9Fg=="
+      },
+      "Material.Icons.Avalonia": {
+        "type": "Transitive",
+        "resolved": "2.1.0",
+        "contentHash": "IEuKf8mrByuxvjsM9LPWs+Ic0JPViDwZS7q1FzpHpu3QCEKOIriDiMNI6GaAtUA3uzz9OfAbd5vSjTi6SVbJrQ==",
+        "dependencies": {
+          "Avalonia": "11.0.0-rc1.1",
+          "Material.Icons": "2.1.0"
+        }
       },
       "MicroCom.Runtime": {
         "type": "Transitive",
@@ -787,7 +801,8 @@
           "Avalonia.Fonts.Inter": "[11.0.10, )",
           "Avalonia.ReactiveUI": "[11.0.10, )",
           "Avalonia.Svg": "[11.0.0.17, )",
-          "Avalonia.Themes.Fluent": "[11.0.10, )",
+          "Material.Avalonia": "[3.5.0, )",
+          "Material.Icons.Avalonia": "[2.1.0, )",
           "Serilog": "[3.1.1, )",
           "Serilog.Sinks.Console": "[5.0.1, )",
           "YamlDotNet": "[15.1.2, )"

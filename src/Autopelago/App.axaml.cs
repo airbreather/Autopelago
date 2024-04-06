@@ -1,8 +1,11 @@
+using Autopelago.ViewModels;
+using Autopelago.Views;
+
 using Avalonia;
 using Avalonia.Controls.ApplicationLifetimes;
 using Avalonia.Markup.Xaml;
 
-namespace Autopelago.UI;
+namespace Autopelago;
 
 public sealed partial class App : Application
 {
@@ -13,7 +16,7 @@ public sealed partial class App : Application
 
     public static new App? Current => (App?)Application.Current;
 
-    public MainWindow? MainWindow { get; private set; }
+    public MainWindowView? MainWindow { get; private set; }
 
     public override void OnFrameworkInitializationCompleted()
     {

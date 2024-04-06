@@ -71,13 +71,23 @@
           "Svg.Model": "1.0.0.17"
         }
       },
-      "Avalonia.Themes.Fluent": {
+      "Material.Avalonia": {
         "type": "Direct",
-        "requested": "[11.0.10, )",
-        "resolved": "11.0.10",
-        "contentHash": "V7xu7ddtUFwYHb+u3S4he2/PGGUHkeTI66j3PyGTZi0Uz8Ma4prb/Lgz7Qd/vpO4lukxw1G4DmxB1tClNS9qUw==",
+        "requested": "[3.5.0, )",
+        "resolved": "3.5.0",
+        "contentHash": "CZEUp4KeYyLMOp4trZEEk8hg2m5YUteabHVsyvVOqZTa/nFI3PfC/sQghskGAAPSjKShqWgIuaRweKiTrO9ILQ==",
         "dependencies": {
-          "Avalonia": "11.0.10"
+          "Avalonia": "11.0.9"
+        }
+      },
+      "Material.Icons.Avalonia": {
+        "type": "Direct",
+        "requested": "[2.1.0, )",
+        "resolved": "2.1.0",
+        "contentHash": "IEuKf8mrByuxvjsM9LPWs+Ic0JPViDwZS7q1FzpHpu3QCEKOIriDiMNI6GaAtUA3uzz9OfAbd5vSjTi6SVbJrQ==",
+        "dependencies": {
+          "Avalonia": "11.0.0-rc1.1",
+          "Material.Icons": "2.1.0"
         }
       },
       "Serilog": {
@@ -237,6 +247,11 @@
         "type": "Transitive",
         "resolved": "7.3.0",
         "contentHash": "ulEewLMk+dNmbmpy15ny/YusI6JNUWqchF080TV2jgfFBXPXjWm767JleDi/S7hp8eDeEN6GYIIxpvNr5fLvIw=="
+      },
+      "Material.Icons": {
+        "type": "Transitive",
+        "resolved": "2.1.0",
+        "contentHash": "oMMrh8mKnZwOKZJEI3hc4Y18+/FQDfXSMv21xbX4kq05gcvcD1M2zxrjgNQvygHhP4DTcFmDidqUJRmuPyV9Fg=="
       },
       "MicroCom.Runtime": {
         "type": "Transitive",

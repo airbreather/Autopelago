@@ -1,0 +1,41 @@
+<reactiveUi:ReactiveUserControl
+    xmlns="https://github.com/avaloniaui"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+    xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+    xmlns:reactiveUi="http://reactiveui.net"
+    xmlns:viewModels="clr-namespace:Autopelago.ViewModels"
+    mc:Ignorable="d" d:DesignWidth="800"
+    x:Class="Autopelago.Views.SettingsSelectionView"
+    x:DataType="viewModels:SettingsSelectionViewModel"
+    x:TypeArguments="viewModels:SettingsSelectionViewModel">
+
+    <Design.DataContext>
+        <viewModels:SettingsSelectionViewModel />
+    </Design.DataContext>
+
+    <Grid ColumnDefinitions="Auto,*" RowDefinitions="Auto,Auto,Auto,Auto,Auto,Auto,Auto">
+        <TextBlock Grid.Row="0" Grid.Column="0" VerticalAlignment="Center" Text="Host:" />
+        <TextBox Margin="5,0,0,0" Grid.Row="0" Grid.Column="1" Text="{Binding Host}" />
+
+        <TextBlock Margin="0,5,0,0" Grid.Row="1" Grid.Column="0" VerticalAlignment="Center" Text="Port:" />
+        <NumericUpDown Margin="5,5,0,0" Grid.Row="1" Grid.Column="1" Minimum="1" Maximum="65535" Text="{Binding Port}" />
+
+        <TextBlock Margin="0,5,0,0" Grid.Row="2" Grid.Column="0" VerticalAlignment="Center" Text="Slot:" />
+        <TextBox Margin="5,5,0,0" Grid.Row="2" Grid.Column="1" Text="{Binding Slot}" />
+
+        <TextBlock Margin="0,5,0,0" Grid.Row="3" Grid.Column="0" VerticalAlignment="Center" Text="Password:" />
+        <TextBox Margin="5,5,0,0" Grid.Row="3" Grid.Column="1" PasswordChar="*" Text="{Binding Password}" />
+
+        <TextBlock Margin="0,5,0,0" Grid.Row="4" Grid.Column="0" VerticalAlignment="Center" Text="Min. Step:" />
+        <NumericUpDown Margin="5,5,0,0" Grid.Row="4" Grid.Column="1" Minimum="0.1" Increment="1" Text="{Binding MinStepSeconds}" />
+
+        <TextBlock Margin="0,5,0,0" Grid.Row="5" Grid.Column="0" VerticalAlignment="Center" Text="Max. Step:" />
+        <NumericUpDown Margin="5,5,0,0" Grid.Row="5" Grid.Column="1" Minimum="0.1" Increment="1" Text="{Binding MaxStepSeconds}" />
+
+        <Button Margin="0,5,0,0" Grid.Row="6" Grid.Column="0" Grid.ColumnSpan="2"
+                HorizontalAlignment="Stretch" HorizontalContentAlignment="Center"
+                IsDefault="True" Content="Connect" Command="{Binding ConnectCommand}" />
+    </Grid>
+
+</reactiveUi:ReactiveUserControl>
