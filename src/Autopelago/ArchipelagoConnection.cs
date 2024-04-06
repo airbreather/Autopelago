@@ -8,11 +8,9 @@ namespace Autopelago;
 
 [JsonSourceGenerationOptions(PropertyNamingPolicy = JsonKnownNamingPolicy.SnakeCaseLower)]
 [JsonSerializable(typeof(ImmutableArray<ArchipelagoPacketModel>))]
-internal sealed partial class SourceGenerationContext : JsonSerializerContext
-{
-}
+internal sealed partial class SourceGenerationContext : JsonSerializerContext;
 
-public sealed partial class ArchipelagoConnection : IDisposable
+public sealed class ArchipelagoConnection : IDisposable
 {
     private static readonly JsonReaderOptions s_jsonReaderOptions = new()
     {

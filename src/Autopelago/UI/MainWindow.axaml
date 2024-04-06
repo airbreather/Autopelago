@@ -7,13 +7,7 @@
         x:Class="Autopelago.UI.MainWindow"
         x:DataType="vm:MainWindowViewModel"
         Title="Autopelago">
-    <Grid>
-        <Grid.ColumnDefinitions>
-            <ColumnDefinition Width="1*" />
-            <ColumnDefinition Width="4" />
-            <ColumnDefinition Width="4*" />
-        </Grid.ColumnDefinitions>
-
+    <Grid ColumnDefinitions="1*,4,4*">
         <Grid.Styles>
             <Style Selector="Border.ap-declared">
                 <Setter Property="BorderBrush" Value="White" />

@@ -120,7 +120,7 @@ public sealed class AutopelagoGameService
                 Game = _settings.GameName,
                 Name = slot.Name,
                 Uuid = Guid.NewGuid(),
-                Version = new(new Version("0.4.4")),
+                Version = new(new("0.4.4")),
                 ItemsHandling = ArchipelagoItemsHandlingFlags.All,
                 Tags = ["AP"],
                 SlotData = true,
@@ -140,7 +140,7 @@ public sealed class AutopelagoGameService
                 return client.SaveGameStateAsync(args.CurrentState, cancellationToken);
             }
 
-            keepAliveEvent.Add(async (sender, args, cancellationToken) =>
+            keepAliveEvent.Add(async (_, _, cancellationToken) =>
             {
                 await Helper.ConfigureAwaitFalse();
                 StatusUpdatePacketModel statusUpdate = new() { Status = ArchipelagoClientStatus.Playing };

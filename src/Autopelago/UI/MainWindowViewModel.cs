@@ -97,7 +97,7 @@ public sealed class MainWindowViewModel : ViewModelBase, IDisposable
                 games.Clear();
                 foreach (AutopelagoPlayerSettingsModel slot in settings.Slots)
                 {
-                    games.Add(new GameStateViewModel(slot.Name));
+                    games.Add(new(slot.Name));
                     newCurrentGame ??= games[^1];
                 }
             });

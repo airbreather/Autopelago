@@ -1,6 +1,5 @@
 using System.Collections.Frozen;
 using System.Collections.Immutable;
-using System.Data;
 using System.Reflection;
 using System.Runtime.InteropServices;
 using System.Text;
@@ -242,8 +241,6 @@ public record ItemDefinitionModel
 
     public int? RatCount { get; init; }
 
-    public int EnergyFactorGranted => AurasGranted.Sum(a => a switch { "energized" => 5, "sluggish" => -5, _ => 0 });
-
     public static ItemDefinitionModel DeserializeFrom(YamlNode node, ArchipelagoItemFlags archipelagoFlags, string? associatedGame = null, int? defaultRatCount = null)
     {
         return node switch
@@ -398,7 +395,7 @@ public sealed record RegionExitDefinitionModel
 
     public AllChildrenGameRequirement Requirement => Region is LandmarkRegionDefinitionModel
     {
-        Locations: [ LocationDefinitionModel { Requirement: AllChildrenGameRequirement req } ]
+        Locations: [ { Requirement: AllChildrenGameRequirement req } ],
     } ? req : GameRequirement.AlwaysSatisfied;
 
     public static RegionExitDefinitionModel DeserializeFrom(YamlNode node)
@@ -469,6 +466,7 @@ public sealed record FillerRegionDefinitionModel : RegionDefinitionModel
                     ref int nextSrc = ref CollectionsMarshal.GetValueRefOrAddDefault(nextInGroup, itemGroupKey, out _);
                     for (int i = 0; i < cnt; i++)
                     {
+                        // ReSharper disable once PossibleMultipleEnumeration
                         unrandomizedItems.Add(grp.ElementAt(nextSrc++));
                     }
 
@@ -579,7 +577,7 @@ public abstract record GameRequirement
 
     public static GameRequirement DeserializeFrom(YamlNode node)
     {
-        if (node is not YamlMappingNode { Children: [(YamlScalarNode keyNode, YamlNode valueNode)] } map)
+        if (node is not YamlMappingNode { Children: [(YamlScalarNode keyNode, YamlNode valueNode)] })
         {
             throw new InvalidDataException("Bad node type");
         }
@@ -603,7 +601,7 @@ public sealed record AllChildrenGameRequirement : GameRequirement
 
     public static new AllChildrenGameRequirement DeserializeFrom(YamlNode node)
     {
-        return new AllChildrenGameRequirement { Children = [.. ((YamlSequenceNode)node).Select(GameRequirement.DeserializeFrom)] };
+        return new() { Children = [.. ((YamlSequenceNode)node).Select(GameRequirement.DeserializeFrom)] };
     }
 
     public override bool StaticSatisfied(Game.State state)
@@ -651,7 +649,7 @@ public sealed record AnyChildGameRequirement : GameRequirement
 
     public static new AnyChildGameRequirement DeserializeFrom(YamlNode node)
     {
-        return new AnyChildGameRequirement { Children = [.. ((YamlSequenceNode)node).Select(GameRequirement.DeserializeFrom)] };
+        return new() { Children = [.. ((YamlSequenceNode)node).Select(GameRequirement.DeserializeFrom)] };
     }
 
     public override bool StaticSatisfied(Game.State state)
@@ -699,7 +697,7 @@ public sealed record AbilityCheckRequirement : GameRequirement
 
     public static new AbilityCheckRequirement DeserializeFrom(YamlNode node)
     {
-        return new AbilityCheckRequirement { DifficultyClass = int.Parse(((YamlScalarNode)node).Value!) };
+        return new() { DifficultyClass = int.Parse(((YamlScalarNode)node).Value!) };
     }
 
     public override bool DynamicSatisfied(ref Game.State state)
@@ -733,7 +731,7 @@ public sealed record RatCountRequirement : GameRequirement
 
     public static new RatCountRequirement DeserializeFrom(YamlNode node)
     {
-        return new RatCountRequirement { RatCount = int.Parse(((YamlScalarNode)node).Value!) };
+        return new() { RatCount = int.Parse(((YamlScalarNode)node).Value!) };
     }
 
     public override bool StaticSatisfied(Game.State state)
@@ -748,7 +746,7 @@ public sealed record CheckedLocationRequirement : GameRequirement
 
     public static new CheckedLocationRequirement DeserializeFrom(YamlNode node)
     {
-        return new CheckedLocationRequirement { LocationKey = LocationKey.For(((YamlScalarNode)node).Value!) };
+        return new() { LocationKey = LocationKey.For(((YamlScalarNode)node).Value!) };
     }
 
     public override bool StaticSatisfied(Game.State state)
@@ -763,7 +761,7 @@ public sealed record ReceivedItemRequirement : GameRequirement
 
     public static new ReceivedItemRequirement DeserializeFrom(YamlNode node)
     {
-        return new ReceivedItemRequirement { ItemKey = ((YamlScalarNode)node).Value! };
+        return new() { ItemKey = ((YamlScalarNode)node).Value! };
     }
 
     public override bool StaticSatisfied(Game.State state)

@@ -113,6 +113,7 @@ public sealed record RoomInfoPacketModel : ArchipelagoPacketModel
 
     public required ImmutableArray<string> Games { get; init; }
 
+    // ReSharper disable once IdentifierTypo
     public Dictionary<string, string> DatapackageChecksums { get; init; } = [];
 
     public required string SeedName { get; init; }
@@ -288,7 +289,7 @@ public sealed record ServerChatPrintJSONPacketModel : PrintJSONPacketModel
     public required string Message { get; init; }
 }
 
-public sealed record TutorialPrintJSONPacketModel : PrintJSONPacketModel { }
+public sealed record TutorialPrintJSONPacketModel : PrintJSONPacketModel;
 
 public sealed record TagsChangedPrintJSONPacketModel : PrintJSONPacketModel
 {
@@ -297,8 +298,8 @@ public sealed record TagsChangedPrintJSONPacketModel : PrintJSONPacketModel
     public required ImmutableArray<string> Tags { get; init; }
 }
 
-public sealed record CommandResultPrintJSONPacketModel : PrintJSONPacketModel { }
-public sealed record AdminCommandResultPrintJSONPacketModel : PrintJSONPacketModel { }
+public sealed record CommandResultPrintJSONPacketModel : PrintJSONPacketModel;
+public sealed record AdminCommandResultPrintJSONPacketModel : PrintJSONPacketModel;
 
 public sealed record GoalPrintJSONPacketModel : PrintJSONPacketModel
 {
@@ -492,7 +493,7 @@ public record JSONMessagePartModel
     public required string Text { get; init; }
 
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]
-    public string? Type { get; init; } = null;
+    public string? Type { get; init; }
 }
 
 public sealed record PlayerIdJSONMessagePartModel : JSONMessagePartModel

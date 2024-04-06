@@ -36,7 +36,7 @@ public static class Helper
     {
         TaskCompletionSource<TResult> box = new(TaskCreationOptions.RunContinuationsAsynchronously);
         subscribe(OnEventAsync);
-        using CancellationTokenRegistration reg = cancellationToken.Register(() =>
+        await using CancellationTokenRegistration reg = cancellationToken.Register(() =>
         {
             unsubscribe(OnEventAsync);
             box.TrySetCanceled(cancellationToken);

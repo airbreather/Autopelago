@@ -131,7 +131,7 @@ public sealed class FloydWarshall
 
     public ImmutableArray<LocationDefinitionModel> GetPath(LocationDefinitionModel source, LocationDefinitionModel target)
     {
-        return ImmutableArray.CreateRange(_path[_locIndex[source], _locIndex[target]], i => _locs[i]);
+        return ImmutableArray.CreateRange(_path[_locIndex[source], _locIndex[target]], (i, locs) => locs[i], _locs);
     }
 
     private readonly struct Dist
@@ -174,7 +174,10 @@ public sealed class FloydWarshall
         public int GetNextOnPath(int s, int t)
         {
             int[] prev = _prev[s];
-            for (; prev[t] != s; t = prev[t]) ;
+            for (; prev[t] != s; t = prev[t])
+            {
+            }
+
             return t;
         }
     }

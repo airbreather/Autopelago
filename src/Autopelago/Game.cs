@@ -10,9 +10,7 @@ public record GameStateEventArgs
     public required Game.State CurrentState { get; init; }
 }
 
-public sealed record StepStartedEventArgs : GameStateEventArgs
-{
-}
+public sealed record StepStartedEventArgs : GameStateEventArgs;
 
 public sealed record StepFinishedEventArgs : GameStateEventArgs
 {
@@ -23,9 +21,7 @@ public sealed record StepFinishedEventArgs : GameStateEventArgs
     PropertyNamingPolicy = JsonKnownNamingPolicy.SnakeCaseLower,
     UseStringEnumConverter = true)]
 [JsonSerializable(typeof(Game.State.Proxy))]
-internal sealed partial class GameStateProxySerializerContext : JsonSerializerContext
-{
-}
+internal sealed partial class GameStateProxySerializerContext : JsonSerializerContext;
 
 [SuppressMessage("Design", "CA1001:Types that own disposable fields should be disposable", Justification = "Game has a lifetime that's basically the same as the application's own, so this would be overkill at this time.")]
 public sealed class Game
@@ -408,7 +404,7 @@ public sealed class Game
         }
     }
 
-    private void Handle(ref State state, ReceivedItemsEventArgs args)
+    private static void Handle(ref State state, ReceivedItemsEventArgs args)
     {
         for (int i = args.Index; i < state.ReceivedItems.Count; i++)
         {
@@ -419,89 +415,91 @@ public sealed class Game
         }
 
         ImmutableArray<ItemDefinitionModel> newItems = args.Items[(state.ReceivedItems.Count - args.Index)..];
-        if (!newItems.IsEmpty)
+        if (newItems.IsEmpty)
         {
-            int foodMod = 0;
-            int energyFactorMod = 0;
-            int luckFactorMod = 0;
-            int distractedMod = 0;
-            int stylishMod = 0;
-            foreach (ItemDefinitionModel newItem in newItems)
+            return;
+        }
+
+        int foodMod = 0;
+        int energyFactorMod = 0;
+        int luckFactorMod = 0;
+        int distractedMod = 0;
+        int stylishMod = 0;
+        foreach (ItemDefinitionModel newItem in newItems)
+        {
+            // "confidence" takes place right away: it could apply to another item in the batch.
+            bool addConfidence = false;
+            bool subtractConfidence = false;
+            foreach (string aura in newItem.AurasGranted)
             {
-                // "confidence" takes place right away: it could apply to another item in the batch.
-                bool addConfidence = false;
-                bool subtractConfidence = false;
-                foreach (string aura in newItem.AurasGranted)
+                switch (aura)
                 {
-                    switch (aura)
-                    {
-                        case "upset_tummy" when state.HasConfidence:
-                        case "unlucky" when state.HasConfidence:
-                        case "sluggish" when state.HasConfidence:
-                        case "distracted" when state.HasConfidence:
-                            subtractConfidence = true;
-                            break;
+                    case "upset_tummy" when state.HasConfidence:
+                    case "unlucky" when state.HasConfidence:
+                    case "sluggish" when state.HasConfidence:
+                    case "distracted" when state.HasConfidence:
+                        subtractConfidence = true;
+                        break;
 
-                        case "well_fed":
-                            ++foodMod;
-                            break;
+                    case "well_fed":
+                        ++foodMod;
+                        break;
 
-                        case "upset_tummy":
-                            --foodMod;
-                            break;
+                    case "upset_tummy":
+                        --foodMod;
+                        break;
 
-                        case "lucky":
-                            ++luckFactorMod;
-                            break;
+                    case "lucky":
+                        ++luckFactorMod;
+                        break;
 
-                        case "unlucky":
-                            --luckFactorMod;
-                            break;
+                    case "unlucky":
+                        --luckFactorMod;
+                        break;
 
-                        case "energized":
-                            ++energyFactorMod;
-                            break;
+                    case "energized":
+                        ++energyFactorMod;
+                        break;
 
-                        case "sluggish":
-                            --energyFactorMod;
-                            break;
+                    case "sluggish":
+                        --energyFactorMod;
+                        break;
 
-                        case "distracted":
-                            ++distractedMod;
-                            break;
+                    case "distracted":
+                        ++distractedMod;
+                        break;
 
-                        case "stylish":
-                            ++stylishMod;
-                            break;
+                    case "stylish":
+                        ++stylishMod;
+                        break;
 
-                        case "confident":
-                            addConfidence = true;
-                            break;
-                    }
-                }
-
-                // subtract first
-                if (subtractConfidence)
-                {
-                    state = state with { HasConfidence = false };
-                }
-
-                if (addConfidence)
-                {
-                    state = state with { HasConfidence = true };
+                    case "confident":
+                        addConfidence = true;
+                        break;
                 }
             }
 
-            state = state with
+            // subtract first
+            if (subtractConfidence)
             {
-                ReceivedItems = state.ReceivedItems.AddRange(newItems),
-                FoodFactor = state.FoodFactor + (foodMod * 5),
-                EnergyFactor = state.EnergyFactor + (energyFactorMod * 5),
-                LuckFactor = state.LuckFactor + luckFactorMod,
-                StyleFactor = state.StyleFactor + (stylishMod * 2),
-                DistractionCounter = state.DistractionCounter + distractedMod,
-            };
+                state = state with { HasConfidence = false };
+            }
+
+            if (addConfidence)
+            {
+                state = state with { HasConfidence = true };
+            }
         }
+
+        state = state with
+        {
+            ReceivedItems = state.ReceivedItems.AddRange(newItems),
+            FoodFactor = state.FoodFactor + (foodMod * 5),
+            EnergyFactor = state.EnergyFactor + (energyFactorMod * 5),
+            LuckFactor = state.LuckFactor + luckFactorMod,
+            StyleFactor = state.StyleFactor + (stylishMod * 2),
+            DistractionCounter = state.DistractionCounter + distractedMod,
+        };
     }
 
     private TimeSpan NextInterval(State state)

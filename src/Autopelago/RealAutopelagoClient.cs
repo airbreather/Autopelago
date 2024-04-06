@@ -51,7 +51,7 @@ public sealed class RealAutopelagoClient : AutopelagoClient
             if (updateServerGameData && lastDataPackage != null && lastConnected != null)
             {
                 GameDataModel gameData = lastDataPackage.Data.Games["Autopelago"];
-                _lastServerGameData = new AutopelagoData()
+                _lastServerGameData = new()
                 {
                     TeamNumber = lastConnected.Team,
                     SlotNumber = lastConnected.Slot,
@@ -118,7 +118,7 @@ public sealed class RealAutopelagoClient : AutopelagoClient
         await _connection.SendPacketsAsync([say], cancellationToken);
     }
 
-    public override async ValueTask IWonAsync(CancellationToken cancellationToken)
+    public async ValueTask IWonAsync(CancellationToken cancellationToken)
     {
         await Helper.ConfigureAwaitFalse();
         StatusUpdatePacketModel statusUpdate = new()

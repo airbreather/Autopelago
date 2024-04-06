@@ -3,7 +3,7 @@ namespace Autopelago;
 [TestFixture]
 public sealed class PlayerTests
 {
-    private delegate TResult SpanFunc<TSource, TResult>(ReadOnlySpan<TSource> vals);
+    private delegate TResult SpanFunc<TSource, out TResult>(ReadOnlySpan<TSource> vals);
     private static readonly ItemDefinitionModel s_normalRat = GameDefinitions.Instance.NormalRat;
 
     private static readonly LocationDefinitionModel s_startLocation = GameDefinitions.Instance.StartLocation;
@@ -115,10 +115,8 @@ public sealed class PlayerTests
     {
         Game.State state = Game.State.Start(seed);
         Player player = new();
-        ulong steps = 0;
         while (!state.IsCompleted)
         {
-            ++steps;
             Game.State prev = state;
             state = player.Advance(state);
             Assert.That(state, Is.Not.EqualTo(prev));
@@ -396,6 +394,7 @@ public sealed class PlayerTests
         return rolls;
     }
 
+    // ReSharper disable once UnusedMember.Local
     private ulong SearchForPrngSeed(int cnt, SpanFunc<int, bool> isMatch)
     {
         // seed 2449080649: eight natural 20s in a row.

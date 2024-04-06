@@ -4,7 +4,7 @@ using Avalonia.Markup.Xaml;
 
 namespace Autopelago.UI;
 
-public partial class App : Application
+public sealed partial class App : Application
 {
     public override void Initialize()
     {
@@ -19,7 +19,7 @@ public partial class App : Application
     {
         if (ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop)
         {
-            desktop.MainWindow = MainWindow = new MainWindow { DataContext = new MainWindowViewModel() };
+            desktop.MainWindow = MainWindow = new() { DataContext = new MainWindowViewModel() };
         }
 
         base.OnFrameworkInitializationCompleted();

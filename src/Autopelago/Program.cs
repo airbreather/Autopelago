@@ -4,6 +4,8 @@ using Avalonia;
 using Avalonia.ReactiveUI;
 using Avalonia.Svg;
 
+namespace Autopelago;
+
 internal static class Program
 {
     [STAThread]

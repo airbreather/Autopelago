@@ -9,8 +9,6 @@ public abstract class AutopelagoClient
     public abstract ValueTask SendLocationChecksAsync(IEnumerable<LocationDefinitionModel> locations, CancellationToken cancellationToken);
 
     public abstract ValueTask SendMessageAsync(string message, CancellationToken cancellationToken);
-
-    public abstract ValueTask IWonAsync(CancellationToken cancellationToken);
 }
 
 public sealed record ReceivedItemsEventArgs
