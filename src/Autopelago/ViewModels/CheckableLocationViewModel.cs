@@ -7,7 +7,7 @@ using Avalonia.Media.Imaging;
 using Avalonia.Platform;
 using Avalonia.ReactiveUI;
 
-using ReactiveUI;
+using ReactiveUI.Fody.Helpers;
 
 using SkiaSharp;
 
@@ -15,85 +15,70 @@ namespace Autopelago.ViewModels;
 
 public sealed class CheckableLocationViewModel : ViewModelBase, IDisposable
 {
+    private const int HalfWidth = 8;
+
     private static readonly Lazy<IObservable<long>> s_timer = new(() => Observable.Interval(TimeSpan.FromMilliseconds(500), AvaloniaScheduler.Instance));
 
     private static readonly FrozenDictionary<string, Point> s_canvasLocations = new[]
     {
-        KeyValuePair.Create("basketball", new Point(196, 268)),
+        KeyValuePair.Create("basketball", new Point(59 - HalfWidth, 77 - HalfWidth)),
+        KeyValuePair.Create("prawn_stars", new Point(103 - HalfWidth, 34 - HalfWidth)),
+        KeyValuePair.Create("minotaur", new Point(103 - HalfWidth, 120 - HalfWidth)),
+        KeyValuePair.Create("pirate_bake_sale", new Point(166 - HalfWidth, 34 - HalfWidth)),
+        KeyValuePair.Create("restaurant", new Point(166 - HalfWidth, 120 - HalfWidth)),
+        KeyValuePair.Create("bowling_ball_door", new Point(254 - HalfWidth, 77 - HalfWidth)),
+        KeyValuePair.Create("captured_goldfish", new Point(290 - HalfWidth, 106 - HalfWidth)),
     }.ToFrozenDictionary();
 
-    private readonly IDisposable _propertyChangedSubscription;
+    private readonly CompositeDisposable _disposables = [];
 
-    private IDisposable _prevDisposables = Disposable.Empty;
-
-    public CheckableLocationViewModel()
+    public CheckableLocationViewModel(string locationKey)
     {
-        _canvasLocation = this.WhenAnyValue(x => x.LocationKey)
-            .Select(l => s_canvasLocations.GetValueOrDefault(l))
-            .ToProperty(this, x => x.CanvasLocation);
+        CanvasLocation = s_canvasLocations[locationKey];
+        (Bitmap[] saturated, Bitmap[] desaturated) = ReadFrames(locationKey);
+        foreach (Bitmap frame in saturated)
+        {
+            _disposables.Add(frame);
+        }
 
-        _propertyChangedSubscription = this.WhenAnyValue(x => x.LocationKey)
-            .Where(x => !string.IsNullOrWhiteSpace(x))
-            .ObserveOn(AvaloniaScheduler.Instance)
-            .Subscribe(locationKey =>
+        foreach (Bitmap frame in desaturated)
+        {
+            _disposables.Add(frame);
+        }
+
+        _disposables.Add(s_timer.Value
+            .Subscribe(i =>
             {
-                _prevDisposables.Dispose();
-                Bitmap[] frames = ReadFrames(locationKey);
-                CompositeDisposable disposables = new();
-                _prevDisposables = disposables;
-                foreach (Bitmap frame in frames)
-                {
-                    disposables.Add(frame);
-                }
-
-                int nextFrameIndex = 0;
-                Frame = frames[nextFrameIndex];
-                disposables.Add(s_timer.Value
-                    .StartWith(-1)
-                    .Subscribe(_ =>
-                    {
-                        Frame = frames[nextFrameIndex++];
-                        if (nextFrameIndex == frames.Length)
-                        {
-                            nextFrameIndex = 0;
-                        }
-                    }));
-            });
+                int nextFrameIndex = (int)(i % saturated.Length);
+                Image = saturated[nextFrameIndex];
+                DesaturatedImage = desaturated[nextFrameIndex];
+            }));
     }
 
-    private string _locationKey = "";
-    public string LocationKey
-    {
-        get => _locationKey;
-        set => this.RaiseAndSetIfChanged(ref _locationKey, value);
-    }
+    public Point CanvasLocation { get; }
 
-    private Bitmap? _frame;
-    public Bitmap? Frame
-    {
-        get => _frame;
-        private set => this.RaiseAndSetIfChanged(ref _frame, value);
-    }
+    [Reactive]
+    public Bitmap? Image { get; private set; }
 
-    private readonly ObservableAsPropertyHelper<Point> _canvasLocation;
-    public Point CanvasLocation => _canvasLocation.Value;
+    [Reactive]
+    public Bitmap? DesaturatedImage { get; private set; }
+
+    [Reactive]
+    public bool Checked { get; set; }
 
     public void Dispose()
     {
-        using (_propertyChangedSubscription)
-        using (_prevDisposables)
-        {
-            _prevDisposables = Disposable.Empty;
-        }
+        _disposables.Dispose();
     }
 
-    private static Bitmap[] ReadFrames(string locationKey)
+    private static (Bitmap[] Saturated, Bitmap[] Desaturated) ReadFrames(string locationKey)
     {
         using Stream data = AssetLoader.Open(new($"avares://Autopelago/Assets/Images/{locationKey}.webp"));
         using SKCodec codec = SKCodec.Create(data);
         SKImageInfo imageInfo = codec.Info;
         SKCodecFrameInfo[] frameInfo = codec.FrameInfo;
-        Bitmap[] frames = new Bitmap[frameInfo.Length];
+        Bitmap[] saturated = new Bitmap[frameInfo.Length];
+        Bitmap[] desaturated = new Bitmap[frameInfo.Length];
         for (int i = 0; i < frameInfo.Length; i++)
         {
             if (frameInfo[i].Duration != 500)
@@ -109,9 +94,10 @@ public sealed class CheckableLocationViewModel : ViewModelBase, IDisposable
             using SKData encoded = img.Encode();
             encoded.SaveTo(ms);
             ms.Position = 0;
-            frames[i] = new(ms);
+            saturated[i] = new(ms);
+            desaturated[i] = ToDesaturated(bmp);
         }
 
-        return frames;
+        return (saturated, desaturated);
     }
 }

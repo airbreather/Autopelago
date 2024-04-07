@@ -2,7 +2,7 @@ using System.Collections.Immutable;
 
 using Avalonia.Controls;
 
-using ReactiveUI;
+using ReactiveUI.Fody.Helpers;
 
 namespace Autopelago.ViewModels;
 
@@ -21,61 +21,29 @@ public sealed class GameStateViewModel : ViewModelBase
         }
     }
 
-    private string? _slotName;
-    public string SlotName
-    {
-        get => _slotName ?? "";
-        set => this.RaiseAndSetIfChanged(ref _slotName, value);
-    }
+    [Reactive]
+    public string SlotName { get; set; } = "";
 
-    private int _ratCount;
-    public int RatCount
-    {
-        get => _ratCount;
-        set => this.RaiseAndSetIfChanged(ref _ratCount, value);
-    }
+    [Reactive]
+    public int RatCount { get; set; }
 
-    private int _foodFactor;
-    public int FoodFactor
-    {
-        get => _foodFactor;
-        set => this.RaiseAndSetIfChanged(ref _foodFactor, value);
-    }
+    [Reactive]
+    public int FoodFactor { get; set; }
 
-    private int _luckFactor;
-    public int LuckFactor
-    {
-        get => _luckFactor;
-        set => this.RaiseAndSetIfChanged(ref _luckFactor, value);
-    }
+    [Reactive]
+    public int LuckFactor { get; set; }
 
-    private int _energyFactor;
-    public int EnergyFactor
-    {
-        get => _energyFactor;
-        set => this.RaiseAndSetIfChanged(ref _energyFactor, value);
-    }
+    [Reactive]
+    public int EnergyFactor { get; set; }
 
-    private int _styleFactor;
-    public int StyleFactor
-    {
-        get => _styleFactor;
-        set => this.RaiseAndSetIfChanged(ref _styleFactor, value);
-    }
+    [Reactive]
+    public int StyleFactor { get; set; }
 
-    private int _distractionCounter;
-    public int DistractionCounter
-    {
-        get => _distractionCounter;
-        set => this.RaiseAndSetIfChanged(ref _distractionCounter, value);
-    }
+    [Reactive]
+    public int DistractionCounter { get; set; }
 
-    private bool _hasConfidence;
-    public bool HasConfidence
-    {
-        get => _hasConfidence;
-        set => this.RaiseAndSetIfChanged(ref _hasConfidence, value);
-    }
+    [Reactive]
+    public bool HasConfidence { get; set; }
 
     public ImmutableArray<CollectableItemViewModel> ProgressionItems { get; } = [
         .. new[]
@@ -83,13 +51,17 @@ public sealed class GameStateViewModel : ViewModelBase
             "red_matador_cape", "premium_can_of_prawn_food",
             "a_cookie", "bribe",
             "masterful_longsword",
-        }.Select(key => new CollectableItemViewModel { ItemKey = key, Model = GameDefinitions.Instance.ProgressionItems[key] }),
+        }.Select(key => new CollectableItemViewModel(key)),
     ];
 
     public ImmutableArray<CheckableLocationViewModel> CheckableLocations { get; } = [
         .. new[]
         {
             "basketball",
-        }.Select(key => new CheckableLocationViewModel { LocationKey = key}),
+            "prawn_stars", "minotaur",
+            "pirate_bake_sale", "restaurant",
+            "bowling_ball_door",
+            "captured_goldfish",
+        }.Select(key => new CheckableLocationViewModel(key)),
     ];
 }

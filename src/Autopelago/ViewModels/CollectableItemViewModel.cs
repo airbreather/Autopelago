@@ -1,50 +1,35 @@
 using Avalonia.Media.Imaging;
 using Avalonia.Platform;
 
-using ReactiveUI;
+using ReactiveUI.Fody.Helpers;
 
 using SkiaSharp;
 
 namespace Autopelago.ViewModels;
 
-public sealed class CollectableItemViewModel : ViewModelBase
+public sealed class CollectableItemViewModel : ViewModelBase, IDisposable
 {
-    public required string ItemKey { get; init; }
-
-    public required ItemDefinitionModel Model { get; init; }
-
-    public Bitmap Image => new(AssetLoader.Open(new($"avares://Autopelago/Assets/Images/{ItemKey}.webp")));
-
-    public Bitmap Grayscale
+    public CollectableItemViewModel(string itemKey)
     {
-        get
-        {
-            using SKBitmap bmp = SKBitmap.Decode(AssetLoader.Open(new($"avares://Autopelago/Assets/Images/{ItemKey}.webp")));
-            for (int y = 0; y < bmp.Height; y++)
-            {
-                for (int x = 0; x < bmp.Width; x++)
-                {
-                    SKColor px = bmp.GetPixel(x, y);
-                    px.ToHsl(out float h, out float s, out float l);
-                    bmp.SetPixel(x, y, SKColor.FromHsl(h, s * 0.1f, l * 0.4f).WithAlpha(px.Alpha));
-                }
-            }
+        Model = GameDefinitions.Instance.ProgressionItems[itemKey];
+        Image = new(AssetLoader.Open(new($"avares://Autopelago/Assets/Images/{itemKey}.webp")));
 
-            bmp.SetImmutable();
-
-            using MemoryStream ms = new();
-            using SKImage img = SKImage.FromBitmap(bmp);
-            Avalonia.Skia.Helpers.ImageSavingHelper.SaveImage(img, ms);
-            ms.Position = 0;
-            return new(ms);
-        }
+        using SKBitmap bmp = SKBitmap.Decode(AssetLoader.Open(new($"avares://Autopelago/Assets/Images/{itemKey}.webp")));
+        DesaturatedImage = ToDesaturated(bmp);
     }
 
-    private bool _collected;
+    public ItemDefinitionModel Model { get; }
 
-    public bool Collected
+    [Reactive]
+    public bool Collected { get; set; }
+
+    public Bitmap Image { get; }
+
+    public Bitmap DesaturatedImage { get; }
+
+    public void Dispose()
     {
-        get => _collected;
-        set => this.RaiseAndSetIfChanged(ref _collected, value);
+        Image.Dispose();
+        DesaturatedImage.Dispose();
     }
 }
