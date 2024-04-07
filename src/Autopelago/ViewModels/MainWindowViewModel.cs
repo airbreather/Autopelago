@@ -7,7 +7,10 @@ public sealed class MainWindowViewModel : ViewModelBase
     public MainWindowViewModel()
     {
         SettingsSelection.ConnectCommand
-            .Subscribe(_ => ContentViewModel = new GameStateViewModel());
+            .Subscribe(settings => ContentViewModel = new GameStateViewModel
+            {
+                SlotName = settings.Slot,
+            });
 
         _contentViewModel = SettingsSelection;
     }

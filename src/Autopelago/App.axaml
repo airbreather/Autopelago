@@ -1,4 +1,4 @@
-<Application 
+<Application
     xmlns="https://github.com/avaloniaui"
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
     xmlns:autopelago="clr-namespace:Autopelago"
@@ -6,6 +6,11 @@
     xmlns:materialIcons="clr-namespace:Material.Icons.Avalonia;assembly=Material.Icons.Avalonia"
     x:Class="Autopelago.App"
     RequestedThemeVariant="Default">
+
+    <Application.Resources>
+        <FontFamily x:Key="PublicPixelFont">avares://Autopelago/Assets/Fonts/PublicPixel.ttf#Public Pixel, Regular</FontFamily>
+    </Application.Resources>
+
     <Application.DataTemplates>
         <autopelago:ViewLocator/>
     </Application.DataTemplates>
@@ -13,5 +18,16 @@
     <Application.Styles>
         <materialThemes:MaterialTheme BaseTheme="Dark" PrimaryColor="Purple" SecondaryColor="Lime" />
         <materialIcons:MaterialIconStyles />
+        <Style Selector="TextBlock.h1">
+            <Setter Property="FontSize" Value="48" />
+            <Setter Property="FontWeight" Value="Bold" />
+        </Style>
+        <Style Selector=":is(TemplatedControl)">
+            <Setter Property="FontFamily" Value="{StaticResource PublicPixelFont}" />
+        </Style>
+        <Style Selector="TextBlock">
+            <Setter Property="FontFamily" Value="{StaticResource PublicPixelFont}" />
+        </Style>
     </Application.Styles>
+
 </Application>

@@ -6,6 +6,13 @@ namespace Autopelago.ViewModels;
 
 public sealed class GameStateViewModel : ViewModelBase
 {
+    private string? _slotName;
+    public string SlotName
+    {
+        get => _slotName ?? "";
+        set => this.RaiseAndSetIfChanged(ref _slotName, value);
+    }
+
     private int _foodFactor;
     public int FoodFactor
     {

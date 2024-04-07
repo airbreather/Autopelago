@@ -6,10 +6,37 @@ MinimumVisualStudioVersion = 10.0.40219.1
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Autopelago", "src\Autopelago\Autopelago.csproj", "{B71F5847-C00D-4514-95F5-E0484A3D6DBF}"
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "src", "src", "{9ED842B4-B7CC-4838-8DFC-9A9A92C85685}"
+	ProjectSection(SolutionItems) = preProject
+		src\.globalconfig = src\.globalconfig
+		src\Directory.Build.props = src\Directory.Build.props
+	EndProjectSection
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "tests", "tests", "{5A51FB37-5CB2-4F96-8573-660B36A6C445}"
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Autopelago.Test", "tests\Autopelago.Test\Autopelago.Test.csproj", "{F4894200-DE03-441C-A28C-880F8C97EF15}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Solution Items", "Solution Items", "{58A1F431-F5F0-4EEC-8C3C-43E184744216}"
+	ProjectSection(SolutionItems) = preProject
+		.gitignore = .gitignore
+		README.md = README.md
+		LICENSE.md = LICENSE.md
+		global.json = global.json
+		Autopelago.sln.DotSettings = Autopelago.sln.DotSettings
+		Directory.Build.props = Directory.Build.props
+	EndProjectSection
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = ".forgejo", ".forgejo", "{BDAD4517-A855-4E52-8DE3-107C28AEACCD}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "runner-dockerfiles", "runner-dockerfiles", "{04F180EB-D343-496E-8790-A52885A902D4}"
+	ProjectSection(SolutionItems) = preProject
+		.forgejo\runner-dockerfiles\Dockerfile.forgejo-runner = .forgejo\runner-dockerfiles\Dockerfile.forgejo-runner
+		.forgejo\runner-dockerfiles\Dockerfile.dotnet-sdk-8.0-forgejo-runner = .forgejo\runner-dockerfiles\Dockerfile.dotnet-sdk-8.0-forgejo-runner
+	EndProjectSection
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "workflows", "workflows", "{64CFBC04-8ABD-4104-94BB-9B2CBD09B836}"
+	ProjectSection(SolutionItems) = preProject
+		.forgejo\workflows\build-and-test.yml = .forgejo\workflows\build-and-test.yml
+	EndProjectSection
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -32,5 +59,8 @@ Global
 	GlobalSection(NestedProjects) = preSolution
 		{B71F5847-C00D-4514-95F5-E0484A3D6DBF} = {9ED842B4-B7CC-4838-8DFC-9A9A92C85685}
 		{F4894200-DE03-441C-A28C-880F8C97EF15} = {5A51FB37-5CB2-4F96-8573-660B36A6C445}
+		{BDAD4517-A855-4E52-8DE3-107C28AEACCD} = {58A1F431-F5F0-4EEC-8C3C-43E184744216}
+		{04F180EB-D343-496E-8790-A52885A902D4} = {BDAD4517-A855-4E52-8DE3-107C28AEACCD}
+		{64CFBC04-8ABD-4104-94BB-9B2CBD09B836} = {BDAD4517-A855-4E52-8DE3-107C28AEACCD}
 	EndGlobalSection
 EndGlobal

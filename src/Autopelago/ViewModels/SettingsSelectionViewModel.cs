@@ -1,4 +1,5 @@
 using System.Reactive;
+using System.Reactive.Linq;
 
 using ReactiveUI;
 
@@ -23,6 +24,15 @@ public sealed class SettingsSelectionViewModel : ViewModelBase
 {
     public SettingsSelectionViewModel()
     {
+        IObservable<bool> canConnect = this.WhenAnyValue(
+            x => x.Host, x => x.Port, x => x.Slot, x => x.MinStepSeconds, x => x.MaxStepSeconds,
+            (host, port, slot, minStepSeconds, maxStepSeconds) =>
+                !string.IsNullOrWhiteSpace(host) &&
+                port > 0 &&
+                !string.IsNullOrWhiteSpace(slot) &&
+                minStepSeconds > 0 &&
+                maxStepSeconds >= minStepSeconds)
+            .DistinctUntilChanged();
         ConnectCommand = ReactiveCommand.Create<Unit, Settings>(_ => new()
         {
             Host = _host,
@@ -31,7 +41,7 @@ public sealed class SettingsSelectionViewModel : ViewModelBase
             Password = _password,
             MinStepSeconds = _minStepSeconds,
             MaxStepSeconds = _maxStepSeconds,
-        });
+        }, canConnect);
     }
 
     public ReactiveCommand<Unit, Settings> ConnectCommand { get; }
@@ -43,7 +53,7 @@ public sealed class SettingsSelectionViewModel : ViewModelBase
         set => this.RaiseAndSetIfChanged(ref _host, value);
     }
 
-    private ushort _port;
+    private ushort _port = ushort.MaxValue;
     public ushort Port
     {
         get => _port;

@@ -9,7 +9,11 @@
     x:Class="Autopelago.Views.GameStateView"
     x:DataType="viewModels:GameStateViewModel"
     x:TypeArguments="viewModels:GameStateViewModel">
-    
+
+    <Design.DataContext>
+        <viewModels:GameStateViewModel SlotName="Ratthew" />
+    </Design.DataContext>
+
     <Control.Styles>
         <Style Selector="Border.ap-self">
             <Setter Property="BorderBrush" Value="{DynamicResource MaterialDividerBrush}" />
@@ -17,20 +21,24 @@
         </Style>
     </Control.Styles>
 
-    <Design.DataContext>
-        <viewModels:GameStateViewModel />
-    </Design.DataContext>
-    
     <Grid ColumnDefinitions="*,4*">
         <Border Margin="5" Grid.Column="0" Classes="ap-self">
-            <Grid RowDefinitions="Auto,*,Auto">
+            <Grid RowDefinitions="Auto,Auto,*,Auto">
+                <Viewbox StretchDirection="DownOnly">
+                    <TextBlock Classes="h1" Text="{Binding SlotName}" TextAlignment="Center" MaxLines="1" />
+                </Viewbox>
             </Grid>
         </Border>
+
         <Border Margin="5" Grid.Column="1" Classes="ap-self">
-            <ScrollViewer HorizontalScrollBarVisibility="Disabled" VerticalScrollBarVisibility="Auto">
-                <Svg Path="/Assets/Images/Map.svg" />
-            </ScrollViewer>
+            <TabControl TabStripPlacement="Bottom">
+                <TabItem Header="Map" HorizontalAlignment="Left">
+                    <ScrollViewer HorizontalScrollBarVisibility="Disabled" VerticalScrollBarVisibility="Auto">
+                        <Svg Path="/Assets/Images/Map.svg" />
+                    </ScrollViewer>
+                </TabItem>
+            </TabControl>
         </Border>
     </Grid>
-    
+
 </reactiveUi:ReactiveUserControl>
