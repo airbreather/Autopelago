@@ -55,7 +55,7 @@ public sealed class GameStateViewModel : ViewModelBase
         set => this.RaiseAndSetIfChanged(ref _hasConfidence, value);
     }
 
-    public ImmutableArray<CollectableItemViewModel> ProgressionItems { get; } = GameDefinitions.Instance.ProgressionItems.Values
-        .Select(item => new CollectableItemViewModel { Model = item })
+    public ImmutableArray<CollectableItemViewModel> ProgressionItems { get; } = GameDefinitions.Instance.ProgressionItems
+        .Select(kvp => new CollectableItemViewModel { ItemKey = kvp.Key, Model = kvp.Value })
         .ToImmutableArray();
 }

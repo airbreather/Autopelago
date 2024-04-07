@@ -4,6 +4,8 @@ namespace Autopelago.ViewModels;
 
 public sealed class CollectableItemViewModel : ViewModelBase
 {
+    public required string ItemKey { get; init; }
+
     public required ItemDefinitionModel Model { get; init; }
 
     private bool _collected;
