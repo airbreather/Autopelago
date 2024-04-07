@@ -19,6 +19,8 @@ public sealed class CheckableLocationViewModel : ViewModelBase, IDisposable
 
     private static readonly Lazy<IObservable<long>> s_timer = new(() => Observable.Interval(TimeSpan.FromMilliseconds(500), AvaloniaScheduler.Instance));
 
+    private static readonly Lazy<(Bitmap[] Yellow, Bitmap[] Gray)> s_questFrames = new(() => (ReadFrames("yellow_quest").Saturated, ReadFrames("gray_quest").Saturated));
+
     private static readonly FrozenDictionary<string, Point> s_canvasLocations = new[]
     {
         KeyValuePair.Create("basketball", new Point(59 - HalfWidth, 77 - HalfWidth)),
@@ -36,6 +38,7 @@ public sealed class CheckableLocationViewModel : ViewModelBase, IDisposable
     {
         CanvasLocation = s_canvasLocations[locationKey];
         (Bitmap[] saturated, Bitmap[] desaturated) = ReadFrames(locationKey);
+        (Bitmap[] yellowQuest, Bitmap[] grayQuest) = s_questFrames.Value;
         foreach (Bitmap frame in saturated)
         {
             _disposables.Add(frame);
@@ -49,9 +52,12 @@ public sealed class CheckableLocationViewModel : ViewModelBase, IDisposable
         _disposables.Add(s_timer.Value
             .Subscribe(i =>
             {
-                int nextFrameIndex = (int)(i % saturated.Length);
-                Image = saturated[nextFrameIndex];
-                DesaturatedImage = desaturated[nextFrameIndex];
+                int nextLocationFrameIndex = (int)(i % saturated.Length);
+                Image = saturated[nextLocationFrameIndex];
+                DesaturatedImage = desaturated[nextLocationFrameIndex];
+
+                int nextQuestFrameIndex = (int)(i % yellowQuest.Length);
+                QuestImage = (Checked ? null : Available ? yellowQuest : grayQuest)?[nextQuestFrameIndex];
             }));
     }
 
@@ -62,6 +68,12 @@ public sealed class CheckableLocationViewModel : ViewModelBase, IDisposable
 
     [Reactive]
     public Bitmap? DesaturatedImage { get; private set; }
+
+    [Reactive]
+    public Bitmap? QuestImage { get; private set; }
+
+    [Reactive]
+    public bool Available { get; set; }
 
     [Reactive]
     public bool Checked { get; set; }

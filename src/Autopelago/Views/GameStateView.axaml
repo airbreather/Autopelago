@@ -143,6 +143,11 @@
                                             <Grid>
                                                 <Image Classes="full-color" Classes.lit="{Binding Checked}" Height="16" Width="16" Source="{Binding Image, Mode=OneWay}" />
                                                 <Image Classes="grayscale" Classes.lit="{Binding Checked}" Height="16" Width="16" Source="{Binding DesaturatedImage, Mode=OneWay}" />
+                                                <Image Height="12" Width="12" Source="{Binding QuestImage, Mode=OneWay}">
+                                                    <Image.RenderTransform>
+                                                        <TranslateTransform Y="-13" />
+                                                    </Image.RenderTransform>
+                                                </Image>
                                             </Grid>
                                         </DataTemplate>
                                     </ItemsControl.ItemTemplate>
