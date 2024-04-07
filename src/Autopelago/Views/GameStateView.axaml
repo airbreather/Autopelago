@@ -61,7 +61,7 @@
                     <Grid ColumnDefinitions="Auto,*,Auto" RowDefinitions="Auto,Auto,Auto,Auto,Auto,Auto,Auto">
                         <TextBlock Grid.Row="0" Grid.Column="0" Classes="meter-label" Text="RAT:" />
                         <ProgressBar Grid.Row="0" Grid.Column="1" Minimum="0" Maximum="40" Value="{Binding RatCount}" />
-                        <TextBlock Margin="5,0,0,0" Grid.Row="0" Grid.Column="2" Classes="meter-label" Text="{Binding RatCount, StringFormat={}{0}/40}" />
+                        <TextBlock Margin="5,0,0,0" Grid.Row="0" Grid.Column="2" Classes="meter-label" Text="{Binding RatCount}" />
 
                         <TextBlock Grid.Row="1" Grid.Column="0" Classes="meter-label" Text="NOM:" />
                         <ProgressBar Grid.Row="1" Grid.Column="1" Minimum="-1" Maximum="1" Value="{Binding FoodFactor}" />
@@ -123,7 +123,12 @@
 
                 <TabItem Header="Map">
                     <ScrollViewer HorizontalScrollBarVisibility="Disabled" VerticalScrollBarVisibility="Auto">
-                        <Svg Path="/Assets/Images/Map.svg" />
+                        <Viewbox>
+                            <Canvas Width="1200" Height="1800">
+                                <Image Width="1200" Height="1800" Source="avares://Autopelago/Assets/Images/map.webp" />
+                                <Image Width="64" Height="64" Canvas.Left="196" Canvas.Top="268" Source="avares://Autopelago/Assets/Images/basketball.webp" />
+                            </Canvas>
+                        </Viewbox>
                     </ScrollViewer>
                 </TabItem>
                 <TabItem IsEnabled="False">

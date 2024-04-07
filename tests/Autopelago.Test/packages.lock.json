@@ -154,15 +154,6 @@
           "SkiaSharp.NativeAssets.WebAssembly": "2.88.7"
         }
       },
-      "Avalonia.Svg": {
-        "type": "Transitive",
-        "resolved": "11.0.0.17",
-        "contentHash": "8XzSg+pe6HxH7gHPvpAeOKl5tNOxHRYxOr5Xa4Ig4eqMWjjxPO2ZrA+ZBpIyy8GXzz0Qj6hsOVamBCS6bJZtBw==",
-        "dependencies": {
-          "Avalonia": "11.0.0",
-          "Svg.Model": "1.0.0.17"
-        }
-      },
       "Avalonia.Themes.Simple": {
         "type": "Transitive",
         "resolved": "11.0.10",
@@ -198,11 +189,6 @@
         "dependencies": {
           "System.Reactive": "5.0.0"
         }
-      },
-      "ExCSS": {
-        "type": "Transitive",
-        "resolved": "4.2.3",
-        "contentHash": "SyeAfu2wL5247sipJoPUzQfjiwQtfSd8hN4IbgoyVcDx4PP6Dud4znwPRibWQzLtTlUxYYcbf5f4p+EfFC7KtQ=="
       },
       "HarfBuzzSharp": {
         "type": "Transitive",
@@ -397,11 +383,6 @@
           "Serilog": "3.1.1"
         }
       },
-      "ShimSkiaSharp": {
-        "type": "Transitive",
-        "resolved": "1.0.0.17",
-        "contentHash": "qVZWqs4phP+fh9+XUZsfcOSjpZnumfey1cgHQuswu43kaQWA49JOBLKV/a269E49F9vZxivWhaw0zHjgSzuqvw=="
-      },
       "SkiaSharp": {
         "type": "Transitive",
         "resolved": "2.88.7",
@@ -438,23 +419,6 @@
         "type": "Transitive",
         "resolved": "14.4.1",
         "contentHash": "Z1Mncnzm9pNIaIbZ/EWH6x5ESnKsmAvu8HP4StBRw+yhz0lzE7LCbt22TNTPaFrYLYbYCbGQIc/61yuSnpLidg=="
-      },
-      "Svg.Custom": {
-        "type": "Transitive",
-        "resolved": "1.0.0.17",
-        "contentHash": "16VkUEFrOFnvOHLLKDdjgIUZug/jGpLUP/mJwSzJ9vpubiDVv5OY+1PSoI0nK57SFt3huXy1BN1FzWIeZD4h8A==",
-        "dependencies": {
-          "ExCSS": "4.2.3"
-        }
-      },
-      "Svg.Model": {
-        "type": "Transitive",
-        "resolved": "1.0.0.17",
-        "contentHash": "FhgUl52qrVD5wb+aQIkCXhWK4Qx8itKvXQZxkI8VRVzzcJ07WnitIk8IysWuLLrM77u19+yjk91GO8THZkNN6w==",
-        "dependencies": {
-          "ShimSkiaSharp": "1.0.0.17",
-          "Svg.Custom": "1.0.0.17"
-        }
       },
       "System.Collections": {
         "type": "Transitive",
@@ -800,7 +764,6 @@
           "Avalonia.Diagnostics": "[11.0.10, )",
           "Avalonia.Fonts.Inter": "[11.0.10, )",
           "Avalonia.ReactiveUI": "[11.0.10, )",
-          "Avalonia.Svg": "[11.0.0.17, )",
           "Material.Avalonia": "[3.5.0, )",
           "Material.Icons.Avalonia": "[2.1.0, )",
           "Serilog": "[3.1.1, )",

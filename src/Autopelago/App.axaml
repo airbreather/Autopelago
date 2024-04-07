@@ -6,7 +6,7 @@
     xmlns:materialIcons="clr-namespace:Material.Icons.Avalonia;assembly=Material.Icons.Avalonia"
     xmlns:converters="clr-namespace:Autopelago.Converters"
     x:Class="Autopelago.App"
-    RequestedThemeVariant="Default">
+    RequestedThemeVariant="Dark">
 
     <Application.Resources>
         <FontFamily x:Key="PublicPixelFont">avares://Autopelago/Assets/Fonts/PublicPixel.ttf#Public Pixel, Regular</FontFamily>

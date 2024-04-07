@@ -30,8 +30,11 @@ public sealed class CollectableItemViewModel : ViewModelBase
                 }
             }
 
-            MemoryStream ms = new();
-            Avalonia.Skia.Helpers.ImageSavingHelper.SaveImage(SKImage.FromBitmap(bmp), ms);
+            bmp.SetImmutable();
+
+            using MemoryStream ms = new();
+            using SKImage img = SKImage.FromBitmap(bmp);
+            Avalonia.Skia.Helpers.ImageSavingHelper.SaveImage(img, ms);
             ms.Position = 0;
             return new(ms);
         }

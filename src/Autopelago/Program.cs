@@ -1,6 +1,5 @@
 using Avalonia;
 using Avalonia.ReactiveUI;
-using Avalonia.Svg;
 
 namespace Autopelago;
 
@@ -16,8 +15,6 @@ internal static class Program
     // Avalonia configuration, don't remove; also used by visual designer.
     public static AppBuilder BuildAvaloniaApp()
     {
-        GC.KeepAlive(typeof(SvgImageExtension).Assembly);
-        GC.KeepAlive(typeof(Avalonia.Svg.Svg).Assembly);
         return AppBuilder.Configure<App>()
             .UsePlatformDetect()
             .WithInterFont()
