@@ -85,4 +85,11 @@ public sealed class GameStateViewModel : ViewModelBase
             "masterful_longsword",
         }.Select(key => new CollectableItemViewModel { ItemKey = key, Model = GameDefinitions.Instance.ProgressionItems[key] }),
     ];
+
+    public ImmutableArray<CheckableLocationViewModel> CheckableLocations { get; } = [
+        .. new[]
+        {
+            "basketball",
+        }.Select(key => new CheckableLocationViewModel { LocationKey = key}),
+    ];
 }
