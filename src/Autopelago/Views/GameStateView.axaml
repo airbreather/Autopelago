@@ -16,26 +16,65 @@
     </Design.DataContext>
 
     <Control.Styles>
-        <Style Selector="Border.ap-self">
+        <Style Selector="Border.tracker-box">
             <Setter Property="BorderBrush" Value="{DynamicResource MaterialDividerBrush}" />
             <Setter Property="BorderThickness" Value="2" />
         </Style>
+        <Style Selector="Border.top-only">
+            <Setter Property="BorderBrush" Value="{DynamicResource MaterialDividerBrush}" />
+            <Setter Property="BorderThickness" Value="0,2,0,0" />
+        </Style>
+        <Style Selector="TextBlock.meter-label">
+            <Setter Property="FontSize" Value="10" />
+        </Style>
     </Control.Styles>
 
-    <Grid ColumnDefinitions="*,4*">
-        <Border Margin="5" Grid.Column="0" Classes="ap-self">
-            <Grid RowDefinitions="Auto,Auto,*,Auto">
-                <Viewbox StretchDirection="DownOnly">
-                    <TextBlock Classes="h1" Text="{Binding SlotName}" TextAlignment="Center" MaxLines="1" />
+    <Grid x:Name="MainGrid" x:FieldModifier="private">
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="*" MinWidth="120" />
+            <ColumnDefinition Width="4" />
+            <ColumnDefinition Width="4*" MinWidth="230" />
+        </Grid.ColumnDefinitions>
+
+        <Border Margin="5" Grid.Column="0" Classes="tracker-box">
+            <DockPanel>
+                <Viewbox DockPanel.Dock="Top" StretchDirection="DownOnly">
+                    <TextBlock Classes="h1" Text="{Binding SlotName}" TextAlignment="Center" />
                 </Viewbox>
-            </Grid>
+
+                <Border DockPanel.Dock="Bottom" Margin="0,5,0,0" Padding="5,2" Classes="top-only">
+                    <Grid ColumnDefinitions="Auto,*" RowDefinitions="Auto,Auto,Auto,Auto,Auto,Auto">
+                        <TextBlock Grid.Row="0" Grid.Column="0" Classes="meter-label" Text="NOM:" />
+                        <ProgressBar Grid.Row="0" Grid.Column="1" Minimum="-1" Maximum="1" Value="{Binding FoodFactor}" />
+
+                        <TextBlock Grid.Row="1" Grid.Column="0" Classes="meter-label" Text="LCK:" />
+                        <ProgressBar Grid.Row="1" Grid.Column="1" Minimum="-1" Maximum="1" Value="{Binding LuckFactor}" />
+
+                        <TextBlock Grid.Row="2" Grid.Column="0" Classes="meter-label" Text="NRG:" />
+                        <ProgressBar Grid.Row="2" Grid.Column="1" Minimum="-1" Maximum="1" Value="{Binding EnergyFactor}" />
+
+                        <TextBlock Grid.Row="3" Grid.Column="0" Classes="meter-label" Text="STY:" />
+                        <ProgressBar Grid.Row="3" Grid.Column="1" Minimum="0" Maximum="1" Value="{Binding StyleFactor}" />
+
+                        <TextBlock Grid.Row="4" Grid.Column="0" Classes="meter-label" Text="DIS:" />
+                        <ProgressBar Grid.Row="4" Grid.Column="1" Minimum="0" Maximum="1" Value="{Binding DistractionCounter}" />
+
+                        <TextBlock Grid.Row="5" Grid.Column="0" Classes="meter-label" Text="CNF:" />
+                        <ProgressBar Grid.Row="5" Grid.Column="1" IsIndeterminate="{Binding HasConfidence}" />
+                    </Grid>
+                </Border>
+
+                <TextBlock VerticalAlignment="Center" TextWrapping="Wrap" TextAlignment="Right" Text="This space to be filled later" />
+            </DockPanel>
         </Border>
 
-        <Border Margin="5" Grid.Column="1" Classes="ap-self">
+        <GridSplitter Grid.Column="1" DoubleTapped="OnMainGridSplitterDoubleTapped" />
+
+        <Border Margin="5" Grid.Column="2" Classes="tracker-box">
             <TabControl TabStripPlacement="Bottom">
                 <TabControl.ItemsPanel>
                     <ItemsPanelTemplate>
-                        <StackPanel Orientation="Horizontal"></StackPanel>
+                        <WrapPanel Orientation="Horizontal"></WrapPanel>
                     </ItemsPanelTemplate>
                 </TabControl.ItemsPanel>
 
