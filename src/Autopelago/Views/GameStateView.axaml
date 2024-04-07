@@ -93,8 +93,8 @@
                             <DataTemplate>
                                 <Border Margin="5" Padding="2" CornerRadius="8" Classes="tracker-box item" Classes.collected="{Binding Collected}">
                                     <Grid>
-                                        <Image Classes="full-color" Classes.collected="{Binding Collected}" Height="32" Width="32" Source="{Binding Image, Mode=OneTime}" />
-                                        <Image Classes="grayscale" Classes.collected="{Binding Collected}" Height="32" Width="32" Source="{Binding Grayscale, Mode=OneTime}" />
+                                        <Image Classes="full-color" Classes.collected="{Binding Collected}" Height="48" Width="48" Source="{Binding Image, Mode=OneTime}" />
+                                        <Image Classes="grayscale" Classes.collected="{Binding Collected}" Height="48" Width="48" Source="{Binding Grayscale, Mode=OneTime}" />
                                     </Grid>
                                 </Border>
                             </DataTemplate>
