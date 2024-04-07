@@ -1,4 +1,5 @@
 using Autopelago.ViewModels;
+using Autopelago.Views;
 
 using Avalonia.Controls;
 using Avalonia.Controls.Templates;
@@ -9,27 +10,24 @@ public sealed class ViewLocator : IDataTemplate
 {
     public Control? Build(object? param)
     {
-        if (param is null)
+        Control? control = param switch
         {
-            return null;
+            GameStateViewModel => new GameStateView(),
+            MainWindowViewModel => new MainWindowView(),
+            SettingsSelectionViewModel => new SettingsSelectionView(),
+            _ => null,
+        };
+
+        if (control is not null)
+        {
+            control.DataContext = param;
         }
 
-        string name = param.GetType().FullName!.Replace("ViewModel", "View", StringComparison.Ordinal);
-        if (Type.GetType(name) is not { } type)
-        {
-            return new TextBlock
-            {
-                Text = $"Not Found: {name}",
-            };
-        }
-
-        Control control = (Control)Activator.CreateInstance(type)!;
-        control.DataContext = param;
         return control;
     }
 
     public bool Match(object? data)
     {
-        return data is ViewModelBase;
+        return data is GameStateViewModel or MainWindowViewModel or SettingsSelectionViewModel;
     }
 }
