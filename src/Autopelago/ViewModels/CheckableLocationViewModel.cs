@@ -98,7 +98,7 @@ public sealed class CheckableLocationViewModel : ViewModelBase, IDisposable
         {
             if (frameInfo[i].Duration != 500)
             {
-                throw new NotImplementedException("These were all supposed to be 500ms.");
+                throw new NotSupportedException("These were all supposed to be 500ms.");
             }
 
             using SKBitmap bmp = new(imageInfo);
