@@ -19,6 +19,11 @@ public sealed class GameStateViewModel : ViewModelBase
         {
             item.Collected = true;
         }
+
+        foreach (CheckableLocationViewModel location in CheckableLocations.OrderBy(_ => Random.Shared.NextDouble()).Take(CheckableLocations.Length / 2))
+        {
+            location.Checked = true;
+        }
     }
 
     [Reactive]

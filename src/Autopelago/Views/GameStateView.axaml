@@ -12,7 +12,7 @@
     x:TypeArguments="viewModels:GameStateViewModel">
 
     <Design.DataContext>
-        <viewModels:GameStateViewModel SlotName="Ratthew" RatCount="6" />
+        <viewModels:GameStateViewModel SlotName="Ratthew" RatCount="6" HasConfidence="True" />
     </Design.DataContext>
 
     <Control.Styles>
@@ -123,7 +123,7 @@
 
                 <TabItem Header="Map">
                     <ScrollViewer HorizontalScrollBarVisibility="Disabled" VerticalScrollBarVisibility="Auto">
-                        <Viewbox RenderOptions.BitmapInterpolationMode="HighQuality">
+                        <Viewbox>
                             <Grid>
                                 <Svg Width="300" Height="450" Path="avares://Autopelago/Assets/Images/map.svg" />
                                 <ItemsControl ItemsSource="{Binding CheckableLocations, Mode=OneTime}">
