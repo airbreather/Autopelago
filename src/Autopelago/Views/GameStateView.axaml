@@ -6,26 +6,40 @@
     xmlns:viewModels="clr-namespace:Autopelago.ViewModels"
     xmlns:reactiveUi="http://reactiveui.net"
     xmlns:materialIcons="clr-namespace:Material.Icons.Avalonia;assembly=Material.Icons.Avalonia"
-    mc:Ignorable="d" d:DesignWidth="800" d:DesignHeight="450"
+    mc:Ignorable="d" d:DesignWidth="950" d:DesignHeight="450"
     x:Class="Autopelago.Views.GameStateView"
     x:DataType="viewModels:GameStateViewModel"
     x:TypeArguments="viewModels:GameStateViewModel">
 
     <Design.DataContext>
-        <viewModels:GameStateViewModel SlotName="Ratthew" />
+        <viewModels:GameStateViewModel SlotName="Ratthew" RatCount="6" />
     </Design.DataContext>
 
     <Control.Styles>
         <Style Selector="Border.tracker-box">
-            <Setter Property="BorderBrush" Value="{DynamicResource MaterialDividerBrush}" />
+            <Setter Property="BorderBrush" Value="#505050" />
+        </Style>
+        <Style Selector="Border.tracker-box:not(.horizontal-only)">
             <Setter Property="BorderThickness" Value="2" />
         </Style>
         <Style Selector="Border.horizontal-only">
-            <Setter Property="BorderBrush" Value="{DynamicResource MaterialDividerBrush}" />
             <Setter Property="BorderThickness" Value="0,2" />
         </Style>
         <Style Selector="TextBlock.meter-label">
             <Setter Property="FontSize" Value="10" />
+            <Setter Property="VerticalAlignment" Value="Center" />
+        </Style>
+        <Style Selector="Border.item.collected">
+            <Setter Property="BorderBrush" Value="#FFCE00" />
+        </Style>
+        <Style Selector="Border.item:not(.collected)">
+            <Setter Property="BorderBrush" Value="#000000" />
+        </Style>
+        <Style Selector="Image.grayscale.collected">
+            <Setter Property="IsVisible" Value="False" />
+        </Style>
+        <Style Selector="Image.full-color:not(.collected)">
+            <Setter Property="IsVisible" Value="False" />
         </Style>
     </Control.Styles>
 
@@ -33,42 +47,64 @@
         <Grid.ColumnDefinitions>
             <ColumnDefinition Width="*" MinWidth="120" />
             <ColumnDefinition Width="4" />
-            <ColumnDefinition Width="4*" MinWidth="230" />
+            <ColumnDefinition Width="4*" MinWidth="240" />
         </Grid.ColumnDefinitions>
 
         <Border Margin="5" Grid.Column="0" Classes="tracker-box">
             <DockPanel>
                 <Viewbox DockPanel.Dock="Top" StretchDirection="DownOnly">
-                    <TextBlock Classes="h1" Text="{Binding SlotName}" TextAlignment="Center" />
+                    <TextBlock FontSize="25" Text="{Binding SlotName}" TextAlignment="Center" />
                 </Viewbox>
 
-                <Border DockPanel.Dock="Top" Margin="0,5,0,0" Padding="5,2" Classes="horizontal-only">
-                    <Grid ColumnDefinitions="Auto,*" RowDefinitions="Auto,Auto,Auto,Auto,Auto,Auto">
-                        <TextBlock Grid.Row="0" Grid.Column="0" Classes="meter-label" Text="NOM:" />
-                        <ProgressBar Grid.Row="0" Grid.Column="1" Minimum="-1" Maximum="1" Value="{Binding FoodFactor}" />
+                <Border DockPanel.Dock="Top" Margin="0,5,0,0" Padding="5,2" Classes="tracker-box horizontal-only">
+                    <Grid ColumnDefinitions="Auto,*,Auto" RowDefinitions="Auto,Auto,Auto,Auto,Auto,Auto,Auto">
+                        <TextBlock Grid.Row="0" Grid.Column="0" Classes="meter-label" Text="RAT:" />
+                        <ProgressBar Grid.Row="0" Grid.Column="1" Minimum="0" Maximum="40" Value="{Binding RatCount}" />
+                        <TextBlock Margin="5,0,0,0" Grid.Row="0" Grid.Column="2" Classes="meter-label" Text="{Binding RatCount, StringFormat={}{0}/40}" />
 
-                        <TextBlock Grid.Row="1" Grid.Column="0" Classes="meter-label" Text="LCK:" />
-                        <ProgressBar Grid.Row="1" Grid.Column="1" Minimum="-1" Maximum="1" Value="{Binding LuckFactor}" />
+                        <TextBlock Grid.Row="1" Grid.Column="0" Classes="meter-label" Text="NOM:" />
+                        <ProgressBar Grid.Row="1" Grid.Column="1" Grid.ColumnSpan="2" Minimum="-1" Maximum="1" Value="{Binding FoodFactor}" />
 
-                        <TextBlock Grid.Row="2" Grid.Column="0" Classes="meter-label" Text="NRG:" />
-                        <ProgressBar Grid.Row="2" Grid.Column="1" Minimum="-1" Maximum="1" Value="{Binding EnergyFactor}" />
+                        <TextBlock Grid.Row="2" Grid.Column="0" Classes="meter-label" Text="LCK:" />
+                        <ProgressBar Grid.Row="2" Grid.Column="1" Grid.ColumnSpan="2" Minimum="-1" Maximum="1" Value="{Binding LuckFactor}" />
 
-                        <TextBlock Grid.Row="3" Grid.Column="0" Classes="meter-label" Text="STY:" />
-                        <ProgressBar Grid.Row="3" Grid.Column="1" Minimum="0" Maximum="1" Value="{Binding StyleFactor}" />
+                        <TextBlock Grid.Row="3" Grid.Column="0" Classes="meter-label" Text="NRG:" />
+                        <ProgressBar Grid.Row="3" Grid.Column="1" Grid.ColumnSpan="2" Minimum="-1" Maximum="1" Value="{Binding EnergyFactor}" />
 
-                        <TextBlock Grid.Row="4" Grid.Column="0" Classes="meter-label" Text="DIS:" />
-                        <ProgressBar Grid.Row="4" Grid.Column="1" Minimum="0" Maximum="1" Value="{Binding DistractionCounter}" />
+                        <TextBlock Grid.Row="4" Grid.Column="0" Classes="meter-label" Text="STY:" />
+                        <ProgressBar Grid.Row="4" Grid.Column="1" Grid.ColumnSpan="2" Minimum="0" Maximum="1" Value="{Binding StyleFactor}" />
 
-                        <TextBlock Grid.Row="5" Grid.Column="0" Classes="meter-label" Text="CNF:" />
-                        <ProgressBar Grid.Row="5" Grid.Column="1" IsIndeterminate="{Binding HasConfidence}" />
+                        <TextBlock Grid.Row="5" Grid.Column="0" Classes="meter-label" Text="DIS:" />
+                        <ProgressBar Grid.Row="5" Grid.Column="1" Grid.ColumnSpan="2" Minimum="0" Maximum="1" Value="{Binding DistractionCounter}" />
+
+                        <TextBlock Grid.Row="6" Grid.Column="0" Classes="meter-label" Text="CNF:" />
+                        <ProgressBar Grid.Row="6" Grid.Column="1" Grid.ColumnSpan="2" IsIndeterminate="{Binding HasConfidence}" />
                     </Grid>
                 </Border>
 
-                <TextBlock VerticalAlignment="Center" TextWrapping="Wrap" TextAlignment="Right" Text="This space to be filled later" />
+                <ScrollViewer HorizontalScrollBarVisibility="Disabled" VerticalScrollBarVisibility="Auto">
+                    <ItemsControl ItemsSource="{Binding ProgressionItems, Mode=OneTime}">
+                        <ItemsControl.ItemsPanel>
+                            <ItemsPanelTemplate>
+                                <WrapPanel Orientation="Horizontal" />
+                            </ItemsPanelTemplate>
+                        </ItemsControl.ItemsPanel>
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate>
+                                <Border Margin="5" Padding="2" CornerRadius="8" Classes="tracker-box item" Classes.collected="{Binding Collected}">
+                                    <Grid>
+                                        <Image Classes="full-color" Classes.collected="{Binding Collected}" Height="32" Width="32" Source="{Binding Image, Mode=OneTime}" />
+                                        <Image Classes="grayscale" Classes.collected="{Binding Collected}" Height="32" Width="32" Source="{Binding Grayscale, Mode=OneTime}" />
+                                    </Grid>
+                                </Border>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                </ScrollViewer>
             </DockPanel>
         </Border>
 
-        <GridSplitter Grid.Column="1" DoubleTapped="OnMainGridSplitterDoubleTapped" />
+        <GridSplitter Margin="0,5" Grid.Column="1" DoubleTapped="OnMainGridSplitterDoubleTapped" />
 
         <Border Margin="5" Grid.Column="2" Classes="tracker-box">
             <TabControl TabStripPlacement="Bottom">

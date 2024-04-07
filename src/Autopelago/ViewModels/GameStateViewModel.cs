@@ -13,6 +13,13 @@ public sealed class GameStateViewModel : ViewModelBase
         set => this.RaiseAndSetIfChanged(ref _slotName, value);
     }
 
+    private int _ratCount;
+    public int RatCount
+    {
+        get => _ratCount;
+        set => this.RaiseAndSetIfChanged(ref _ratCount, value);
+    }
+
     private int _foodFactor;
     public int FoodFactor
     {
@@ -55,7 +62,12 @@ public sealed class GameStateViewModel : ViewModelBase
         set => this.RaiseAndSetIfChanged(ref _hasConfidence, value);
     }
 
-    public ImmutableArray<CollectableItemViewModel> ProgressionItems { get; } = GameDefinitions.Instance.ProgressionItems
-        .Select(kvp => new CollectableItemViewModel { ItemKey = kvp.Key, Model = kvp.Value })
-        .ToImmutableArray();
+    public ImmutableArray<CollectableItemViewModel> ProgressionItems { get; } = [
+        .. new[]
+        {
+            "red_matador_cape", "premium_can_of_prawn_food",
+            "a_cookie", "bribe",
+            "masterful_longsword",
+        }.Select(key => new CollectableItemViewModel { ItemKey = key, Model = GameDefinitions.Instance.ProgressionItems[key] }),
+    ];
 }
