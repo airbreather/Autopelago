@@ -20,9 +20,9 @@
             <Setter Property="BorderBrush" Value="{DynamicResource MaterialDividerBrush}" />
             <Setter Property="BorderThickness" Value="2" />
         </Style>
-        <Style Selector="Border.top-only">
+        <Style Selector="Border.horizontal-only">
             <Setter Property="BorderBrush" Value="{DynamicResource MaterialDividerBrush}" />
-            <Setter Property="BorderThickness" Value="0,2,0,0" />
+            <Setter Property="BorderThickness" Value="0,2" />
         </Style>
         <Style Selector="TextBlock.meter-label">
             <Setter Property="FontSize" Value="10" />
@@ -42,7 +42,7 @@
                     <TextBlock Classes="h1" Text="{Binding SlotName}" TextAlignment="Center" />
                 </Viewbox>
 
-                <Border DockPanel.Dock="Bottom" Margin="0,5,0,0" Padding="5,2" Classes="top-only">
+                <Border DockPanel.Dock="Top" Margin="0,5,0,0" Padding="5,2" Classes="horizontal-only">
                     <Grid ColumnDefinitions="Auto,*" RowDefinitions="Auto,Auto,Auto,Auto,Auto,Auto">
                         <TextBlock Grid.Row="0" Grid.Column="0" Classes="meter-label" Text="NOM:" />
                         <ProgressBar Grid.Row="0" Grid.Column="1" Minimum="-1" Maximum="1" Value="{Binding FoodFactor}" />
