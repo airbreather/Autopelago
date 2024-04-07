@@ -4,11 +4,13 @@
     xmlns:autopelago="clr-namespace:Autopelago"
     xmlns:materialThemes="clr-namespace:Material.Styles.Themes;assembly=Material.Styles"
     xmlns:materialIcons="clr-namespace:Material.Icons.Avalonia;assembly=Material.Icons.Avalonia"
+    xmlns:converters="clr-namespace:Autopelago.Converters"
     x:Class="Autopelago.App"
     RequestedThemeVariant="Default">
 
     <Application.Resources>
         <FontFamily x:Key="PublicPixelFont">avares://Autopelago/Assets/Fonts/PublicPixel.ttf#Public Pixel, Regular</FontFamily>
+        <converters:BooleanToStringConverter x:Key="YNConverter" FalseValue="N" TrueValue="Y" />
     </Application.Resources>
 
     <Application.DataTemplates>

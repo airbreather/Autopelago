@@ -28,6 +28,7 @@
         <Style Selector="TextBlock.meter-label">
             <Setter Property="FontSize" Value="10" />
             <Setter Property="VerticalAlignment" Value="Center" />
+            <Setter Property="TextAlignment" Value="Right"></Setter>
         </Style>
         <Style Selector="Border.item.collected">
             <Setter Property="BorderBrush" Value="#FFCE00" />
@@ -63,22 +64,28 @@
                         <TextBlock Margin="5,0,0,0" Grid.Row="0" Grid.Column="2" Classes="meter-label" Text="{Binding RatCount, StringFormat={}{0}/40}" />
 
                         <TextBlock Grid.Row="1" Grid.Column="0" Classes="meter-label" Text="NOM:" />
-                        <ProgressBar Grid.Row="1" Grid.Column="1" Grid.ColumnSpan="2" Minimum="-1" Maximum="1" Value="{Binding FoodFactor}" />
+                        <ProgressBar Grid.Row="1" Grid.Column="1" Minimum="-1" Maximum="1" Value="{Binding FoodFactor}" />
+                        <TextBlock Margin="5,0,0,0" Grid.Row="1" Grid.Column="2" Classes="meter-label" Text="{Binding FoodFactor}" />
 
                         <TextBlock Grid.Row="2" Grid.Column="0" Classes="meter-label" Text="LCK:" />
-                        <ProgressBar Grid.Row="2" Grid.Column="1" Grid.ColumnSpan="2" Minimum="-1" Maximum="1" Value="{Binding LuckFactor}" />
+                        <ProgressBar Grid.Row="2" Grid.Column="1" Minimum="-1" Maximum="1" Value="{Binding LuckFactor}" />
+                        <TextBlock Margin="5,0,0,0" Grid.Row="2" Grid.Column="2" Classes="meter-label" Text="{Binding LuckFactor}" />
 
                         <TextBlock Grid.Row="3" Grid.Column="0" Classes="meter-label" Text="NRG:" />
-                        <ProgressBar Grid.Row="3" Grid.Column="1" Grid.ColumnSpan="2" Minimum="-1" Maximum="1" Value="{Binding EnergyFactor}" />
+                        <ProgressBar Grid.Row="3" Grid.Column="1" Minimum="-1" Maximum="1" Value="{Binding EnergyFactor}" />
+                        <TextBlock Margin="5,0,0,0" Grid.Row="3" Grid.Column="2" Classes="meter-label" Text="{Binding EnergyFactor}" />
 
                         <TextBlock Grid.Row="4" Grid.Column="0" Classes="meter-label" Text="STY:" />
-                        <ProgressBar Grid.Row="4" Grid.Column="1" Grid.ColumnSpan="2" Minimum="0" Maximum="1" Value="{Binding StyleFactor}" />
+                        <ProgressBar Grid.Row="4" Grid.Column="1" Minimum="0" Maximum="1" Value="{Binding StyleFactor}" />
+                        <TextBlock Margin="5,0,0,0" Grid.Row="4" Grid.Column="2" Classes="meter-label" Text="{Binding StyleFactor}" />
 
                         <TextBlock Grid.Row="5" Grid.Column="0" Classes="meter-label" Text="DIS:" />
-                        <ProgressBar Grid.Row="5" Grid.Column="1" Grid.ColumnSpan="2" Minimum="0" Maximum="1" Value="{Binding DistractionCounter}" />
+                        <ProgressBar Grid.Row="5" Grid.Column="1" Minimum="0" Maximum="1" Value="{Binding DistractionCounter}" />
+                        <TextBlock Margin="5,0,0,0" Grid.Row="5" Grid.Column="2" Classes="meter-label" Text="{Binding DistractionCounter}" />
 
                         <TextBlock Grid.Row="6" Grid.Column="0" Classes="meter-label" Text="CNF:" />
-                        <ProgressBar Grid.Row="6" Grid.Column="1" Grid.ColumnSpan="2" IsIndeterminate="{Binding HasConfidence}" />
+                        <ProgressBar Grid.Row="6" Grid.Column="1" IsIndeterminate="{Binding HasConfidence}" />
+                        <TextBlock Margin="5,0,0,0" Grid.Row="6" Grid.Column="2" Classes="meter-label" Text="{Binding HasConfidence, Converter={StaticResource YNConverter}}" />
                     </Grid>
                 </Border>
 

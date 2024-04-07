@@ -1,11 +1,26 @@
 using System.Collections.Immutable;
 
+using Avalonia.Controls;
+
 using ReactiveUI;
 
 namespace Autopelago.ViewModels;
 
 public sealed class GameStateViewModel : ViewModelBase
 {
+    public GameStateViewModel()
+    {
+        if (!Design.IsDesignMode)
+        {
+            return;
+        }
+
+        foreach (CollectableItemViewModel item in ProgressionItems.OrderBy(_ => Random.Shared.NextDouble()).Take(ProgressionItems.Length / 2))
+        {
+            item.Collected = true;
+        }
+    }
+
     private string? _slotName;
     public string SlotName
     {
