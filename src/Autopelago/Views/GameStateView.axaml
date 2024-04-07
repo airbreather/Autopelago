@@ -5,6 +5,7 @@
     xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
     xmlns:viewModels="clr-namespace:Autopelago.ViewModels"
     xmlns:reactiveUi="http://reactiveui.net"
+    xmlns:materialIcons="clr-namespace:Material.Icons.Avalonia;assembly=Material.Icons.Avalonia"
     mc:Ignorable="d" d:DesignWidth="800" d:DesignHeight="450"
     x:Class="Autopelago.Views.GameStateView"
     x:DataType="viewModels:GameStateViewModel"
@@ -32,10 +33,24 @@
 
         <Border Margin="5" Grid.Column="1" Classes="ap-self">
             <TabControl TabStripPlacement="Bottom">
-                <TabItem Header="Map" HorizontalAlignment="Left">
+                <TabControl.ItemsPanel>
+                    <ItemsPanelTemplate>
+                        <StackPanel Orientation="Horizontal"></StackPanel>
+                    </ItemsPanelTemplate>
+                </TabControl.ItemsPanel>
+
+                <TabItem Header="Map">
                     <ScrollViewer HorizontalScrollBarVisibility="Disabled" VerticalScrollBarVisibility="Auto">
                         <Svg Path="/Assets/Images/Map.svg" />
                     </ScrollViewer>
+                </TabItem>
+                <TabItem IsEnabled="False">
+                    <TabItem.Header>
+                        <StackPanel Orientation="Horizontal">
+                            <materialIcons:MaterialIcon Kind="Lock" />
+                            <TextBlock Margin="5,0,0,0" Text="Arcade" />
+                        </StackPanel>
+                    </TabItem.Header>
                 </TabItem>
             </TabControl>
         </Border>
