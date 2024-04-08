@@ -7,6 +7,7 @@ using Avalonia.Media.Imaging;
 using Avalonia.Platform;
 using Avalonia.ReactiveUI;
 
+using ReactiveUI;
 using ReactiveUI.Fody.Helpers;
 
 using SkiaSharp;
@@ -36,7 +37,12 @@ public sealed class CheckableLocationViewModel : ViewModelBase, IDisposable
 
     public CheckableLocationViewModel(string locationKey)
     {
+        LocationKey = locationKey;
         CanvasLocation = s_canvasLocations[locationKey];
+
+        _disposables.Add(this.WhenAnyValue(x => x.Checked)
+            .Subscribe(isChecked => Available &= !isChecked));
+
         (Bitmap[] saturated, Bitmap[] desaturated) = ReadFrames(locationKey);
         (Bitmap[] yellowQuest, Bitmap[] grayQuest) = s_questFrames.Value;
         foreach (Bitmap frame in saturated)
@@ -60,6 +66,8 @@ public sealed class CheckableLocationViewModel : ViewModelBase, IDisposable
                 QuestImage = (Checked ? null : Available ? yellowQuest : grayQuest)?[nextQuestFrameIndex];
             }));
     }
+
+    public string LocationKey { get; }
 
     public Point CanvasLocation { get; }
 

@@ -42,6 +42,7 @@ public static class Helper
             box.TrySetCanceled(cancellationToken);
         });
         return await box.Task.ConfigureAwait(false);
+
         ValueTask OnEventAsync(object? sender, TSource source, CancellationToken cancellationToken)
         {
             if (predicate(source))

@@ -12,7 +12,23 @@
     x:TypeArguments="viewModels:GameStateViewModel">
 
     <Design.DataContext>
-        <viewModels:GameStateViewModel SlotName="Ratthew" RatCount="6" HasConfidence="True" />
+        <viewModels:GameStateViewModel SlotName="Ratthew" RatCount="6" HasConfidence="True">
+
+            <viewModels:GameStateViewModel.ProgressionItemsCollected>
+                <x:String>red_matador_cape</x:String>
+                <x:String>premium_can_of_prawn_food</x:String>
+            </viewModels:GameStateViewModel.ProgressionItemsCollected>
+
+            <viewModels:GameStateViewModel.LocationsChecked>
+                <x:String>basketball</x:String>
+                <x:String>prawn_stars</x:String>
+            </viewModels:GameStateViewModel.LocationsChecked>
+
+            <viewModels:GameStateViewModel.LocationsAvailable>
+                <x:String>minotaur</x:String>
+            </viewModels:GameStateViewModel.LocationsAvailable>
+
+        </viewModels:GameStateViewModel>
     </Design.DataContext>
 
     <Control.Styles>
