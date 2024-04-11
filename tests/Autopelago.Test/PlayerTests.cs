@@ -115,13 +115,18 @@ public sealed class PlayerTests
     {
         Game.State state = Game.State.Start(seed);
         Player player = new();
-        while (!state.IsCompleted)
+        while (true)
         {
             Game.State prev = state;
             state = player.Advance(state);
             Assert.That(state, Is.Not.EqualTo(prev));
 
-            state = state with { ReceivedItems = [.. state.ReceivedItems, .. state.CheckedLocations.Except(prev.CheckedLocations).Select(loc => loc.UnrandomizedItem)] };
+            if (state.IsCompleted)
+            {
+                break;
+            }
+
+            state = state with { ReceivedItems = [.. state.ReceivedItems, .. state.CheckedLocations.Except(prev.CheckedLocations).Select(loc => loc.UnrandomizedItem!)] };
         }
     }
 
