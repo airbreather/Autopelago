@@ -4,6 +4,7 @@ namespace Autopelago;
 public sealed class PlayerTests
 {
     private delegate TResult SpanFunc<TSource, out TResult>(ReadOnlySpan<TSource> vals);
+
     private static readonly ItemDefinitionModel s_normalRat = GameDefinitions.Instance.NormalRat;
 
     private static readonly LocationDefinitionModel s_startLocation = GameDefinitions.Instance.StartLocation;
@@ -424,6 +425,7 @@ public sealed class PlayerTests
         ulong result = box.Seed!.Value;
         TestContext.WriteLine($"ulong seed = {nameof(EnsureSeedProducesInitialD20Sequence)}({result}, [{string.Join(", ", Rolls(result, stackalloc int[cnt]).ToArray())}]);");
         return result;
+
         static void Search(object? obj)
         {
             SeedSearch search = (SeedSearch)obj!;
@@ -446,13 +448,19 @@ public sealed class PlayerTests
     {
         private const ulong RangeSize = 10_000;
 
-        private ulong _nextRangeStart;
+        private ulong _nextRangeStart = 1;
+
+        private ulong _seed;
 
         public required SpanFunc<int, bool> IsMatch { get; init; }
 
         public required int Count { get; init; }
 
-        public ulong? Seed { get; set; }
+        public ulong? Seed
+        {
+            get => _seed == 0 ? null : _seed;
+            set => _seed = value.GetValueOrDefault();
+        }
 
         public (ulong Start, ulong End) NextRange()
         {
