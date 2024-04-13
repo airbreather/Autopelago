@@ -93,6 +93,8 @@ public sealed class GameStateViewModel : ViewModelBase, IDisposable
             "pirate_bake_sale", "restaurant",
             "bowling_ball_door",
             "captured_goldfish",
+            "201", "202", "203", "204", "205", "206", "207", "208", "209", "210", "211", "212", "213", "214",
+            "301", "302", "303", "304", "305", "306", "307", "308", "309", "310", "311", "312",
         }.Select(key => new CheckableLocationViewModel(key)),
     ];
 
