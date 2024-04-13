@@ -15,11 +15,11 @@ public sealed class PlayerTests
 
     private static readonly LocationDefinitionModel s_basketball = GameDefinitions.Instance.LocationsByKey[LocationKey.For("basketball")];
 
-    private static readonly RegionDefinitionModel s_beforeMinotaur = GameDefinitions.Instance.AllRegions["before_minotaur"];
+    private static readonly RegionDefinitionModel s_beforeAngryTurtles = GameDefinitions.Instance.AllRegions["before_angry_turtles"];
 
     private static readonly RegionDefinitionModel s_beforePrawnStars = GameDefinitions.Instance.AllRegions["before_prawn_stars"];
 
-    private static readonly ItemDefinitionModel s_redMatadorCape = GameDefinitions.Instance.ProgressionItems["red_matador_cape"];
+    private static readonly ItemDefinitionModel s_pizzaRat = GameDefinitions.Instance.ProgressionItems["pizza_rat"];
 
     private static readonly ItemDefinitionModel s_premiumCanOfPrawnFood = GameDefinitions.Instance.ProgressionItems["premium_can_of_prawn_food"];
 
@@ -79,14 +79,14 @@ public sealed class PlayerTests
     }
 
     [Test]
-    public void ShouldHeadFurtherAfterCompletingBasketball([Values(true, false)] bool unblockMinotaurFirst)
+    public void ShouldHeadFurtherAfterCompletingBasketball([Values(true, false)] bool unblockAngryTurtlesFirst)
     {
         ulong seed = EnsureSeedProducesInitialD20Sequence(2449080649, [20, 20, 20, 20, 20, 20, 20, 20]);
 
         Game.State state = Game.State.Start(seed);
         state = state with
         {
-            ReceivedItems = [.. Enumerable.Repeat(s_normalRat, 5), unblockMinotaurFirst ? s_redMatadorCape : s_premiumCanOfPrawnFood],
+            ReceivedItems = [.. Enumerable.Repeat(s_normalRat, 5), unblockAngryTurtlesFirst ? s_pizzaRat : s_premiumCanOfPrawnFood],
             CheckedLocations = [.. s_startRegion.Locations],
             CurrentLocation = s_basketball,
             TargetLocation = s_basketball,
@@ -100,7 +100,7 @@ public sealed class PlayerTests
         // branching path, and we can go further down branch A than branch B before getting BK'd,
         // then we actually prefer to take branch B first so that we won't have as far to backtrack
         // if nothing else comes in for us.
-        RegionDefinitionModel expectedRegion = unblockMinotaurFirst ? s_beforePrawnStars : s_beforeMinotaur;
+        RegionDefinitionModel expectedRegion = unblockAngryTurtlesFirst ? s_beforePrawnStars : s_beforeAngryTurtles;
 
         // because we roll so well, we can actually use our three actions to complete two checks:
         // basketball, then move, then complete that first location that we moved to.

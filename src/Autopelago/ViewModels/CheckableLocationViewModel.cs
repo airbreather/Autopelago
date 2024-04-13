@@ -26,37 +26,37 @@ public sealed class CheckableLocationViewModel : ViewModelBase, IDisposable
     {
         KeyValuePair.Create("basketball", new Point(59 - HalfWidth, 77 - HalfWidth)),
         KeyValuePair.Create("prawn_stars", new Point(103 - HalfWidth, 34 - HalfWidth)),
-        KeyValuePair.Create("minotaur", new Point(103 - HalfWidth, 120 - HalfWidth)),
+        KeyValuePair.Create("angry_turtles", new Point(103 - HalfWidth, 120 - HalfWidth)),
         KeyValuePair.Create("pirate_bake_sale", new Point(166 - HalfWidth, 34 - HalfWidth)),
         KeyValuePair.Create("restaurant", new Point(166 - HalfWidth, 120 - HalfWidth)),
         KeyValuePair.Create("bowling_ball_door", new Point(254 - HalfWidth, 77 - HalfWidth)),
         KeyValuePair.Create("captured_goldfish", new Point(290 - HalfWidth, 106 - HalfWidth)),
-        KeyValuePair.Create("201", new Point(282 - HalfWidth, 225 - HalfWidth)),
-        KeyValuePair.Create("212", new Point(235 - HalfWidth, 179 - HalfWidth)),
-        KeyValuePair.Create("206", new Point(235 - HalfWidth, 225 - HalfWidth)),
-        KeyValuePair.Create("203", new Point(235 - HalfWidth, 269 - HalfWidth)),
-        KeyValuePair.Create("207", new Point(178 - HalfWidth, 179 - HalfWidth)),
-        KeyValuePair.Create("205", new Point(178 - HalfWidth, 225 - HalfWidth)),
-        KeyValuePair.Create("213", new Point(178 - HalfWidth, 269 - HalfWidth)),
-        KeyValuePair.Create("209", new Point(124 - HalfWidth, 179 - HalfWidth)),
-        KeyValuePair.Create("202", new Point(124 - HalfWidth, 225 - HalfWidth)),
-        KeyValuePair.Create("204", new Point(124 - HalfWidth, 269 - HalfWidth)),
-        KeyValuePair.Create("210", new Point(67 - HalfWidth, 179 - HalfWidth)),
-        KeyValuePair.Create("208", new Point(67 - HalfWidth, 225 - HalfWidth)),
-        KeyValuePair.Create("211", new Point(67 - HalfWidth, 269 - HalfWidth)),
-        KeyValuePair.Create("214", new Point(20 - HalfWidth, 225 - HalfWidth)),
-        KeyValuePair.Create("301", new Point(25 - HalfWidth, 331 - HalfWidth)),
-        KeyValuePair.Create("310", new Point(73 - HalfWidth, 353 - HalfWidth)),
-        KeyValuePair.Create("302", new Point(84 - HalfWidth, 402 - HalfWidth)),
-        KeyValuePair.Create("309", new Point(54 - HalfWidth, 435 - HalfWidth)),
-        KeyValuePair.Create("304", new Point(114 - HalfWidth, 428 - HalfWidth)),
-        KeyValuePair.Create("307", new Point(113 - HalfWidth, 334 - HalfWidth)),
-        KeyValuePair.Create("305", new Point(149 - HalfWidth, 381 - HalfWidth)),
-        KeyValuePair.Create("308", new Point(183 - HalfWidth, 346 - HalfWidth)),
-        KeyValuePair.Create("303", new Point(194 - HalfWidth, 399 - HalfWidth)),
-        KeyValuePair.Create("306", new Point(232 - HalfWidth, 406 - HalfWidth)),
-        KeyValuePair.Create("311", new Point(243 - HalfWidth, 354 - HalfWidth)),
-        KeyValuePair.Create("312", new Point(284 - HalfWidth, 319 - HalfWidth)),
+        KeyValuePair.Create("computer_interface", new Point(282 - HalfWidth, 225 - HalfWidth)),
+        KeyValuePair.Create("kart_races", new Point(235 - HalfWidth, 179 - HalfWidth)),
+        KeyValuePair.Create("trapeze", new Point(235 - HalfWidth, 225 - HalfWidth)),
+        KeyValuePair.Create("daring_adventurer", new Point(235 - HalfWidth, 269 - HalfWidth)),
+        KeyValuePair.Create("broken_down_bus", new Point(178 - HalfWidth, 179 - HalfWidth)),
+        KeyValuePair.Create("blue_colored_screen_interface", new Point(178 - HalfWidth, 225 - HalfWidth)),
+        KeyValuePair.Create("overweight_boulder", new Point(178 - HalfWidth, 269 - HalfWidth)),
+        KeyValuePair.Create("binary_tree", new Point(124 - HalfWidth, 179 - HalfWidth)),
+        KeyValuePair.Create("copyright_mouse", new Point(124 - HalfWidth, 225 - HalfWidth)),
+        KeyValuePair.Create("computer_ram", new Point(124 - HalfWidth, 269 - HalfWidth)),
+        KeyValuePair.Create("rat_rap_battle", new Point(67 - HalfWidth, 179 - HalfWidth)),
+        KeyValuePair.Create("room_full_of_typewriters", new Point(67 - HalfWidth, 225 - HalfWidth)),
+        KeyValuePair.Create("stack_of_crates", new Point(67 - HalfWidth, 269 - HalfWidth)),
+        KeyValuePair.Create("secret_cache", new Point(20 - HalfWidth, 225 - HalfWidth)),
+        KeyValuePair.Create("makeshift_rocket_ship", new Point(25 - HalfWidth, 331 - HalfWidth)),
+        KeyValuePair.Create("roboclop_the_robot_war_horse", new Point(73 - HalfWidth, 353 - HalfWidth)),
+        KeyValuePair.Create("homeless_mummy", new Point(84 - HalfWidth, 402 - HalfWidth)),
+        KeyValuePair.Create("frozen_assets", new Point(54 - HalfWidth, 435 - HalfWidth)),
+        KeyValuePair.Create("alien_vending_machine", new Point(114 - HalfWidth, 428 - HalfWidth)),
+        KeyValuePair.Create("stalled_rocket_get_out_and_push", new Point(113 - HalfWidth, 334 - HalfWidth)),
+        KeyValuePair.Create("seal_of_fortune", new Point(149 - HalfWidth, 381 - HalfWidth)),
+        KeyValuePair.Create("space_opera", new Point(183 - HalfWidth, 346 - HalfWidth)),
+        KeyValuePair.Create("minotaur_labyrinth", new Point(194 - HalfWidth, 399 - HalfWidth)),
+        KeyValuePair.Create("asteroid_with_pants", new Point(232 - HalfWidth, 406 - HalfWidth)),
+        KeyValuePair.Create("snakes_on_a_planet", new Point(243 - HalfWidth, 354 - HalfWidth)),
+        KeyValuePair.Create("moon_comma_the", new Point(284 - HalfWidth, 319 - HalfWidth)),
     }.ToFrozenDictionary();
 
     private readonly CompositeDisposable _disposables = [];
@@ -119,11 +119,6 @@ public sealed class CheckableLocationViewModel : ViewModelBase, IDisposable
 
     private static (Bitmap[] Saturated, Bitmap[] Desaturated) ReadFrames(string locationKey)
     {
-        if (int.TryParse(locationKey, out _))
-        {
-            locationKey = "archipelago_item";
-        }
-
         using Stream data = AssetLoader.Open(new($"avares://Autopelago/Assets/Images/{locationKey}.webp"));
         using SKCodec codec = SKCodec.Create(data);
         SKImageInfo imageInfo = codec.Info;

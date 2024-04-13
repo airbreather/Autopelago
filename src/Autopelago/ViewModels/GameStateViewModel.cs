@@ -76,26 +76,14 @@ public sealed class GameStateViewModel : ViewModelBase, IDisposable
     [Reactive]
     public bool HasConfidence { get; set; }
 
-    public ImmutableArray<CollectableItemViewModel> ProgressionItems { get; } = [
-        .. new[]
-        {
-            "red_matador_cape", "premium_can_of_prawn_food",
-            "a_cookie", "bribe",
-            "masterful_longsword",
-        }.Select(key => new CollectableItemViewModel(key)),
+    public ImmutableArray<CollectableItemViewModel> ProgressionItems { get; } =
+    [
+        .. GameDefinitions.Instance.ProgressionItems.Keys.Select(key => new CollectableItemViewModel(key)),
     ];
 
-    public ImmutableArray<CheckableLocationViewModel> CheckableLocations { get; } = [
-        .. new[]
-        {
-            "basketball",
-            "prawn_stars", "minotaur",
-            "pirate_bake_sale", "restaurant",
-            "bowling_ball_door",
-            "captured_goldfish",
-            "201", "202", "203", "204", "205", "206", "207", "208", "209", "210", "211", "212", "213", "214",
-            "301", "302", "303", "304", "305", "306", "307", "308", "309", "310", "311", "312",
-        }.Select(key => new CheckableLocationViewModel(key)),
+    public ImmutableArray<CheckableLocationViewModel> CheckableLocations { get; } =
+    [
+        .. GameDefinitions.Instance.LandmarkRegions.Keys.Select(key => new CheckableLocationViewModel(key)),
     ];
 
     [DesignerSerializationVisibility(DesignerSerializationVisibility.Content)]

@@ -12,7 +12,15 @@ public sealed class CollectableItemViewModel : ViewModelBase, IDisposable
     public CollectableItemViewModel(string itemKey)
     {
         ItemKey = itemKey;
-        Model = GameDefinitions.Instance.ProgressionItems[itemKey];
+        try
+        {
+            Model = GameDefinitions.Instance.ProgressionItems[itemKey];
+        }
+        catch (KeyNotFoundException ex)
+        {
+            throw new KeyNotFoundException($"Item Key: '{itemKey}'", ex);
+        }
+
         Image = new(AssetLoader.Open(new($"avares://Autopelago/Assets/Images/{itemKey}.webp")));
 
         using SKBitmap bmp = SKBitmap.Decode(AssetLoader.Open(new($"avares://Autopelago/Assets/Images/{itemKey}.webp")));

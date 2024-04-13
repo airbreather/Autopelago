@@ -5,6 +5,13 @@ SCRIPT_DIR="$(dirname "$(realpath "$0")")"
 mkdir "$SCRIPT_DIR/../Rats"
 mkdir "$SCRIPT_DIR/../Locations"
 
+for f in $SCRIPT_DIR/*.svg
+do
+    chmod -x "$f"
+    fn=${f##*/}
+    cp "$f" "$SCRIPT_DIR/../$fn"
+done
+
 for f in $SCRIPT_DIR/*.piskel
 do
     chmod -x "$f"

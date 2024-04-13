@@ -3,6 +3,7 @@ using System.Collections.Immutable;
 using System.Reflection;
 using System.Runtime.InteropServices;
 using System.Text;
+using System.Text.RegularExpressions;
 
 using YamlDotNet.RepresentationModel;
 using YamlDotNet.Serialization;
@@ -202,11 +203,11 @@ public sealed record ItemDefinitionsModel
     {
         foreach (YamlNode valueNode in seq)
         {
-            if (valueNode is YamlMappingNode valueMap)
+            if (valueNode is YamlMappingNode valueMap && valueMap.Children.TryGetValue("game_specific", out YamlNode? gameSpecificNode))
             {
-                if (!(associatedGame is null && valueMap.Children.TryGetValue("game_specific", out YamlNode? gameSpecificNode)))
+                if (associatedGame is not null)
                 {
-                    throw new InvalidDataException("Bad node type");
+                    throw new InvalidDataException("Bad node");
                 }
 
                 foreach ((YamlNode gameKeyNode, YamlNode gameValueNode) in (YamlMappingNode)gameSpecificNode)
@@ -346,6 +347,7 @@ public sealed record RegionDefinitionsModel
                         Name = "Victory",
                         Requirement = GameRequirement.AlwaysSatisfied,
                         UnrandomizedItem = null,
+                        RewardIsFixed = true,
                     },
                 ],
             },
@@ -424,6 +426,7 @@ public sealed record LandmarkRegionDefinitionModel : RegionDefinitionModel
                     Name = ((YamlScalarNode)map["name"]).Value!,
                     UnrandomizedItem = items.ProgressionItems[((YamlScalarNode)map["unrandomized_item"]).Value!],
                     Requirement = requirement,
+                    RewardIsFixed = map.Children.TryGetValue("reward_is_fixed", out YamlNode? rewardIsFixedNode) && ((YamlScalarNode)rewardIsFixedNode).ToBoolean(),
                 },
             ],
         };
@@ -479,12 +482,13 @@ public sealed record FillerRegionDefinitionModel : RegionDefinitionModel
         {
             Key = key,
             Exits = [.. ((YamlSequenceNode)map["exits"]).Select(RegionExitDefinitionModel.DeserializeFrom)],
-            Locations = [.. unrandomizedItems.Select((item, n) => new LocationDefinitionModel()
+            Locations = [.. unrandomizedItems.Select((item, n) => new LocationDefinitionModel
             {
                 Key = LocationKey.For(key, n),
                 Name = nameTemplate.Replace("{n}", $"{n + 1}"),
                 Requirement = eachRequires,
                 UnrandomizedItem = item,
+                RewardIsFixed = false,
             })],
         };
     }
@@ -543,6 +547,8 @@ public sealed record LocationDefinitionModel
 
     public required ItemDefinitionModel? UnrandomizedItem { get; init; }
 
+    public required bool RewardIsFixed { get; init; }
+
     public RegionDefinitionModel Region => GameDefinitions.Instance.AllRegions[Key.RegionKey];
 
     public int DistanceTo(LocationDefinitionModel target) => GameDefinitions.Instance.FloydWarshall.GetDistance(this, target);
@@ -589,6 +595,7 @@ public abstract record GameRequirement
             "location" => CheckedLocationRequirement.DeserializeFrom(valueNode),
             "item" => ReceivedItemRequirement.DeserializeFrom(valueNode),
             "any" => AnyChildGameRequirement.DeserializeFrom(valueNode),
+            "any_two" => AnyTwoChildrenGameRequirement.DeserializeFrom(valueNode),
             "all" => AllChildrenGameRequirement.DeserializeFrom(valueNode),
             _ => throw new InvalidDataException($"Unrecognized requirement: {keyNode.Value}"),
         };
@@ -673,6 +680,70 @@ public sealed record AnyChildGameRequirement : GameRequirement
             {
                 return true;
             }
+        }
+
+        return false;
+    }
+
+    public bool Equals(AnyChildGameRequirement? other)
+    {
+        return
+            base.Equals(other) &&
+            Children.SequenceEqual(other.Children);
+    }
+
+    public override int GetHashCode()
+    {
+        return HashCode.Combine(Children.Length);
+    }
+}
+
+public sealed record AnyTwoChildrenGameRequirement : GameRequirement
+{
+    public required ImmutableArray<GameRequirement> Children { get; init; }
+
+    public static new AnyTwoChildrenGameRequirement DeserializeFrom(YamlNode node)
+    {
+        return new() { Children = [.. ((YamlSequenceNode)node).Select(GameRequirement.DeserializeFrom)] };
+    }
+
+    public override bool StaticSatisfied(Game.State state)
+    {
+        bool one = false;
+        foreach (GameRequirement child in Children)
+        {
+            if (!child.StaticSatisfied(state))
+            {
+                continue;
+            }
+
+            if (one)
+            {
+                return true;
+            }
+
+            one = true;
+        }
+
+        return false;
+    }
+
+    public override bool DynamicSatisfied(ref Game.State state)
+    {
+        bool one = false;
+        foreach (GameRequirement child in Children)
+        {
+            if (!child.DynamicSatisfied(ref state))
+            {
+                continue;
+            }
+
+            if (one)
+            {
+                return true;
+            }
+
+            one = true;
         }
 
         return false;
