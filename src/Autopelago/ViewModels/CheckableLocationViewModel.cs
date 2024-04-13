@@ -1,11 +1,8 @@
 using System.Collections.Frozen;
-using System.Reactive.Disposables;
-using System.Reactive.Linq;
 
 using Avalonia;
 using Avalonia.Media.Imaging;
 using Avalonia.Platform;
-using Avalonia.ReactiveUI;
 
 using ReactiveUI;
 using ReactiveUI.Fody.Helpers;
@@ -17,8 +14,6 @@ namespace Autopelago.ViewModels;
 public sealed class CheckableLocationViewModel : ViewModelBase, IDisposable
 {
     private const int HalfWidth = 8;
-
-    private static readonly Lazy<IObservable<long>> s_timer = new(() => Observable.Interval(TimeSpan.FromMilliseconds(500), AvaloniaScheduler.Instance));
 
     private static readonly Lazy<(Bitmap[] Yellow, Bitmap[] Gray)> s_questFrames = new(() => (ReadFrames("yellow_quest").Saturated, ReadFrames("gray_quest").Saturated));
 
@@ -59,38 +54,33 @@ public sealed class CheckableLocationViewModel : ViewModelBase, IDisposable
         KeyValuePair.Create("moon_comma_the", new Point(284 - HalfWidth, 319 - HalfWidth)),
     }.ToFrozenDictionary();
 
-    private readonly CompositeDisposable _disposables = [];
+    private readonly IDisposable _clearAvailableSubscription;
+
+    private readonly IDisposable _updateImagesSubscription;
+
+    private readonly Bitmap[] _saturated;
+
+    private readonly Bitmap[] _desaturated;
 
     public CheckableLocationViewModel(string locationKey)
     {
         LocationKey = locationKey;
         CanvasLocation = s_canvasLocations[locationKey];
 
-        _disposables.Add(this.WhenAnyValue(x => x.Checked)
-            .Subscribe(isChecked => Available &= !isChecked));
+        (_saturated, _desaturated) = ReadFrames(locationKey);
+        (Bitmap[] yellowQuestFrames, Bitmap[] grayQuestFrames) = s_questFrames.Value;
 
-        (Bitmap[] saturated, Bitmap[] desaturated) = ReadFrames(locationKey);
-        (Bitmap[] yellowQuest, Bitmap[] grayQuest) = s_questFrames.Value;
-        foreach (Bitmap frame in saturated)
-        {
-            _disposables.Add(frame);
-        }
+        _clearAvailableSubscription = this
+            .WhenAnyValue(x => x.Checked)
+            .Subscribe(isChecked => Available &= !isChecked);
 
-        foreach (Bitmap frame in desaturated)
-        {
-            _disposables.Add(frame);
-        }
-
-        _disposables.Add(s_timer.Value
-            .Subscribe(i =>
+        _updateImagesSubscription = this
+            .WhenAnyValue(x => x.FrameCounter, x => x.Checked, x => x.Available, (frameCounter, isChecked, isAvailable) => (frameCounter, isChecked, isAvailable))
+            .Subscribe(curr =>
             {
-                int nextLocationFrameIndex = (int)(i % saturated.Length);
-                Image = saturated[nextLocationFrameIndex];
-                DesaturatedImage = desaturated[nextLocationFrameIndex];
-
-                int nextQuestFrameIndex = (int)(i % yellowQuest.Length);
-                QuestImage = (Checked ? null : Available ? yellowQuest : grayQuest)?[nextQuestFrameIndex];
-            }));
+                Image = (curr.isChecked ? _saturated : _desaturated)[curr.frameCounter & 1];
+                QuestImage = curr.isChecked ? null : (curr.isAvailable ? yellowQuestFrames : grayQuestFrames)[curr.frameCounter & 1];
+            });
     }
 
     public string LocationKey { get; }
@@ -101,9 +91,6 @@ public sealed class CheckableLocationViewModel : ViewModelBase, IDisposable
     public Bitmap? Image { get; private set; }
 
     [Reactive]
-    public Bitmap? DesaturatedImage { get; private set; }
-
-    [Reactive]
     public Bitmap? QuestImage { get; private set; }
 
     [Reactive]
@@ -112,9 +99,27 @@ public sealed class CheckableLocationViewModel : ViewModelBase, IDisposable
     [Reactive]
     public bool Checked { get; set; }
 
+    [Reactive]
+    internal long FrameCounter { get; private set; }
+
     public void Dispose()
     {
-        _disposables.Dispose();
+        _clearAvailableSubscription.Dispose();
+        _updateImagesSubscription.Dispose();
+        foreach (Bitmap saturated in _saturated)
+        {
+            saturated.Dispose();
+        }
+
+        foreach (Bitmap desaturated in _desaturated)
+        {
+            desaturated.Dispose();
+        }
+    }
+
+    internal void NextFrame()
+    {
+        ++FrameCounter;
     }
 
     private static (Bitmap[] Saturated, Bitmap[] Desaturated) ReadFrames(string locationKey)
@@ -123,8 +128,13 @@ public sealed class CheckableLocationViewModel : ViewModelBase, IDisposable
         using SKCodec codec = SKCodec.Create(data);
         SKImageInfo imageInfo = codec.Info;
         SKCodecFrameInfo[] frameInfo = codec.FrameInfo;
-        Bitmap[] saturated = new Bitmap[Math.Max(1, frameInfo.Length)];
-        Bitmap[] desaturated = new Bitmap[Math.Max(1, frameInfo.Length)];
+        Bitmap[] saturated = new Bitmap[2];
+        Bitmap[] desaturated = new Bitmap[2];
+        if (frameInfo.Length is not (0 or 2))
+        {
+            throw new NotSupportedException("These were all supposed to be 1- or 2-frame images.");
+        }
+
         for (int i = 0; i < frameInfo.Length; i++)
         {
             if (frameInfo[i].Duration != 500)
@@ -154,8 +164,8 @@ public sealed class CheckableLocationViewModel : ViewModelBase, IDisposable
             using SKData encoded = img.Encode();
             encoded.SaveTo(ms);
             ms.Position = 0;
-            saturated[0] = new(ms);
-            desaturated[0] = ToDesaturated(bmp);
+            saturated[0] = saturated[1] = new(ms);
+            desaturated[0] = desaturated[1] = ToDesaturated(bmp);
         }
 
         return (saturated, desaturated);

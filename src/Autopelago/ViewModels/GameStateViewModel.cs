@@ -6,6 +6,7 @@ using System.Reactive.Disposables;
 using System.Reactive.Linq;
 
 using Avalonia.Controls;
+using Avalonia.ReactiveUI;
 
 using DynamicData.Binding;
 
@@ -19,6 +20,15 @@ public sealed class GameStateViewModel : ViewModelBase, IDisposable
 
     public GameStateViewModel()
     {
+        _disposables.Add(Observable.Interval(TimeSpan.FromMilliseconds(500), AvaloniaScheduler.Instance)
+            .Subscribe(_ =>
+            {
+                foreach (CheckableLocationViewModel loc in CheckableLocations)
+                {
+                    loc.NextFrame();
+                }
+            }));
+
         if (!Design.IsDesignMode)
         {
             return;

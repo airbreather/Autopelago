@@ -1,26 +1,29 @@
-using ReactiveUI;
+using ReactiveUI.Fody.Helpers;
 
 namespace Autopelago.ViewModels;
 
-public sealed class MainWindowViewModel : ViewModelBase
+public sealed class MainWindowViewModel : ViewModelBase, IDisposable
 {
+    private readonly IDisposable _connectCommandSubscription;
+
     public MainWindowViewModel()
     {
-        SettingsSelection.ConnectCommand
+        _connectCommandSubscription = SettingsSelection.ConnectCommand
             .Subscribe(settings => ContentViewModel = new GameStateViewModel
             {
                 SlotName = settings.Slot,
             });
 
-        _contentViewModel = SettingsSelection;
+        ContentViewModel = SettingsSelection;
     }
 
     public SettingsSelectionViewModel SettingsSelection { get; } = new();
 
-    private ViewModelBase _contentViewModel;
-    public ViewModelBase ContentViewModel
+    [Reactive]
+    public ViewModelBase ContentViewModel { get; set; }
+
+    public void Dispose()
     {
-        get => _contentViewModel;
-        set => this.RaiseAndSetIfChanged(ref _contentViewModel, value);
+        _connectCommandSubscription.Dispose();
     }
 }
