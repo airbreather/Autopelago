@@ -112,7 +112,8 @@
                                     <ToolTip.Tip>
                                         <StackPanel>
                                             <TextBlock Text="{Binding Model.Name, Mode=OneTime}" />
-                                            <TextBlock Text="{Binding Model.FlavorText, StringFormat='“{0}”', Mode=OneTime}" IsVisible="{Binding Model.FlavorText, Mode=OneTime, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
+                                            <TextBlock Text="{Binding Model.FlavorText, StringFormat='“{0}”', Mode=OneTime}"
+                                                       IsVisible="{Binding Model.FlavorText, Mode=OneTime, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
                                         </StackPanel>
                                     </ToolTip.Tip>
                                     <Grid>
