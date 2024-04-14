@@ -88,8 +88,6 @@ public sealed class CheckableLocationViewModel : ViewModelBase, IDisposable
 
     public LocationDefinitionModel Model { get; }
 
-    public string ToolTipText => Model.Name;
-
     public Point CanvasLocation { get; }
 
     [Reactive]

@@ -423,6 +423,7 @@ public sealed record LandmarkRegionDefinitionModel : RegionDefinitionModel
                 {
                     Key = LocationKey.For(key),
                     Name = ((YamlScalarNode)map["name"]).Value!,
+                    FlavorText = map.Children.TryGetValue("flavor_text", out YamlNode? flavorTextNode) ? ((YamlScalarNode)flavorTextNode).Value : null,
                     UnrandomizedItem = items.ProgressionItems[((YamlScalarNode)map["unrandomized_item"]).Value!],
                     Requirement = requirement,
                     RewardIsFixed = map.Children.TryGetValue("reward_is_fixed", out YamlNode? rewardIsFixedNode) && ((YamlScalarNode)rewardIsFixedNode).ToBoolean(),
@@ -541,6 +542,8 @@ public sealed record LocationDefinitionModel
     public required LocationKey Key { get; init; }
 
     public required string Name { get; init; }
+
+    public string? FlavorText { get; init; }
 
     public required AllChildrenGameRequirement Requirement { get; init; }
 
