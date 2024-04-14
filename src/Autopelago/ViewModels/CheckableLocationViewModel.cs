@@ -65,6 +65,7 @@ public sealed class CheckableLocationViewModel : ViewModelBase, IDisposable
     public CheckableLocationViewModel(string locationKey)
     {
         LocationKey = locationKey;
+        Model = GameDefinitions.Instance.LandmarkRegions[locationKey].Locations[0];
         CanvasLocation = s_canvasLocations[locationKey];
 
         (_saturated, _desaturated) = ReadFrames(locationKey);
@@ -84,6 +85,10 @@ public sealed class CheckableLocationViewModel : ViewModelBase, IDisposable
     }
 
     public string LocationKey { get; }
+
+    public LocationDefinitionModel Model { get; }
+
+    public string ToolTipText => Model.Name;
 
     public Point CanvasLocation { get; }
 

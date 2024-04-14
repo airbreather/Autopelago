@@ -3,7 +3,6 @@ using System.Collections.Immutable;
 using System.Reflection;
 using System.Runtime.InteropServices;
 using System.Text;
-using System.Text.RegularExpressions;
 
 using YamlDotNet.RepresentationModel;
 using YamlDotNet.Serialization;
@@ -581,6 +580,10 @@ public abstract record GameRequirement
         return true;
     }
 
+    public virtual void VisitItemKeys(Action<string> onItemKey)
+    {
+    }
+
     public static GameRequirement DeserializeFrom(YamlNode node)
     {
         if (node is not YamlMappingNode { Children: [(YamlScalarNode keyNode, YamlNode valueNode)] })
@@ -637,6 +640,14 @@ public sealed record AllChildrenGameRequirement : GameRequirement
         return true;
     }
 
+    public override void VisitItemKeys(Action<string> onItemKey)
+    {
+        foreach (GameRequirement child in Children)
+        {
+            child.VisitItemKeys(onItemKey);
+        }
+    }
+
     public bool Equals(AllChildrenGameRequirement? other)
     {
         return
@@ -683,6 +694,14 @@ public sealed record AnyChildGameRequirement : GameRequirement
         }
 
         return false;
+    }
+
+    public override void VisitItemKeys(Action<string> onItemKey)
+    {
+        foreach (GameRequirement child in Children)
+        {
+            child.VisitItemKeys(onItemKey);
+        }
     }
 
     public bool Equals(AnyChildGameRequirement? other)
@@ -747,6 +766,14 @@ public sealed record AnyTwoChildrenGameRequirement : GameRequirement
         }
 
         return false;
+    }
+
+    public override void VisitItemKeys(Action<string> onItemKey)
+    {
+        foreach (GameRequirement child in Children)
+        {
+            child.VisitItemKeys(onItemKey);
+        }
     }
 
     public bool Equals(AnyChildGameRequirement? other)
@@ -838,6 +865,11 @@ public sealed record ReceivedItemRequirement : GameRequirement
     public override bool StaticSatisfied(Game.State state)
     {
         return state.ReceivedItems.Contains(GameDefinitions.Instance.ProgressionItems[ItemKey]);
+    }
+
+    public override void VisitItemKeys(Action<string> onItemKey)
+    {
+        onItemKey(ItemKey);
     }
 }
 

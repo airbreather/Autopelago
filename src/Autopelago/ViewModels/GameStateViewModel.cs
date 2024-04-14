@@ -16,6 +16,14 @@ namespace Autopelago.ViewModels;
 
 public sealed class GameStateViewModel : ViewModelBase, IDisposable
 {
+    private static readonly FrozenSet<string> s_hiddenProgressionItems = new[]
+    {
+        // these are the items marked as progression that aren't ever **individually** required.
+        "normal_rat", "rat_pack", "pack_rat", "computer_rat", "soc_rat_es",
+    }.ToFrozenSet();
+
+    private static readonly FrozenDictionary<string, int> s_progressionItemSortOrder = ProgressionItemSortOrder();
+
     private readonly CompositeDisposable _disposables = new();
 
     public GameStateViewModel()
@@ -88,12 +96,16 @@ public sealed class GameStateViewModel : ViewModelBase, IDisposable
 
     public ImmutableArray<CollectableItemViewModel> ProgressionItems { get; } =
     [
-        .. GameDefinitions.Instance.ProgressionItems.Keys.Select(key => new CollectableItemViewModel(key)),
+        .. GameDefinitions.Instance.ProgressionItems.Keys
+            .Where(itemKey => !s_hiddenProgressionItems.Contains(itemKey))
+            .OrderBy(itemKey => s_progressionItemSortOrder[itemKey])
+            .Select(key => new CollectableItemViewModel(key)),
     ];
 
     public ImmutableArray<CheckableLocationViewModel> CheckableLocations { get; } =
     [
-        .. GameDefinitions.Instance.LandmarkRegions.Keys.Select(key => new CheckableLocationViewModel(key)),
+        .. GameDefinitions.Instance.LandmarkRegions.Keys
+            .Select(key => new CheckableLocationViewModel(key)),
     ];
 
     [DesignerSerializationVisibility(DesignerSerializationVisibility.Content)]
@@ -108,5 +120,31 @@ public sealed class GameStateViewModel : ViewModelBase, IDisposable
     public void Dispose()
     {
         _disposables.Dispose();
+    }
+
+    private static FrozenDictionary<string, int> ProgressionItemSortOrder()
+    {
+        Dictionary<string, int> result = [];
+
+        HashSet<RegionDefinitionModel> seenRegions = [];
+        Queue<RegionDefinitionModel> regions = [];
+        regions.Enqueue(GameDefinitions.Instance.StartRegion);
+        while (regions.TryDequeue(out RegionDefinitionModel? region))
+        {
+            if (region is LandmarkRegionDefinitionModel)
+            {
+                region.Locations[0].Requirement.VisitItemKeys(itemKey => result.Add(itemKey, result.Count));
+            }
+
+            foreach (RegionExitDefinitionModel exit in region.Exits)
+            {
+                if (seenRegions.Add(exit.Region))
+                {
+                    regions.Enqueue(exit.Region);
+                }
+            }
+        }
+
+        return result.ToFrozenDictionary();
     }
 }

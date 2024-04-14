@@ -8,7 +8,9 @@ items:
   playing_with_fire_for_dummies: 'Playing with Fire For Dummies'
   moon_shaped_like_a_butt: 'Moon Shaped Like a Butt'
   asteroid_belt: 'Asteroid Belt'
-  free_vowel: 'Free Vowel'
+  free_vowel:
+    name: 'Free Vowel'
+    flavor_text: 'A $250 value!'
   constellation_prize: 'Constellation Prize'
   foreign_coin:
     name: 'Foreign Coin'
@@ -420,7 +422,9 @@ regions:
       name: 'Minotaur Labyrinth'
       unrandomized_item: normal_rat
       requires:
-        - rat_count: 10
+        - any:
+          - item: red_matador_cape
+          - item: lab_rat
       exits:
         - before_asteroid_with_pants
         - after_minotaur_labyrinth
@@ -691,8 +695,8 @@ regions:
         - rat_count: 5
         - ability_check_with_dc: 12
       exits:
-        - before_angry_turtles
         - before_prawn_stars
+        - before_angry_turtles
 
   fillers:
     after_minotaur_labyrinth:
@@ -807,7 +811,7 @@ regions:
       each_requires:
         - ability_check_with_dc: 1
       exits:
-        - stalled_rocket_get_out_and_push
+        - homeless_mummy
 
     before_stalled_rocket_get_out_and_push:
       name_template: 'Before Stalled Rocket! (Get Out and Push) #{n}'
