@@ -10,18 +10,6 @@ public sealed class Player
 
     private readonly Dictionary<ItemDefinitionModel, int> _receivedItemsMap = [];
 
-    private readonly bool _autoSucceedDynamicChecks;
-
-    public Player()
-        : this(false)
-    {
-    }
-
-    private Player(bool autoSucceedDynamicChecks)
-    {
-        _autoSucceedDynamicChecks = autoSucceedDynamicChecks;
-    }
-
     public Game.State Advance(Game.State state)
     {
         ulong initialEpoch = state.Epoch;
@@ -106,7 +94,7 @@ public sealed class Player
                 break;
             }
 
-            bool success = state.CurrentLocation.TryCheck(ref state, autoSucceedDynamicChecks: _autoSucceedDynamicChecks);
+            bool success = state.CurrentLocation.TryCheck(ref state);
             state = state with { LocationCheckAttemptsThisStep = state.LocationCheckAttemptsThisStep + 1 };
             if (success)
             {

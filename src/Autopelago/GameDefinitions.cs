@@ -557,9 +557,9 @@ public sealed record LocationDefinitionModel
 
     public LocationDefinitionModel NextLocationTowards(LocationDefinitionModel target) => this == target ? target : GameDefinitions.Instance.FloydWarshall.GetNextOnPath(this, target);
 
-    public bool TryCheck(ref Game.State state, bool autoSucceedDynamicChecks)
+    public bool TryCheck(ref Game.State state)
     {
-        if (!(Requirement.StaticSatisfied(state) && (Requirement.DynamicSatisfied(ref state) || autoSucceedDynamicChecks)))
+        if (!(Requirement.StaticSatisfied(state) && Requirement.DynamicSatisfied(ref state)))
         {
             return false;
         }
