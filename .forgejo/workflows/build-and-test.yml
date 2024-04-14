@@ -39,20 +39,8 @@ jobs:
       - name: Publish (win-x64)
         run: dotnet publish src/Autopelago/Autopelago.csproj -c Release -r win-x64 -o artifacts/win-x64
 
-      - name: Upload (win-x64)
-        uses: actions/upload-artifact@v3
-        with:
-          name: win-x64
-          path: artifacts/win-x64
-
       - name: Publish (linux-x64)
         run: dotnet publish src/Autopelago/Autopelago.csproj -c Release -r linux-x64 -o artifacts/linux-x64
-
-      - name: Upload (linux-x64)
-        uses: actions/upload-artifact@v3
-        with:
-          name: linux-x64
-          path: artifacts/linux-x64
 
       - name: Prepare release directory
         shell: bash
@@ -60,16 +48,17 @@ jobs:
           mkdir dist;
           pushd artifacts;
           mv win-x64 Autopelago_win-x64;
-          zip -9 -r ../dist/Autopelago_win-x64.zip Autopelago_win-x64;
+          zip -9 -r ../dist/Autopelago_win-x64.zip Autopelago_win-x64 &;
           mv linux-x64 Autopelago_linux-x64;
-          tar -cf - Autopelago_linux-x64 | zstd --ultra -22 -o ../dist/Autopelago_linux-x64.tar.zst;
+          tar -cf - Autopelago_linux-x64 | zstd --ultra -22 -T0 -o ../dist/Autopelago_linux-x64.tar.zst &;
           echo "RELEASE_NUMBER=$(date -u +%Y%m%d%H%M%S)" >> "$GITHUB_ENV";
+          wait < <(jobs -p);
           popd;
 
       - name: Release
         uses: actions/forgejo-release@v2
         with:
-          tag: '${{ github.ref_name }}-${{ env.RELEASE_NUMBER }}'
+          tag: 'Autopelago ${{ env.RELEASE_NUMBER }}'
           token: ${{ secrets.RELEASE_PAT }}
           release-dir: dist
           direction: upload
