@@ -24,7 +24,7 @@ public sealed class GameRequirementToolTipViewModel : ViewModelBase, IDisposable
                 break;
 
             case ReceivedItemRequirement { ItemKey: string itemKey }:
-                MyContent = $"{GameDefinitions.Instance.ProgressionItems[itemKey].Name} (item)";
+                MyContent = GameDefinitions.Instance.ProgressionItems[itemKey].Name;
                 break;
 
             case AllChildrenGameRequirement { Children: ImmutableArray<GameRequirement> children }:
