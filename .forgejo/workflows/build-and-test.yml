@@ -63,7 +63,7 @@ jobs:
       - name: Release
         uses: actions/forgejo-release@v2
         with:
-          tag: 'release/${{ github.ref_name }}'
+          tag: '${{ github.ref_name }}-${{ github.sha }}'
           token: ${{ secrets.RELEASE_PAT }}
           release-dir: dist
           direction: upload
