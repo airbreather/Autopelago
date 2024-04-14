@@ -48,9 +48,9 @@ jobs:
           mkdir dist;
           pushd artifacts;
           mv win-x64 Autopelago_win-x64;
-          zip -9 -r ../dist/Autopelago_win-x64.zip Autopelago_win-x64 &;
+          zip -9 -r ../dist/Autopelago_win-x64.zip Autopelago_win-x64 &
           mv linux-x64 Autopelago_linux-x64;
-          tar -cf - Autopelago_linux-x64 | zstd --ultra -22 -T0 -o ../dist/Autopelago_linux-x64.tar.zst &;
+          tar -cf - Autopelago_linux-x64 | zstd --ultra -22 -T0 -o ../dist/Autopelago_linux-x64.tar.zst &
           echo "RELEASE_NUMBER=$(date -u +%Y%m%d%H%M%S)" >> "$GITHUB_ENV";
           wait < <(jobs -p);
           popd;
