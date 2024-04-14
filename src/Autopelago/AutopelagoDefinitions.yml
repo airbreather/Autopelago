@@ -19,7 +19,6 @@ items:
   pharaoh_not_anti_mummy_spray: 'Pharaoh-Not® Anti-Mummy Spray'
   pile_of_scrap_metal_in_the_shape_of_a_rocket_ship: 'Pile of Scrap Metal in the Shape of a Rocket Ship'
   energy_drink_that_is_pure_rocket_fuel: 'Energy Drink that is Pure Rocket Fuel'
-  ratstronaut: 'Ratstronaut'
   retro_encabulator: 'Retro Encabulator'
 
   map_of_the_entire_internet: 'Map of the Entire Internet'
@@ -65,6 +64,7 @@ items:
     ziggu_rat: 'Ziggu Rat'
     acro_rat: 'Acro Rat'
     lab_rat: 'Lab Rat'
+    ratstronaut: 'Ratstronaut'
 
     soc_rat_es:
       name: 'Soc-Rat-es'
