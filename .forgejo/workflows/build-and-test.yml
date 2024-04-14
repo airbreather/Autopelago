@@ -55,6 +55,7 @@ jobs:
           path: artifacts/linux-x64
 
       - name: Prepare release directory
+        shell: bash
         run: |
           mkdir dist;
           pushd artifacts;
