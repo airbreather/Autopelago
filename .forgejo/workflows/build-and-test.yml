@@ -53,8 +53,10 @@ jobs:
           path: artifacts/linux-x64
 
       - name: Release
-        uses: actions/forgejo-release@v1
+        uses: actions/forgejo-release@v2
         with:
-          direction: upload
-          release-dir: artifacts
           token: ${{ secrets.RELEASE_PAT }}
+          release-dir: artifacts
+          direction: upload
+          override: true
+          prerelease: true
