@@ -24,7 +24,12 @@ jobs:
         run: dotnet restore --locked-mode
 
       - name: Build
-        run: dotnet build -c Release --no-restore
+        shell: bash
+        run: |
+          dotnet build -c Release --no-restore &
+          dotnet publish src/Autopelago/Autopelago.csproj --no-restore -c Release -r win-x64 -o dist/Autopelago_win-x64 &
+          dotnet publish src/Autopelago/Autopelago.csproj --no-restore -c Release -r linux-x64 -o dist/Autopelago_linux-x64 &
+          wait < <(jobs -p);
 
       - name: Run tests
         run: dotnet test -c Release --no-build --logger 'console;verbosity=detailed' --logger trx --results-directory=TestResults
@@ -36,20 +41,12 @@ jobs:
           path: TestResults
         if: always()
 
-      - name: Publish (win-x64)
-        run: dotnet publish src/Autopelago/Autopelago.csproj -c Release -r win-x64 -o artifacts/win-x64
-
-      - name: Publish (linux-x64)
-        run: dotnet publish src/Autopelago/Autopelago.csproj -c Release -r linux-x64 -o artifacts/linux-x64
-
       - name: Prepare release directory
         shell: bash
         run: |
           mkdir dist;
           pushd artifacts;
-          mv win-x64 Autopelago_win-x64;
           zip -9 -r ../dist/Autopelago_win-x64.zip Autopelago_win-x64 &
-          mv linux-x64 Autopelago_linux-x64;
           tar -cf - Autopelago_linux-x64 | zstd --ultra -22 -T0 -o ../dist/Autopelago_linux-x64.tar.zst &
           echo "RELEASE_NUMBER=$(date -u +%Y%m%d%H%M%S)" >> "$GITHUB_ENV";
           wait < <(jobs -p);
@@ -58,7 +55,7 @@ jobs:
       - name: Release
         uses: actions/forgejo-release@v2
         with:
-          tag: 'Autopelago ${{ env.RELEASE_NUMBER }}'
+          tag: 'Autopelago_${{ env.RELEASE_NUMBER }}'
           token: ${{ secrets.RELEASE_PAT }}
           release-dir: dist
           direction: upload
