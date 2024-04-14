@@ -1,5 +1,7 @@
 on:
-  - push
+  push:
+    branches:
+      - avalonia-wip
 
 jobs:
   build-and-test:
@@ -55,9 +57,10 @@ jobs:
       - name: Release
         uses: actions/forgejo-release@v2
         with:
-          tag: ${{ github.ref_name }}
+          tag: 'release/${{ github.ref_name }}'
           token: ${{ secrets.RELEASE_PAT }}
           release-dir: artifacts
           direction: upload
+          verbose: true
           override: true
           prerelease: true
