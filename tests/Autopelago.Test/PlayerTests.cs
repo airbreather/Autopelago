@@ -116,6 +116,7 @@ public sealed class PlayerTests
     {
         Game.State state = Game.State.Start(seed);
         Player player = new();
+        int advancesSoFar = 0;
         while (true)
         {
             Game.State prev = state;
@@ -128,6 +129,8 @@ public sealed class PlayerTests
             }
 
             state = state with { ReceivedItems = [.. state.ReceivedItems, .. state.CheckedLocations.Except(prev.CheckedLocations).Select(loc => loc.UnrandomizedItem!)] };
+            ++advancesSoFar;
+            Assert.That(advancesSoFar, Is.LessThan(1_000_000), "If you can't win in a million steps, then you're useless.");
         }
     }
 

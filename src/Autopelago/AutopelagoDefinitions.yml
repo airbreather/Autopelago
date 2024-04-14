@@ -751,6 +751,7 @@ regions:
       unrandomized_items:
         key:
           - red_matador_cape
+          - lab_rat
         filler: 1
       each_requires:
         - ability_check_with_dc: 1
@@ -805,8 +806,7 @@ regions:
       name_template: 'Before Homeless Mummy #{n}'
       unrandomized_items:
         key:
-          - item: ziggu_rat
-            count: 5
+          - ziggu_rat
         filler: 1
       each_requires:
         - ability_check_with_dc: 1
