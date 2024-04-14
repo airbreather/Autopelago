@@ -1,0 +1,25 @@
+<reactiveUi:ReactiveUserControl
+    xmlns="https://github.com/avaloniaui"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:viewModels="clr-namespace:Autopelago.ViewModels"
+    xmlns:reactiveUi="http://reactiveui.net"
+    x:Class="Autopelago.Views.GameRequirementToolTipView"
+    x:DataType="viewModels:GameRequirementToolTipViewModel"
+    x:TypeArguments="viewModels:GameRequirementToolTipViewModel">
+    <StackPanel>
+        <StackPanel Orientation="Horizontal" IsVisible="{Binding HeaderContent, Mode=OneTime, Converter={x:Static ObjectConverters.IsNull}}">
+            <TextBlock Text="✓" IsVisible="{Binding Satisfied, Mode=OneWay}" />
+            <TextBlock Text="✕" IsVisible="{Binding !Satisfied, Mode=OneWay}" />
+            <ContentPresenter Margin="5,0,0,0" Content="{Binding MyContent, Mode=OneWay}" />
+        </StackPanel>
+
+        <StackPanel Orientation="Vertical" IsVisible="{Binding HeaderContent, Mode=OneTime, Converter={x:Static ObjectConverters.IsNotNull}}">
+            <StackPanel Orientation="Horizontal">
+                <TextBlock Text="✓" IsVisible="{Binding Satisfied, Mode=OneWay}" />
+                <TextBlock Text="✕" IsVisible="{Binding !Satisfied, Mode=OneWay}" />
+                <ContentPresenter Margin="5,0,0,0" Content="{Binding HeaderContent, Mode=OneTime}" />
+            </StackPanel>
+            <ItemsControl Margin="15,0,0,0" ItemsSource="{Binding Children, Mode=OneTime}" />
+        </StackPanel>
+    </StackPanel>
+</reactiveUi:ReactiveUserControl>

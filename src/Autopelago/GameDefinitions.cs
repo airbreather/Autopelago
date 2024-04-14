@@ -134,7 +134,7 @@ public sealed record ItemDefinitionsModel
                     // though, because it would be a major problem if this got messed up.
                     allItems.Add(ItemDefinitionModel.DeserializeFrom(valueNode, ArchipelagoItemFlags.LogicalAdvancement));
                     keyedItems.Add(key, allItems[^1]);
-                    if (key == "normal_rat")
+                    if (key == "pack_rat")
                     {
                         // no need for validation
                         normalRat = allItems[^1];
@@ -154,7 +154,7 @@ public sealed record ItemDefinitionsModel
 
         if (normalRat is not { RatCount: 1 })
         {
-            throw new InvalidDataException("'normal_rat' is required and needs to have a rat_count of 1.");
+            throw new InvalidDataException("'pack_rat' is required and needs to have a rat_count of 1.");
         }
 
         AllItemKeysVisitor itemKeysVisitor = new() { NeededItemsNotYetVisited = progressionItemKeysToValidate };
@@ -628,7 +628,6 @@ public abstract record GameRequirement
         return keyNode.Value switch
         {
             "rat_count" => RatCountRequirement.DeserializeFrom(valueNode),
-            "location" => CheckedLocationRequirement.DeserializeFrom(valueNode),
             "item" => ReceivedItemRequirement.DeserializeFrom(valueNode),
             "any" => AnyChildGameRequirement.DeserializeFrom(valueNode),
             "any_two" => AnyTwoChildrenGameRequirement.DeserializeFrom(valueNode),
@@ -787,21 +786,6 @@ public sealed record RatCountRequirement : GameRequirement
     public override bool Satisfied(Game.State state)
     {
         return state.RatCount >= RatCount;
-    }
-}
-
-public sealed record CheckedLocationRequirement : GameRequirement
-{
-    public required LocationKey LocationKey { get; init; }
-
-    public static new CheckedLocationRequirement DeserializeFrom(YamlNode node)
-    {
-        return new() { LocationKey = LocationKey.For(node.To<string>()) };
-    }
-
-    public override bool Satisfied(Game.State state)
-    {
-        return state.CheckedLocations.Any(k => k.Key == LocationKey);
     }
 }
 

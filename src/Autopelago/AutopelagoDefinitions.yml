@@ -42,8 +42,8 @@ items:
   premium_can_of_prawn_food: 'Premium Can of Prawn Food'
   priceless_antique: 'Priceless Antique'
 
-  normal_rat:
-    name: 'Normal Rat'
+  pack_rat:
+    name: 'Pack Rat'
     rat_count: 1
 
   rat_pack:
@@ -54,7 +54,6 @@ items:
   # 'rats' section will automatically give them a rat_count of 1. you COULD set
   # rat_count to something else to override that if you wanted
   rats:
-    pack_rat: 'Pack Rat'
     pizza_rat: 'Pizza Rat'
     chef_rat: 'Chef Rat'
     ninja_rat: 'Ninja Rat'
@@ -402,7 +401,7 @@ regions:
 
     snakes_on_a_planet:
       name: 'Snakes on a Planet'
-      unrandomized_item: normal_rat
+      unrandomized_item: pack_rat
       reward_is_fixed: yes
       requires:
         - item: mongoose_in_a_combat_spacecraft
@@ -411,7 +410,7 @@ regions:
 
     asteroid_with_pants:
       name: 'Asteroid with Pants'
-      unrandomized_item: normal_rat
+      unrandomized_item: pack_rat
       requires:
         - any:
           - item: asteroid_belt
@@ -420,7 +419,7 @@ regions:
 
     minotaur_labyrinth:
       name: 'Minotaur Labyrinth'
-      unrandomized_item: normal_rat
+      unrandomized_item: pack_rat
       requires:
         - any:
           - item: red_matador_cape
@@ -431,7 +430,7 @@ regions:
 
     space_opera:
       name: 'Space Opera'
-      unrandomized_item: normal_rat
+      unrandomized_item: pack_rat
       requires:
         - rat_count: 10
       exits:
@@ -439,7 +438,7 @@ regions:
 
     seal_of_fortune:
       name: 'Seal of Fortune'
-      unrandomized_item: normal_rat
+      unrandomized_item: pack_rat
       requires:
         - any:
           - item: constellation_prize
@@ -450,21 +449,21 @@ regions:
 
     alien_vending_machine:
       name: 'Alien Vending Machine'
-      unrandomized_item: normal_rat
+      unrandomized_item: pack_rat
       requires:
         - item: foreign_coin
       exits: []
 
     frozen_assets:
       name: 'Frozen Assets'
-      unrandomized_item: normal_rat
+      unrandomized_item: pack_rat
       requires:
         - item: playing_with_fire_for_dummies
       exits: []
 
     homeless_mummy:
       name: 'Homeless Mummy'
-      unrandomized_item: normal_rat
+      unrandomized_item: pack_rat
       requires:
         - any:
           - item: ziggu_rat
@@ -476,7 +475,7 @@ regions:
 
     stalled_rocket_get_out_and_push:
       name: 'Stalled Rocket! (Get Out and Push)'
-      unrandomized_item: normal_rat
+      unrandomized_item: pack_rat
       requires:
         - rat_count: 10
       exits:
@@ -484,7 +483,7 @@ regions:
 
     roboclop_the_robot_war_horse:
       name: 'Robo-Clop: The Robot War Horse'
-      unrandomized_item: normal_rat
+      unrandomized_item: pack_rat
       requires:
         - item: quantum_sugar_cube
       exits:
@@ -493,7 +492,7 @@ regions:
 
     makeshift_rocket_ship:
       name: 'Makeshift Rocket Ship'
-      unrandomized_item: normal_rat
+      unrandomized_item: pack_rat
       requires:
         - any_two:
             - item: retro_encabulator
@@ -505,7 +504,7 @@ regions:
 
     secret_cache:
       name: 'Secret Cache'
-      unrandomized_item: normal_rat
+      unrandomized_item: pack_rat
       requires:
         - any:
           - item: virtual_key
@@ -515,7 +514,7 @@ regions:
 
     rat_rap_battle:
       name: 'Rat Rap Battle'
-      unrandomized_item: normal_rat
+      unrandomized_item: pack_rat
       requires:
         - any:
           - item: fifty_cents
@@ -525,7 +524,7 @@ regions:
 
     stack_of_crates:
       name: 'Stack of Crates'
-      unrandomized_item: normal_rat
+      unrandomized_item: pack_rat
       requires:
         - any:
           - item: gym_rat
@@ -535,7 +534,7 @@ regions:
 
     binary_tree:
       name: 'Binary Tree'
-      unrandomized_item: normal_rat
+      unrandomized_item: pack_rat
       requires:
         - item: childs_first_hand_axe
       exits:
@@ -543,21 +542,21 @@ regions:
 
     room_full_of_typewriters:
       name: 'Room Full of Typewriters'
-      unrandomized_item: normal_rat
+      unrandomized_item: pack_rat
       requires:
         - rat_count: 10
       exits: []
 
     trapeze:
       name: 'Trapeze'
-      unrandomized_item: normal_rat
+      unrandomized_item: pack_rat
       requires:
         - item: acro_rat
       exits: []
 
     computer_ram:
       name: 'Computer Ram'
-      unrandomized_item: normal_rat
+      unrandomized_item: pack_rat
       requires:
         - item: artificial_grass
       exits:
@@ -565,7 +564,7 @@ regions:
 
     copyright_mouse:
       name: 'Copyright Mouse'
-      unrandomized_item: normal_rat
+      unrandomized_item: pack_rat
       requires:
         - any:
           - item: fake_mouse_ears
@@ -576,7 +575,7 @@ regions:
 
     blue_colored_screen_interface:
       name: 'Blue-Colored Screen Interface'
-      unrandomized_item: normal_rat
+      unrandomized_item: pack_rat
       requires:
         - any:
           - item: lost_ctrl_key
@@ -587,7 +586,7 @@ regions:
 
     broken_down_bus:
       name: 'Broken-Down Bus'
-      unrandomized_item: normal_rat
+      unrandomized_item: pack_rat
       requires:
         - rat_count: 1
       exits:
@@ -595,7 +594,7 @@ regions:
 
     overweight_boulder:
       name: 'Overweight Boulder'
-      unrandomized_item: normal_rat
+      unrandomized_item: pack_rat
       requires:
         - rat_count: 1
       exits:
@@ -603,7 +602,7 @@ regions:
 
     kart_races:
       name: 'Kart Races'
-      unrandomized_item: normal_rat
+      unrandomized_item: pack_rat
       requires:
         - any:
           - item: blue_turtle_shell
@@ -613,7 +612,7 @@ regions:
 
     daring_adventurer:
       name: 'Daring Adventurer'
-      unrandomized_item: normal_rat
+      unrandomized_item: pack_rat
       requires:
         - any:
           - item: masterful_longsword
@@ -623,7 +622,7 @@ regions:
 
     computer_interface:
       name: 'Computer Interface'
-      unrandomized_item: normal_rat
+      unrandomized_item: pack_rat
       requires:
         - item: computer_mouse
       exits:
@@ -704,7 +703,7 @@ regions:
       name_template: 'After Minotaur Labyrinth #{n}'
       unrandomized_items:
         key:
-          - item: normal_rat
+          - item: pack_rat
             count: 10
         filler: 1
       ability_check_dc: 1
@@ -736,7 +735,7 @@ regions:
       name_template: 'Before Space Opera #{n}'
       unrandomized_items:
         key:
-          - item: normal_rat
+          - item: pack_rat
             count: 5
         filler: 1
       ability_check_dc: 1
@@ -808,7 +807,7 @@ regions:
       name_template: 'Before Stalled Rocket! (Get Out and Push) #{n}'
       unrandomized_items:
         key:
-          - item: normal_rat
+          - item: pack_rat
             count: 5
         filler: 1
       ability_check_dc: 1
@@ -894,7 +893,7 @@ regions:
       name_template: 'Before Room Full of Typewriters #{n}'
       unrandomized_items:
         key:
-          - item: normal_rat
+          - item: pack_rat
             count: 5
         filler: 1
       ability_check_dc: 1
@@ -947,7 +946,7 @@ regions:
       name_template: 'Before Broken Down Bus #{n}'
       unrandomized_items:
         key:
-          - item: normal_rat
+          - item: pack_rat
             count: 5
         filler: 1
       ability_check_dc: 1
@@ -958,7 +957,7 @@ regions:
       name_template: 'Before Overweight Boulder #{n}'
       unrandomized_items:
         key:
-          - item: normal_rat
+          - item: pack_rat
             count: 5
         filler: 1
       ability_check_dc: 1
@@ -1002,7 +1001,7 @@ regions:
       unrandomized_items:
         key:
           - giant_novelty_scissors
-          - item: normal_rat
+          - item: pack_rat
             count: 10
         useful_nonprogression: 3
         filler: 6
@@ -1014,7 +1013,7 @@ regions:
       name_template: 'After Restaurant #{n}'
       unrandomized_items:
         key:
-          - item: normal_rat
+          - item: pack_rat
             count: 2
         useful_nonprogression: 3
         filler: 5
@@ -1026,7 +1025,7 @@ regions:
       name_template: 'After Pirate Bake Sale #{n}'
       unrandomized_items:
         key:
-          - item: normal_rat
+          - item: pack_rat
             count: 2
         useful_nonprogression: 3
         filler: 5
@@ -1039,7 +1038,7 @@ regions:
       unrandomized_items:
         key:
           - chef_rat
-          - normal_rat
+          - pack_rat
         useful_nonprogression: 3
         filler: 5
       ability_check_dc: 14
@@ -1051,7 +1050,7 @@ regions:
       unrandomized_items:
         key:
           - pie_rat
-          - normal_rat
+          - pack_rat
         useful_nonprogression: 3
         filler: 5
       ability_check_dc: 14
@@ -1064,7 +1063,7 @@ regions:
         key:
           - pizza_rat
           - ninja_rat
-          - normal_rat
+          - pack_rat
         useful_nonprogression: 3
         filler: 4
       ability_check_dc: 12
@@ -1077,7 +1076,7 @@ regions:
         key:
           - premium_can_of_prawn_food
           - priceless_antique
-          - normal_rat
+          - pack_rat
         useful_nonprogression: 3
         filler: 4
       ability_check_dc: 12
@@ -1088,7 +1087,7 @@ regions:
       name_template: 'Before Basketball #{n}'
       unrandomized_items:
         key:
-          - item: normal_rat
+          - item: pack_rat
             count: 5
         useful_nonprogression: 8
         filler: 27

@@ -1,4 +1,5 @@
 using System.Collections.Frozen;
+using System.Collections.Immutable;
 
 using Avalonia;
 using Avalonia.Media.Imaging;
@@ -66,6 +67,7 @@ public sealed class CheckableLocationViewModel : ViewModelBase, IDisposable
     {
         LocationKey = locationKey;
         Model = GameDefinitions.Instance.LandmarkRegions[locationKey].Locations[0];
+        GameRequirementToolTipSource = ImmutableArray.CreateRange(Model.Requirement.Children, req => new GameRequirementToolTipViewModel(req));
         CanvasLocation = s_canvasLocations[locationKey];
 
         (_saturated, _desaturated) = ReadFrames(locationKey);
@@ -87,6 +89,8 @@ public sealed class CheckableLocationViewModel : ViewModelBase, IDisposable
     public string LocationKey { get; }
 
     public LocationDefinitionModel Model { get; }
+
+    public ImmutableArray<GameRequirementToolTipViewModel> GameRequirementToolTipSource { get; }
 
     public Point CanvasLocation { get; }
 

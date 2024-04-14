@@ -12,11 +12,13 @@
     x:TypeArguments="viewModels:GameStateViewModel">
 
     <Design.DataContext>
-        <viewModels:GameStateViewModel SlotName="Ratthew" RatCount="6" HasConfidence="True">
+        <viewModels:GameStateViewModel SlotName="Ratthew" RatCount="16" HasConfidence="True">
 
             <viewModels:GameStateViewModel.ProgressionItemsCollected>
-                <x:String>red_matador_cape</x:String>
+                <x:String>pizza_rat</x:String>
                 <x:String>premium_can_of_prawn_food</x:String>
+                <x:String>ratstronaut</x:String>
+                <x:String>energy_drink_that_is_pure_rocket_fuel</x:String>
             </viewModels:GameStateViewModel.ProgressionItemsCollected>
 
             <viewModels:GameStateViewModel.LocationsChecked>
@@ -179,6 +181,9 @@
                                                     </ToolTip.Tip>
                                                 </Image>
                                                 <Image Height="12" Width="12" Source="{Binding QuestImage, Mode=OneWay}">
+                                                    <ToolTip.Tip>
+                                                        <ItemsControl Classes="tooltip big" ItemsSource="{Binding GameRequirementToolTipSource, Mode=OneWay}" />
+                                                    </ToolTip.Tip>
                                                     <Image.RenderTransform>
                                                         <TranslateTransform Y="-13" />
                                                     </Image.RenderTransform>

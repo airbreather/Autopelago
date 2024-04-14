@@ -15,6 +15,7 @@ public sealed class ViewLocator : IDataTemplate
             GameStateViewModel => new GameStateView(),
             MainWindowViewModel => new MainWindowView(),
             SettingsSelectionViewModel => new SettingsSelectionView(),
+            GameRequirementToolTipViewModel => new GameRequirementToolTipView(),
             _ => null,
         };
 
@@ -28,6 +29,6 @@ public sealed class ViewLocator : IDataTemplate
 
     public bool Match(object? data)
     {
-        return data is GameStateViewModel or MainWindowViewModel or SettingsSelectionViewModel;
+        return data is GameStateViewModel or MainWindowViewModel or SettingsSelectionViewModel or GameRequirementToolTipViewModel;
     }
 }

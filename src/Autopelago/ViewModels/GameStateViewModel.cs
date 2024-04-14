@@ -5,11 +5,11 @@ using System.ComponentModel;
 using System.Reactive.Disposables;
 using System.Reactive.Linq;
 
-using Avalonia.Controls;
 using Avalonia.ReactiveUI;
 
 using DynamicData.Binding;
 
+using ReactiveUI;
 using ReactiveUI.Fody.Helpers;
 
 namespace Autopelago.ViewModels;
@@ -19,7 +19,7 @@ public sealed class GameStateViewModel : ViewModelBase, IDisposable
     private static readonly FrozenSet<string> s_hiddenProgressionItems = new[]
     {
         // these are the items marked as progression that aren't ever **individually** required.
-        "normal_rat", "rat_pack", "pack_rat", "computer_rat", "soc_rat_es",
+        "rat_pack", "pack_rat", "computer_rat", "soc_rat_es",
     }.ToFrozenSet();
 
     private static readonly FrozenDictionary<string, int> s_progressionItemSortOrder = ProgressionItemSortOrder();
@@ -37,13 +37,52 @@ public sealed class GameStateViewModel : ViewModelBase, IDisposable
                 }
             }));
 
-        if (!Design.IsDesignMode)
-        {
-            return;
-        }
-
         FrozenDictionary<string, CollectableItemViewModel> progressionItemsLookup = ProgressionItems.ToFrozenDictionary(i => i.ItemKey);
         FrozenDictionary<string, CheckableLocationViewModel> checkableLocationsLookup = CheckableLocations.ToFrozenDictionary(l => l.LocationKey);
+        FrozenDictionary<string, ImmutableArray<GameRequirementToolTipViewModel>> toolTipsByItem = (
+            from loc in CheckableLocations
+            from tt in loc.GameRequirementToolTipSource
+            from tt2 in tt.DescendantsAndSelf()
+            where tt2.Model is ReceivedItemRequirement
+            group tt2 by ((ReceivedItemRequirement)tt2.Model).ItemKey
+        ).ToFrozenDictionary(grp => grp.Key, grp => grp.ToImmutableArray());
+
+        ImmutableArray<(int RatCount, GameRequirementToolTipViewModel ToolTip)> ratCountToolTips =
+        [
+            .. from loc in CheckableLocations
+               from tt in loc.GameRequirementToolTipSource
+               from tt2 in tt.DescendantsAndSelf()
+               where tt2.Model is RatCountRequirement
+               select (((RatCountRequirement)tt2.Model).RatCount, tt2),
+        ];
+
+        _disposables.Add(this
+            .WhenAnyValue(x => x.RatCount)
+            .Subscribe(ratCount =>
+            {
+                foreach ((int ratCountThreshold, GameRequirementToolTipViewModel toolTip) in ratCountToolTips)
+                {
+                    toolTip.Satisfied = ratCount >= ratCountThreshold;
+                }
+            }));
+
+        foreach (CollectableItemViewModel item in ProgressionItems)
+        {
+            if (!toolTipsByItem.TryGetValue(item.ItemKey, out ImmutableArray<GameRequirementToolTipViewModel> tooltips))
+            {
+                continue;
+            }
+
+            _disposables.Add(item
+                .WhenAnyValue(x => x.Collected)
+                .Subscribe(collected =>
+                {
+                    foreach (GameRequirementToolTipViewModel tooltip in tooltips)
+                    {
+                        tooltip.Satisfied = collected;
+                    }
+                }));
+        }
 
         _disposables.Add(ProgressionItemsCollected.ObserveCollectionChanges()
             .Select(c => c.EventArgs)
