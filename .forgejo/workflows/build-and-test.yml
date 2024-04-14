@@ -54,12 +54,18 @@ jobs:
           name: linux-x64
           path: artifacts/linux-x64
 
+      - name: Prepare release directory
+        run: |
+          mkdir dist;
+          zip dist/Autopelago_win-x64.zip artifacts/win-x64/**;
+          tar --strip-components=2 -cf - artifacts/linux-x64 | zstd --ultra -22 -o dist/Autopelago_linux-x64.tar.zst;
+
       - name: Release
-        uses: airbreather/forgejo-release@dont-parse-ls
+        uses: actions/forgejo-release@v2
         with:
           tag: 'release/${{ github.ref_name }}'
           token: ${{ secrets.RELEASE_PAT }}
-          release-dir: artifacts
+          release-dir: dist
           direction: upload
           verbose: true
           override: true
