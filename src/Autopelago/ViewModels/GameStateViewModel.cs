@@ -19,7 +19,7 @@ public sealed class GameStateViewModel : ViewModelBase, IDisposable
     private static readonly FrozenSet<string> s_hiddenProgressionItems = new[]
     {
         // these are the items marked as progression that aren't ever **individually** required.
-        "rat_pack", "pack_rat", "soc_rat_es",
+        "pack_rat", "rat_pack",
     }.ToFrozenSet();
 
     private static readonly FrozenDictionary<string, int> s_progressionItemSortOrder = ProgressionItemSortOrder();

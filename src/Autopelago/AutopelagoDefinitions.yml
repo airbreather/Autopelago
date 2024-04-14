@@ -64,10 +64,6 @@ items:
     lab_rat: 'Lab Rat'
     ratstronaut: 'Ratstronaut'
 
-    soc_rat_es:
-      name: 'Soc-Rat-es'
-      flavor_text: 'I am not an Athenian or a Greek, but a rat.'
-
   useful_nonprogression:
     - ['Refreshing Glass of Lemonade', [well_fed]]
     - ['Bag of Powdered Sugar', [well_fed, energized, energized, energized]]
