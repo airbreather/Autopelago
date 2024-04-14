@@ -36,7 +36,6 @@ items:
   masterful_longsword: 'Masterful Longsword'
   legally_binding_contract: 'Legally Binding Contract'
   fake_mouse_ears: 'Fake Mouse Ears'
-  computer_mouse: 'Computer Mouse'
 
   giant_novelty_scissors: 'Giant Novelty Scissors'
   premium_can_of_prawn_food: 'Premium Can of Prawn Food'
@@ -624,7 +623,7 @@ regions:
       name: 'Computer Interface'
       unrandomized_item: pack_rat
       requires:
-        - item: computer_mouse
+        - item: computer_rat
       exits:
         - before_daring_adventurer
         - before_kart_races
@@ -990,7 +989,7 @@ regions:
       name_template: 'Before Computer Interface #{n}'
       unrandomized_items:
         key:
-          - computer_mouse
+          - computer_rat
         filler: 1
       ability_check_dc: 1
       exits:
