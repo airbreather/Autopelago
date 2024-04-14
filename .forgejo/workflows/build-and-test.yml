@@ -57,13 +57,16 @@ jobs:
       - name: Prepare release directory
         run: |
           mkdir dist;
-          zip dist/Autopelago_win-x64.zip artifacts/win-x64/**;
-          tar --strip-components=2 -cf - artifacts/linux-x64 | zstd --ultra -22 -o dist/Autopelago_linux-x64.tar.zst;
+          mv artifacts/win-x64 artifacts/Autopelago_win-x64;
+          zip -9 -r dist/Autopelago_win-x64.zip artifacts/Autopelago_win-x64;
+          mv artifacts/linux-x64 artifacts/Autopelago_linux-x64;
+          tar -C artifacts -cf - Autopelago_linux-x64 | zstd --ultra -22 -o dist/Autopelago_linux-x64.tar.zst;
+          echo "RELEASE_NUMBER=$(date -u +%Y%m%d%H%M%S)" >> "$GITHUB_ENV" 
 
       - name: Release
         uses: actions/forgejo-release@v2
         with:
-          tag: '${{ github.ref_name }}-${{ github.sha }}'
+          tag: '${{ github.ref_name }}-${{ env.RELEASE_NUMBER }}'
           token: ${{ secrets.RELEASE_PAT }}
           release-dir: dist
           direction: upload
