@@ -60,6 +60,7 @@ jobs:
           tag: 'release/${{ github.ref_name }}'
           token: ${{ secrets.RELEASE_PAT }}
           release-dir: artifacts
+          release-notes: 'RELEASE NOTES'
           direction: upload
           verbose: true
           override: true
