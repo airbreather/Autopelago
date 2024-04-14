@@ -57,11 +57,13 @@ jobs:
       - name: Prepare release directory
         run: |
           mkdir dist;
-          mv artifacts/win-x64 artifacts/Autopelago_win-x64;
-          zip -9 -r dist/Autopelago_win-x64.zip artifacts/Autopelago_win-x64;
-          mv artifacts/linux-x64 artifacts/Autopelago_linux-x64;
-          tar -C artifacts -cf - Autopelago_linux-x64 | zstd --ultra -22 -o dist/Autopelago_linux-x64.tar.zst;
-          echo "RELEASE_NUMBER=$(date -u +%Y%m%d%H%M%S)" >> "$GITHUB_ENV" 
+          pushd artifacts;
+          mv win-x64 Autopelago_win-x64;
+          zip -9 -r ../dist/Autopelago_win-x64.zip Autopelago_win-x64;
+          mv linux-x64 Autopelago_linux-x64;
+          tar -cf - Autopelago_linux-x64 | zstd --ultra -22 -o ../dist/Autopelago_linux-x64.tar.zst;
+          echo "RELEASE_NUMBER=$(date -u +%Y%m%d%H%M%S)" >> "$GITHUB_ENV";
+          popd;
 
       - name: Release
         uses: actions/forgejo-release@v2
