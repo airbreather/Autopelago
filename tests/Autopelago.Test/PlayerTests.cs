@@ -96,23 +96,17 @@ public sealed class PlayerTests
 
         state = player.Advance(state);
 
-        // it's entirely counterintuitive, but correct according to the current logic: if we're at a
-        // branching path, and we can go further down branch A than branch B before getting BK'd,
-        // then we actually prefer to take branch B first so that we won't have as far to backtrack
-        // if nothing else comes in for us.
-        RegionDefinitionModel expectedRegion = unblockAngryTurtlesFirst ? s_beforePrawnStars : s_beforeAngryTurtles;
-
         // because we roll so well, we can actually use our three actions to complete two checks:
         // basketball, then move, then complete that first location that we moved to.
         Assert.Multiple(() =>
         {
-            Assert.That(state.CurrentLocation, Is.EqualTo(expectedRegion.Locations[0]));
-            Assert.That(state.TargetLocation, Is.EqualTo(expectedRegion.Locations[1]));
+            Assert.That(state.CurrentLocation.Region, Is.EqualTo(s_beforePrawnStars).Or.EqualTo(s_beforeAngryTurtles));
+            Assert.That(state.CurrentLocation.Key.N, Is.EqualTo(0));
+            Assert.That(state.TargetLocation.Key.N, Is.EqualTo(1));
         });
     }
 
     [Test]
-    [Ignore("Known to fail, probably because of #13")]
     public void GameShouldBeWinnable([Random(100, Distinct = true)] ulong seed)
     {
         Game.State state = Game.State.Start(seed);

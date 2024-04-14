@@ -202,41 +202,7 @@ public sealed class Player
             }
         }
 
-        if (candidates.Count == 1)
-        {
-            return candidates.First();
-        }
-
-        // distinguish by whichever leads to the end of everything that we can do most efficiently.
-        // because all viable routes will eventually put us in front of the same set of locations
-        // anyway, we can eliminate the luck factor by auto-succeeding all dynamic checks.
-        Player innerPlayer = new(autoSucceedDynamicChecks: true);
-        LocationDefinitionModel bestCandidate = null!;
-        ulong bestCandidateSteps = ulong.MaxValue;
-        foreach (LocationDefinitionModel candidate in candidates)
-        {
-            ulong steps = 0;
-            Game.State candidateState = state with { CurrentLocation = state.CurrentLocation.NextLocationTowards(candidate), TargetLocation = candidate };
-            while (true)
-            {
-                Game.State prev = candidateState;
-                candidateState = innerPlayer.Advance(candidateState);
-                if (prev.Epoch == candidateState.Epoch || candidateState.IsCompleted)
-                {
-                    break;
-                }
-
-                ++steps;
-            }
-
-            if (steps < bestCandidateSteps)
-            {
-                bestCandidate = candidate;
-                bestCandidateSteps = steps;
-            }
-        }
-
-        return bestCandidate;
+        return candidates.First();
 
         void Enqueue(RegionDefinitionModel region)
         {
