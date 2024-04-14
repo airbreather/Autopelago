@@ -3,6 +3,7 @@ on:
 
 jobs:
   build-and-test:
+    runs-on: docker
     container:
       image: airbreather/dotnet-sdk-8.0-forgejo-runner
 
@@ -50,3 +51,10 @@ jobs:
         with:
           name: linux-x64
           path: artifacts/linux-x64
+
+      - name: Release
+        uses: actions/forgejo-release@v1
+        with:
+          direction: upload
+          release-dir: artifacts
+          token: ${{ secrets.RELEASE_PAT }}
