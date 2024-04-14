@@ -164,7 +164,7 @@ public sealed class Player
             {
                 foreach (LocationDefinitionModel candidate in region.Locations)
                 {
-                    if (!regionCheckedLocations[candidate.Key.N] && candidate.Requirement.StaticSatisfied(state))
+                    if (!regionCheckedLocations[candidate.Key.N] && candidate.Requirement.Satisfied(state))
                     {
                         int distance = state.CurrentLocation.DistanceTo(candidate);
                         if (distance <= bestDistanceSoFar)
@@ -183,7 +183,7 @@ public sealed class Player
 
             foreach (RegionExitDefinitionModel exit in region.Exits)
             {
-                if (exit.Requirement.StaticSatisfied(state))
+                if (exit.Requirement.Satisfied(state))
                 {
                     Enqueue(exit.Region);
                 }

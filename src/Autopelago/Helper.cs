@@ -1,17 +1,9 @@
 using System.Runtime.CompilerServices;
-using System.Text.RegularExpressions;
-
-using YamlDotNet.Core;
-using YamlDotNet.RepresentationModel;
 
 namespace Autopelago;
 
-public static partial class Helper
+public static class Helper
 {
-    private static readonly Regex YamlTrueRegex = MakeYamlTrueRegex();
-
-    private static readonly Regex YamlFalseRegex = MakeYamlFalseRegex();
-
     public static void Throw(this IEnumerable<Exception> exceptions) => throw new AggregateException(exceptions);
     public static void Throw(this IEnumerable<Exception> exceptions, string? message) => throw new AggregateException(message, exceptions);
     public static void Throw(this Exception[] exceptions) => throw new AggregateException(exceptions);
@@ -62,30 +54,6 @@ public static partial class Helper
             return ValueTask.CompletedTask;
         }
     }
-
-    public static bool ToBoolean(this YamlScalarNode node)
-    {
-        if (node.Value is string s)
-        {
-            if (YamlTrueRegex.IsMatch(s))
-            {
-                return true;
-            }
-
-            if (YamlFalseRegex.IsMatch(s))
-            {
-                return false;
-            }
-        }
-
-        throw new YamlException($"'{node.Value}' is not a standard YAML boolean value.");
-    }
-
-    [GeneratedRegex("^(true|y|yes|on)$", RegexOptions.IgnoreCase | RegexOptions.Compiled | RegexOptions.CultureInvariant)]
-    private static partial Regex MakeYamlTrueRegex();
-
-    [GeneratedRegex("^(false|n|no|off)$", RegexOptions.IgnoreCase | RegexOptions.Compiled | RegexOptions.CultureInvariant)]
-    private static partial Regex MakeYamlFalseRegex();
 
     public readonly struct GetOffSyncContextAwaitableAndAwaiter : INotifyCompletion
     {
