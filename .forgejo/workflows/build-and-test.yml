@@ -44,10 +44,10 @@ jobs:
       - name: Prepare release directory
         shell: bash
         run: |
-          mkdir dist;
-          pushd artifacts;
-          zip -9 -r ../dist/Autopelago_win-x64.zip Autopelago_win-x64 &
-          tar -cf - Autopelago_linux-x64 | zstd --ultra -22 -T0 -o ../dist/Autopelago_linux-x64.tar.zst &
+          pushd dist;
+          mkdir release;
+          zip -9 -r release/Autopelago_win-x64.zip Autopelago_win-x64 &
+          tar -cf - Autopelago_linux-x64 | zstd --ultra -22 -T0 -o release/Autopelago_linux-x64.tar.zst &
           echo "RELEASE_NUMBER=$(date -u +%Y%m%d%H%M%S)" >> "$GITHUB_ENV";
           wait < <(jobs -p);
           popd;
@@ -57,7 +57,7 @@ jobs:
         with:
           tag: 'Autopelago_${{ env.RELEASE_NUMBER }}'
           token: ${{ secrets.RELEASE_PAT }}
-          release-dir: dist
+          release-dir: dist/release
           direction: upload
           verbose: true
           override: true
