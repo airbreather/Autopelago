@@ -2,5 +2,5 @@ FROM node:lts-bookworm
 
 RUN apt-get update \
   && apt-get install -y \
-    zstd \
+    zstd zip \
   && rm -rf /var/lib/apt/lists/*
