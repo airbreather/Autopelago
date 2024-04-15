@@ -32,7 +32,7 @@ public static class Helper
     public static GetOffSyncContextAwaitableAndAwaiter ConfigureAwaitFalse() => default;
 
     public static async ValueTask<TResult> NextAsync<TSource, TResult>(Action<AsyncEventHandler<TSource>> subscribe, Action<AsyncEventHandler<TSource>> unsubscribe, Func<TSource, bool> predicate, Func<TSource, TResult> selector, CancellationToken cancellationToken)
-        where TResult: notnull
+        where TResult : notnull
     {
         TaskCompletionSource<TResult> box = new(TaskCreationOptions.RunContinuationsAsynchronously);
         subscribe(OnEventAsync);

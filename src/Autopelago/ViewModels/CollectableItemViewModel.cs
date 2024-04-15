@@ -38,7 +38,7 @@ public sealed class CollectableItemViewModel : ViewModelBase, IDisposable
             .Subscribe(collected => Image = collected ? _saturatedImage : _desaturatedImage);
     }
 
-    public string ItemKey { get;  }
+    public string ItemKey { get; }
 
     public ItemDefinitionModel Model { get; }
 

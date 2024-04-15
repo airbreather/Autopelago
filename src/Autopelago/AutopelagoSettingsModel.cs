@@ -1,4 +1,5 @@
 using System.Collections.ObjectModel;
+
 // ReSharper disable ClassNeverInstantiated.Global
 
 namespace Autopelago;

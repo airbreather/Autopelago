@@ -396,7 +396,7 @@ public sealed record RegionExitDefinitionModel
 
     public AllChildrenGameRequirement Requirement => Region is LandmarkRegionDefinitionModel
     {
-        Locations: [ { Requirement: AllChildrenGameRequirement req } ],
+        Locations: [{ Requirement: AllChildrenGameRequirement req }],
     } ? req : GameRequirement.AlwaysSatisfied;
 
     public static RegionExitDefinitionModel DeserializeFrom(YamlNode node)
