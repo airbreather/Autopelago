@@ -1,8 +1,11 @@
 using Autopelago.ViewModels;
 
+using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Input;
+using Avalonia.Platform;
 using Avalonia.ReactiveUI;
+using Avalonia.VisualTree;
 
 namespace Autopelago.Views;
 
@@ -23,5 +26,22 @@ public partial class GameStateView : ReactiveUserControl<GameStateViewModel>
     {
         MainGrid.ColumnDefinitions[0].Width = _initialColumn0Width;
         MainGrid.ColumnDefinitions[2].Width = _initialColumn2Width;
+    }
+
+    private void OnPointerMovedOverControlWithToolTip(object? sender, PointerEventArgs e)
+    {
+        Control ctrl = (Control)sender!;
+        PixelPoint pt = ctrl.PointToScreen(e.GetPosition(ctrl));
+        if (ctrl.FindAncestorOfType<Window>() is not Window main)
+        {
+            return;
+        }
+
+        if (main.Screens.ScreenFromWindow(main) is not Screen s)
+        {
+            return;
+        }
+
+        ToolTip.SetPlacement(ctrl, pt.Y < s.Bounds.Height / 2 ? PlacementMode.Bottom : PlacementMode.Top);
     }
 }

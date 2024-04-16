@@ -82,6 +82,7 @@ public sealed class CheckableLocationViewModel : ViewModelBase, IDisposable
             .Subscribe(curr =>
             {
                 Image = (curr.isChecked ? _saturated : _desaturated)[curr.frameCounter & 1];
+                SaturatedImage = _saturated[curr.frameCounter & 1];
                 QuestImage = curr.isChecked ? null : (curr.isAvailable ? yellowQuestFrames : grayQuestFrames)[curr.frameCounter & 1];
             });
     }
@@ -96,6 +97,9 @@ public sealed class CheckableLocationViewModel : ViewModelBase, IDisposable
 
     [Reactive]
     public Bitmap? Image { get; private set; }
+
+    [Reactive]
+    public Bitmap? SaturatedImage { get; private set; }
 
     [Reactive]
     public Bitmap? QuestImage { get; private set; }

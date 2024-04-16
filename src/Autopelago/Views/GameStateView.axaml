@@ -116,7 +116,8 @@
                         </ItemsControl.ItemsPanel>
                         <ItemsControl.ItemTemplate>
                             <DataTemplate>
-                                <Border Margin="5" Padding="2" CornerRadius="8" Classes="tracker-box item" Classes.collected="{Binding Collected}">
+                                <Border Margin="5" Padding="2" CornerRadius="8" Classes="tracker-box item" Classes.collected="{Binding Collected}"
+                                        ToolTip.VerticalOffset="0" PointerMoved="OnPointerMovedOverControlWithToolTip">
                                     <ToolTip.Tip>
                                         <StackPanel>
                                             <TextBlock Classes="tooltip big"
@@ -168,7 +169,8 @@
                                     <ItemsControl.ItemTemplate>
                                         <DataTemplate>
                                             <Grid>
-                                                <Image Height="16" Width="16" Source="{Binding Image, Mode=OneWay}">
+                                                <Image Height="16" Width="16" Source="{Binding Image, Mode=OneWay}"
+                                                       ToolTip.VerticalOffset="0" PointerMoved="OnPointerMovedOverControlWithToolTip">
                                                     <ToolTip.Tip>
                                                         <StackPanel>
                                                             <TextBlock Classes="tooltip big"
@@ -177,10 +179,19 @@
                                                             <TextBlock Margin="0,5,0,0" Classes="tooltip small"
                                                                 Text="{Binding Model.FlavorText, StringFormat='“{0}”', Mode=OneTime}"
                                                                 IsVisible="{Binding Model.FlavorText, Mode=OneTime, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
+
+                                                            <Border Margin="0,15,0,0" Classes="tracker-box item">
+                                                                <Grid>
+                                                                    <!-- Note: coordinates are NOT scaled like everything else on the map. -->
+                                                                    <Rectangle Height="64" HorizontalAlignment="Stretch" Fill="#303030" />
+                                                                    <Image Height="64" Width="64" Source="{Binding SaturatedImage, Mode=OneWay}" />
+                                                                </Grid>
+                                                            </Border>
                                                         </StackPanel>
                                                     </ToolTip.Tip>
                                                 </Image>
-                                                <Image Height="12" Width="12" Source="{Binding QuestImage, Mode=OneWay}">
+                                                <Image Height="12" Width="12" Source="{Binding QuestImage, Mode=OneWay}"
+                                                       ToolTip.VerticalOffset="0" PointerMoved="OnPointerMovedOverControlWithToolTip">
                                                     <ToolTip.Tip>
                                                         <ItemsControl Classes="tooltip big" ItemsSource="{Binding GameRequirementToolTipSource, Mode=OneWay}" />
                                                     </ToolTip.Tip>
