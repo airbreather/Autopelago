@@ -22,8 +22,7 @@ public sealed class FillerRegionViewModel : ViewModelBase
         //   convention from "point" applies here, too.
         Model = GameDefinitions.Instance.FillerRegions[regionKey];
         ImmutableArray<Point> definingPoints = s_definingPoints[regionKey];
-        Span<double> endpointsPrj = stackalloc double[0];
-        endpointsPrj = definingPoints.Length > 100
+        Span<double> endpointsPrj = definingPoints.Length > 100
             ? new double[definingPoints.Length]
             : stackalloc double[definingPoints.Length];
 
