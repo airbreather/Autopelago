@@ -162,8 +162,8 @@
                                     </ItemsControl.ItemsPanel>
                                     <ItemsControl.Styles>
                                         <Style Selector="ContentPresenter">
-                                            <Setter Property="Canvas.Left" Value="{ReflectionBinding CanvasLocation.X}" />
-                                            <Setter Property="Canvas.Top" Value="{ReflectionBinding CanvasLocation.Y}" />
+                                            <Setter Property="Canvas.Left" Value="{Binding $self.((viewModels:CheckableLocationViewModel)DataContext).CanvasLocation.X, FallbackValue=0}" />
+                                            <Setter Property="Canvas.Top" Value="{Binding $self.((viewModels:CheckableLocationViewModel)DataContext).CanvasLocation.Y, FallbackValue=0}" />
                                         </Style>
                                     </ItemsControl.Styles>
                                     <ItemsControl.ItemTemplate>
