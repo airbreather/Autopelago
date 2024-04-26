@@ -1,7 +1,6 @@
 <reactiveUi:ReactiveUserControl
     xmlns="https://github.com/avaloniaui"
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-    xmlns:sys="clr-namespace:System;assembly=System.Runtime"
     xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
     xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
     xmlns:viewModels="clr-namespace:Autopelago.ViewModels"
@@ -14,26 +13,16 @@
 
     <Design.DataContext>
         <viewModels:GameStateViewModel SlotName="Ratthew" RatCount="16" HasConfidence="True">
-            <x:Arguments>
-                <x:String>DESIGNER_ONLY</x:String>
-                <sys:UInt16>65535</sys:UInt16>
-            </x:Arguments>
-
             <viewModels:GameStateViewModel.ProgressionItemsCollected>
                 <x:String>pizza_rat</x:String>
                 <x:String>premium_can_of_prawn_food</x:String>
                 <x:String>ratstronaut</x:String>
-                <x:String>energy_drink_that_is_pure_rocket_fuel</x:String>
             </viewModels:GameStateViewModel.ProgressionItemsCollected>
 
             <viewModels:GameStateViewModel.LocationsChecked>
                 <x:String>basketball</x:String>
                 <x:String>prawn_stars</x:String>
             </viewModels:GameStateViewModel.LocationsChecked>
-
-            <viewModels:GameStateViewModel.LocationsAvailable>
-                <x:String>angry_turtles</x:String>
-            </viewModels:GameStateViewModel.LocationsAvailable>
 
         </viewModels:GameStateViewModel>
     </Design.DataContext>
@@ -69,7 +58,7 @@
 
     <Grid x:Name="MainGrid" x:FieldModifier="private">
         <Grid.ColumnDefinitions>
-            <ColumnDefinition Width="*" MinWidth="120" />
+            <ColumnDefinition Width="*" MinWidth="150" />
             <ColumnDefinition Width="4" />
             <ColumnDefinition Width="4*" MinWidth="240" />
         </Grid.ColumnDefinitions>
@@ -198,7 +187,7 @@
                                                 <Image Height="12" Width="12" Source="{Binding QuestImage, Mode=OneWay}"
                                                        ToolTip.VerticalOffset="0" PointerMoved="OnPointerMovedOverControlWithToolTip">
                                                     <ToolTip.Tip>
-                                                        <ItemsControl Classes="tooltip big" ItemsSource="{Binding GameRequirementToolTipSource, Mode=OneWay}" />
+                                                        <ContentPresenter Classes="tooltip big" Content="{Binding GameRequirementToolTipSource, Mode=OneWay}" />
                                                     </ToolTip.Tip>
                                                     <Image.RenderTransform>
                                                         <TranslateTransform Y="-13" />

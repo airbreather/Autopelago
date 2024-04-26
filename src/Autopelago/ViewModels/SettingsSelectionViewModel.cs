@@ -19,6 +19,16 @@ internal sealed partial class SettingsSerializerContext : JsonSerializerContext;
 
 public sealed record Settings
 {
+    public static readonly Settings ForDesigner = new()
+    {
+        Host = "UI DESIGNER",
+        Port = 65535,
+        Slot = "Ratthew",
+        Password = "",
+        MinStepSeconds = 1,
+        MaxStepSeconds = 1,
+    };
+
     public required string Host { get; init; }
 
     public required ushort Port { get; init; }

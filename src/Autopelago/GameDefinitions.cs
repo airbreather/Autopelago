@@ -394,9 +394,9 @@ public sealed record RegionExitDefinitionModel
 
     public RegionDefinitionModel Region => GameDefinitions.Instance.AllRegions[RegionKey];
 
-    public AllChildrenGameRequirement Requirement => Region is LandmarkRegionDefinitionModel
+    public GameRequirement Requirement => Region is LandmarkRegionDefinitionModel
     {
-        Locations: [{ Requirement: AllChildrenGameRequirement req }],
+        Locations: [{ Requirement: GameRequirement req }],
     } ? req : GameRequirement.AlwaysSatisfied;
 
     public static RegionExitDefinitionModel DeserializeFrom(YamlNode node)
@@ -412,7 +412,7 @@ public sealed record LandmarkRegionDefinitionModel : RegionDefinitionModel
 {
     public static LandmarkRegionDefinitionModel DeserializeFrom(string key, YamlMappingNode map, ItemDefinitionsModel items)
     {
-        AllChildrenGameRequirement requirement = AllChildrenGameRequirement.DeserializeFrom(map["requires"]);
+        GameRequirement requirement = GameRequirement.DeserializeFrom(map["requires"]);
         return new()
         {
             Key = key,
@@ -551,7 +551,7 @@ public sealed record LocationDefinitionModel
 
     public string? FlavorText { get; init; }
 
-    public required AllChildrenGameRequirement Requirement { get; init; }
+    public required GameRequirement Requirement { get; init; }
 
     public required int AbilityCheckDC { get; init; }
 
@@ -618,7 +618,7 @@ public abstract record GameRequirement
     {
     }
 
-    protected static GameRequirement DeserializeFrom(YamlNode node)
+    public static GameRequirement DeserializeFrom(YamlNode node)
     {
         if (node is not YamlMappingNode { Children: [(YamlScalarNode keyNode, YamlNode valueNode)] })
         {

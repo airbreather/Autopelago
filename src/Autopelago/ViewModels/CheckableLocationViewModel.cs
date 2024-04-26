@@ -1,5 +1,4 @@
 using System.Collections.Frozen;
-using System.Collections.Immutable;
 
 using Avalonia;
 using Avalonia.Media.Imaging;
@@ -59,6 +58,8 @@ public sealed class CheckableLocationViewModel : ViewModelBase, IDisposable
 
     private readonly IDisposable _updateImagesSubscription;
 
+    private readonly IDisposable _watchToolTipsSubscription;
+
     private readonly Bitmap[] _saturated;
 
     private readonly Bitmap[] _desaturated;
@@ -67,7 +68,7 @@ public sealed class CheckableLocationViewModel : ViewModelBase, IDisposable
     {
         LocationKey = locationKey;
         Model = GameDefinitions.Instance.LandmarkRegions[locationKey].Locations[0];
-        GameRequirementToolTipSource = ImmutableArray.CreateRange(Model.Requirement.Children, req => new GameRequirementToolTipViewModel(req));
+        GameRequirementToolTipSource = new(Model.Requirement);
         CanvasLocation = s_canvasLocations[locationKey];
 
         (_saturated, _desaturated) = ReadFrames(locationKey);
@@ -85,13 +86,17 @@ public sealed class CheckableLocationViewModel : ViewModelBase, IDisposable
                 SaturatedImage = _saturated[curr.frameCounter & 1];
                 QuestImage = curr.isChecked ? null : (curr.isAvailable ? yellowQuestFrames : grayQuestFrames)[curr.frameCounter & 1];
             });
+
+        _watchToolTipsSubscription = GameRequirementToolTipSource
+            .WhenAnyValue(x => x.Satisfied)
+            .Subscribe(satisfied => Available = satisfied && !Checked);
     }
 
     public string LocationKey { get; }
 
     public LocationDefinitionModel Model { get; }
 
-    public ImmutableArray<GameRequirementToolTipViewModel> GameRequirementToolTipSource { get; }
+    public GameRequirementToolTipViewModel GameRequirementToolTipSource { get; }
 
     public Point CanvasLocation { get; }
 
@@ -117,6 +122,7 @@ public sealed class CheckableLocationViewModel : ViewModelBase, IDisposable
     {
         _clearAvailableSubscription.Dispose();
         _updateImagesSubscription.Dispose();
+        _watchToolTipsSubscription.Dispose();
         foreach (Bitmap saturated in _saturated)
         {
             saturated.Dispose();

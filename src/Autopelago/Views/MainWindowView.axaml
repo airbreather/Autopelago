@@ -5,10 +5,12 @@
     xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
     xmlns:viewModels="clr-namespace:Autopelago.ViewModels"
     xmlns:reactiveUi="http://reactiveui.net"
-    mc:Ignorable="d" d:DesignWidth="800" d:DesignHeight="450"
+    mc:Ignorable="d" d:DesignWidth="800" d:DesignHeight="600"
     x:Class="Autopelago.Views.MainWindowView"
     x:DataType="viewModels:MainWindowViewModel"
     x:TypeArguments="viewModels:MainWindowViewModel"
     Title="Autopelago"
+    MinWidth="800"
+    MinHeight="600"
     Content="{Binding ContentViewModel}">
 </reactiveUi:ReactiveWindow>
