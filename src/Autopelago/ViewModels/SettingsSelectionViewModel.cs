@@ -4,6 +4,8 @@ using System.Text.Json;
 using System.Text.Json.Serialization;
 using System.Text.Json.Serialization.Metadata;
 
+using Avalonia.Controls;
+
 using ReactiveUI;
 using ReactiveUI.Fody.Helpers;
 
@@ -35,23 +37,27 @@ public sealed class SettingsSelectionViewModel : ViewModelBase
     public SettingsSelectionViewModel()
     {
         JsonTypeInfo<Settings> typeInfo = (JsonTypeInfo<Settings>)SettingsSerializerContext.Default.GetTypeInfo(typeof(Settings))!;
-        FileInfo settingsFile = new(Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "Autopelago", "lastSettings.json"));
-        try
+        FileInfo settingsFile = null!;
+        if (!Design.IsDesignMode)
         {
-            using FileStream settingsStream = settingsFile.OpenRead();
-            Settings lastSettings = JsonSerializer.Deserialize(settingsStream, typeInfo) ?? throw new JsonException();
-            Host = lastSettings.Host;
-            Port = lastSettings.Port;
-            Slot = lastSettings.Slot;
-            Password = lastSettings.Password;
-            MinStepSeconds = lastSettings.MinStepSeconds;
-            MaxStepSeconds = lastSettings.MaxStepSeconds;
-        }
-        catch (IOException)
-        {
-        }
-        catch (JsonException)
-        {
+            settingsFile = new(Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "Autopelago", "lastSettings.json"));
+            try
+            {
+                using FileStream settingsStream = settingsFile.OpenRead();
+                Settings lastSettings = JsonSerializer.Deserialize(settingsStream, typeInfo) ?? throw new JsonException();
+                Host = lastSettings.Host;
+                Port = lastSettings.Port;
+                Slot = lastSettings.Slot;
+                Password = lastSettings.Password;
+                MinStepSeconds = lastSettings.MinStepSeconds;
+                MaxStepSeconds = lastSettings.MaxStepSeconds;
+            }
+            catch (IOException)
+            {
+            }
+            catch (JsonException)
+            {
+            }
         }
 
         IObservable<bool> canConnect = this.WhenAnyValue(
@@ -75,22 +81,25 @@ public sealed class SettingsSelectionViewModel : ViewModelBase
                 MaxStepSeconds = MaxStepSeconds,
             };
 
-            try
+            if (!Design.IsDesignMode)
             {
-                settingsFile.Directory!.Create();
-                FileInfo tmpSettingsFile = new(Path.Combine(settingsFile.Directory.FullName, "tmp.json"));
-                using (FileStream settingsStream = tmpSettingsFile.OpenWrite())
+                try
                 {
-                    JsonSerializer.Serialize(settingsStream, newSettings, typeInfo);
-                }
+                    settingsFile.Directory!.Create();
+                    FileInfo tmpSettingsFile = new(Path.Combine(settingsFile.Directory.FullName, "tmp.json"));
+                    using (FileStream settingsStream = tmpSettingsFile.OpenWrite())
+                    {
+                        JsonSerializer.Serialize(settingsStream, newSettings, typeInfo);
+                    }
 
-                tmpSettingsFile.MoveTo(settingsFile.FullName, overwrite: true);
-            }
-            catch (IOException)
-            {
-            }
-            catch (JsonException)
-            {
+                    tmpSettingsFile.MoveTo(settingsFile.FullName, overwrite: true);
+                }
+                catch (IOException)
+                {
+                }
+                catch (JsonException)
+                {
+                }
             }
 
             return newSettings;
