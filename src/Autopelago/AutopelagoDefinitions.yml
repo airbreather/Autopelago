@@ -388,7 +388,7 @@ regions:
   landmarks:
     moon_comma_the:
       name: 'Moon, The'
-      unrandomized_item: blackbird
+      unrandomized_item: pack_rat
       requires:
         - item: blackbird
       exits:
@@ -396,7 +396,7 @@ regions:
 
     snakes_on_a_planet:
       name: 'Snakes on a Planet'
-      unrandomized_item: pack_rat
+      unrandomized_item: blackbird
       reward_is_fixed: yes
       requires:
         - item: mongoose_in_a_combat_spacecraft
@@ -626,7 +626,7 @@ regions:
 
     captured_goldfish:
       name: 'Captured Goldfish'
-      unrandomized_item: blackbird
+      unrandomized_item: pack_rat
       requires:
         - item: giant_novelty_scissors
       ability_check_dc: 20
