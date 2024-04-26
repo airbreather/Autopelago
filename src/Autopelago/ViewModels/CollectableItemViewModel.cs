@@ -45,6 +45,7 @@ public sealed class CollectableItemViewModel : ViewModelBase, IDisposable
     [Reactive]
     public bool Collected { get; set; }
 
+    [Reactive]
     public Bitmap? Image { get; set; }
 
     public void Dispose()
