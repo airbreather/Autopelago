@@ -412,13 +412,32 @@ public sealed class GameStateViewModel : ViewModelBase, IDisposable
                 await _gameStateMutex.WaitAsync();
                 try
                 {
-                    _state = _state with
-                    {
-                        CheckedLocations = [.. _connected.CheckedLocations.Select(locationId => _lastFullData.LocationsById[locationId])],
-                    };
+                    HashSet<LocationDefinitionModel> knownCheckedLocations = [.. _state.CheckedLocations];
+                    HashSet<LocationDefinitionModel> newCheckedLocations = [];
                     foreach (long locationId in _connected.CheckedLocations)
                     {
-                        if (_checkableLocationsByModel.TryGetValue(_lastFullData.LocationsById[locationId], out var viewModel))
+                        LocationDefinitionModel location = _lastFullData.LocationsById[locationId];
+                        if (!knownCheckedLocations.Remove(location))
+                        {
+                            newCheckedLocations.Add(location);
+                        }
+                    }
+
+                    if (knownCheckedLocations.Count + newCheckedLocations.Count != 0)
+                    {
+                        _state = _state with
+                        {
+                            CheckedLocations = [
+                                .. _state.CheckedLocations
+                                    .Except(knownCheckedLocations)
+                                    .Concat(newCheckedLocations),
+                            ],
+                        };
+                    }
+
+                    foreach (LocationDefinitionModel location in _state.CheckedLocations)
+                    {
+                        if (_checkableLocationsByModel.TryGetValue(location, out var viewModel))
                         {
                             viewModel.Checked = true;
                         }
