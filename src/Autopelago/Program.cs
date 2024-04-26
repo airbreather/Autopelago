@@ -13,6 +13,7 @@ internal static class Program
     {
         Log.Logger = new LoggerConfiguration()
             .WriteTo.Console()
+            .Enrich.FromLogContext()
             .CreateLogger();
         return BuildAvaloniaApp()
             .StartWithClassicDesktopLifetime(args);

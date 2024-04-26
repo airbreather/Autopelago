@@ -47,19 +47,35 @@ public sealed class GameStateViewModel : ViewModelBase, IDisposable
 
     private static readonly FrozenDictionary<string, int> s_progressionItemSortOrder = ProgressionItemSortOrder();
 
+    private readonly TimeProvider _timeProvider = TimeProvider.System;
+
     private readonly CompositeDisposable _subscriptions = new();
+
+    private readonly SemaphoreSlim _dataAvailableSignal = new(0);
 
     private readonly SemaphoreSlim _writerMutex = new(1);
 
     private readonly SemaphoreSlim _gameStateMutex = new(1);
 
-    private readonly Task _gameLoopTask;
+    private readonly Task _packetReadLoopTask;
+
+    private readonly Task _playLoopTask;
 
     private readonly Settings _settings;
 
     private readonly Player _player = new();
 
-    private readonly FrozenDictionary<ItemDefinitionModel, CollectableItemViewModel> _collectableItemsByName;
+    private readonly FrozenDictionary<string, CollectableItemViewModel> _progressionItemsLookup;
+
+    private readonly FrozenDictionary<ItemDefinitionModel, CollectableItemViewModel> _collectableItemsByModel;
+
+    private readonly FrozenDictionary<string, CheckableLocationViewModel> _checkableLocationsLookup;
+
+    private readonly FrozenDictionary<LocationDefinitionModel, CheckableLocationViewModel> _checkableLocationsByModel;
+
+    private readonly FrozenDictionary<string, ImmutableArray<GameRequirementToolTipViewModel>> _toolTipsByItem;
+
+    private readonly ImmutableArray<(int RatCount, GameRequirementToolTipViewModel ToolTip)> _ratCountToolTips;
 
     private ClientWebSocketBox _clientWebSocketBox = null!;
 
@@ -73,22 +89,42 @@ public sealed class GameStateViewModel : ViewModelBase, IDisposable
 
     private AutopelagoData _lastFullData = null!;
 
-    private Game.State _prevState = Game.State.Start();
+    private Game.State _state = Game.State.Start();
+
+    private Prng.State _intervalPrngState = Prng.State.Start();
+
+    private TimeSpan _nextFullInterval;
+
+    private long _prevStartTimestamp;
 
     public GameStateViewModel(Settings settings)
     {
         _settings = settings;
+        _prevStartTimestamp = _timeProvider.GetTimestamp();
 
         ConnectionRefusedCommand = ReactiveCommand.Create<ConnectionRefusedPacketModel, ConnectionRefusedPacketModel>(x => x);
-        _gameLoopTask = Task.Run(async () =>
+        _packetReadLoopTask = Task.Run(async () =>
         {
             try
             {
-                await RunGameLoopAsync();
+                await RunPacketReadLoopAsync();
             }
             catch (Exception ex)
             {
-                Log.Fatal(ex, "Unhandled in game loop.");
+                Log.Fatal(ex, "Unhandled in packet read loop.");
+                throw;
+            }
+        });
+
+        _playLoopTask = Task.Run(async () =>
+        {
+            try
+            {
+                await RunPlayLoopAsync();
+            }
+            catch (Exception ex)
+            {
+                Log.Fatal(ex, "Unhandled in play loop.");
                 throw;
             }
         });
@@ -104,7 +140,7 @@ public sealed class GameStateViewModel : ViewModelBase, IDisposable
                 _gameStateMutex.Wait();
                 try
                 {
-                    _prevState = _player.Advance(_prevState);
+                    _state = _player.Advance(_state);
                 }
                 finally
                 {
@@ -112,10 +148,11 @@ public sealed class GameStateViewModel : ViewModelBase, IDisposable
                 }
             }));
 
-        FrozenDictionary<string, CollectableItemViewModel> progressionItemsLookup = ProgressionItems.ToFrozenDictionary(i => i.ItemKey);
-        _collectableItemsByName = progressionItemsLookup.ToFrozenDictionary(kvp => kvp.Value.Model, kvp => kvp.Value);
-        FrozenDictionary<string, CheckableLocationViewModel> checkableLocationsLookup = CheckableLocations.ToFrozenDictionary(l => l.LocationKey);
-        FrozenDictionary<string, ImmutableArray<GameRequirementToolTipViewModel>> toolTipsByItem = (
+        _progressionItemsLookup = ProgressionItems.ToFrozenDictionary(i => i.ItemKey);
+        _collectableItemsByModel = _progressionItemsLookup.ToFrozenDictionary(kvp => kvp.Value.Model, kvp => kvp.Value);
+        _checkableLocationsLookup = CheckableLocations.ToFrozenDictionary(l => l.LocationKey);
+        _checkableLocationsByModel = _checkableLocationsLookup.ToFrozenDictionary(kvp => kvp.Value.Model, kvp => kvp.Value);
+        _toolTipsByItem = (
             from loc in CheckableLocations
             from tt in loc.GameRequirementToolTipSource
             from tt2 in tt.DescendantsAndSelf()
@@ -123,7 +160,7 @@ public sealed class GameStateViewModel : ViewModelBase, IDisposable
             group tt2 by ((ReceivedItemRequirement)tt2.Model).ItemKey
         ).ToFrozenDictionary(grp => grp.Key, grp => grp.ToImmutableArray());
 
-        ImmutableArray<(int RatCount, GameRequirementToolTipViewModel ToolTip)> ratCountToolTips =
+        _ratCountToolTips =
         [
             .. from loc in CheckableLocations
                from tt in loc.GameRequirementToolTipSource
@@ -136,7 +173,7 @@ public sealed class GameStateViewModel : ViewModelBase, IDisposable
             .WhenAnyValue(x => x.RatCount)
             .Subscribe(ratCount =>
             {
-                foreach ((int ratCountThreshold, GameRequirementToolTipViewModel toolTip) in ratCountToolTips)
+                foreach ((int ratCountThreshold, GameRequirementToolTipViewModel toolTip) in _ratCountToolTips)
                 {
                     toolTip.Satisfied = ratCount >= ratCountThreshold;
                 }
@@ -144,7 +181,7 @@ public sealed class GameStateViewModel : ViewModelBase, IDisposable
 
         foreach (CollectableItemViewModel item in ProgressionItems)
         {
-            if (!toolTipsByItem.TryGetValue(item.ItemKey, out ImmutableArray<GameRequirementToolTipViewModel> tooltips))
+            if (!_toolTipsByItem.TryGetValue(item.ItemKey, out ImmutableArray<GameRequirementToolTipViewModel> tooltips))
             {
                 continue;
             }
@@ -164,24 +201,24 @@ public sealed class GameStateViewModel : ViewModelBase, IDisposable
             .Select(c => c.EventArgs)
             .Where(args => args.Action == NotifyCollectionChangedAction.Add)
             .SelectMany(args => args.NewItems!.Cast<string>()
-                .Where(progressionItemsLookup.ContainsKey)
-                .Select(added => progressionItemsLookup[added]))
+                .Where(_progressionItemsLookup.ContainsKey)
+                .Select(added => _progressionItemsLookup[added]))
             .Subscribe(item => item.Collected = true));
 
         _subscriptions.Add(LocationsAvailable.ObserveCollectionChanges()
             .Select(c => c.EventArgs)
             .Where(args => args.Action == NotifyCollectionChangedAction.Add)
             .SelectMany(args => args.NewItems!.Cast<string>()
-                .Where(checkableLocationsLookup.ContainsKey)
-                .Select(added => checkableLocationsLookup[added]))
+                .Where(_checkableLocationsLookup.ContainsKey)
+                .Select(added => _checkableLocationsLookup[added]))
             .Subscribe(location => location.Available = true));
 
         _subscriptions.Add(LocationsChecked.ObserveCollectionChanges()
             .Select(c => c.EventArgs)
             .Where(args => args.Action == NotifyCollectionChangedAction.Add)
             .SelectMany(args => args.NewItems!.Cast<string>()
-                .Where(checkableLocationsLookup.ContainsKey)
-                .Select(added => checkableLocationsLookup[added]))
+                .Where(_checkableLocationsLookup.ContainsKey)
+                .Select(added => _checkableLocationsLookup[added]))
             .Subscribe(location => location.Checked = true));
     }
 
@@ -353,6 +390,15 @@ public sealed class GameStateViewModel : ViewModelBase, IDisposable
 
                 _connected = (ConnectedPacketModel)connectResponse;
                 UpdateLastFullData();
+                foreach (long locationId in _connected.CheckedLocations)
+                {
+                    if (_checkableLocationsByModel.TryGetValue(_lastFullData.LocationsReverseMapping[locationId], out var viewModel))
+                    {
+                        viewModel.Checked = true;
+                    }
+                }
+
+                _dataAvailableSignal.Release();
                 break;
 
             case RoomUpdatePacketModel roomUpdate:
@@ -361,7 +407,7 @@ public sealed class GameStateViewModel : ViewModelBase, IDisposable
                 break;
 
             case ReceivedItemsPacketModel receivedItems:
-                Handle(ref _prevState, receivedItems);
+                Handle(ref _state, receivedItems);
                 break;
 
             case PrintJSONPacketModel printJSON:
@@ -414,7 +460,7 @@ public sealed class GameStateViewModel : ViewModelBase, IDisposable
         }
     }
 
-    private async Task RunGameLoopAsync()
+    private async Task RunPacketReadLoopAsync()
     {
         using ClientWebSocketBox socketBox = _clientWebSocketBox = new();
         try
@@ -500,6 +546,57 @@ public sealed class GameStateViewModel : ViewModelBase, IDisposable
         }
     }
 
+    private async Task RunPlayLoopAsync()
+    {
+        _nextFullInterval = NextInterval(_state);
+        await _dataAvailableSignal.WaitAsync();
+        while (true)
+        {
+            TimeSpan remaining = _nextFullInterval - _timeProvider.GetElapsedTime(_prevStartTimestamp);
+            if (remaining > TimeSpan.Zero)
+            {
+                await Task.Delay(remaining, _timeProvider);
+            }
+
+            Game.State prevState, nextState;
+            _prevStartTimestamp = _timeProvider.GetTimestamp();
+            await _gameStateMutex.WaitAsync();
+            try
+            {
+                prevState = _state;
+                _nextFullInterval = NextInterval(_state);
+                _state = nextState = _player.Advance(prevState);
+
+                if (prevState.Epoch == nextState.Epoch)
+                {
+                    continue;
+                }
+            }
+            finally
+            {
+                _gameStateMutex.Release();
+            }
+
+            if (nextState.CheckedLocations.Count == prevState.CheckedLocations.Count)
+            {
+                continue;
+            }
+
+            List<long> locationIds = [];
+            foreach (LocationDefinitionModel location in nextState.CheckedLocations.Except(prevState.CheckedLocations))
+            {
+                locationIds.Add(_lastFullData.LocationsMapping[location]);
+                if (_checkableLocationsByModel.TryGetValue(location, out CheckableLocationViewModel? viewModel))
+                {
+                    viewModel.Checked = true;
+                }
+            }
+
+            LocationChecksPacketModel locationChecks = new() { Locations = locationIds.ToArray() };
+            await SendPacketsAsync([locationChecks]);
+        }
+    }
+
     private void UpdateLastFullData()
     {
         GameDataModel gameData = _dataPackage.Data.Games["Autopelago"];
@@ -540,11 +637,21 @@ public sealed class GameStateViewModel : ViewModelBase, IDisposable
         int luckFactorMod = 0;
         int distractedMod = 0;
         int stylishMod = 0;
+        bool satisfiedNewRequirements = false;
+        int oldRatCount = state.RatCount;
         foreach (ItemDefinitionModel newItem in newItems)
         {
-            if (_collectableItemsByName.TryGetValue(newItem, out CollectableItemViewModel? viewModel))
+            if (_collectableItemsByModel.TryGetValue(newItem, out CollectableItemViewModel? viewModel))
             {
                 viewModel.Collected = true;
+                if (_toolTipsByItem.TryGetValue(viewModel.ItemKey, out ImmutableArray<GameRequirementToolTipViewModel> toolTips))
+                {
+                    foreach (GameRequirementToolTipViewModel toolTip in toolTips)
+                    {
+                        toolTip.Satisfied = true;
+                        satisfiedNewRequirements = true;
+                    }
+                }
             }
 
             // "confidence" takes place right away: it could apply to another item in the batch.
@@ -620,6 +727,36 @@ public sealed class GameStateViewModel : ViewModelBase, IDisposable
             StyleFactor = state.StyleFactor + (stylishMod * 2),
             DistractionCounter = state.DistractionCounter + distractedMod,
         };
+
+        int newRatCount = state.RatCount;
+        if (newRatCount != oldRatCount)
+        {
+            foreach ((int neededRatCount, GameRequirementToolTipViewModel toolTip) in _ratCountToolTips)
+            {
+                toolTip.Satisfied = neededRatCount <= newRatCount;
+                satisfiedNewRequirements = true;
+            }
+        }
+
+        if (satisfiedNewRequirements)
+        {
+            foreach (CheckableLocationViewModel loc in CheckableLocations)
+            {
+                if (loc.Checked)
+                {
+                    continue;
+                }
+
+                loc.Available = loc.GameRequirementToolTipSource.All(l => l.Satisfied);
+            }
+        }
+    }
+
+    private TimeSpan NextInterval(Game.State state)
+    {
+        double rangeSeconds = (double)(_settings.MaxStepSeconds - _settings.MinStepSeconds);
+        double baseInterval = (double)_settings.MinStepSeconds + (rangeSeconds * Prng.NextDouble(ref _intervalPrngState));
+        return TimeSpan.FromSeconds(baseInterval * state.IntervalDurationMultiplier);
     }
 
     private sealed record ClientWebSocketBox : IDisposable

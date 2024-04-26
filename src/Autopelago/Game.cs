@@ -79,7 +79,7 @@ public sealed class Game
 
         public static State Start(Random? random = null)
         {
-            return Start(unchecked((ulong)(random ?? Random.Shared).NextInt64()));
+            return Start(Prng.State.Start(random));
         }
 
         public static State Start(ulong seed)

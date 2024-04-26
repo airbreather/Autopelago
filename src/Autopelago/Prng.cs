@@ -154,6 +154,11 @@ public static class Prng
     {
         private ulong _element0;
 
+        public static State Start(Random? random = null)
+        {
+            return Start((ulong)((random ?? Random.Shared).NextDouble() * ulong.MaxValue));
+        }
+
         public static State Start(ulong x)
         {
             State state = default;
