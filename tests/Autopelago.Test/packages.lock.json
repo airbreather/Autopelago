@@ -845,6 +845,11 @@
         "resolved": "15.1.2",
         "contentHash": "qeX0XhzOIcQEvnI5JxnPaIwcINwyY4Qy/LXhSfsdHkFrl9F41AT52UFfy2nIE7kgrhMg+cP7xuS+GtPJhmHmTA=="
       },
+      "ZstdSharp.Port": {
+        "type": "Transitive",
+        "resolved": "0.8.0",
+        "contentHash": "Z62eNBIu8E8YtbqlMy57tK3dV1+m2b9NhPeaYovB5exmLKvrGCqOhJTzrEUH5VyUWU6vwX3c1XHJGhW5HVs8dA=="
+      },
       "autopelago": {
         "type": "Project",
         "dependencies": {
@@ -860,7 +865,8 @@
           "ReactiveUI.Fody": "[19.5.41, )",
           "Serilog": "[3.1.1, )",
           "Serilog.Sinks.Console": "[5.0.1, )",
-          "YamlDotNet": "[15.1.2, )"
+          "YamlDotNet": "[15.1.2, )",
+          "ZstdSharp.Port": "[0.8.0, )"
         }
       }
     }

@@ -130,7 +130,7 @@ public sealed record ItemDefinitionsModel
 
                 default:
                     // for simplicity's sake (and because this is getting a bit old), we expect only
-                    // progression items to be given keys in the YAML file. we should validated this
+                    // progression items to be given keys in the YAML file. we should validate this
                     // though, because it would be a major problem if this got messed up.
                     allItems.Add(ItemDefinitionModel.DeserializeFrom(valueNode, ArchipelagoItemFlags.LogicalAdvancement));
                     keyedItems.Add(key, allItems[^1]);
@@ -565,7 +565,7 @@ public sealed record LocationDefinitionModel
 
     public LocationDefinitionModel NextLocationTowards(LocationDefinitionModel target) => this == target ? target : GameDefinitions.Instance.FloydWarshall.GetNextOnPath(this, target);
 
-    public bool TryCheck(ref Game.State state)
+    public bool TryCheck(ref GameState state)
     {
         if (!Requirement.Satisfied(state))
         {
@@ -595,7 +595,7 @@ public sealed record LocationDefinitionModel
             state = state with { StyleFactor = state.StyleFactor - 1 };
         }
 
-        if (Game.State.NextD20(ref state) + state.DiceModifier + extraDiceModifier < this.AbilityCheckDC)
+        if (GameState.NextD20(ref state) + state.DiceModifier + extraDiceModifier < this.AbilityCheckDC)
         {
             return false;
         }
@@ -609,7 +609,7 @@ public abstract record GameRequirement
 {
     public static readonly AllChildrenGameRequirement AlwaysSatisfied = new() { Children = [] };
 
-    public virtual bool Satisfied(Game.State state)
+    public virtual bool Satisfied(GameState state)
     {
         return true;
     }
@@ -618,7 +618,7 @@ public abstract record GameRequirement
     {
     }
 
-    public static GameRequirement DeserializeFrom(YamlNode node)
+    protected static GameRequirement DeserializeFrom(YamlNode node)
     {
         if (node is not YamlMappingNode { Children: [(YamlScalarNode keyNode, YamlNode valueNode)] })
         {
@@ -646,7 +646,7 @@ public sealed record AllChildrenGameRequirement : GameRequirement
         return new() { Children = [.. ((YamlSequenceNode)node).Select(GameRequirement.DeserializeFrom)] };
     }
 
-    public override bool Satisfied(Game.State state)
+    public override bool Satisfied(GameState state)
     {
         foreach (GameRequirement child in Children)
         {
@@ -689,7 +689,7 @@ public sealed record AnyChildGameRequirement : GameRequirement
         return new() { Children = [.. ((YamlSequenceNode)node).Select(GameRequirement.DeserializeFrom)] };
     }
 
-    public override bool Satisfied(Game.State state)
+    public override bool Satisfied(GameState state)
     {
         foreach (GameRequirement child in Children)
         {
@@ -732,7 +732,7 @@ public sealed record AnyTwoChildrenGameRequirement : GameRequirement
         return new() { Children = [.. ((YamlSequenceNode)node).Select(GameRequirement.DeserializeFrom)] };
     }
 
-    public override bool Satisfied(Game.State state)
+    public override bool Satisfied(GameState state)
     {
         bool one = false;
         foreach (GameRequirement child in Children)
@@ -783,7 +783,7 @@ public sealed record RatCountRequirement : GameRequirement
         return new() { RatCount = node.To<int>() };
     }
 
-    public override bool Satisfied(Game.State state)
+    public override bool Satisfied(GameState state)
     {
         return state.RatCount >= RatCount;
     }
@@ -798,7 +798,7 @@ public sealed record ReceivedItemRequirement : GameRequirement
         return new() { ItemKey = node.To<string>() };
     }
 
-    public override bool Satisfied(Game.State state)
+    public override bool Satisfied(GameState state)
     {
         return state.ReceivedItems.Contains(GameDefinitions.Instance.ProgressionItems[ItemKey]);
     }

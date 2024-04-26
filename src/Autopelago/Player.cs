@@ -10,7 +10,7 @@ public sealed class Player
 
     private readonly Dictionary<ItemDefinitionModel, int> _receivedItemsMap = [];
 
-    public Game.State Advance(Game.State state)
+    public GameState Advance(GameState state)
     {
         ulong initialEpoch = state.Epoch;
 
@@ -132,7 +132,7 @@ public sealed class Player
 
     private void MarkLocationChecked(LocationKey key) => _checkedLocations[key.RegionKey][key.N] = true;
 
-    private LocationDefinitionModel BestTargetLocation(Game.State state)
+    private LocationDefinitionModel BestTargetLocation(GameState state)
     {
         // TODO: *much* of this will need a revamp, taking into account things like:
         // - we want to be "stupid" by default until the player collects a "make us smarter" rat.

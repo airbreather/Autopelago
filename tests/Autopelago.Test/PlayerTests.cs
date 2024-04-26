@@ -28,7 +28,7 @@ public sealed class PlayerTests
     {
         ulong seed = EnsureSeedProducesInitialD20Sequence(12999128, [9, 14, 19, 10, 14]);
         Prng.State prngState = Prng.State.Start(seed);
-        Game.State state = Game.State.Start(prngState);
+        GameState state = GameState.Start(prngState);
 
         Player player = new();
 
@@ -67,7 +67,7 @@ public sealed class PlayerTests
     [Test]
     public void ShouldOnlyTryBasketballWithAtLeastFiveRats([Range(0, 7)] int ratCount)
     {
-        Game.State state = Game.State.Start();
+        GameState state = GameState.Start();
         state = state with
         {
             ReceivedItems = [.. Enumerable.Repeat(s_normalRat, ratCount)],
@@ -83,7 +83,7 @@ public sealed class PlayerTests
     {
         ulong seed = EnsureSeedProducesInitialD20Sequence(2449080649, [20, 20, 20, 20, 20, 20, 20, 20]);
 
-        Game.State state = Game.State.Start(seed);
+        GameState state = GameState.Start(seed);
         state = state with
         {
             ReceivedItems = [.. Enumerable.Repeat(s_normalRat, 5), unblockAngryTurtlesFirst ? s_pizzaRat : s_premiumCanOfPrawnFood],
@@ -109,12 +109,12 @@ public sealed class PlayerTests
     [Test]
     public void GameShouldBeWinnable([Random(100, Distinct = true)] ulong seed)
     {
-        Game.State state = Game.State.Start(seed);
+        GameState state = GameState.Start(seed);
         Player player = new();
         int advancesSoFar = 0;
         while (true)
         {
-            Game.State prev = state;
+            GameState prev = state;
             state = player.Advance(state);
             Assert.That(state, Is.Not.EqualTo(prev));
 
@@ -133,7 +133,7 @@ public sealed class PlayerTests
     public void LuckyAuraShouldForceSuccess([Values(1, 2, 3)] int effectCount)
     {
         ulong seed = EnsureSeedProducesInitialD20Sequence(8626806680, [1, 1, 1, 1, 1, 1, 1, 1]);
-        Game.State state = Game.State.Start(seed);
+        GameState state = GameState.Start(seed);
 
         state = state with { LuckFactor = effectCount };
         Player player = new();
@@ -148,7 +148,7 @@ public sealed class PlayerTests
     public void UnluckyAuraShouldReduceModifier()
     {
         ulong seed = EnsureSeedProducesInitialD20Sequence(2242996, [14, 19, 20, 14, 15]);
-        Game.State state = Game.State.Start(seed);
+        GameState state = GameState.Start(seed);
 
         state = state with { LuckFactor = -4 };
         Player player = new();
@@ -169,7 +169,7 @@ public sealed class PlayerTests
     public void PositiveEnergyFactorShouldGiveFreeMovement()
     {
         ulong seed = EnsureSeedProducesInitialD20Sequence(8626806680, [1, 1, 1, 1, 1, 1, 1, 1]);
-        Game.State state = Game.State.Start(seed);
+        GameState state = GameState.Start(seed);
 
         // with an "energy factor" of 5, you can make up to a total of 6 checks in two rounds before
         // needing to spend any actions to move, if you are lucky enough.
@@ -201,7 +201,7 @@ public sealed class PlayerTests
     public void NegativeEnergyFactorShouldEncumberMovement()
     {
         ulong seed = EnsureSeedProducesInitialD20Sequence(13033555434, [20, 20, 1, 20, 20, 20, 20, 1]);
-        Game.State state = Game.State.Start(seed);
+        GameState state = GameState.Start(seed);
 
         state = state with { EnergyFactor = -3 };
 
@@ -232,7 +232,7 @@ public sealed class PlayerTests
     public void PositiveFoodFactorShouldGrantOneExtraAction()
     {
         ulong seed = EnsureSeedProducesInitialD20Sequence(2449080649, [20, 20, 20, 20, 20, 20, 20, 20]);
-        Game.State state = Game.State.Start(seed);
+        GameState state = GameState.Start(seed);
 
         state = state with { FoodFactor = 2 };
 
@@ -279,7 +279,7 @@ public sealed class PlayerTests
     public void NegativeFoodFactorShouldSubtractOneAction()
     {
         ulong seed = EnsureSeedProducesInitialD20Sequence(2449080649, [20, 20, 20, 20, 20, 20, 20, 20]);
-        Game.State state = Game.State.Start(seed);
+        GameState state = GameState.Start(seed);
 
         state = state with { FoodFactor = -2 };
 
@@ -326,7 +326,7 @@ public sealed class PlayerTests
     public void DistractionCounterShouldWasteEntireRound()
     {
         ulong seed = EnsureSeedProducesInitialD20Sequence(2449080649, [20, 20, 20, 20, 20, 20, 20, 20]);
-        Game.State state = Game.State.Start(seed);
+        GameState state = GameState.Start(seed);
 
         state = state with
         {
@@ -358,7 +358,7 @@ public sealed class PlayerTests
     public void StyleFactorShouldImproveModifier()
     {
         ulong seed = EnsureSeedProducesInitialD20Sequence(80387, [5, 10]);
-        Game.State state = Game.State.Start(seed);
+        GameState state = GameState.Start(seed);
 
         state = state with { StyleFactor = 2 };
 

@@ -86,7 +86,7 @@ public sealed class SettingsSelectionViewModel : ViewModelBase
                 try
                 {
                     settingsFile.Directory!.Create();
-                    FileInfo tmpSettingsFile = new(Path.Combine(settingsFile.Directory.FullName, "tmp.json"));
+                    FileInfo tmpSettingsFile = new(Path.Combine(settingsFile.DirectoryName!, "tmp.json"));
                     using (FileStream settingsStream = tmpSettingsFile.OpenWrite())
                     {
                         JsonSerializer.Serialize(settingsStream, newSettings, typeInfo);

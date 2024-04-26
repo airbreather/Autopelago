@@ -9,6 +9,7 @@ using System.Reactive.Linq;
 using System.Text;
 using System.Text.Json;
 using System.Text.Json.Serialization;
+using System.Text.Json.Serialization.Metadata;
 
 using Avalonia.ReactiveUI;
 
@@ -20,11 +21,19 @@ using ReactiveUI.Fody.Helpers;
 using Serilog;
 using Serilog.Context;
 
+using ZstdSharp;
+
 namespace Autopelago.ViewModels;
 
 [JsonSourceGenerationOptions(PropertyNamingPolicy = JsonKnownNamingPolicy.SnakeCaseLower)]
 [JsonSerializable(typeof(ImmutableArray<ArchipelagoPacketModel>))]
-internal sealed partial class SourceGenerationContext : JsonSerializerContext;
+internal sealed partial class PacketSourceGenerationContext : JsonSerializerContext;
+
+[JsonSourceGenerationOptions(
+    PropertyNamingPolicy = JsonKnownNamingPolicy.SnakeCaseLower,
+    UseStringEnumConverter = true)]
+[JsonSerializable(typeof(GameState.Proxy))]
+internal sealed partial class GameStateProxySerializerContext : JsonSerializerContext;
 
 public sealed class GameStateViewModel : ViewModelBase, IDisposable
 {
@@ -33,11 +42,30 @@ public sealed class GameStateViewModel : ViewModelBase, IDisposable
         MaxDepth = 1000,
     };
 
-    private static readonly JsonSerializerOptions s_jsonSerializerOptions = new()
+    private static readonly FileStreamOptions s_readOptions = new()
     {
-        PropertyNamingPolicy = JsonNamingPolicy.SnakeCaseLower,
-        TypeInfoResolver = SourceGenerationContext.Default,
+        Mode = FileMode.Open,
+        Access = FileAccess.Read,
+        Share = FileShare.ReadWrite | FileShare.Delete,
+        Options = FileOptions.Asynchronous | FileOptions.SequentialScan,
     };
+
+    private static readonly FileStreamOptions s_writeOptions = new()
+    {
+        Mode = FileMode.Create,
+        Access = FileAccess.ReadWrite,
+        Share = FileShare.Read | FileShare.Delete,
+        Options = FileOptions.Asynchronous,
+    };
+
+    private static readonly JsonTypeInfo<ArchipelagoPacketModel> s_packetTypeInfo =
+        PacketSourceGenerationContext.Default.ArchipelagoPacketModel;
+
+    private static readonly JsonTypeInfo<ImmutableArray<ArchipelagoPacketModel>> s_packetsTypeInfo =
+        PacketSourceGenerationContext.Default.ImmutableArrayArchipelagoPacketModel;
+
+    private static readonly JsonTypeInfo<GameState.Proxy> s_gameStateProxyTypeInfo =
+        GameStateProxySerializerContext.Default.Proxy;
 
     private static readonly FrozenSet<string> s_hiddenProgressionItems = new[]
     {
@@ -46,6 +74,10 @@ public sealed class GameStateViewModel : ViewModelBase, IDisposable
     }.ToFrozenSet();
 
     private static readonly FrozenDictionary<string, int> s_progressionItemSortOrder = ProgressionItemSortOrder();
+
+    private readonly FileInfo _stateFile;
+
+    private readonly FileInfo _stateTmpFile;
 
     private readonly TimeProvider _timeProvider = TimeProvider.System;
 
@@ -89,7 +121,7 @@ public sealed class GameStateViewModel : ViewModelBase, IDisposable
 
     private AutopelagoData _lastFullData = null!;
 
-    private Game.State _state = Game.State.Start();
+    private GameState _state = GameState.Start();
 
     private Prng.State _intervalPrngState = Prng.State.Start();
 
@@ -101,6 +133,9 @@ public sealed class GameStateViewModel : ViewModelBase, IDisposable
     {
         _settings = settings;
         _prevStartTimestamp = _timeProvider.GetTimestamp();
+        _stateFile = new(Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "Autopelago", $"{settings.Host}_{settings.Port}_{settings.Slot}.json.zst"));
+        _stateFile.Directory!.Create();
+        _stateTmpFile = new(_stateFile.FullName.Replace(".json.zst", ".tmp.json.zst"));
 
         ConnectionRefusedCommand = ReactiveCommand.Create<ConnectionRefusedPacketModel, ConnectionRefusedPacketModel>(x => x);
         _packetReadLoopTask = Task.Run(async () =>
@@ -135,16 +170,6 @@ public sealed class GameStateViewModel : ViewModelBase, IDisposable
                 foreach (CheckableLocationViewModel loc in CheckableLocations)
                 {
                     loc.NextFrame();
-                }
-
-                _gameStateMutex.Wait();
-                try
-                {
-                    _state = _player.Advance(_state);
-                }
-                finally
-                {
-                    _gameStateMutex.Release();
                 }
             }));
 
@@ -334,7 +359,7 @@ public sealed class GameStateViewModel : ViewModelBase, IDisposable
             }
         }
 
-        ArchipelagoPacketModel packet = JsonSerializer.Deserialize<ArchipelagoPacketModel>(ref reader, s_jsonSerializerOptions)!;
+        ArchipelagoPacketModel packet = JsonSerializer.Deserialize(ref reader, s_packetTypeInfo)!;
         readerState = reader.CurrentState;
         return (packet, reader.BytesConsumed);
     }
@@ -343,7 +368,7 @@ public sealed class GameStateViewModel : ViewModelBase, IDisposable
     {
         await Helper.ConfigureAwaitFalse();
 
-        byte[] bytes = JsonSerializer.SerializeToUtf8Bytes(packets, s_jsonSerializerOptions);
+        byte[] bytes = JsonSerializer.SerializeToUtf8Bytes(packets, s_packetsTypeInfo);
         await _writerMutex.WaitAsync(cancellationToken);
         try
         {
@@ -390,12 +415,26 @@ public sealed class GameStateViewModel : ViewModelBase, IDisposable
 
                 _connected = (ConnectedPacketModel)connectResponse;
                 UpdateLastFullData();
-                foreach (long locationId in _connected.CheckedLocations)
+                await _gameStateMutex.WaitAsync();
+                try
                 {
-                    if (_checkableLocationsByModel.TryGetValue(_lastFullData.LocationsReverseMapping[locationId], out var viewModel))
+                    _state = _state with
                     {
-                        viewModel.Checked = true;
+                        CheckedLocations = [.. _connected.CheckedLocations.Select(locationId => _lastFullData.LocationsReverseMapping[locationId])],
+                    };
+                    foreach (long locationId in _connected.CheckedLocations)
+                    {
+                        if (_checkableLocationsByModel.TryGetValue(_lastFullData.LocationsReverseMapping[locationId], out var viewModel))
+                        {
+                            viewModel.Checked = true;
+                        }
                     }
+
+                    await SaveAsync();
+                }
+                finally
+                {
+                    _gameStateMutex.Release();
                 }
 
                 _dataAvailableSignal.Release();
@@ -407,7 +446,21 @@ public sealed class GameStateViewModel : ViewModelBase, IDisposable
                 break;
 
             case ReceivedItemsPacketModel receivedItems:
-                Handle(ref _state, receivedItems);
+                await _gameStateMutex.WaitAsync();
+                try
+                {
+                    ulong prevEpoch = _state.Epoch;
+                    Handle(ref _state, receivedItems);
+                    if (_state.Epoch != prevEpoch)
+                    {
+                        await SaveAsync();
+                    }
+                }
+                finally
+                {
+                    _gameStateMutex.Release();
+                }
+
                 break;
 
             case PrintJSONPacketModel printJSON:
@@ -462,6 +515,7 @@ public sealed class GameStateViewModel : ViewModelBase, IDisposable
 
     private async Task RunPacketReadLoopAsync()
     {
+        await LoadAsync();
         using ClientWebSocketBox socketBox = _clientWebSocketBox = new();
         try
         {
@@ -558,7 +612,7 @@ public sealed class GameStateViewModel : ViewModelBase, IDisposable
                 await Task.Delay(remaining, _timeProvider);
             }
 
-            Game.State prevState, nextState;
+            GameState prevState, nextState;
             _prevStartTimestamp = _timeProvider.GetTimestamp();
             await _gameStateMutex.WaitAsync();
             try
@@ -567,9 +621,9 @@ public sealed class GameStateViewModel : ViewModelBase, IDisposable
                 _nextFullInterval = NextInterval(_state);
                 _state = nextState = _player.Advance(prevState);
 
-                if (prevState.Epoch == nextState.Epoch)
+                if (prevState.Epoch != nextState.Epoch)
                 {
-                    continue;
+                    await SaveAsync();
                 }
             }
             finally
@@ -615,7 +669,7 @@ public sealed class GameStateViewModel : ViewModelBase, IDisposable
         };
     }
 
-    private void Handle(ref Game.State state, ReceivedItemsPacketModel receivedItems)
+    private void Handle(ref GameState state, ReceivedItemsPacketModel receivedItems)
     {
         var convertedItems = ImmutableArray.CreateRange(receivedItems.Items, (item, itemsReverseMapping) => itemsReverseMapping[item.Item], _lastFullData.ItemsReverseMapping);
         for (int i = receivedItems.Index; i < state.ReceivedItems.Count; i++)
@@ -637,23 +691,8 @@ public sealed class GameStateViewModel : ViewModelBase, IDisposable
         int luckFactorMod = 0;
         int distractedMod = 0;
         int stylishMod = 0;
-        bool satisfiedNewRequirements = false;
-        int oldRatCount = state.RatCount;
         foreach (ItemDefinitionModel newItem in newItems)
         {
-            if (_collectableItemsByModel.TryGetValue(newItem, out CollectableItemViewModel? viewModel))
-            {
-                viewModel.Collected = true;
-                if (_toolTipsByItem.TryGetValue(viewModel.ItemKey, out ImmutableArray<GameRequirementToolTipViewModel> toolTips))
-                {
-                    foreach (GameRequirementToolTipViewModel toolTip in toolTips)
-                    {
-                        toolTip.Satisfied = true;
-                        satisfiedNewRequirements = true;
-                    }
-                }
-            }
-
             // "confidence" takes place right away: it could apply to another item in the batch.
             bool addConfidence = false;
             bool subtractConfidence = false;
@@ -728,35 +767,102 @@ public sealed class GameStateViewModel : ViewModelBase, IDisposable
             DistractionCounter = state.DistractionCounter + distractedMod,
         };
 
-        int newRatCount = state.RatCount;
-        if (newRatCount != oldRatCount)
+        UpdateMeters();
+    }
+
+    private TimeSpan NextInterval(GameState state)
+    {
+        double rangeSeconds = (double)(_settings.MaxStepSeconds - _settings.MinStepSeconds);
+        double baseInterval = (double)_settings.MinStepSeconds + (rangeSeconds * Prng.NextDouble(ref _intervalPrngState));
+        return TimeSpan.FromSeconds(baseInterval * state.IntervalDurationMultiplier);
+    }
+
+    private void UpdateMeters()
+    {
+        bool satisfiedNewRequirements = false;
+        foreach (ItemDefinitionModel item in _state.ReceivedItems)
         {
-            foreach ((int neededRatCount, GameRequirementToolTipViewModel toolTip) in _ratCountToolTips)
+            if (!_collectableItemsByModel.TryGetValue(item, out CollectableItemViewModel? viewModel))
             {
-                toolTip.Satisfied = neededRatCount <= newRatCount;
+                continue;
+            }
+
+            if (viewModel.Collected)
+            {
+                continue;
+            }
+
+            viewModel.Collected = true;
+            if (!_toolTipsByItem.TryGetValue(viewModel.ItemKey, out ImmutableArray<GameRequirementToolTipViewModel> toolTips))
+            {
+                continue;
+            }
+
+            foreach (GameRequirementToolTipViewModel toolTip in toolTips)
+            {
+                toolTip.Satisfied = true;
                 satisfiedNewRequirements = true;
             }
+        }
+
+        int ratCount = _state.RatCount;
+        foreach ((int neededRatCount, GameRequirementToolTipViewModel toolTip) in _ratCountToolTips)
+        {
+            toolTip.Satisfied = neededRatCount <= ratCount;
+            satisfiedNewRequirements = true;
         }
 
         if (satisfiedNewRequirements)
         {
             foreach (CheckableLocationViewModel loc in CheckableLocations)
             {
-                if (loc.Checked)
+                if (!loc.Checked)
                 {
-                    continue;
+                    loc.Available = loc.GameRequirementToolTipSource.All(l => l.Satisfied);
                 }
-
-                loc.Available = loc.GameRequirementToolTipSource.All(l => l.Satisfied);
             }
+        }
+
+        RatCount = ratCount;
+        FoodFactor = _state.FoodFactor;
+        EnergyFactor = _state.EnergyFactor;
+        LuckFactor = _state.LuckFactor;
+        StyleFactor = _state.StyleFactor;
+        DistractionCounter = _state.DistractionCounter;
+        HasConfidence = _state.HasConfidence;
+    }
+
+    private async ValueTask LoadAsync()
+    {
+        try
+        {
+            await using FileStream rawStream = _stateFile.Open(s_readOptions);
+            await using DecompressionStream stream = new(rawStream);
+            GameState.Proxy proxy = (await JsonSerializer.DeserializeAsync(stream, s_gameStateProxyTypeInfo))!;
+            _state = proxy.ToState();
+            UpdateMeters();
+        }
+        catch (IOException)
+        {
         }
     }
 
-    private TimeSpan NextInterval(Game.State state)
+    private async ValueTask SaveAsync()
     {
-        double rangeSeconds = (double)(_settings.MaxStepSeconds - _settings.MinStepSeconds);
-        double baseInterval = (double)_settings.MinStepSeconds + (rangeSeconds * Prng.NextDouble(ref _intervalPrngState));
-        return TimeSpan.FromSeconds(baseInterval * state.IntervalDurationMultiplier);
+        UpdateMeters();
+        try
+        {
+            await using (FileStream rawStream = _stateTmpFile.Open(s_writeOptions))
+            {
+                await using CompressionStream stream = new(rawStream, level: 10, leaveOpen: true);
+                await JsonSerializer.SerializeAsync(stream, _state.ToProxy(), s_gameStateProxyTypeInfo);
+            }
+
+            _stateTmpFile.MoveTo(_stateFile.FullName, overwrite: true);
+        }
+        catch (IOException)
+        {
+        }
     }
 
     private sealed record ClientWebSocketBox : IDisposable
