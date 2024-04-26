@@ -35,7 +35,8 @@ public sealed record Settings
 
     public required string Slot { get; init; }
 
-    public required string Password { get; init; }
+    [JsonIgnore]
+    public string Password { get; init; } = "";
 
     public required decimal MinStepSeconds { get; init; }
 
