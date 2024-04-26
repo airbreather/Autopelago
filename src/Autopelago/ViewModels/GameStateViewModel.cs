@@ -617,7 +617,7 @@ public sealed class GameStateViewModel : ViewModelBase, IDisposable
     {
         _nextFullInterval = NextInterval(_state);
         await _dataAvailableSignal.WaitAsync();
-        while (true)
+        while (!_state.IsCompleted)
         {
             TimeSpan remaining = _nextFullInterval - _timeProvider.GetElapsedTime(_prevStartTimestamp);
             if (remaining > TimeSpan.Zero)
@@ -662,6 +662,9 @@ public sealed class GameStateViewModel : ViewModelBase, IDisposable
             LocationChecksPacketModel locationChecks = new() { Locations = locationIds.ToArray() };
             await SendPacketsAsync([locationChecks]);
         }
+
+        StatusUpdatePacketModel statusUpdate = new() { Status = ArchipelagoClientStatus.Goal };
+        await SendPacketsAsync([statusUpdate]);
     }
 
     private void UpdateLastFullData()

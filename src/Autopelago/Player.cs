@@ -159,6 +159,11 @@ public sealed class Player
         Enqueue(GameDefinitions.Instance.StartRegion);
         while (regionsToCheck.TryDequeue(out RegionDefinitionModel? region))
         {
+            if (region == GameDefinitions.Instance.GoalRegion)
+            {
+                return GameDefinitions.Instance.GoalLocation;
+            }
+
             BitArray regionCheckedLocations = _checkedLocations[region.Key];
             if (!regionCheckedLocations.HasAllSet())
             {
