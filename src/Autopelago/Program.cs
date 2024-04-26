@@ -2,6 +2,8 @@ using Avalonia;
 using Avalonia.ReactiveUI;
 using Avalonia.Svg.Skia;
 
+using Serilog;
+
 namespace Autopelago;
 
 internal static class Program
@@ -9,6 +11,9 @@ internal static class Program
     [STAThread]
     private static int Main(string[] args)
     {
+        Log.Logger = new LoggerConfiguration()
+            .WriteTo.Console()
+            .CreateLogger();
         return BuildAvaloniaApp()
             .StartWithClassicDesktopLifetime(args);
     }

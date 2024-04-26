@@ -1,9 +1,19 @@
 using System.Reactive;
 using System.Reactive.Linq;
+using System.Text.Json;
+using System.Text.Json.Serialization;
+using System.Text.Json.Serialization.Metadata;
 
 using ReactiveUI;
+using ReactiveUI.Fody.Helpers;
 
 namespace Autopelago.ViewModels;
+
+[JsonSourceGenerationOptions(
+    PropertyNamingPolicy = JsonKnownNamingPolicy.SnakeCaseLower,
+    UseStringEnumConverter = true)]
+[JsonSerializable(typeof(Settings))]
+internal sealed partial class SettingsSerializerContext : JsonSerializerContext;
 
 public sealed record Settings
 {
@@ -24,6 +34,26 @@ public sealed class SettingsSelectionViewModel : ViewModelBase
 {
     public SettingsSelectionViewModel()
     {
+        JsonTypeInfo<Settings> typeInfo = (JsonTypeInfo<Settings>)SettingsSerializerContext.Default.GetTypeInfo(typeof(Settings))!;
+        FileInfo settingsFile = new(Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "Autopelago", "lastSettings.json"));
+        try
+        {
+            using FileStream settingsStream = settingsFile.OpenRead();
+            Settings lastSettings = JsonSerializer.Deserialize(settingsStream, typeInfo) ?? throw new JsonException();
+            Host = lastSettings.Host;
+            Port = lastSettings.Port;
+            Slot = lastSettings.Slot;
+            Password = lastSettings.Password;
+            MinStepSeconds = lastSettings.MinStepSeconds;
+            MaxStepSeconds = lastSettings.MaxStepSeconds;
+        }
+        catch (IOException)
+        {
+        }
+        catch (JsonException)
+        {
+        }
+
         IObservable<bool> canConnect = this.WhenAnyValue(
             x => x.Host, x => x.Port, x => x.Slot, x => x.MinStepSeconds, x => x.MaxStepSeconds,
             (host, port, slot, minStepSeconds, maxStepSeconds) =>
@@ -33,58 +63,57 @@ public sealed class SettingsSelectionViewModel : ViewModelBase
                 minStepSeconds > 0 &&
                 maxStepSeconds >= minStepSeconds)
             .DistinctUntilChanged();
-        ConnectCommand = ReactiveCommand.Create<Settings>(() => new()
+        ConnectCommand = ReactiveCommand.Create(() =>
         {
-            Host = _host,
-            Port = _port,
-            Slot = _slot,
-            Password = _password,
-            MinStepSeconds = _minStepSeconds,
-            MaxStepSeconds = _maxStepSeconds,
+            Settings newSettings = new()
+            {
+                Host = Host,
+                Port = Port,
+                Slot = Slot,
+                Password = Password,
+                MinStepSeconds = MinStepSeconds,
+                MaxStepSeconds = MaxStepSeconds,
+            };
+
+            try
+            {
+                settingsFile.Directory!.Create();
+                FileInfo tmpSettingsFile = new(Path.Combine(settingsFile.Directory.FullName, "tmp.json"));
+                using (FileStream settingsStream = tmpSettingsFile.OpenWrite())
+                {
+                    JsonSerializer.Serialize(settingsStream, newSettings, typeInfo);
+                }
+
+                tmpSettingsFile.MoveTo(settingsFile.FullName, overwrite: true);
+            }
+            catch (IOException)
+            {
+            }
+            catch (JsonException)
+            {
+            }
+
+            return newSettings;
         }, canConnect);
     }
 
     public ReactiveCommand<Unit, Settings> ConnectCommand { get; }
 
-    private string _host = "archipelago.gg";
-    public string Host
-    {
-        get => _host;
-        set => this.RaiseAndSetIfChanged(ref _host, value);
-    }
+    [Reactive]
+    public string Host { get; set; } = "archipelago.gg";
 
-    private ushort _port = ushort.MaxValue;
-    public ushort Port
-    {
-        get => _port;
-        set => this.RaiseAndSetIfChanged(ref _port, value);
-    }
+    [Reactive]
+    public ushort Port { get; set; } = ushort.MaxValue;
 
-    private string _slot = "";
-    public string Slot
-    {
-        get => _slot;
-        set => this.RaiseAndSetIfChanged(ref _slot, value);
-    }
+    [Reactive]
+    public string Slot { get; set; } = "";
 
-    private string _password = "";
-    public string Password
-    {
-        get => _password;
-        set => this.RaiseAndSetIfChanged(ref _password, value);
-    }
+    [Reactive]
+    public string Password { get; set; } = "";
 
-    private decimal _minStepSeconds = 60;
-    public decimal MinStepSeconds
-    {
-        get => _minStepSeconds;
-        set => this.RaiseAndSetIfChanged(ref _minStepSeconds, value);
-    }
+    [Reactive]
+    public decimal MinStepSeconds { get; set; } = 60;
 
-    private decimal _maxStepSeconds = 90;
-    public decimal MaxStepSeconds
-    {
-        get => _maxStepSeconds;
-        set => this.RaiseAndSetIfChanged(ref _maxStepSeconds, value);
-    }
+    [Reactive]
+    public decimal MaxStepSeconds { get; set; } = 90;
 }

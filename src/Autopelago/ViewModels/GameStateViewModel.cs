@@ -6,6 +6,7 @@ using System.ComponentModel;
 using System.Net.WebSockets;
 using System.Reactive.Disposables;
 using System.Reactive.Linq;
+using System.Text;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 
@@ -15,6 +16,9 @@ using DynamicData.Binding;
 
 using ReactiveUI;
 using ReactiveUI.Fody.Helpers;
+
+using Serilog;
+using Serilog.Context;
 
 namespace Autopelago.ViewModels;
 
@@ -84,7 +88,7 @@ public sealed class GameStateViewModel : ViewModelBase, IDisposable
             }
             catch (Exception ex)
             {
-                Console.Error.WriteLine(ex);
+                Log.Fatal(ex, "Unhandled in game loop.");
                 throw;
             }
         });
@@ -358,6 +362,54 @@ public sealed class GameStateViewModel : ViewModelBase, IDisposable
 
             case ReceivedItemsPacketModel receivedItems:
                 Handle(ref _prevState, receivedItems);
+                break;
+
+            case PrintJSONPacketModel printJSON:
+                StringBuilder messageTemplateBuilder = new();
+                Stack<IDisposable> ctxStack = [];
+                try
+                {
+                    int nextPlayerPlaceholder = 0;
+                    int nextItemPlaceholder = 0;
+                    int nextLocationPlaceholder = 0;
+                    foreach (JSONMessagePartModel part in printJSON.Data)
+                    {
+                        switch (part)
+                        {
+                            case PlayerIdJSONMessagePartModel playerId:
+                                string playerPlaceholder = $"Player{nextPlayerPlaceholder++}";
+                                ctxStack.Push(LogContext.PushProperty(playerPlaceholder, _lastFullData.SlotInfo[int.Parse(playerId.Text)].Name));
+                                messageTemplateBuilder.Append($"{{{playerPlaceholder}}}");
+                                break;
+
+                            case ItemIdJSONMessagePartModel itemId:
+                                string itemPlaceholder = $"Item{nextItemPlaceholder++}";
+                                ctxStack.Push(LogContext.PushProperty(itemPlaceholder, _lastFullData.GeneralItemNameMapping[long.Parse(itemId.Text)]));
+                                messageTemplateBuilder.Append($"{{{itemPlaceholder}}}");
+                                break;
+
+                            case LocationIdJSONMessagePartModel locationId:
+                                string locationPlaceholder = $"Location{nextLocationPlaceholder++}";
+                                ctxStack.Push(LogContext.PushProperty(locationPlaceholder, _lastFullData.GeneralLocationNameMapping[long.Parse(locationId.Text)]));
+                                messageTemplateBuilder.Append($"{{{locationPlaceholder}}}");
+                                break;
+
+                            default:
+                                messageTemplateBuilder.Append(part.Text);
+                                break;
+                        }
+                    }
+
+                    Log.Information($"{messageTemplateBuilder}");
+                }
+                finally
+                {
+                    while (ctxStack.TryPop(out IDisposable? ctx))
+                    {
+                        ctx.Dispose();
+                    }
+                }
+
                 break;
         }
     }
