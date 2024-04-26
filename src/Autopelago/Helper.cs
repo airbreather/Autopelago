@@ -9,6 +9,13 @@ public static class Helper
     public static void Throw(this Exception[] exceptions) => throw new AggregateException(exceptions);
     public static void Throw(this Exception[] exceptions, string? message) => throw new AggregateException(message, exceptions);
 
+    public static bool DisposeAsExceptionFilter<T>(this T @this)
+        where T : IDisposable
+    {
+        @this.Dispose();
+        return false;
+    }
+
     public static string FormatMyWay(this TimeSpan @this)
     {
         if (@this.TotalDays >= 1)
@@ -30,30 +37,6 @@ public static class Helper
     }
 
     public static GetOffSyncContextAwaitableAndAwaiter ConfigureAwaitFalse() => default;
-
-    public static async ValueTask<TResult> NextAsync<TSource, TResult>(Action<AsyncEventHandler<TSource>> subscribe, Action<AsyncEventHandler<TSource>> unsubscribe, Func<TSource, bool> predicate, Func<TSource, TResult> selector, CancellationToken cancellationToken)
-        where TResult : notnull
-    {
-        TaskCompletionSource<TResult> box = new(TaskCreationOptions.RunContinuationsAsynchronously);
-        subscribe(OnEventAsync);
-        await using CancellationTokenRegistration reg = cancellationToken.Register(() =>
-        {
-            unsubscribe(OnEventAsync);
-            box.TrySetCanceled(cancellationToken);
-        });
-        return await box.Task.ConfigureAwait(false);
-
-        ValueTask OnEventAsync(object? sender, TSource source, CancellationToken cancellationToken)
-        {
-            if (predicate(source))
-            {
-                unsubscribe(OnEventAsync);
-                box.TrySetResult(selector(source));
-            }
-
-            return ValueTask.CompletedTask;
-        }
-    }
 
     public readonly struct GetOffSyncContextAwaitableAndAwaiter : INotifyCompletion
     {

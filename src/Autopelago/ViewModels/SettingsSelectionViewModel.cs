@@ -33,7 +33,7 @@ public sealed class SettingsSelectionViewModel : ViewModelBase
                 minStepSeconds > 0 &&
                 maxStepSeconds >= minStepSeconds)
             .DistinctUntilChanged();
-        ConnectCommand = ReactiveCommand.Create<Unit, Settings>(_ => new()
+        ConnectCommand = ReactiveCommand.Create<Settings>(() => new()
         {
             Host = _host,
             Port = _port,

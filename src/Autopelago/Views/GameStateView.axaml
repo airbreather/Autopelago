@@ -1,6 +1,7 @@
 <reactiveUi:ReactiveUserControl
     xmlns="https://github.com/avaloniaui"
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:sys="clr-namespace:System;assembly=System.Runtime"
     xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
     xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
     xmlns:viewModels="clr-namespace:Autopelago.ViewModels"
@@ -13,6 +14,10 @@
 
     <Design.DataContext>
         <viewModels:GameStateViewModel SlotName="Ratthew" RatCount="16" HasConfidence="True">
+            <x:Arguments>
+                <x:String>DESIGNER_ONLY</x:String>
+                <sys:UInt16>65535</sys:UInt16>
+            </x:Arguments>
 
             <viewModels:GameStateViewModel.ProgressionItemsCollected>
                 <x:String>pizza_rat</x:String>

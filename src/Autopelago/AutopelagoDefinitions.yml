@@ -19,7 +19,7 @@ items:
   pharaoh_not_anti_mummy_spray: 'Pharaoh-Not® Anti-Mummy Spray'
   pile_of_scrap_metal_in_the_shape_of_a_rocket_ship: 'Pile of Scrap Metal in the Shape of a Rocket Ship'
   energy_drink_that_is_pure_rocket_fuel: 'Energy Drink that is Pure Rocket Fuel'
-  retro_encabulator: 'Retro Encabulator'
+  turbo_encabulator: 'Turbo Encabulator'
 
   map_of_the_entire_internet: 'Map of the Entire Internet'
   virtual_key: 'Virtual Key'
@@ -490,7 +490,7 @@ regions:
       unrandomized_item: pack_rat
       requires:
         - any_two:
-            - item: retro_encabulator
+            - item: turbo_encabulator
             - item: ratstronaut
             - item: energy_drink_that_is_pure_rocket_fuel
             - item: pile_of_scrap_metal_in_the_shape_of_a_rocket_ship
@@ -823,7 +823,7 @@ regions:
       name_template: 'Before Makeshift Rocket Ship #{n}'
       unrandomized_items:
         key:
-          - retro_encabulator
+          - turbo_encabulator
           - ratstronaut
           - energy_drink_that_is_pure_rocket_fuel
           - pile_of_scrap_metal_in_the_shape_of_a_rocket_ship

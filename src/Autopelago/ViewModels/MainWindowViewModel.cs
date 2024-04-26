@@ -9,9 +9,18 @@ public sealed class MainWindowViewModel : ViewModelBase, IDisposable
     public MainWindowViewModel()
     {
         _connectCommandSubscription = SettingsSelection.ConnectCommand
-            .Subscribe(settings => ContentViewModel = new GameStateViewModel
+            .Subscribe(settings =>
             {
-                SlotName = settings.Slot,
+                GameStateViewModel gameStateViewModel = new(settings)
+                {
+                    SlotName = settings.Slot,
+                };
+                ContentViewModel = gameStateViewModel;
+                gameStateViewModel.ConnectionRefusedCommand.Subscribe(_ =>
+                {
+                    gameStateViewModel.Dispose();
+                    ContentViewModel = SettingsSelection;
+                });
             });
 
         ContentViewModel = SettingsSelection;
