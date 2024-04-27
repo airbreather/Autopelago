@@ -72,6 +72,9 @@ public sealed class GameStateViewModel : ViewModelBase, IDisposable
     {
         // these are the items marked as progression that aren't ever **individually** required.
         "pack_rat", "rat_pack",
+
+        // this one is fixed and doesn't really get sent by others.
+        "blackbird",
     }.ToFrozenSet();
 
     private static readonly FrozenDictionary<string, int> s_progressionItemSortOrder = ProgressionItemSortOrder();
