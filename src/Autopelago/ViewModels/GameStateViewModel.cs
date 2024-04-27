@@ -666,8 +666,9 @@ public sealed class GameStateViewModel : ViewModelBase, IDisposable
             await SendPacketsAsync([locationChecks]);
         }
 
+        LocationChecksPacketModel goalLocationCheck = new() { Locations = new[] { _lastFullData.LocationIds[GameDefinitions.Instance.GoalLocation] } };
         StatusUpdatePacketModel statusUpdate = new() { Status = ArchipelagoClientStatus.Goal };
-        await SendPacketsAsync([statusUpdate]);
+        await SendPacketsAsync([goalLocationCheck, statusUpdate]);
     }
 
     private void UpdateLastFullData()

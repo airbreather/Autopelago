@@ -40,7 +40,8 @@
         <Style Selector="TextBlock.meter-label">
             <Setter Property="FontSize" Value="10" />
             <Setter Property="VerticalAlignment" Value="Center" />
-            <Setter Property="TextAlignment" Value="Right"></Setter>
+            <Setter Property="HorizontalAlignment" Value="Right" />
+            <Setter Property="TextAlignment" Value="Right" />
         </Style>
         <Style Selector="Border.item.collected">
             <Setter Property="BorderBrush" Value="#FFCE00" />
