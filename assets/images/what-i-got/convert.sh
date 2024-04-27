@@ -5,19 +5,19 @@ SCRIPT_DIR="$(dirname "$(realpath "$0")")"
 mkdir "$SCRIPT_DIR/../Rats"
 mkdir "$SCRIPT_DIR/../Locations"
 
-for f in $SCRIPT_DIR/*.svg
+for f in "$SCRIPT_DIR"/*.svg
 do
     chmod -x "$f"
     fn=${f##*/}
     cp "$f" "$SCRIPT_DIR/../$fn"
 done
 
-for f in $SCRIPT_DIR/*.piskel
+for f in "$SCRIPT_DIR"/*.piskel
 do
     chmod -x "$f"
 done
 
-for f in $SCRIPT_DIR/*.png
+for f in "$SCRIPT_DIR"/*.png
 do
     chmod -x "$f"
     fn=${f##*/}
@@ -25,7 +25,7 @@ do
     cwebp -mt -z 9 -o "$SCRIPT_DIR/../$fn_webp" "$f" &
 done
 
-for f in $SCRIPT_DIR/Rats/*.png
+for f in "$SCRIPT_DIR"/Rats/*.png
 do
     chmod -x "$f"
     fn=${f##*/}
@@ -33,7 +33,7 @@ do
     cwebp -mt -z 9 -o "$SCRIPT_DIR/../Rats/$fn_webp" "$f" &
 done
 
-for f in $SCRIPT_DIR/Locations/*.gif
+for f in "$SCRIPT_DIR"/Locations/*.gif
 do
     chmod -x "$f"
     fn=${f##*/}
