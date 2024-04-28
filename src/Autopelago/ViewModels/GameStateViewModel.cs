@@ -217,20 +217,21 @@ public sealed class GameStateViewModel : ViewModelBase, IDisposable
         FrozenDictionary<string, FillerRegionViewModel> fillerRegionLookup = GameDefinitions.Instance.FillerRegions
             .Where(kvp => kvp.Key == "Menu")
             .ToFrozenDictionary(kvp => kvp.Key, kvp => new FillerRegionViewModel(kvp.Value));
-        this
+
+        _subscriptions.Add(this
             .WhenAnyValue(x => x.CurrentLocation)
             .Select(x => fillerRegionLookup.GetValueOrDefault(x.Key.RegionKey))
-            .ToPropertyEx(this, x => x.CurrentFillerRegion);
+            .ToPropertyEx(this, x => x.CurrentFillerRegion));
 
-        this
+        _subscriptions.Add(this
             .WhenAnyValue(x => x.CurrentLocation)
             .Select(x => x.Key.N)
-            .ToPropertyEx(this, x => x.CurrentRegionNum);
+            .ToPropertyEx(this, x => x.CurrentRegionNum));
 
-        this
+        _subscriptions.Add(this
             .WhenAnyValue(x => x.CurrentLandmarkRegion, x => x.CurrentFillerRegion, x => x.CurrentRegionNum)
             .Select(tup => tup.Item1?.CanvasLocation ?? (tup.Item2 ?? fillerRegionLookup["Menu"]).LocationPoints[tup.Item3])
-            .ToPropertyEx(this, x => x.CurrentPoint);
+            .ToPropertyEx(this, x => x.CurrentPoint));
 
         if (Design.IsDesignMode)
         {
