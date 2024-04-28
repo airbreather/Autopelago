@@ -12,6 +12,12 @@ public sealed class FillerRegionViewModel : ViewModelBase
     private static readonly FrozenDictionary<string, ImmutableArray<Point>> s_definingPoints = new Dictionary<string, ImmutableArray<Point>>
     {
         ["Menu"] = [new(0, 77), new(57, 77)],
+        ["before_prawn_stars"] = [new(61, 77), new(90, 77), new(90, 34), new(101, 34)],
+        ["before_angry_turtles"] = [new(61, 77), new(90, 77), new(90, 120), new(101, 120)],
+        ["before_pirate_bake_sale"] = [new(105, 34), new(164, 34)],
+        ["before_restaurant"] = [new(105, 120), new(164, 120)],
+        ["after_pirate_bake_sale"] = [new(168, 34), new(191, 35), new(195, 36), new(198, 37), new(202, 39), new(205, 41), new(209, 45), new(212, 49), new(215, 56), new(217, 67), new(217, 77), new(252, 77)],
+        ["after_restaurant"] = [new(168, 120), new(219, 120), new(219, 105), new(185, 105), new(185, 91), new(238, 91), new(238, 77), new(252, 77)],
     }.ToFrozenDictionary(kvp => kvp.Key, kvp => ImmutableArray.CreateRange(kvp.Value, p => p - s_toCenter));
 
     public FillerRegionViewModel(FillerRegionDefinitionModel model)
