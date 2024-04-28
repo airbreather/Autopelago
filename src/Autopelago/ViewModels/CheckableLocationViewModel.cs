@@ -13,45 +13,45 @@ namespace Autopelago.ViewModels;
 
 public sealed class CheckableLocationViewModel : ViewModelBase, IDisposable
 {
-    private const int HalfWidth = 8;
+    private static readonly Vector s_toCenter = new Vector(16, 16) / 2;
 
     private static readonly Lazy<(Bitmap[] Yellow, Bitmap[] Gray)> s_questFrames = new(() => (ReadFrames("yellow_quest").Saturated, ReadFrames("gray_quest").Saturated));
 
     private static readonly FrozenDictionary<string, Point> s_canvasLocations = new[]
     {
-        KeyValuePair.Create("basketball", new Point(59 - HalfWidth, 77 - HalfWidth)),
-        KeyValuePair.Create("prawn_stars", new Point(103 - HalfWidth, 34 - HalfWidth)),
-        KeyValuePair.Create("angry_turtles", new Point(103 - HalfWidth, 120 - HalfWidth)),
-        KeyValuePair.Create("pirate_bake_sale", new Point(166 - HalfWidth, 34 - HalfWidth)),
-        KeyValuePair.Create("restaurant", new Point(166 - HalfWidth, 120 - HalfWidth)),
-        KeyValuePair.Create("bowling_ball_door", new Point(254 - HalfWidth, 77 - HalfWidth)),
-        KeyValuePair.Create("captured_goldfish", new Point(290 - HalfWidth, 106 - HalfWidth)),
-        KeyValuePair.Create("computer_interface", new Point(282 - HalfWidth, 225 - HalfWidth)),
-        KeyValuePair.Create("kart_races", new Point(235 - HalfWidth, 179 - HalfWidth)),
-        KeyValuePair.Create("trapeze", new Point(235 - HalfWidth, 225 - HalfWidth)),
-        KeyValuePair.Create("daring_adventurer", new Point(235 - HalfWidth, 269 - HalfWidth)),
-        KeyValuePair.Create("broken_down_bus", new Point(178 - HalfWidth, 179 - HalfWidth)),
-        KeyValuePair.Create("blue_colored_screen_interface", new Point(178 - HalfWidth, 225 - HalfWidth)),
-        KeyValuePair.Create("overweight_boulder", new Point(178 - HalfWidth, 269 - HalfWidth)),
-        KeyValuePair.Create("binary_tree", new Point(124 - HalfWidth, 179 - HalfWidth)),
-        KeyValuePair.Create("copyright_mouse", new Point(124 - HalfWidth, 225 - HalfWidth)),
-        KeyValuePair.Create("computer_ram", new Point(124 - HalfWidth, 269 - HalfWidth)),
-        KeyValuePair.Create("rat_rap_battle", new Point(67 - HalfWidth, 179 - HalfWidth)),
-        KeyValuePair.Create("room_full_of_typewriters", new Point(67 - HalfWidth, 225 - HalfWidth)),
-        KeyValuePair.Create("stack_of_crates", new Point(67 - HalfWidth, 269 - HalfWidth)),
-        KeyValuePair.Create("secret_cache", new Point(20 - HalfWidth, 225 - HalfWidth)),
-        KeyValuePair.Create("makeshift_rocket_ship", new Point(25 - HalfWidth, 331 - HalfWidth)),
-        KeyValuePair.Create("roboclop_the_robot_war_horse", new Point(73 - HalfWidth, 353 - HalfWidth)),
-        KeyValuePair.Create("homeless_mummy", new Point(84 - HalfWidth, 402 - HalfWidth)),
-        KeyValuePair.Create("frozen_assets", new Point(54 - HalfWidth, 435 - HalfWidth)),
-        KeyValuePair.Create("alien_vending_machine", new Point(114 - HalfWidth, 428 - HalfWidth)),
-        KeyValuePair.Create("stalled_rocket_get_out_and_push", new Point(113 - HalfWidth, 334 - HalfWidth)),
-        KeyValuePair.Create("seal_of_fortune", new Point(149 - HalfWidth, 381 - HalfWidth)),
-        KeyValuePair.Create("space_opera", new Point(183 - HalfWidth, 346 - HalfWidth)),
-        KeyValuePair.Create("minotaur_labyrinth", new Point(194 - HalfWidth, 399 - HalfWidth)),
-        KeyValuePair.Create("asteroid_with_pants", new Point(232 - HalfWidth, 406 - HalfWidth)),
-        KeyValuePair.Create("snakes_on_a_planet", new Point(243 - HalfWidth, 354 - HalfWidth)),
-        KeyValuePair.Create("moon_comma_the", new Point(284 - HalfWidth, 319 - HalfWidth)),
+        KeyValuePair.Create("basketball", new Point(59, 77)),
+        KeyValuePair.Create("prawn_stars", new Point(103, 34)),
+        KeyValuePair.Create("angry_turtles", new Point(103, 120)),
+        KeyValuePair.Create("pirate_bake_sale", new Point(166, 34)),
+        KeyValuePair.Create("restaurant", new Point(166, 120)),
+        KeyValuePair.Create("bowling_ball_door", new Point(254, 77)),
+        KeyValuePair.Create("captured_goldfish", new Point(290, 106)),
+        KeyValuePair.Create("computer_interface", new Point(282, 225)),
+        KeyValuePair.Create("kart_races", new Point(235, 179)),
+        KeyValuePair.Create("trapeze", new Point(235, 225)),
+        KeyValuePair.Create("daring_adventurer", new Point(235, 269)),
+        KeyValuePair.Create("broken_down_bus", new Point(178, 179)),
+        KeyValuePair.Create("blue_colored_screen_interface", new Point(178, 225)),
+        KeyValuePair.Create("overweight_boulder", new Point(178, 269)),
+        KeyValuePair.Create("binary_tree", new Point(124, 179)),
+        KeyValuePair.Create("copyright_mouse", new Point(124, 225)),
+        KeyValuePair.Create("computer_ram", new Point(124, 269)),
+        KeyValuePair.Create("rat_rap_battle", new Point(67, 179)),
+        KeyValuePair.Create("room_full_of_typewriters", new Point(67, 225)),
+        KeyValuePair.Create("stack_of_crates", new Point(67, 269)),
+        KeyValuePair.Create("secret_cache", new Point(20, 225)),
+        KeyValuePair.Create("makeshift_rocket_ship", new Point(25, 331)),
+        KeyValuePair.Create("roboclop_the_robot_war_horse", new Point(73, 353)),
+        KeyValuePair.Create("homeless_mummy", new Point(84, 402)),
+        KeyValuePair.Create("frozen_assets", new Point(54, 435)),
+        KeyValuePair.Create("alien_vending_machine", new Point(114, 428)),
+        KeyValuePair.Create("stalled_rocket_get_out_and_push", new Point(113, 334)),
+        KeyValuePair.Create("seal_of_fortune", new Point(149, 381)),
+        KeyValuePair.Create("space_opera", new Point(183, 346)),
+        KeyValuePair.Create("minotaur_labyrinth", new Point(194, 399)),
+        KeyValuePair.Create("asteroid_with_pants", new Point(232, 406)),
+        KeyValuePair.Create("snakes_on_a_planet", new Point(243, 354)),
+        KeyValuePair.Create("moon_comma_the", new Point(284, 319)),
     }.ToFrozenDictionary();
 
     private readonly IDisposable _clearAvailableSubscription;
@@ -69,7 +69,7 @@ public sealed class CheckableLocationViewModel : ViewModelBase, IDisposable
         LocationKey = locationKey;
         Model = GameDefinitions.Instance.LandmarkRegions[locationKey].Locations[0];
         GameRequirementToolTipSource = new(Model.Requirement);
-        CanvasLocation = s_canvasLocations[locationKey];
+        CanvasLocation = s_canvasLocations[locationKey] - s_toCenter;
 
         (_saturated, _desaturated) = ReadFrames(locationKey);
         (Bitmap[] yellowQuestFrames, Bitmap[] grayQuestFrames) = s_questFrames.Value;

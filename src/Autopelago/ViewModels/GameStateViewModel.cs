@@ -11,6 +11,7 @@ using System.Text.Json;
 using System.Text.Json.Serialization;
 using System.Text.Json.Serialization.Metadata;
 
+using Avalonia;
 using Avalonia.Controls;
 using Avalonia.ReactiveUI;
 
@@ -213,8 +214,30 @@ public sealed class GameStateViewModel : ViewModelBase, IDisposable
                 .Select(added => checkableLocationsLookup[added]))
             .Subscribe(location => location.Checked = true));
 
+        FrozenDictionary<string, FillerRegionViewModel> fillerRegionLookup = GameDefinitions.Instance.FillerRegions
+            .Where(kvp => kvp.Key == "Menu")
+            .ToFrozenDictionary(kvp => kvp.Key, kvp => new FillerRegionViewModel(kvp.Value));
+        this
+            .WhenAnyValue(x => x.CurrentLocation)
+            .Select(x => fillerRegionLookup.GetValueOrDefault(x.Key.RegionKey))
+            .ToPropertyEx(this, x => x.CurrentFillerRegion);
+
+        this
+            .WhenAnyValue(x => x.CurrentLocation)
+            .Select(x => x.Key.N)
+            .ToPropertyEx(this, x => x.CurrentRegionNum);
+
+        this
+            .WhenAnyValue(x => x.CurrentLandmarkRegion, x => x.CurrentFillerRegion, x => x.CurrentRegionNum)
+            .Select(tup => tup.Item1?.CanvasLocation ?? (tup.Item2 ?? fillerRegionLookup["Menu"]).LocationPoints[tup.Item3])
+            .ToPropertyEx(this, x => x.CurrentPoint);
+
         if (Design.IsDesignMode)
         {
+            _subscriptions.Add(Observable
+                .Interval(TimeSpan.FromSeconds(5), AvaloniaScheduler.Instance)
+                .Subscribe(_ => CurrentLocation = GameDefinitions.Instance.LocationsByKey[CurrentLocation.Key with { N = CurrentLocation.Key.N + 1 }]));
+
             return;
         }
 
@@ -247,6 +270,21 @@ public sealed class GameStateViewModel : ViewModelBase, IDisposable
 
     [Reactive]
     public string SlotName { get; set; } = "";
+
+    [Reactive]
+    public LocationDefinitionModel CurrentLocation { get; set; } = GameDefinitions.Instance.StartLocation;
+
+    [ObservableAsProperty]
+    public FillerRegionViewModel? CurrentFillerRegion { get; }
+
+    [ObservableAsProperty]
+    public int CurrentRegionNum { get; }
+
+    [ObservableAsProperty]
+    public CheckableLocationViewModel? CurrentLandmarkRegion { get; }
+
+    [ObservableAsProperty]
+    public Point CurrentPoint { get; }
 
     [Reactive]
     public int RatCount { get; set; }
@@ -795,6 +833,8 @@ public sealed class GameStateViewModel : ViewModelBase, IDisposable
 
     private void UpdateMeters()
     {
+        CurrentLocation = _state.CurrentLocation;
+
         foreach (ItemDefinitionModel item in _state.ReceivedItems)
         {
             if (_collectableItemsByModel.TryGetValue(item, out CollectableItemViewModel? viewModel))

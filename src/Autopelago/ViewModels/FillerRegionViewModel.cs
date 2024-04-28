@@ -7,12 +7,14 @@ namespace Autopelago.ViewModels;
 
 public sealed class FillerRegionViewModel : ViewModelBase
 {
+    private static readonly Vector s_toCenter = new Point(16, 16) / 2;
+
     private static readonly FrozenDictionary<string, ImmutableArray<Point>> s_definingPoints = new Dictionary<string, ImmutableArray<Point>>
     {
         ["Menu"] = [new(0, 77), new(57, 77)],
-    }.ToFrozenDictionary();
+    }.ToFrozenDictionary(kvp => kvp.Key, kvp => ImmutableArray.CreateRange(kvp.Value, p => p - s_toCenter));
 
-    public FillerRegionViewModel(string regionKey)
+    public FillerRegionViewModel(FillerRegionDefinitionModel model)
     {
         // for clarity, in this method:
         // - "location" is the LocationDefinitionModel kind
@@ -20,8 +22,8 @@ public sealed class FillerRegionViewModel : ViewModelBase
         // - "point" WITH "prj" is the projection of an (x, y) point onto a line
         // - "endpoint" is the endpoint of a segment that ends at the indicated point. the "prj"
         //   convention from "point" applies here, too.
-        Model = GameDefinitions.Instance.FillerRegions[regionKey];
-        ImmutableArray<Point> definingPoints = s_definingPoints[regionKey];
+        Model = model;
+        ImmutableArray<Point> definingPoints = s_definingPoints[model.Key];
         Span<double> endpointsPrj = definingPoints.Length > 100
             ? new double[definingPoints.Length]
             : stackalloc double[definingPoints.Length];
