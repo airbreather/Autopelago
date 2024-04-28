@@ -55,15 +55,6 @@
         <Style Selector="TextBlock.tooltip.small">
             <Setter Property="FontSize" Value="8" />
         </Style>
-        <!-- This isn't working just yet, for some reason: -->
-        <Style Selector="Image.player">
-            <Setter Property="Transitions">
-                <Transitions>
-                    <DoubleTransition Property="Canvas.Left" Duration="0:0:2" />
-                    <DoubleTransition Property="Canvas.Top" Duration="0:0:2" />
-                </Transitions>
-            </Setter>
-        </Style>
         <Style Selector="Image.player.onFiller">
             <Style.Animations>
                 <Animation Duration="0:0:1"
@@ -72,13 +63,13 @@
                         <Setter Property="RotateTransform.Angle" Value="0" />
                     </KeyFrame>
                     <KeyFrame Cue="25%">
-                        <Setter Property="RotateTransform.Angle" Value="20" />
+                        <Setter Property="RotateTransform.Angle" Value="10" />
                     </KeyFrame>
                     <KeyFrame Cue="50%">
                         <Setter Property="RotateTransform.Angle" Value="0" />
                     </KeyFrame>
                     <KeyFrame Cue="75%">
-                        <Setter Property="RotateTransform.Angle" Value="-20" />
+                        <Setter Property="RotateTransform.Angle" Value="-10" />
                     </KeyFrame>
                     <KeyFrame Cue="100%">
                         <Setter Property="RotateTransform.Angle" Value="0" />
@@ -234,6 +225,12 @@
                                            Width="16" Canvas.Left="{Binding CurrentPoint.X, Mode=OneWay}"
                                            Height="16" Canvas.Top="{Binding CurrentPoint.Y, Mode=OneWay}"
                                            Source="/Assets/Images/pack_rat.webp">
+                                        <Image.Transitions>
+                                            <Transitions>
+                                                <DoubleTransition Property="Canvas.Left" Duration="0:0:0.5" />
+                                                <DoubleTransition Property="Canvas.Top" Duration="0:0:0.5" />
+                                            </Transitions>
+                                        </Image.Transitions>
                                     </Image>
                                 </Canvas>
                             </Grid>
