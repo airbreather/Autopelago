@@ -152,6 +152,7 @@ public static class Prng
     [JsonConverter(typeof(Converter))]
     public record struct State
     {
+        [SuppressMessage("Style", "IDE0044: Add readonly modifier", Justification = "https://github.com/dotnet/roslyn/issues/69143")]
         private ulong _element0;
 
         public static State Start(Random? random = null)

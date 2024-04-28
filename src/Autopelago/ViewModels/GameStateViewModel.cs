@@ -156,9 +156,9 @@ public sealed class GameStateViewModel : ViewModelBase, IDisposable
 
         ImmutableArray<(int RatCount, GameRequirementToolTipViewModel ToolTip)> ratCountToolTips = [
             .. from loc in CheckableLocations
-            from tt in loc.GameRequirementToolTipSource.DescendantsAndSelf()
-            where tt.Model is RatCountRequirement
-            select (((RatCountRequirement)tt.Model).RatCount, tt),
+               from tt in loc.GameRequirementToolTipSource.DescendantsAndSelf()
+               where tt.Model is RatCountRequirement
+               select (((RatCountRequirement)tt.Model).RatCount, tt),
         ];
 
         _subscriptions.Add(this

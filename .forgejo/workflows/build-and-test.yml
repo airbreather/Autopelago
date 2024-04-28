@@ -26,7 +26,8 @@ jobs:
       - name: Build
         shell: bash
         run: |
-          dotnet build -c Release --no-restore &
+          dotnet format --no-restore --verify-no-changes &
+          dotnet build --no-restore -c Release &
           dotnet publish src/Autopelago/Autopelago.csproj --no-restore -c Release -r win-x64 -o dist/Autopelago_win-x64 &
           dotnet publish src/Autopelago/Autopelago.csproj --no-restore -c Release -r linux-x64 -o dist/Autopelago_linux-x64 &
           wait < <(jobs -p);
