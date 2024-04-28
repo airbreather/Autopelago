@@ -16,7 +16,9 @@ public sealed class FillerRegionViewModel : ViewModelBase
         ["before_angry_turtles"] = [new(61, 77), new(90, 77), new(90, 120), new(101, 120)],
         ["before_pirate_bake_sale"] = [new(105, 34), new(164, 34)],
         ["before_restaurant"] = [new(105, 120), new(164, 120)],
-        ["after_pirate_bake_sale"] = [new(168, 34), new(191, 35), new(195, 36), new(198, 37), new(202, 39), new(205, 41), new(209, 45), new(212, 49), new(215, 56), new(217, 67), new(217, 77), new(252, 77)],
+        ["after_pirate_bake_sale"] = [new(168, 34), new(183, 34),
+            new(185.44, 34.12), new(189.16, 34.35), new(192.08, 34.84), new(194.46, 35.47), new(197.73, 36.71), new(200.45, 38.11), new(204.34, 40.8), new(206.22, 42.44), new(208.74, 45.06), new(210.48, 47.19), new(212.72, 50.39), new(213.99, 52.49), new(215.71, 55.73), new(217.51, 59.72), new(219.29, 64.54), new(220.79, 69.64), new(221.69, 73.51), new(222.2, 76.42),
+            new(223, 77), new(252, 77)],
         ["after_restaurant"] = [new(168, 120), new(219, 120), new(219, 105), new(185, 105), new(185, 91), new(238, 91), new(238, 77), new(252, 77)],
         ["before_captured_goldfish"] = [new(256, 77), new(290, 77), new(290, 104)],
         ["before_computer_interface"] = [new(290, 108), new(290, 225), new(284, 225)],
@@ -34,6 +36,12 @@ public sealed class FillerRegionViewModel : ViewModelBase
         ["before_stack_of_crates"] = [new(122, 269), new(69, 269)],
         ["after_rat_rap_battle"] = [new(65, 179), new(21, 223)],
         ["after_stack_of_crates"] = [new(65, 269), new(62, 269), new(20, 227)],
+        ["before_makeshift_rocket_ship"] = [new(18, 225), new(6, 225), new(6, 301),
+            new(6.6, 301.89), new(6.6, 309.36), new(7.25, 312.51), new(7.88, 321.07), new(8.1, 329.35), new(8.78, 333.37), new(10.39, 339.25), new(12.12, 341.94), new(15.63, 345.22), new(19.91, 347.19), new(28.01, 348.26), new(34.65, 348.53), new(39.42, 344.52), new(41.18, 339.09), new(41.39, 332.27), new(39.81, 327.85), new(35.69, 325.24), new(32.55, 325.14), new(28.95, 328.54),
+            new(26, 330)],
+        ["before_roboclop_the_robot_war_horse"] = [new(26, 330),
+            new(26.97, 331.42), new(30.98, 331.87), new(32.51, 332.98), new(34.2, 336.21), new(34.12, 340.35), new(32.25, 343.41), new(29.73, 344.24), new(26.32, 344.07), new(21.22, 342.68), new(18.46, 341.34), new(15.85, 338.21), new(14.47, 335.2), new(13.34, 329.66), new(15.26, 324.43), new(16.99, 321.45), new(20.73, 317.9), new(28.34, 315.93), new(36.19, 316.15), new(43.81, 318.42), new(50.44, 324.81), new(50.74, 326.38), new(55.42, 335.44), new(56.84, 338.87), new(59.69, 344.3), new(63.05, 347.94), new(69.93, 351.34),
+            new(72, 353)],
     }.ToFrozenDictionary(kvp => kvp.Key, kvp => ImmutableArray.CreateRange(kvp.Value, p => p - s_toCenter));
 
     public FillerRegionViewModel(FillerRegionDefinitionModel model)
