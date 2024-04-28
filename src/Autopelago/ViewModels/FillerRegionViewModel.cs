@@ -42,6 +42,17 @@ public sealed class FillerRegionViewModel : ViewModelBase
         ["before_roboclop_the_robot_war_horse"] = [new(26, 330),
             new(26.97, 331.42), new(30.98, 331.87), new(32.51, 332.98), new(34.2, 336.21), new(34.12, 340.35), new(32.25, 343.41), new(29.73, 344.24), new(26.32, 344.07), new(21.22, 342.68), new(18.46, 341.34), new(15.85, 338.21), new(14.47, 335.2), new(13.34, 329.66), new(15.26, 324.43), new(16.99, 321.45), new(20.73, 317.9), new(28.34, 315.93), new(36.19, 316.15), new(43.81, 318.42), new(50.44, 324.81), new(50.74, 326.38), new(55.42, 335.44), new(56.84, 338.87), new(59.69, 344.3), new(63.05, 347.94), new(69.93, 351.34),
             new(72, 353)],
+        ["before_stalled_rocket_get_out_and_push"] = [new(74, 352), new(112, 335)],
+        ["before_homeless_mummy"] = [new(73, 354), new(84, 401)],
+        ["after_stalled_rocket_get_out_and_push"] = [new(114, 333), new(148, 380)],
+        ["before_frozen_assets"] = [new(83, 403), new(55, 434)],
+        ["before_alien_vending_machine"] = [new(85, 403), new(113, 427)],
+        ["after_homeless_mummy"] = [new(85, 402), new(148, 382)],
+        ["before_space_opera"] = [new(149, 380), new(156, 371), new(157, 371), new(174, 354), new(175, 354), new(182, 347)],
+        ["before_minotaur_labyrinth"] = [new(150, 382), new(193, 399)],
+        ["after_space_opera"] = [new(184, 346), new(242, 354)],
+        ["before_asteroid_with_pants"] = [new(195, 400), new(231, 406)],
+        ["after_minotaur_labyrinth"] = [new(195, 398), new(207, 386), new(209, 385), new(216, 378), new(218, 377), new(226, 369), new(228, 368), new(236, 360), new(238, 359), new(242, 355)],
     }.ToFrozenDictionary(kvp => kvp.Key, kvp => ImmutableArray.CreateRange(kvp.Value, p => p - s_toCenter));
 
     public FillerRegionViewModel(FillerRegionDefinitionModel model)

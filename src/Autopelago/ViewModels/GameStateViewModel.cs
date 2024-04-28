@@ -215,7 +215,6 @@ public sealed class GameStateViewModel : ViewModelBase, IDisposable
             .Subscribe(location => location.Checked = true));
 
         FrozenDictionary<string, FillerRegionViewModel> fillerRegionLookup = GameDefinitions.Instance.FillerRegions
-            .Where(kvp => kvp.Key == "Menu")
             .ToFrozenDictionary(kvp => kvp.Key, kvp => new FillerRegionViewModel(kvp.Value));
 
         _subscriptions.Add(this
@@ -230,14 +229,35 @@ public sealed class GameStateViewModel : ViewModelBase, IDisposable
 
         _subscriptions.Add(this
             .WhenAnyValue(x => x.CurrentLandmarkRegion, x => x.CurrentFillerRegion, x => x.CurrentRegionNum)
-            .Select(tup => tup.Item1?.CanvasLocation ?? (tup.Item2 ?? fillerRegionLookup["Menu"]).LocationPoints[tup.Item3])
+            .Select(tup => tup.Item1?.CanvasLocation ?? (tup.Item2 ?? fillerRegionLookup["Menu"]).LocationPoints.ElementAtOrDefault(tup.Item3))
             .ToPropertyEx(this, x => x.CurrentPoint));
 
         if (Design.IsDesignMode)
         {
+            IEnumerator<FillerRegionViewModel> fillerRegionEnumerator = Enumerable.Repeat(fillerRegionLookup.Values, 1_000_000)
+                .SelectMany(x => x)
+                .GetEnumerator();
+            _subscriptions.Add(fillerRegionEnumerator);
+
             _subscriptions.Add(Observable
-                .Interval(TimeSpan.FromSeconds(5), AvaloniaScheduler.Instance)
-                .Subscribe(_ => CurrentLocation = GameDefinitions.Instance.LocationsByKey[CurrentLocation.Key with { N = CurrentLocation.Key.N + 1 }]));
+                .Interval(TimeSpan.FromSeconds(1), AvaloniaScheduler.Instance)
+                .Subscribe(_ => CurrentLocation = NextLocation()));
+
+            LocationDefinitionModel NextLocation()
+            {
+                if (CurrentFillerRegion is not { } filler)
+                {
+                    filler = fillerRegionLookup["Menu"];
+                }
+
+                if (CurrentLocation.Key.N == filler.LocationPoints.Length - 1)
+                {
+                    fillerRegionEnumerator.MoveNext();
+                    return fillerRegionEnumerator.Current!.Model.Locations[0];
+                }
+
+                return GameDefinitions.Instance.LocationsByKey[CurrentLocation.Key with { N = CurrentLocation.Key.N + 1 }];
+            }
 
             return;
         }
