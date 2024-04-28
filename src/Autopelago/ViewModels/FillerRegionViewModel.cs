@@ -18,6 +18,22 @@ public sealed class FillerRegionViewModel : ViewModelBase
         ["before_restaurant"] = [new(105, 120), new(164, 120)],
         ["after_pirate_bake_sale"] = [new(168, 34), new(191, 35), new(195, 36), new(198, 37), new(202, 39), new(205, 41), new(209, 45), new(212, 49), new(215, 56), new(217, 67), new(217, 77), new(252, 77)],
         ["after_restaurant"] = [new(168, 120), new(219, 120), new(219, 105), new(185, 105), new(185, 91), new(238, 91), new(238, 77), new(252, 77)],
+        ["before_captured_goldfish"] = [new(256, 77), new(290, 77), new(290, 104)],
+        ["before_computer_interface"] = [new(290, 108), new(290, 225), new(284, 225)],
+        ["before_kart_races"] = [new(281, 108), new(237, 179)],
+        ["before_daring_adventurer"] = [new(280, 227), new(237, 269)],
+        ["before_broken_down_bus"] = [new(233, 179), new(180, 179)],
+        ["before_overweight_boulder"] = [new(233, 269), new(180, 269)],
+        ["before_copyright_mouse"] = [new(176, 179), new(167, 179), new(124, 223)],
+        ["before_blue_colored_screen_interface"] = [new(178, 267), new(178, 227)],
+        ["before_room_full_of_typewriters"] = [new(122, 225), new(69, 225)],
+        ["before_trapeze"] = [new(180, 225), new(233, 225)],
+        ["before_binary_tree"] = [new(124, 223), new(124, 181)],
+        ["before_computer_ram"] = [new(177, 227), new(135, 269), new(126, 269)],
+        ["before_rat_rap_battle"] = [new(122, 179), new(69, 179)],
+        ["before_stack_of_crates"] = [new(122, 269), new(69, 269)],
+        ["after_rat_rap_battle"] = [new(65, 179), new(21, 223)],
+        ["after_stack_of_crates"] = [new(65, 269), new(62, 269), new(20, 227)],
     }.ToFrozenDictionary(kvp => kvp.Key, kvp => ImmutableArray.CreateRange(kvp.Value, p => p - s_toCenter));
 
     public FillerRegionViewModel(FillerRegionDefinitionModel model)
