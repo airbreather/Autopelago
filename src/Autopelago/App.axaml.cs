@@ -1,3 +1,4 @@
+using System.Collections.Immutable;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using System.Text.Json.Serialization.Metadata;
@@ -9,7 +10,6 @@ using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Controls.ApplicationLifetimes;
 using Avalonia.Markup.Xaml;
-using Avalonia.Platform;
 
 namespace Autopelago;
 
@@ -28,35 +28,19 @@ public sealed record AppState
 
     public WindowState? MainWindowState { get; set; }
 
-    public int? MainWindowWidth { get; set; }
+    public PixelRectProxy? MainWindowBounds { get; set; }
 
-    public int? MainWindowHeight { get; set; }
+    public ImmutableArray<PixelRectProxy>? BasisScreens { get; set; }
+}
 
-    public int? MainWindowPositionX { get; set; }
+public readonly record struct PixelRectProxy(int X, int Y, int Width, int Height)
+{
+    public static implicit operator PixelRect(PixelRectProxy copyFrom) => new(copyFrom.X, copyFrom.Y, copyFrom.Width, copyFrom.Height);
 
-    public int? MainWindowPositionY { get; set; }
+    public static implicit operator Rect(PixelRectProxy copyFrom) => new(copyFrom.X, copyFrom.Y, copyFrom.Width, copyFrom.Height);
 
-    [JsonIgnore]
-    public PixelPoint? MainWindowPosition
-    {
-        get => (MainWindowPositionX, MainWindowPositionY) switch
-        {
-            (int x, int y) => new(x, y),
-            _ => null,
-        };
-        set => (MainWindowPositionX, MainWindowPositionY) = (value?.X, value?.Y);
-    }
-
-    [JsonIgnore]
-    public PixelSize? MainWindowSize
-    {
-        get => (MainWindowWidth, MainWindowHeight) switch
-        {
-            (int width, int height) => new(width, height),
-            _ => null,
-        };
-        set => (MainWindowWidth, MainWindowHeight) = (value?.Width, value?.Height);
-    }
+    public static implicit operator PixelRectProxy(PixelRect copyFrom) => new(copyFrom.X, copyFrom.Y, copyFrom.Width, copyFrom.Height);
+    public static explicit operator PixelRectProxy(Rect copyFrom) => new((int)copyFrom.X, (int)copyFrom.Y, (int)copyFrom.Width, (int)copyFrom.Height);
 }
 
 public sealed partial class App : Application
@@ -108,27 +92,29 @@ public sealed partial class App : Application
             }
         }
 
-        if (MainWindow.Screens.ScreenFromWindow(MainWindow) is Screen screen)
+        // don't start minimized or full-screen
+        if (initialState.MainWindowState is WindowState.Minimized or WindowState.FullScreen)
         {
-            if (initialState.MainWindowState is WindowState.Minimized or WindowState.FullScreen)
-            {
-                initialState.MainWindowState = null;
-            }
+            initialState.MainWindowState = null;
+        }
 
-            if (!((initialState.MainWindowPosition, initialState.MainWindowSize) is (PixelPoint testPosition, PixelSize testSize) &&
-                  screen.Bounds.Contains(new PixelRect(testPosition, testSize))))
+        // only restore bounds if the same screens intersect it now.
+        if (initialState.MainWindowBounds is PixelRectProxy prevBounds)
+        {
+            ImmutableArray<PixelRectProxy> currScreens = [.. MainWindow.Screens.Intersecting(prevBounds)];
+            if (!currScreens.SequenceEqual(initialState.BasisScreens ?? []))
             {
-                initialState.MainWindowPosition = null;
-                initialState.MainWindowSize = null;
+                initialState.MainWindowBounds = null;
             }
         }
 
         mainWindowViewModel.SettingsSelection.SettingsModel = initialState.SlotSettings;
-        if ((initialState.MainWindowPosition, initialState.MainWindowSize) is (PixelPoint initialPosition, PixelSize initialSize))
+        if (initialState.MainWindowBounds is PixelRectProxy initialBoundsProxy)
         {
-            MainWindow.Position = initialPosition;
-            MainWindow.Width = initialSize.Width;
-            MainWindow.Height = initialSize.Height;
+            PixelRect initialBounds = initialBoundsProxy;
+            MainWindow.Position = initialBounds.Position;
+            MainWindow.Width = initialBounds.Width;
+            MainWindow.Height = initialBounds.Height;
         }
 
         desktop.MainWindow = MainWindow;
@@ -139,13 +125,13 @@ public sealed partial class App : Application
             desktop.ShutdownRequested += OnShutdownRequested;
             void OnShutdownRequested(object? sender, ShutdownRequestedEventArgs args)
             {
+                PixelRect bounds = new(MainWindow.Position, new PixelSize((int)MainWindow.Width, (int)MainWindow.Height));
                 AppState finalState = new()
                 {
                     SlotSettings = mainWindowViewModel.SettingsSelection.SettingsModel,
                     MainWindowState = MainWindow.WindowState,
-                    MainWindowPosition = MainWindow.Position,
-                    MainWindowWidth = (int)MainWindow.ClientSize.Width,
-                    MainWindowHeight = (int)MainWindow.ClientSize.Height,
+                    MainWindowBounds = bounds,
+                    BasisScreens = [.. MainWindow.Screens.Intersecting(bounds)],
                 };
 
                 try
