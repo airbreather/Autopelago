@@ -224,6 +224,11 @@ public sealed class GameStateViewModel : ViewModelBase, IDisposable
 
         _subscriptions.Add(this
             .WhenAnyValue(x => x.CurrentLocation)
+            .Select(x => checkableLocationsLookup.GetValueOrDefault(x.Key.RegionKey))
+            .ToPropertyEx(this, x => x.CurrentLandmarkRegion));
+
+        _subscriptions.Add(this
+            .WhenAnyValue(x => x.CurrentLocation)
             .Select(x => x.Key.N)
             .ToPropertyEx(this, x => x.CurrentRegionNum));
 
