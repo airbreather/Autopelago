@@ -196,33 +196,35 @@
                                     </ItemsControl.Styles>
                                     <ItemsControl.ItemTemplate>
                                         <DataTemplate>
-                                            <Grid>
-                                                <Image Height="16" Width="16" Source="{Binding Image, Mode=OneWay}"
-                                                       ToolTip.VerticalOffset="0" PointerMoved="OnPointerMovedOverControlWithToolTip">
-                                                    <ToolTip.Tip>
-                                                        <StackPanel>
+                                            <Grid ToolTip.VerticalOffset="0" PointerMoved="OnPointerMovedOverControlWithToolTip">
+                                                <ToolTip.Tip>
+                                                    <StackPanel>
+                                                        <Border Padding="4" Classes="tracker-box item">
                                                             <TextBlock Classes="tooltip big"
-                                                                Text="{Binding Model.Name, Mode=OneTime}" />
+                                                                       Text="{Binding Model.Name, Mode=OneTime}" />
+                                                        </Border>
 
-                                                            <TextBlock Margin="0,5,0,0" Classes="tooltip small"
-                                                                Text="{Binding Model.FlavorText, StringFormat='“{0}”', Mode=OneTime}"
-                                                                IsVisible="{Binding Model.FlavorText, Mode=OneTime, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
+                                                        <Border Margin="0,5,0,0" Padding="4" Classes="tracker-box item">
+                                                            <Grid ColumnDefinitions="Auto,*">
+                                                                <!-- Note: coordinates are NOT scaled like everything else on the map. -->
+                                                                <Image Height="64" Width="64" Source="{Binding SaturatedImage, Mode=OneWay}" />
+                                                                <DockPanel Margin="5,0,0,0" Grid.Column="1">
+                                                                    <TextBlock Margin="0,5,0,0"
+                                                                               DockPanel.Dock="Bottom"
+                                                                               Classes="tooltip small"
+                                                                               Text="{Binding Model.FlavorText, StringFormat='“{0}”', Mode=OneTime}"
+                                                                               IsVisible="{Binding Model.FlavorText, Mode=OneTime, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
+                                                                    <ContentPresenter Classes="tooltip big"
+                                                                                      Content="{Binding GameRequirementToolTipSource, Mode=OneWay}"
+                                                                                      TextWrapping="Wrap" />
+                                                                </DockPanel>
+                                                            </Grid>
+                                                        </Border>
+                                                    </StackPanel>
+                                                </ToolTip.Tip>
 
-                                                            <Border Margin="0,15,0,0" Classes="tracker-box item">
-                                                                <Grid>
-                                                                    <!-- Note: coordinates are NOT scaled like everything else on the map. -->
-                                                                    <Rectangle Height="64" HorizontalAlignment="Stretch" Fill="#303030" />
-                                                                    <Image Height="64" Width="64" Source="{Binding SaturatedImage, Mode=OneWay}" />
-                                                                </Grid>
-                                                            </Border>
-                                                        </StackPanel>
-                                                    </ToolTip.Tip>
-                                                </Image>
-                                                <Image Height="12" Width="12" Source="{Binding QuestImage, Mode=OneWay}"
-                                                       ToolTip.VerticalOffset="0" PointerMoved="OnPointerMovedOverControlWithToolTip">
-                                                    <ToolTip.Tip>
-                                                        <ContentPresenter Classes="tooltip big" Content="{Binding GameRequirementToolTipSource, Mode=OneWay}" />
-                                                    </ToolTip.Tip>
+                                                <Image Height="16" Width="16" Source="{Binding Image, Mode=OneWay}" />
+                                                <Image Height="12" Width="12" Source="{Binding QuestImage, Mode=OneWay}">
                                                     <Image.RenderTransform>
                                                         <TranslateTransform Y="-13" />
                                                     </Image.RenderTransform>
