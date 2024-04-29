@@ -99,8 +99,12 @@ public sealed partial class App : Application
         }
 
         // only restore bounds if the same screens intersect it now.
-        if (initialState.MainWindowBounds is PixelRectProxy prevBounds)
+        PixelSize size = new(800, 600);
+        if (initialState.MainWindowBounds is PixelRectProxy prevBoundsProxy)
         {
+            PixelRect prevBounds = prevBoundsProxy;
+            size = prevBounds.Size;
+
             ImmutableArray<PixelRectProxy> currScreens = [.. MainWindow.Screens.Intersecting(prevBounds)];
             if (!currScreens.SequenceEqual(initialState.BasisScreens ?? []))
             {
@@ -113,9 +117,10 @@ public sealed partial class App : Application
         {
             PixelRect initialBounds = initialBoundsProxy;
             MainWindow.Position = initialBounds.Position;
-            MainWindow.Width = initialBounds.Width;
-            MainWindow.Height = initialBounds.Height;
         }
+
+        MainWindow.Width = size.Width;
+        MainWindow.Height = size.Height;
 
         desktop.MainWindow = MainWindow;
 

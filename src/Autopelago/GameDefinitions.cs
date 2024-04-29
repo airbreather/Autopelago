@@ -90,7 +90,6 @@ public sealed record ItemDefinitionsModel
         ["useful_nonprogression"] = ArchipelagoItemFlags.ImportantNonAdvancement,
         ["trap"] = ArchipelagoItemFlags.Trap,
         ["filler"] = ArchipelagoItemFlags.None,
-        ["uncategorized"] = ArchipelagoItemFlags.None,
     }.ToFrozenDictionary();
 
     public required ItemDefinitionModel NormalRat { get; init; }

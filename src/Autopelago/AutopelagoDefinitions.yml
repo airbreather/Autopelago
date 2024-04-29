@@ -150,6 +150,12 @@ items:
     - ['Bomb-proof Refrigerator', [confident]]
     - ['Legally Distinct Red Laser Sword', [confident]]
     - ['Weapons-grade Folding Chair', [confident]]
+    - ['Bribe', [confident]]
+    - ['Spilled Bag of Rice', [well_fed, distracted]]
+    - ['Pinball Wizard''s Spellbook', [smart, distracted]]
+    - name: 'A Cookie'
+      auras_granted: [well_fed]
+      flavor_text: 'We all know what happens when you give a MOUSE a cookie...'
 
     - game_specific:
         'Pokemon Red and Blue':
@@ -240,6 +246,7 @@ items:
     - ['Lice-filled Wig', [distracted]]
     - ['Greasy Paper Bag', [upset_tummy]]
     - ['Squeaky Vent Flap', [startled]]
+    - ['Monkey''s Paw', [lucky, conspiratorial, startled]]
 
     - game_specific:
         'Pokemon Red and Blue':
@@ -354,6 +361,7 @@ items:
     - ['Corpse-pokin'' Stick', []]
     - ['CD containing ''Sounds of the Sewer''', []]
     - ['Rule stating that Rats Cannot Play Basketball', []]
+    - ['Hilarious Mushroom', [energized, upset_tummy]]
 
     - game_specific:
         'Pokemon Red and Blue':
@@ -369,24 +377,6 @@ items:
 
         'Stardew Valley':
           - ['Mayor''s Tax Returns', []]
-
-  uncategorized:
-    - ['Hilarious Mushroom', [energized, upset_tummy]]
-    - ['Monkey''s Paw', [lucky, conspiratorial, startled]]
-    - ['Pinball Wizard''s Spellbook', [smart, distracted]]
-    - ['Spilled Bag of Rice', [well_fed, distracted]]
-
-    - ['Bribe', []]
-    - name: 'A Cookie'
-      auras_granted: []
-      flavor_text: 'We all know what happens when you give a MOUSE a cookie...'
-
-    - game_specific:
-        'Pokemon Red and Blue':
-          
-        'Ocarina of Time':
-
-        'Stardew Valley':
 
 # reward the automatic 'Victory' item to win. one MUST be called 'Menu'
 # ability_check_with_dc is intended to make intuitive sense to those who are
