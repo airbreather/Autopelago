@@ -113,6 +113,20 @@ items:
     - ['Line-shaped Tetris Block', [lucky]]
     - ['Inspiring Montage', [lucky]]
     - ['Suprisingly Tiny Knife', [confident]]
+    - ['Packet of Ketchup', [well_fed]]
+    - ['Blue-eyes White Alligator Trading Card', [lucky]]
+    - ['Michelin Star', [lucky]]
+    - ['Damp Pineapple', [well_fed]]
+    - ['USB Containing Government Secrets', [smart]]
+    - ['Smelly Vintage T-Shirt', [stylish]]
+    - ['McRib', [well_fed]]
+    - ['Phylactery', [lucky, smart]]
+    - ['Cool Ninja Weapons', [confident]]
+    - ['Bowl of Computer Chips', [smart]]
+    - ['Golden Ticket', [lucky]]
+    - ['Enchanted Guitar Pick', [lucky, confident]]
+
+    
     - game_specific:
         'Pokemon Red and Blue':
           - ['Very Common Candy', [well_fed]]
@@ -170,6 +184,8 @@ items:
     - ['One-way Ticket to Ohio', [startled, startled, startled, distracted]]
     - ['Deceased Pet Rock', [sluggish, unlucky]]
     - ['Cursed Slab', [unlucky, unlucky, unlucky]]
+    - ['Microplastic Pile', [upset_tummy]]
+    
     - game_specific:
         'Pokemon Red and Blue':
           - ['Item-Hider', [distracted]]
@@ -216,33 +232,21 @@ items:
     - ['Cat-shaped Wall Clock', []]
     - ['Printer Driver Disc', []]
     - ['Off-brand Soda Can', []]
-
-  uncategorized:
     - ['Set of Three Seashells', []]
     - ['Chewed Bar of Soap', []]
     - ['Generic Green Slime', []]
     - ['Handful of Loose Marbles', []]
     - ['Discarded Video Game Cartridge', []]
-    - ['Packet of Ketchup', [well_fed]]
     - ['Lit Candle', []]
-    - ['Hilarious Mushroom', [energized, upset_tummy]]
     - ['The Hit Board Game Mouse Trap', []]
-    - ['Michelin Star', [lucky]]
-    - ['Blue-eyes White Alligator Trading Card', [lucky]]
     - ['Rusty Pocketwatch', []]
-    - ['Damp Pineapple', [well_fed]]
     - ['Right Sock', []]
-    - ['Microplastic Pile', [upset_tummy]]
-    - ['USB Containing Government Secrets', [smart]]
-    - ['Monkey''s Paw', [lucky, conspiratorial, startled]]
-    - ['Smelly Vintage T-Shirt', [stylish]]
-    - ['McRib', [well_fed]]
-    - ['Phylactery', [lucky, smart]]
-    - ['Cool Ninja Weapons', [confident]]
     - ['Shrimp in a Bottle', []]
-    - ['Bowl of Computer Chips', [smart]]
-    - ['Golden Ticket', [lucky]]
-    - ['Enchanted Guitar Pick', [lucky, confident]]
+
+
+  uncategorized:
+    - ['Hilarious Mushroom', [energized, upset_tummy]]
+    - ['Monkey''s Paw', [lucky, conspiratorial, startled]]
     - ['Copy of E.T. the Extra-Terrestrial for Atari 2600', [distracted]]
     - ['3 Dollar Bill', [conspiratorial]]
     - ['Hall Pass', [energized]]
