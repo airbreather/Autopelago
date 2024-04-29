@@ -26,9 +26,9 @@
       },
       "NUnit.Analyzers": {
         "type": "Direct",
-        "requested": "[4.1.0, )",
-        "resolved": "4.1.0",
-        "contentHash": "Odd1RusSMnfswIiCPbokAqmlcCCXjQ20poaXWrw+CWDnBY1vQ/x6ZGqgyJXpebPq5Uf8uEBe5iOAySsCdSrWdQ=="
+        "requested": "[4.2.0, )",
+        "resolved": "4.2.0",
+        "contentHash": "4fJojPkzdoa4nB2+p6U+fITvPnVvwWSnsmiJ/Dl30xqiL3oxNbYvfeSLVd91hOmEjoUqSwN3Z7j1aFedjqWbUA=="
       },
       "NUnit3TestAdapter": {
         "type": "Direct",
@@ -253,8 +253,8 @@
       },
       "Material.Avalonia": {
         "type": "Transitive",
-        "resolved": "3.5.0",
-        "contentHash": "CZEUp4KeYyLMOp4trZEEk8hg2m5YUteabHVsyvVOqZTa/nFI3PfC/sQghskGAAPSjKShqWgIuaRweKiTrO9ILQ==",
+        "resolved": "3.6.0",
+        "contentHash": "Y8SQV+CutVF3cDP2wTZ+zAhmXFdsksxJZ1BrKbgQ6nJ5U2/Uy6HyKl5m2FiRK6FM0kNzqlHiGcvjyo8HgahQ5Q==",
         "dependencies": {
           "Avalonia": "11.0.9"
         }
@@ -860,7 +860,7 @@
           "Avalonia.ReactiveUI": "[11.0.10, )",
           "Avalonia.Svg.Skia": "[11.0.0.18, )",
           "Libuv": "[1.10.0, )",
-          "Material.Avalonia": "[3.5.0, )",
+          "Material.Avalonia": "[3.6.0, )",
           "Material.Icons.Avalonia": "[2.1.9, )",
           "ReactiveUI.Fody": "[19.5.41, )",
           "Serilog": "[3.1.1, )",

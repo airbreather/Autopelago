@@ -84,9 +84,9 @@
       },
       "Material.Avalonia": {
         "type": "Direct",
-        "requested": "[3.5.0, )",
-        "resolved": "3.5.0",
-        "contentHash": "CZEUp4KeYyLMOp4trZEEk8hg2m5YUteabHVsyvVOqZTa/nFI3PfC/sQghskGAAPSjKShqWgIuaRweKiTrO9ILQ==",
+        "requested": "[3.6.0, )",
+        "resolved": "3.6.0",
+        "contentHash": "Y8SQV+CutVF3cDP2wTZ+zAhmXFdsksxJZ1BrKbgQ6nJ5U2/Uy6HyKl5m2FiRK6FM0kNzqlHiGcvjyo8HgahQ5Q==",
         "dependencies": {
           "Avalonia": "11.0.9"
         }

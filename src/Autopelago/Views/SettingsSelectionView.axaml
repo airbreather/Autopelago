@@ -19,7 +19,8 @@
         <TextBox Margin="5,0,0,0" Grid.Row="0" Grid.Column="1" Text="{Binding Host}" />
 
         <TextBlock Margin="0,5,0,0" Grid.Row="1" Grid.Column="0" VerticalAlignment="Center" Text="Port:" />
-        <NumericUpDown Margin="5,5,0,0" Grid.Row="1" Grid.Column="1" Minimum="1" Maximum="65535" FormatString="{}{0:0}" Value="{Binding Port}" />
+        <NumericUpDown Margin="5,5,0,0" Grid.Row="1" Grid.Column="1" Minimum="1" Maximum="65535" FormatString="{}{0:0}"
+                       IsEnabled="{Binding UserCanEditPort, Mode=OneWay}" Value="{Binding Port}" />
 
         <TextBlock Margin="0,5,0,0" Grid.Row="2" Grid.Column="0" VerticalAlignment="Center" Text="Slot:" />
         <TextBox Margin="5,5,0,0" Grid.Row="2" Grid.Column="1" Text="{Binding Slot}" />

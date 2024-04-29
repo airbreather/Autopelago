@@ -1,8 +1,11 @@
+using System.Globalization;
 using System.Reactive;
+using System.Reactive.Disposables;
 using System.Reactive.Linq;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using System.Text.Json.Serialization.Metadata;
+using System.Text.RegularExpressions;
 
 using Avalonia.Controls;
 
@@ -43,8 +46,12 @@ public sealed record Settings
     public required decimal MaxStepSeconds { get; init; }
 }
 
-public sealed class SettingsSelectionViewModel : ViewModelBase
+public sealed partial class SettingsSelectionViewModel : ViewModelBase, IDisposable
 {
+    private static readonly Regex s_portRegex = HasPortRegex();
+
+    private readonly CompositeDisposable _subscriptions = [];
+
     public SettingsSelectionViewModel()
     {
         JsonTypeInfo<Settings> typeInfo = (JsonTypeInfo<Settings>)SettingsSerializerContext.Default.GetTypeInfo(typeof(Settings))!;
@@ -75,7 +82,8 @@ public sealed class SettingsSelectionViewModel : ViewModelBase
             x => x.Host, x => x.Port, x => x.Slot, x => x.MinStepSeconds, x => x.MaxStepSeconds,
             (host, port, slot, minStepSeconds, maxStepSeconds) =>
                 !string.IsNullOrWhiteSpace(host) &&
-                port > 0 &&
+                port is decimal portValue and > 0 and <= ushort.MaxValue &&
+                portValue - decimal.Round(portValue) == 0 &&
                 !string.IsNullOrWhiteSpace(slot) &&
                 minStepSeconds > 0 &&
                 maxStepSeconds >= minStepSeconds)
@@ -85,7 +93,7 @@ public sealed class SettingsSelectionViewModel : ViewModelBase
             Settings newSettings = new()
             {
                 Host = Host,
-                Port = Port,
+                Port = (ushort)Port.GetValueOrDefault(),
                 Slot = Slot,
                 Password = Password,
                 MinStepSeconds = MinStepSeconds,
@@ -115,6 +123,23 @@ public sealed class SettingsSelectionViewModel : ViewModelBase
 
             return newSettings;
         }, canConnect);
+
+        _subscriptions.Add(this
+            .WhenAnyValue(x => x.Host)
+            .Subscribe(host =>
+            {
+                Match m = s_portRegex.Match(host);
+                if (!m.Success)
+                {
+                    UserCanEditPort = true;
+                    return;
+                }
+
+                UserCanEditPort = false;
+                Port = decimal.TryParse(m.Groups["port"].ValueSpan, NumberStyles.None, CultureInfo.InvariantCulture, out decimal port)
+                    ? port
+                    : 65535;
+            }));
     }
 
     public ReactiveCommand<Unit, Settings> ConnectCommand { get; }
@@ -123,7 +148,10 @@ public sealed class SettingsSelectionViewModel : ViewModelBase
     public string Host { get; set; } = "archipelago.gg";
 
     [Reactive]
-    public ushort Port { get; set; } = ushort.MaxValue;
+    public decimal? Port { get; set; } = ushort.MaxValue;
+
+    [Reactive]
+    public bool UserCanEditPort { get; private set; }
 
     [Reactive]
     public string Slot { get; set; } = "";
@@ -136,4 +164,12 @@ public sealed class SettingsSelectionViewModel : ViewModelBase
 
     [Reactive]
     public decimal MaxStepSeconds { get; set; } = 90;
+
+    public void Dispose()
+    {
+        _subscriptions.Dispose();
+    }
+
+    [GeneratedRegex(@"\:(?<port>\d+)$", RegexOptions.Compiled | RegexOptions.ExplicitCapture | RegexOptions.NonBacktracking | RegexOptions.CultureInvariant)]
+    private static partial Regex HasPortRegex();
 }
