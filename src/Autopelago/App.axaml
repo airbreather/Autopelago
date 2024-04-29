@@ -1,9 +1,8 @@
 <Application
     xmlns="https://github.com/avaloniaui"
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-    xmlns:autopelago="clr-namespace:Autopelago"
-    xmlns:materialThemes="clr-namespace:Material.Styles.Themes;assembly=Material.Styles"
     xmlns:materialIcons="clr-namespace:Material.Icons.Avalonia;assembly=Material.Icons.Avalonia"
+    xmlns:autopelago="clr-namespace:Autopelago"
     xmlns:converters="clr-namespace:Autopelago.Converters"
     x:Class="Autopelago.App"
     RequestedThemeVariant="Dark">
@@ -18,7 +17,11 @@
     </Application.DataTemplates>
 
     <Application.Styles>
-        <materialThemes:MaterialTheme BaseTheme="Dark" PrimaryColor="Purple" SecondaryColor="Lime" />
+        <FluentTheme>
+            <FluentTheme.Palettes>
+                <ColorPaletteResources x:Key="Dark" Accent="#ff0073cf" AltHigh="Black" AltLow="Black" AltMedium="Black" AltMediumHigh="Black" AltMediumLow="Black" BaseHigh="White" BaseLow="#ff404040" BaseMedium="#ffa0a0a0" BaseMediumHigh="#ffb8b8b8" BaseMediumLow="#ff707070" ChromeAltLow="#ffb8b8b8" ChromeBlackHigh="Black" ChromeBlackLow="#ffb8b8b8" ChromeBlackMedium="Black" ChromeBlackMediumLow="Black" ChromeDisabledHigh="#ff404040" ChromeDisabledLow="#ffa0a0a0" ChromeGray="#ff888888" ChromeHigh="#ff888888" ChromeLow="#ff1b1b1b" ChromeMedium="#ff242424" ChromeMediumLow="#ff373737" ChromeWhite="White" ListLow="#ff242424" ListMedium="#ff404040" RegionColor="#ff303030" />
+            </FluentTheme.Palettes>
+        </FluentTheme>
         <materialIcons:MaterialIconStyles />
         <Style Selector=":is(TemplatedControl)">
             <Setter Property="FontFamily" Value="{StaticResource PublicPixelFont}" />

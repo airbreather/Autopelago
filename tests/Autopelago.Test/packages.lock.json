@@ -165,6 +165,14 @@
           "Svg.Skia": "1.0.0.18"
         }
       },
+      "Avalonia.Themes.Fluent": {
+        "type": "Transitive",
+        "resolved": "11.0.10",
+        "contentHash": "V7xu7ddtUFwYHb+u3S4he2/PGGUHkeTI66j3PyGTZi0Uz8Ma4prb/Lgz7Qd/vpO4lukxw1G4DmxB1tClNS9qUw==",
+        "dependencies": {
+          "Avalonia": "11.0.10"
+        }
+      },
       "Avalonia.Themes.Simple": {
         "type": "Transitive",
         "resolved": "11.0.10",
@@ -249,14 +257,6 @@
         "contentHash": "GsCf4q+eyaI49rCPlgYxdxa1SQCysXFFdSJWdstrwxytg4+VPYLYrXD4AT2rjHVJ+UF7SSWX9CapWEYaU4ejVQ==",
         "dependencies": {
           "Microsoft.NETCore.Platforms": "1.0.1"
-        }
-      },
-      "Material.Avalonia": {
-        "type": "Transitive",
-        "resolved": "3.6.0",
-        "contentHash": "Y8SQV+CutVF3cDP2wTZ+zAhmXFdsksxJZ1BrKbgQ6nJ5U2/Uy6HyKl5m2FiRK6FM0kNzqlHiGcvjyo8HgahQ5Q==",
-        "dependencies": {
-          "Avalonia": "11.0.9"
         }
       },
       "Material.Icons": {
@@ -859,8 +859,8 @@
           "Avalonia.Fonts.Inter": "[11.0.10, )",
           "Avalonia.ReactiveUI": "[11.0.10, )",
           "Avalonia.Svg.Skia": "[11.0.0.18, )",
+          "Avalonia.Themes.Fluent": "[11.0.10, )",
           "Libuv": "[1.10.0, )",
-          "Material.Avalonia": "[3.6.0, )",
           "Material.Icons.Avalonia": "[2.1.9, )",
           "ReactiveUI.Fody": "[19.5.41, )",
           "Serilog": "[3.1.1, )",

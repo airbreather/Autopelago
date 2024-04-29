@@ -29,10 +29,10 @@
         <TextBox Margin="5,5,0,0" Grid.Row="3" Grid.Column="1" PasswordChar="*" Text="{Binding Password}" />
 
         <TextBlock Margin="0,5,0,0" Grid.Row="4" Grid.Column="0" VerticalAlignment="Center" Text="Min. Step:" />
-        <NumericUpDown Margin="5,5,0,0" Grid.Row="4" Grid.Column="1" Minimum="0.1" Increment="1" Value="{Binding MinStepSeconds}" />
+        <NumericUpDown Margin="5,5,0,0" Grid.Row="4" Grid.Column="1" Minimum="0" Increment="1" Value="{Binding MinStepSeconds}" />
 
         <TextBlock Margin="0,5,0,0" Grid.Row="5" Grid.Column="0" VerticalAlignment="Center" Text="Max. Step:" />
-        <NumericUpDown Margin="5,5,0,0" Grid.Row="5" Grid.Column="1" Minimum="0.1" Increment="1" Value="{Binding MaxStepSeconds}" />
+        <NumericUpDown Margin="5,5,0,0" Grid.Row="5" Grid.Column="1" Minimum="0" Increment="1" Value="{Binding MaxStepSeconds}" />
 
         <Button Margin="0,5,0,0" Grid.Row="6" Grid.Column="0" Grid.ColumnSpan="2"
                 HorizontalAlignment="Stretch" HorizontalContentAlignment="Center"

@@ -28,6 +28,17 @@
     </Design.DataContext>
 
     <Control.Styles>
+        <!--
+        For whatever reason, the default themes set really high minimum values on ProgressBar.
+        All of ours sit inside containers with their own minimum values, so we can clear this.
+        -->
+        <Style Selector="ProgressBar:horizontal">
+            <Setter Property="MinWidth" Value="0" />
+        </Style>
+        <Style Selector="ProgressBar:vertical">
+            <Setter Property="MinHeight" Value="0" />
+        </Style>
+
         <Style Selector="Border.tracker-box">
             <Setter Property="BorderBrush" Value="#505050" />
         </Style>
@@ -81,7 +92,7 @@
 
     <Grid x:Name="MainGrid" x:FieldModifier="private">
         <Grid.ColumnDefinitions>
-            <ColumnDefinition Width="*" MinWidth="150" />
+            <ColumnDefinition Width="*" MinWidth="164" />
             <ColumnDefinition Width="4" />
             <ColumnDefinition Width="4*" MinWidth="240" />
         </Grid.ColumnDefinitions>
