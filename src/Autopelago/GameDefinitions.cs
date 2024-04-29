@@ -73,8 +73,8 @@ public sealed record GameDefinitions
             FillerRegions = regions.FillerRegions,
             StartRegion = regions.AllRegions["Menu"],
             StartLocation = locationsByKey[LocationKey.For("Menu", 0)],
-            GoalRegion = regions.AllRegions["Victory"],
-            GoalLocation = locationsByKey[LocationKey.For("Victory", 0)],
+            GoalRegion = regions.AllRegions["moon_comma_the"],
+            GoalLocation = locationsByKey[LocationKey.For("moon_comma_the", 0)],
 
             LocationsByKey = locationsByKey.Values.ToFrozenDictionary(location => location.Key),
             LocationsByName = locationsByKey.Values.ToFrozenDictionary(location => location.Name),
@@ -167,6 +167,12 @@ public sealed record ItemDefinitionsModel
         List<string> progressionItemKeysNotMarkedAsSuch = [];
         foreach (string itemKey in itemKeysVisitor.VisitedItems)
         {
+            if (itemKey == "Victory")
+            {
+                // it's something like an "event" item.
+                continue;
+            }
+
             if (!(keyedItems.TryGetValue(itemKey, out ItemDefinitionModel? item) && item.ArchipelagoFlags == ArchipelagoItemFlags.LogicalAdvancement))
             {
                 progressionItemKeysNotMarkedAsSuch.Add(itemKey);
@@ -331,26 +337,7 @@ public sealed record RegionDefinitionsModel
 
     public static RegionDefinitionsModel DeserializeFrom(YamlMappingNode map, ItemDefinitionsModel items)
     {
-        Dictionary<string, RegionDefinitionModel> allRegions = new()
-        {
-            ["Victory"] = new LandmarkRegionDefinitionModel
-            {
-                Key = "Victory",
-                Exits = [],
-                Locations =
-                [
-                    new()
-                    {
-                        Key = LocationKey.For("Victory"),
-                        Name = "Victory",
-                        Requirement = GameRequirement.AlwaysSatisfied,
-                        AbilityCheckDC = 1,
-                        UnrandomizedItem = null,
-                        RewardIsFixed = true,
-                    },
-                ],
-            },
-        };
+        Dictionary<string, RegionDefinitionModel> allRegions = new();
 
         Dictionary<string, LandmarkRegionDefinitionModel> landmarkRegions = [];
         foreach ((YamlNode keyNode, YamlNode valueNode) in (YamlMappingNode)map["landmarks"])
@@ -412,11 +399,12 @@ public sealed record LandmarkRegionDefinitionModel : RegionDefinitionModel
 {
     public static LandmarkRegionDefinitionModel DeserializeFrom(string key, YamlMappingNode map, ItemDefinitionsModel items)
     {
+        YamlNode[] exits = map.TryGetValue("exits", out YamlNode[]? exitsOrNull) ? exitsOrNull : [];
         GameRequirement requirement = GameRequirement.DeserializeFrom(map["requires"]);
         return new()
         {
             Key = key,
-            Exits = [.. ((YamlSequenceNode)map["exits"]).Select(RegionExitDefinitionModel.DeserializeFrom)],
+            Exits = [.. exits.Select(RegionExitDefinitionModel.DeserializeFrom)],
             Locations =
             [
                 new()
@@ -424,7 +412,7 @@ public sealed record LandmarkRegionDefinitionModel : RegionDefinitionModel
                     Key = LocationKey.For(key),
                     Name = map["name"].To<string>(),
                     FlavorText = map.TryGetValue("flavor_text", out string? flavorText) ? flavorText : null,
-                    UnrandomizedItem = items.ProgressionItems[map["unrandomized_item"].To<string>()],
+                    UnrandomizedItem = items.ProgressionItems.GetValueOrDefault(map["unrandomized_item"].To<string>()),
                     AbilityCheckDC = map.TryGetValue("ability_check_dc", out int abilityCheckDC) ? abilityCheckDC : 1,
                     Requirement = requirement,
                     RewardIsFixed = map.TryGetValue("reward_is_fixed", out bool rewardIsFixed) && rewardIsFixed,
