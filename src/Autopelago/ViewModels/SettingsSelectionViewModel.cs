@@ -2,26 +2,26 @@ using System.Globalization;
 using System.Reactive;
 using System.Reactive.Disposables;
 using System.Reactive.Linq;
-using System.Text.Json;
 using System.Text.Json.Serialization;
-using System.Text.Json.Serialization.Metadata;
 using System.Text.RegularExpressions;
-
-using Avalonia.Controls;
 
 using ReactiveUI;
 using ReactiveUI.Fody.Helpers;
 
 namespace Autopelago.ViewModels;
 
-[JsonSourceGenerationOptions(
-    PropertyNamingPolicy = JsonKnownNamingPolicy.SnakeCaseLower,
-    UseStringEnumConverter = true)]
-[JsonSerializable(typeof(Settings))]
-internal sealed partial class SettingsSerializerContext : JsonSerializerContext;
-
 public sealed record Settings
 {
+    public static readonly Settings Default = new()
+    {
+        Host = "archipelago.gg",
+        Port = 65535,
+        Slot = "",
+        Password = "",
+        MinStepSeconds = 60,
+        MaxStepSeconds = 90,
+    };
+
     public static readonly Settings ForDesigner = new()
     {
         Host = "UI DESIGNER",
@@ -54,30 +54,6 @@ public sealed partial class SettingsSelectionViewModel : ViewModelBase, IDisposa
 
     public SettingsSelectionViewModel()
     {
-        JsonTypeInfo<Settings> typeInfo = (JsonTypeInfo<Settings>)SettingsSerializerContext.Default.GetTypeInfo(typeof(Settings))!;
-        FileInfo settingsFile = null!;
-        if (!Design.IsDesignMode)
-        {
-            settingsFile = new(Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "Autopelago", "lastSettings.json"));
-            try
-            {
-                using FileStream settingsStream = settingsFile.OpenRead();
-                Settings lastSettings = JsonSerializer.Deserialize(settingsStream, typeInfo) ?? throw new JsonException();
-                Host = lastSettings.Host;
-                Port = lastSettings.Port;
-                Slot = lastSettings.Slot;
-                Password = lastSettings.Password;
-                MinStepSeconds = lastSettings.MinStepSeconds;
-                MaxStepSeconds = lastSettings.MaxStepSeconds;
-            }
-            catch (IOException)
-            {
-            }
-            catch (JsonException)
-            {
-            }
-        }
-
         IObservable<bool> canConnect = this.WhenAnyValue(
             x => x.Host, x => x.Port, x => x.Slot, x => x.MinStepSeconds, x => x.MaxStepSeconds,
             (host, port, slot, minStepSeconds, maxStepSeconds) =>
@@ -88,41 +64,7 @@ public sealed partial class SettingsSelectionViewModel : ViewModelBase, IDisposa
                 minStepSeconds > 0 &&
                 maxStepSeconds >= minStepSeconds)
             .DistinctUntilChanged();
-        ConnectCommand = ReactiveCommand.Create(() =>
-        {
-            Settings newSettings = new()
-            {
-                Host = Host,
-                Port = (ushort)Port.GetValueOrDefault(),
-                Slot = Slot,
-                Password = Password,
-                MinStepSeconds = MinStepSeconds,
-                MaxStepSeconds = MaxStepSeconds,
-            };
-
-            if (!Design.IsDesignMode)
-            {
-                try
-                {
-                    settingsFile.Directory!.Create();
-                    FileInfo tmpSettingsFile = new(Path.Combine(settingsFile.DirectoryName!, "tmp.json"));
-                    using (FileStream settingsStream = tmpSettingsFile.OpenWrite())
-                    {
-                        JsonSerializer.Serialize(settingsStream, newSettings, typeInfo);
-                    }
-
-                    tmpSettingsFile.MoveTo(settingsFile.FullName, overwrite: true);
-                }
-                catch (IOException)
-                {
-                }
-                catch (JsonException)
-                {
-                }
-            }
-
-            return newSettings;
-        }, canConnect);
+        ConnectCommand = ReactiveCommand.Create(() => SettingsModel, canConnect);
 
         _subscriptions.Add(this
             .WhenAnyValue(x => x.Host)
@@ -164,6 +106,28 @@ public sealed partial class SettingsSelectionViewModel : ViewModelBase, IDisposa
 
     [Reactive]
     public decimal MaxStepSeconds { get; set; } = 90;
+
+    public Settings SettingsModel
+    {
+        get => new()
+        {
+            Host = Host,
+            Port = (ushort)Port.GetValueOrDefault(),
+            Slot = Slot,
+            Password = Password,
+            MinStepSeconds = MinStepSeconds,
+            MaxStepSeconds = MaxStepSeconds,
+        };
+        set
+        {
+            Host = value.Host;
+            Port = value.Port;
+            Slot = value.Slot;
+            Password = value.Password;
+            MinStepSeconds = value.MinStepSeconds;
+            MaxStepSeconds = value.MaxStepSeconds;
+        }
+    }
 
     public void Dispose()
     {
