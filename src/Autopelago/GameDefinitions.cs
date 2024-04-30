@@ -43,6 +43,8 @@ public sealed record GameDefinitions
 
     public required FrozenDictionary<string, LocationDefinitionModel> LocationsByName { get; init; }
 
+    public required FrozenDictionary<LocationDefinitionModel, ImmutableArray<LocationDefinitionModel>> ConnectedLocations { get; init; }
+
     public required FloydWarshall FloydWarshall { get; init; }
 
     private static GameDefinitions LoadFromEmbeddedResource()
@@ -78,6 +80,7 @@ public sealed record GameDefinitions
 
             LocationsByKey = locationsByKey.Values.ToFrozenDictionary(location => location.Key),
             LocationsByName = locationsByKey.Values.ToFrozenDictionary(location => location.Name),
+            ConnectedLocations = regions.ConnectedLocations,
             FloydWarshall = FloydWarshall.Compute(regions.AllRegions.Values),
         };
     }
@@ -334,6 +337,8 @@ public sealed record RegionDefinitionsModel
 
     public required FrozenDictionary<string, FillerRegionDefinitionModel> FillerRegions { get; init; }
 
+    public required FrozenDictionary<LocationDefinitionModel, ImmutableArray<LocationDefinitionModel>> ConnectedLocations { get; init; }
+
     public static RegionDefinitionsModel DeserializeFrom(YamlMappingNode map, ItemDefinitionsModel items)
     {
         Dictionary<string, RegionDefinitionModel> allRegions = new();
@@ -356,11 +361,35 @@ public sealed record RegionDefinitionsModel
             allRegions.Add(key, value);
         }
 
+        Dictionary<LocationDefinitionModel, List<LocationDefinitionModel>> connectedLocations = [];
+        Queue<(LocationDefinitionModel? Prev, RegionDefinitionModel Curr)> regionsQueue = [];
+        regionsQueue.Enqueue((null, allRegions["Menu"]));
+        while (regionsQueue.TryDequeue(out (LocationDefinitionModel? Prev, RegionDefinitionModel Curr) tup))
+        {
+            (LocationDefinitionModel? prev, RegionDefinitionModel curr) = tup;
+            foreach (LocationDefinitionModel next in curr.Locations)
+            {
+                if (prev is not null)
+                {
+                    (CollectionsMarshal.GetValueRefOrAddDefault(connectedLocations, prev, out _) ??= []).Add(next);
+                    (CollectionsMarshal.GetValueRefOrAddDefault(connectedLocations, next, out _) ??= []).Add(prev);
+                }
+
+                prev = next;
+            }
+
+            foreach (RegionExitDefinitionModel exit in curr.Exits)
+            {
+                regionsQueue.Enqueue((prev, allRegions[exit.RegionKey]));
+            }
+        }
+
         return new()
         {
             AllRegions = allRegions.ToFrozenDictionary(),
             LandmarkRegions = landmarkRegions.ToFrozenDictionary(),
             FillerRegions = fillerRegions.ToFrozenDictionary(),
+            ConnectedLocations = connectedLocations.ToFrozenDictionary(kvp => kvp.Key, kvp => kvp.Value.ToImmutableArray()),
         };
     }
 }
