@@ -380,11 +380,6 @@ public sealed record RegionExitDefinitionModel
 
     public RegionDefinitionModel Region => GameDefinitions.Instance.AllRegions[RegionKey];
 
-    public GameRequirement Requirement => Region is LandmarkRegionDefinitionModel
-    {
-        Locations: [{ Requirement: GameRequirement req }],
-    } ? req : GameRequirement.AlwaysSatisfied;
-
     public static RegionExitDefinitionModel DeserializeFrom(YamlNode node)
     {
         return new()

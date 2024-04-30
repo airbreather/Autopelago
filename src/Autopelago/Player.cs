@@ -154,10 +154,7 @@ public sealed class Player
         }
 
         HashSet<LocationDefinitionModel> candidates = [state.TargetLocation];
-        HashSet<RegionDefinitionModel> enqueued = [];
-        Queue<RegionDefinitionModel> regionsToCheck = new();
-        Enqueue(GameDefinitions.Instance.StartRegion);
-        while (regionsToCheck.TryDequeue(out RegionDefinitionModel? region))
+        foreach (RegionDefinitionModel region in state.EnumerateOpenRegions())
         {
             if (region == GameDefinitions.Instance.GoalRegion)
             {
@@ -165,44 +162,34 @@ public sealed class Player
             }
 
             BitArray regionCheckedLocations = _checkedLocations[region.Key];
-            if (!regionCheckedLocations.HasAllSet())
+            if (regionCheckedLocations.HasAllSet())
             {
-                foreach (LocationDefinitionModel candidate in region.Locations)
-                {
-                    if (!regionCheckedLocations[candidate.Key.N] && candidate.Requirement.Satisfied(state))
-                    {
-                        int distance = state.CurrentLocation.DistanceTo(candidate);
-                        if (distance <= bestDistanceSoFar)
-                        {
-                            if (distance < bestDistanceSoFar)
-                            {
-                                candidates.Clear();
-                                bestDistanceSoFar = distance;
-                            }
-
-                            candidates.Add(candidate);
-                        }
-                    }
-                }
+                continue;
             }
 
-            foreach (RegionExitDefinitionModel exit in region.Exits)
+            foreach (LocationDefinitionModel candidate in region.Locations)
             {
-                if (exit.Requirement.Satisfied(state))
+                if (regionCheckedLocations[candidate.Key.N] || !candidate.Requirement.Satisfied(state))
                 {
-                    Enqueue(exit.Region);
+                    continue;
                 }
+
+                int distance = state.CurrentLocation.DistanceTo(candidate);
+                if (distance > bestDistanceSoFar)
+                {
+                    continue;
+                }
+
+                if (distance < bestDistanceSoFar)
+                {
+                    candidates.Clear();
+                    bestDistanceSoFar = distance;
+                }
+
+                candidates.Add(candidate);
             }
         }
 
         return candidates.First();
-
-        void Enqueue(RegionDefinitionModel region)
-        {
-            if (enqueued.Add(region))
-            {
-                regionsToCheck.Enqueue(region);
-            }
-        }
     }
 }
