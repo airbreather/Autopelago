@@ -111,7 +111,7 @@ public sealed partial class SettingsSelectionViewModel : ViewModelBase, IDisposa
     {
         get => new()
         {
-            Host = Host,
+            Host = s_portRegex.Replace(Host, ""),
             Port = (ushort)Port.GetValueOrDefault(),
             Slot = Slot,
             Password = Password,
