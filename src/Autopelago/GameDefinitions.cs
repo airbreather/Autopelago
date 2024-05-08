@@ -47,6 +47,10 @@ public sealed record GameDefinitions
 
     public required FloydWarshall FloydWarshall { get; init; }
 
+    public required FrozenDictionary<ArchipelagoItemFlags, ImmutableArray<ItemDefinitionModel>> NonGameSpecificItemsByFlags { get; init; }
+
+    public required FrozenDictionary<ArchipelagoItemFlags, ImmutableArray<LocationDefinitionModel>> LocationsByUnrandomizedItemFlags { get; init; }
+
     private static GameDefinitions LoadFromEmbeddedResource()
     {
         using Stream yamlStream = Assembly.GetExecutingAssembly().GetManifestResourceStream("AutopelagoDefinitions.yml")!;
@@ -82,6 +86,17 @@ public sealed record GameDefinitions
             LocationsByName = locationsByKey.Values.ToFrozenDictionary(location => location.Name),
             ConnectedLocations = regions.ConnectedLocations,
             FloydWarshall = FloydWarshall.Compute(regions.AllRegions.Values),
+
+            // things that should only be needed in the debugger to help populate the filler regions
+            NonGameSpecificItemsByFlags = items.AllItems
+                .Where(i => i.AssociatedGame is null)
+                .ToLookup(i => i.ArchipelagoFlags)
+                .ToFrozenDictionary(grp => grp.Key, grp => grp.ToImmutableArray()),
+
+            LocationsByUnrandomizedItemFlags = locationsByKey.Values
+                .Where(l => l.UnrandomizedItem is not null)
+                .ToLookup(l => l.UnrandomizedItem!.ArchipelagoFlags)
+                .ToFrozenDictionary(grp => grp.Key, grp => grp.ToImmutableArray()),
         };
     }
 }
@@ -455,6 +470,12 @@ public sealed record FillerRegionDefinitionModel : RegionDefinitionModel
             [ArchipelagoItemFlags.ImportantNonAdvancement] = "useful_nonprogression",
         };
         ILookup<string, ItemDefinitionModel> itemsLookup = items.AllItems.Where(item => keyMap.ContainsKey(item.ArchipelagoFlags)).ToLookup(item => keyMap[item.ArchipelagoFlags]);
+
+        // this mapping **intentionally** restarts counting from 0 for every filler region. trap
+        // items are only added by Archipelago to take the place of filler items. to make the most
+        // of it, that means we will have more locations whose unrandomized item is "filler" than we
+        // have actual "filler" items. in a perfect world, the former count is equal to the latter
+        // count plus the number of "trap" items in the pool.
         Dictionary<string, int> nextInGroup = [];
         string nameTemplate = map["name_template"].To<string>();
         List<ItemDefinitionModel> unrandomizedItems = [];

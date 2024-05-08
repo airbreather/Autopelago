@@ -15,6 +15,9 @@ internal static class Program
             .WriteTo.Console()
             .Enrich.FromLogContext()
             .CreateLogger();
+
+        // get this built right away. errors here can be really annoying otherwise.
+        GameDefinitions defs = GameDefinitions.Instance;
         return BuildAvaloniaApp()
             .StartWithClassicDesktopLifetime(args);
     }
