@@ -157,7 +157,7 @@ items:
     - ['Pinball Wizard''s Spellbook', [smart, distracted]]
     - ['Dino DNA', [smart]]
     - ['Friend Ship', [confident]]
-    - ['5d Printer', [smart]]
+    - ['5D Printer', [smart]]
     - ['Lightbulb in a Briefcase', [lucky]]
     - ['Breakfast Machine', [well_fed, well_fed, distracted]]
     - ['Toilet-scented Perfume', [stylish]]
@@ -173,8 +173,8 @@ items:
     - ['Cup of Fancy Leaf Water', [energized]]
     - ['Microwave Full of Brownies', [well_fed]]
 
-    
-    
+
+
     - name: 'A Cookie'
       auras_granted: [well_fed]
       flavor_text: 'We all know what happens when you give a MOUSE a cookie...'
@@ -390,11 +390,11 @@ items:
     - ['CD containing ''Sounds of the Sewer''', []]
     - ['Rule stating that Rats Cannot Play Basketball', []]
     - ['Hilarious Mushroom', [energized, upset_tummy]]
-    - ['Insultingly-bad portrait', []]
-    - ['Rusted oil can', []]
+    - ['Insultingly Bad Portrait', []]
+    - ['Rusted Oil Can', []]
     - ['Sleepy Fish', []]
-    - ['Slobber-covered ball', []]
-    - [Two-bedroom Apartment', []]
+    - ['Slobber-covered Ball', []]
+    - ['Two-bedroom Apartment', []]
     - ['Stack of Cue Cards', []]
     - ['One Photon', []]
     - ['Freshly Squeezed Snake Oil', []]
