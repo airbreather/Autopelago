@@ -17,7 +17,7 @@ public sealed record GameDefinitions
     {
     }
 
-    public required ItemDefinitionModel NormalRat { get; init; }
+    public required ItemDefinitionModel PackRat { get; init; }
 
     public required ImmutableArray<ItemDefinitionModel> AllItems { get; init; }
 
@@ -69,7 +69,7 @@ public sealed record GameDefinitions
         ).ToFrozenDictionary();
         return new()
         {
-            NormalRat = items.NormalRat,
+            PackRat = items.PackRat,
             AllItems = items.AllItems,
             ProgressionItems = items.ProgressionItems,
             ItemsByName = items.AllItems.ToFrozenDictionary(i => i.Name),
@@ -110,7 +110,7 @@ public sealed record ItemDefinitionsModel
         ["filler"] = ArchipelagoItemFlags.None,
     }.ToFrozenDictionary();
 
-    public required ItemDefinitionModel NormalRat { get; init; }
+    public required ItemDefinitionModel PackRat { get; init; }
 
     public required ImmutableArray<ItemDefinitionModel> AllItems { get; init; }
 
@@ -118,7 +118,7 @@ public sealed record ItemDefinitionsModel
 
     public static ItemDefinitionsModel DeserializeFrom(YamlMappingNode itemsMap, YamlMappingNode locationsMap)
     {
-        ItemDefinitionModel? normalRat = null;
+        ItemDefinitionModel? packRat = null;
         List<ItemDefinitionModel> allItems = [];
         Dictionary<string, ItemDefinitionModel> keyedItems = [];
         HashSet<string> progressionItemKeysToValidate = [];
@@ -154,7 +154,7 @@ public sealed record ItemDefinitionsModel
                     if (key == "pack_rat")
                     {
                         // no need for validation
-                        normalRat = allItems[^1];
+                        packRat = allItems[^1];
                     }
                     else if (allItems[^1].RatCount is > 0)
                     {
@@ -169,7 +169,7 @@ public sealed record ItemDefinitionsModel
             }
         }
 
-        if (normalRat is not { RatCount: 1 })
+        if (packRat is not { RatCount: 1 })
         {
             throw new InvalidDataException("'pack_rat' is required and needs to have a rat_count of 1.");
         }
@@ -203,7 +203,7 @@ public sealed record ItemDefinitionsModel
 
         return new()
         {
-            NormalRat = normalRat,
+            PackRat = packRat,
             AllItems = [.. allItems],
             ProgressionItems = keyedItems.ToFrozenDictionary(),
         };

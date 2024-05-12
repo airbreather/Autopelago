@@ -5,13 +5,11 @@ public sealed class PlayerTests
 {
     private delegate TResult SpanFunc<TSource, out TResult>(ReadOnlySpan<TSource> vals);
 
-    private static readonly ItemDefinitionModel s_normalRat = GameDefinitions.Instance.NormalRat;
+    private static readonly ItemDefinitionModel s_normalRat = GameDefinitions.Instance.PackRat;
 
     private static readonly LocationDefinitionModel s_startLocation = GameDefinitions.Instance.StartLocation;
 
     private static readonly RegionDefinitionModel s_startRegion = s_startLocation.Region;
-
-    private static readonly LocationDefinitionModel s_lastLocationBeforeBasketball = GameDefinitions.Instance.StartRegion.Locations[^1];
 
     private static readonly LocationDefinitionModel s_basketball = GameDefinitions.Instance.LocationsByKey[LocationKey.For("basketball")];
 
@@ -387,6 +385,54 @@ public sealed class PlayerTests
             Assert.That(state.CurrentLocation.Key.N, Is.EqualTo(1));
             Assert.That(state.TargetLocation.Key.N, Is.EqualTo(2));
         });
+    }
+
+    [Test]
+    public void TestGoMode()
+    {
+        ulong lowSeed = EnsureSeedProducesInitialD20Sequence(8626806680, [1, 1, 1, 1, 1, 1, 1, 1]);
+        ulong highSeed = EnsureSeedProducesInitialD20Sequence(2449080649, [20, 20, 20, 20, 20, 20, 20, 20]);
+        Prng.State lowRolls = Prng.State.Start(lowSeed);
+        Prng.State highRolls = Prng.State.Start(highSeed);
+
+        GameState state = GameState.Start();
+
+        // give it all randomized items except the last one.
+        ItemDefinitionModel finalRandomizedItem = GameDefinitions.Instance.ProgressionItems["mongoose_in_a_combat_spacecraft"];
+        state = state with { ReceivedItems = [.. GameDefinitions.Instance.LocationsByKey.Values
+            .Where(l => l is { RewardIsFixed: false, UnrandomizedItem: not null })
+            .Select(l => l.UnrandomizedItem!)
+            .Where(i => i != finalRandomizedItem)] };
+        Player player = new();
+
+        // make a couple of steps where we have all items except the very last one. this is SOMEWHAT
+        // YAML-dependent, but seriously, if you advance 2 times with rolls forced to be natural 1,
+        // and that somehow brings you out of the starting region, then that's a BIG change.
+        for (int i = 0; i < 2; i++)
+        {
+            state = player.Advance(state with { PrngState = lowRolls });
+            Assert.That(state.TargetLocation.Key.RegionKey, Is.EqualTo(GameDefinitions.Instance.StartRegion.Key));
+        }
+
+        // now give it that last randomized item and see it shoot for the moon all the way through.
+        state = state with { ReceivedItems = state.ReceivedItems.Add(finalRandomizedItem) };
+        HashSet<LocationKey> fixedRewardsGranted = [];
+        int advancesSoFar = 0;
+        while (!state.IsCompleted)
+        {
+            state = player.Advance(state with { PrngState = highRolls });
+            Assert.That(state.TargetLocation.Region, Is.InstanceOf<LandmarkRegionDefinitionModel>());
+            foreach (LocationDefinitionModel checkedLocation in state.CheckedLocations)
+            {
+                if (fixedRewardsGranted.Add(checkedLocation.Key) && checkedLocation is { RewardIsFixed: true, UnrandomizedItem: { } unrandomizedItem })
+                {
+                    state = state with { ReceivedItems = state.ReceivedItems.Add(unrandomizedItem) };
+                }
+            }
+
+            ++advancesSoFar;
+            Assert.That(advancesSoFar, Is.LessThan(1_000_000), "If you can't win in a million steps, then you're useless.");
+        }
     }
 
     private static ulong EnsureSeedProducesInitialD20Sequence(ulong seed, ReadOnlySpan<int> exactVals)

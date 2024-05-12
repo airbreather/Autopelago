@@ -242,7 +242,7 @@ public sealed class Player
             (RegionDefinitionModel nextRegion, ImmutableList<LandmarkRegionDefinitionModel> incomingLandmarks) = next;
             if (nextRegion == GameDefinitions.Instance.GoalRegion)
             {
-                paths.Add([.. incomingLandmarks, GameDefinitions.Instance.GoalRegion]);
+                paths.Add([.. incomingLandmarks]);
                 continue;
             }
 
