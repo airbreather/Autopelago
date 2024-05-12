@@ -1,11 +1,14 @@
 using System.Collections;
 using System.Collections.Frozen;
+using System.Collections.Immutable;
 using System.Runtime.InteropServices;
 
 namespace Autopelago;
 
 public sealed class Player
 {
+    private static readonly ImmutableArray<ImmutableArray<LandmarkRegionDefinitionModel>> s_allGoModePaths = ComputeAllGoModePaths();
+
     private readonly FrozenDictionary<string, BitArray> _checkedLocations = GameDefinitions.Instance.AllRegions.ToFrozenDictionary(kvp => kvp.Key, kvp => new BitArray(kvp.Value.Locations.Length));
 
     private readonly Dictionary<ItemDefinitionModel, int> _receivedItemsMap = [];
@@ -134,6 +137,42 @@ public sealed class Player
 
     private LocationDefinitionModel BestTargetLocation(GameState state)
     {
+        HashSet<string> satisfiedLandmarks = [];
+        HashSet<string> unsatisfiedLandmarks = [];
+        foreach (ImmutableArray<LandmarkRegionDefinitionModel> goModePath in s_allGoModePaths)
+        {
+            foreach (LandmarkRegionDefinitionModel region in goModePath)
+            {
+                if (unsatisfiedLandmarks.Contains(region.Key))
+                {
+                    goto nextGoModePath;
+                }
+
+                if (satisfiedLandmarks.Contains(region.Key))
+                {
+                    continue;
+                }
+
+                if (!region.Locations[0].Requirement.Satisfied(state))
+                {
+                    unsatisfiedLandmarks.Add(region.Key);
+                    goto nextGoModePath;
+                }
+
+                satisfiedLandmarks.Add(region.Key);
+            }
+
+            foreach (LandmarkRegionDefinitionModel region in goModePath)
+            {
+                if (!LocationIsChecked(region.Locations[0].Key))
+                {
+                    return region.Locations[0];
+                }
+            }
+
+            nextGoModePath:;
+        }
+
         // TODO: *much* of this will need a revamp, taking into account things like:
         // - we want to be "stupid" by default until the player collects a "make us smarter" rat.
         // - "go mode"
@@ -191,5 +230,33 @@ public sealed class Player
         }
 
         return candidates.First();
+    }
+
+    private static ImmutableArray<ImmutableArray<LandmarkRegionDefinitionModel>> ComputeAllGoModePaths()
+    {
+        Queue<(RegionDefinitionModel Region, ImmutableList<LandmarkRegionDefinitionModel> Landmarks)> regionsQueue = new();
+        regionsQueue.Enqueue((GameDefinitions.Instance.StartRegion, []));
+        List<ImmutableArray<LandmarkRegionDefinitionModel>> paths = [];
+        while (regionsQueue.TryDequeue(out (RegionDefinitionModel Region, ImmutableList<LandmarkRegionDefinitionModel> Landmarks) next))
+        {
+            (RegionDefinitionModel nextRegion, ImmutableList<LandmarkRegionDefinitionModel> incomingLandmarks) = next;
+            if (nextRegion == GameDefinitions.Instance.GoalRegion)
+            {
+                paths.Add([.. incomingLandmarks, GameDefinitions.Instance.GoalRegion]);
+                continue;
+            }
+
+            if (nextRegion is LandmarkRegionDefinitionModel landmark)
+            {
+                incomingLandmarks = incomingLandmarks.Add(landmark);
+            }
+
+            foreach (RegionExitDefinitionModel exit in nextRegion.Exits)
+            {
+                regionsQueue.Enqueue((exit.Region, incomingLandmarks));
+            }
+        }
+
+        return [.. paths];
     }
 }

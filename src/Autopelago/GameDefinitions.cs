@@ -33,7 +33,7 @@ public sealed record GameDefinitions
 
     public required LocationDefinitionModel StartLocation { get; init; }
 
-    public required RegionDefinitionModel GoalRegion { get; init; }
+    public required LandmarkRegionDefinitionModel GoalRegion { get; init; }
 
     public required LocationDefinitionModel GoalLocation { get; init; }
 
@@ -79,7 +79,7 @@ public sealed record GameDefinitions
             FillerRegions = regions.FillerRegions,
             StartRegion = regions.AllRegions["Menu"],
             StartLocation = locationsByKey[LocationKey.For("Menu", 0)],
-            GoalRegion = regions.AllRegions["moon_comma_the"],
+            GoalRegion = regions.LandmarkRegions["moon_comma_the"],
             GoalLocation = locationsByKey[LocationKey.For("moon_comma_the", 0)],
 
             LocationsByKey = locationsByKey.Values.ToFrozenDictionary(location => location.Key),
