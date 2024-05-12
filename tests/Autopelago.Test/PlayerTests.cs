@@ -112,6 +112,8 @@ public sealed class PlayerTests
         GameState state = GameState.Start(seed);
         Player player = new();
         int advancesSoFar = 0;
+        HashSet<LocationKey> prevCheckedLocations = [];
+        List<ItemDefinitionModel> newReceivedItems = [];
         while (true)
         {
             GameState prev = state;
@@ -123,7 +125,20 @@ public sealed class PlayerTests
                 break;
             }
 
-            state = state with { ReceivedItems = [.. state.ReceivedItems, .. state.CheckedLocations.Except(prev.CheckedLocations).Select(loc => loc.UnrandomizedItem!)] };
+            foreach (LocationDefinitionModel newCheckedLocation in state.CheckedLocations)
+            {
+                if (prevCheckedLocations.Add(newCheckedLocation.Key))
+                {
+                    newReceivedItems.Add(newCheckedLocation.UnrandomizedItem!);
+                }
+            }
+
+            if (newReceivedItems.Count > 0)
+            {
+                state = state with { ReceivedItems = [.. state.ReceivedItems, .. newReceivedItems] };
+                newReceivedItems.Clear();
+            }
+
             ++advancesSoFar;
             Assert.That(advancesSoFar, Is.LessThan(1_000_000), "If you can't win in a million steps, then you're useless.");
         }
