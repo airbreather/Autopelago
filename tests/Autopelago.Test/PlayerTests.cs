@@ -462,8 +462,13 @@ public sealed class PlayerTests
     // ReSharper disable once UnusedMember.Local
     private ulong SearchForPrngSeed(int cnt, SpanFunc<int, bool> isMatch)
     {
-        // seed 2449080649: eight natural 20s in a row.
-        // seed 8626806680: eight natural 1s in a row.
+        // seed 8070450564757044629: nine natural 20s in a row.
+        // seed 4611686022723908115: nine natural 1s in a row.
+        //
+        // requiring numeric seeds harms throughput, so for greater strings of luck, I've needed to
+        // write the search function to use the full state.
+        // seed "ZcuBXfRkZixzx/eQAL1UiHpMG3kLbaDksoajUfxCis8=": eleven natural 20s in a row.
+        // seed "Sr8rXn/wy4+RmchoEi8DdYc99ConsS+Fj2g7IoicNns=": eleven natural 1s in a row.
         SeedSearch box = new()
         {
             Count = cnt,
