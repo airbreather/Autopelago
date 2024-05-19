@@ -45,8 +45,6 @@ public sealed record GameDefinitions
 
     public required FrozenDictionary<LocationDefinitionModel, ImmutableArray<LocationDefinitionModel>> ConnectedLocations { get; init; }
 
-    public required FloydWarshall FloydWarshall { get; init; }
-
     public required FrozenDictionary<ArchipelagoItemFlags, ImmutableArray<ItemDefinitionModel>> NonGameSpecificItemsByFlags { get; init; }
 
     public required FrozenDictionary<ArchipelagoItemFlags, ImmutableArray<LocationDefinitionModel>> LocationsByUnrandomizedItemFlags { get; init; }
@@ -85,7 +83,6 @@ public sealed record GameDefinitions
             LocationsByKey = locationsByKey.Values.ToFrozenDictionary(location => location.Key),
             LocationsByName = locationsByKey.Values.ToFrozenDictionary(location => location.Name),
             ConnectedLocations = regions.ConnectedLocations,
-            FloydWarshall = FloydWarshall.Compute(regions.AllRegions.Values),
 
             // things that should only be needed in the debugger to help populate the filler regions
             NonGameSpecificItemsByFlags = items.AllItems
@@ -592,9 +589,55 @@ public sealed record LocationDefinitionModel
 
     public RegionDefinitionModel Region => GameDefinitions.Instance.AllRegions[Key.RegionKey];
 
-    public int DistanceTo(LocationDefinitionModel target) => GameDefinitions.Instance.FloydWarshall.GetDistance(this, target);
+    public LocationDefinitionModel NextLocationTowards(LocationDefinitionModel target, GameState state) =>
+        this.EnumerateReachableLocationsByDistance(state, true)
+            .FirstOrDefault(tup => tup.Location == target)
+            .Path
+            ?.FirstOrDefault()
+            ?? this;
 
-    public LocationDefinitionModel NextLocationTowards(LocationDefinitionModel target) => this == target ? target : GameDefinitions.Instance.FloydWarshall.GetNextOnPath(this, target);
+    public IEnumerable<(LocationDefinitionModel Location, ImmutableList<LocationDefinitionModel> Path)> EnumerateReachableLocationsByDistance(GameState state)
+    {
+        return this.EnumerateReachableLocationsByDistance(state, false);
+    }
+
+    private IEnumerable<(LocationDefinitionModel Location, ImmutableList<LocationDefinitionModel> Path)> EnumerateReachableLocationsByDistance(GameState state, bool collect)
+    {
+        Dictionary<string, bool> testedRegions = new() { [this.Key.RegionKey] = true };
+        HashSet<LocationKey> testedLocations = [this.Key];
+        Queue<(LocationDefinitionModel Location, ImmutableList<LocationDefinitionModel> Path, ImmutableList<ItemDefinitionModel> ReceivedItems)> q = new([(this, [], state.ReceivedItems)]);
+        while (q.TryDequeue(out (LocationDefinitionModel Location, ImmutableList<LocationDefinitionModel> Path, ImmutableList<ItemDefinitionModel> ReceivedItems) curr))
+        {
+            yield return (curr.Location, curr.Path);
+            foreach (LocationDefinitionModel nxt in GameDefinitions.Instance.ConnectedLocations[curr.Location])
+            {
+                if (!testedLocations.Add(nxt.Key) || !RegionIsOpen(nxt.Key.RegionKey, curr.ReceivedItems))
+                {
+                    continue;
+                }
+
+                ImmutableList<ItemDefinitionModel> receivedItems = curr.ReceivedItems;
+                if (nxt.RewardIsFixed && collect)
+                {
+                    receivedItems = receivedItems.Add(nxt.UnrandomizedItem!);
+                }
+
+                q.Enqueue((nxt, curr.Path.Add(nxt), receivedItems));
+            }
+        }
+
+        bool RegionIsOpen(string regionKey, ImmutableList<ItemDefinitionModel> receivedItems)
+        {
+            ref bool result = ref CollectionsMarshal.GetValueRefOrAddDefault(testedRegions, regionKey, out bool existed);
+            if (!existed)
+            {
+                result = (!GameDefinitions.Instance.LandmarkRegions.TryGetValue(regionKey, out LandmarkRegionDefinitionModel? landmark)) ||
+                         landmark.Requirement.Satisfied(state with { ReceivedItems = receivedItems });
+            }
+
+            return result;
+        }
+    }
 
     public bool TryCheck(ref GameState state)
     {

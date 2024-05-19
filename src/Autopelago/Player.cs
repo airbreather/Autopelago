@@ -85,7 +85,7 @@ public sealed class Player
                         break;
                 }
 
-                state = state with { CurrentLocation = state.CurrentLocation.NextLocationTowards(state.TargetLocation) };
+                state = state with { CurrentLocation = state.CurrentLocation.NextLocationTowards(state.TargetLocation, state) };
 
                 // movement takes an action
                 continue;
@@ -137,10 +137,12 @@ public sealed class Player
 
     private LocationDefinitionModel BestTargetLocation(GameState state)
     {
+        LocationDefinitionModel? goModeTarget = null;
         HashSet<string> satisfiedLandmarks = [];
         HashSet<string> unsatisfiedLandmarks = [];
         foreach (ImmutableArray<LandmarkRegionDefinitionModel> goModePath in s_allGoModePaths)
         {
+            ImmutableList<ItemDefinitionModel> receivedItems = state.ReceivedItems;
             foreach (LandmarkRegionDefinitionModel region in goModePath)
             {
                 if (unsatisfiedLandmarks.Contains(region.Key))
@@ -150,91 +152,57 @@ public sealed class Player
 
                 if (satisfiedLandmarks.Contains(region.Key))
                 {
+                    if (region.Locations[0].RewardIsFixed)
+                    {
+                        receivedItems = receivedItems.Add(region.Locations[0].UnrandomizedItem!);
+                    }
+
                     continue;
                 }
 
-                if (!region.Requirement.Satisfied(state))
+                if (!(region.Requirement.Satisfied(state with { ReceivedItems = receivedItems })))
                 {
                     unsatisfiedLandmarks.Add(region.Key);
                     goto nextGoModePath;
                 }
 
                 satisfiedLandmarks.Add(region.Key);
+                if (region.Locations[0].RewardIsFixed)
+                {
+                    receivedItems = receivedItems.Add(region.Locations[0].UnrandomizedItem!);
+                }
             }
 
             foreach (LandmarkRegionDefinitionModel region in goModePath)
             {
                 if (!LocationIsChecked(region.Locations[0].Key))
                 {
-                    return region.Locations[0];
+                    goModeTarget ??= region.Locations[0];
+                    goto nextGoModePath;
                 }
             }
 
+            return GameDefinitions.Instance.GoalLocation;
             nextGoModePath:;
         }
 
-        // TODO: *much* of this will need a revamp, taking into account things like:
-        // - we want to be "stupid" by default until the player collects a "make us smarter" rat.
-        // - "go mode"
+        if (goModeTarget is not null)
+        {
+            return goModeTarget;
+        }
+
+        // TODO: this will still need a revamp, taking into account things like:
         // - requests / hints from other players
-        int bestDistanceSoFar = state.CurrentLocation.DistanceTo(state.TargetLocation);
-        if (state.CurrentLocation == state.TargetLocation)
+        LocationDefinitionModel? closestUncheckedLocation = state.CurrentLocation
+            .EnumerateReachableLocationsByDistance(state)
+            .FirstOrDefault(l => !LocationIsChecked(l.Location.Key))
+            .Location;
+        if (closestUncheckedLocation is null)
         {
-            if (LocationIsChecked(state.TargetLocation.Key))
-            {
-                bestDistanceSoFar = int.MaxValue;
-            }
-            else
-            {
-                // TODO: this seems *somewhat* durable, but we will stil need to account for "go mode"
-                // once that concept comes back in this.
-                return state.TargetLocation;
-            }
+            closestUncheckedLocation = state.CurrentLocation;
         }
 
-        HashSet<LocationDefinitionModel> candidates = [state.TargetLocation];
-        foreach (RegionDefinitionModel region in state.EnumerateOpenRegions())
-        {
-            if (region == GameDefinitions.Instance.GoalRegion)
-            {
-                return GameDefinitions.Instance.GoalLocation;
-            }
-
-            BitArray regionCheckedLocations = _checkedLocations[region.Key];
-            if (regionCheckedLocations.HasAllSet())
-            {
-                continue;
-            }
-
-            if (region is LandmarkRegionDefinitionModel landmark && !landmark.Requirement.Satisfied(state))
-            {
-                continue;
-            }
-
-            foreach (LocationDefinitionModel candidate in region.Locations)
-            {
-                if (regionCheckedLocations[candidate.Key.N])
-                {
-                    continue;
-                }
-
-                int distance = state.CurrentLocation.DistanceTo(candidate);
-                if (distance > bestDistanceSoFar)
-                {
-                    continue;
-                }
-
-                if (distance < bestDistanceSoFar)
-                {
-                    candidates.Clear();
-                    bestDistanceSoFar = distance;
-                }
-
-                candidates.Add(candidate);
-            }
-        }
-
-        return candidates.First();
+        return closestUncheckedLocation;
     }
 
     private static ImmutableArray<ImmutableArray<LandmarkRegionDefinitionModel>> ComputeAllGoModePaths()
