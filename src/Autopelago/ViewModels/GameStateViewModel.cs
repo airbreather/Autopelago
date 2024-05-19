@@ -730,6 +730,7 @@ public sealed class GameStateViewModel : ViewModelBase, IDisposable
             await SendPacketsAsync([locationChecks]);
         }
 
+        _landmarkRegionsByLocation[GameDefinitions.Instance.GoalLocation].Checked = true;
         StatusUpdatePacketModel statusUpdate = new() { Status = ArchipelagoClientStatus.Goal };
         await SendPacketsAsync([statusUpdate]);
     }
