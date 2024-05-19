@@ -137,7 +137,7 @@ public sealed class Player
 
     private LocationDefinitionModel BestTargetLocation(GameState state)
     {
-        LocationDefinitionModel? goModeTarget = null;
+        List<(LocationDefinitionModel Location, int Depth)> goModeTargets = [];
         HashSet<string> satisfiedLandmarks = [];
         HashSet<string> unsatisfiedLandmarks = [];
         foreach (ImmutableArray<LandmarkRegionDefinitionModel> goModePath in s_allGoModePaths)
@@ -173,11 +173,12 @@ public sealed class Player
                 }
             }
 
-            foreach (LandmarkRegionDefinitionModel region in goModePath)
+            for (int i = 0; i < goModePath.Length; i++)
             {
-                if (!LocationIsChecked(region.Locations[0].Key))
+                LocationDefinitionModel goModeTarget = goModePath[i].Locations[0];
+                if (!LocationIsChecked(goModeTarget.Key))
                 {
-                    goModeTarget ??= region.Locations[0];
+                    goModeTargets.Add((goModeTarget, i));
                     goto nextGoModePath;
                 }
             }
@@ -186,9 +187,9 @@ public sealed class Player
             nextGoModePath:;
         }
 
-        if (goModeTarget is not null)
+        if (goModeTargets.Count > 0)
         {
-            return goModeTarget;
+            return goModeTargets.MaxBy(tgt => tgt.Depth).Location;
         }
 
         // TODO: this will still need a revamp, taking into account things like:
