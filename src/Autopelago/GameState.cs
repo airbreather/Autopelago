@@ -121,7 +121,7 @@ public sealed record GameState
                     continue;
                 }
 
-                if (exitRegion is LandmarkRegionDefinitionModel { Locations: [{ Requirement: { } req }] } && !req.Satisfied(this))
+                if (exitRegion is LandmarkRegionDefinitionModel { Requirement: { } req } && !req.Satisfied(this))
                 {
                     continue;
                 }

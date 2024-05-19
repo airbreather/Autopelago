@@ -67,8 +67,9 @@ public sealed class LandmarkRegionViewModel : ViewModelBase, IDisposable
     public LandmarkRegionViewModel(string regionKey)
     {
         RegionKey = regionKey;
-        Location = GameDefinitions.Instance.LandmarkRegions[regionKey].Locations[0];
-        GameRequirementToolTipSource = new(Location.Requirement);
+        Region = GameDefinitions.Instance.LandmarkRegions[regionKey];
+        Location = Region.Locations[0];
+        GameRequirementToolTipSource = new(Region.Requirement);
         CanvasLocation = s_canvasLocations[regionKey] - s_toCenter;
 
         (_saturated, _desaturated) = ReadFrames(regionKey);
@@ -93,6 +94,8 @@ public sealed class LandmarkRegionViewModel : ViewModelBase, IDisposable
     }
 
     public string RegionKey { get; }
+
+    public LandmarkRegionDefinitionModel Region { get; }
 
     public LocationDefinitionModel Location { get; }
 

@@ -153,7 +153,7 @@ public sealed class Player
                     continue;
                 }
 
-                if (!region.Locations[0].Requirement.Satisfied(state))
+                if (!region.Requirement.Satisfied(state))
                 {
                     unsatisfiedLandmarks.Add(region.Key);
                     goto nextGoModePath;
@@ -206,9 +206,14 @@ public sealed class Player
                 continue;
             }
 
+            if (region is LandmarkRegionDefinitionModel landmark && !landmark.Requirement.Satisfied(state))
+            {
+                continue;
+            }
+
             foreach (LocationDefinitionModel candidate in region.Locations)
             {
-                if (regionCheckedLocations[candidate.Key.N] || !candidate.Requirement.Satisfied(state))
+                if (regionCheckedLocations[candidate.Key.N])
                 {
                     continue;
                 }

@@ -435,6 +435,8 @@ public sealed record RegionExitDefinitionModel
 
 public sealed record LandmarkRegionDefinitionModel : RegionDefinitionModel
 {
+    public required GameRequirement Requirement { get; init; }
+
     public static LandmarkRegionDefinitionModel DeserializeFrom(string key, YamlMappingNode map, ItemDefinitionsModel items)
     {
         YamlNode[] exits = map.TryGetValue("exits", out YamlNode[]? exitsOrNull) ? exitsOrNull : [];
@@ -442,6 +444,7 @@ public sealed record LandmarkRegionDefinitionModel : RegionDefinitionModel
         return new()
         {
             Key = key,
+            Requirement = requirement,
             Exits = [.. exits.Select(RegionExitDefinitionModel.DeserializeFrom)],
             Locations =
             [
@@ -452,7 +455,6 @@ public sealed record LandmarkRegionDefinitionModel : RegionDefinitionModel
                     FlavorText = map.TryGetValue("flavor_text", out string? flavorText) ? flavorText : null,
                     UnrandomizedItem = items.ProgressionItems.GetValueOrDefault(map["unrandomized_item"].To<string>()),
                     AbilityCheckDC = map.TryGetValue("ability_check_dc", out int abilityCheckDC) ? abilityCheckDC : 1,
-                    Requirement = requirement,
                     RewardIsFixed = map.TryGetValue("reward_is_fixed", out bool rewardIsFixed) && rewardIsFixed,
                 },
             ],
@@ -523,7 +525,6 @@ public sealed record FillerRegionDefinitionModel : RegionDefinitionModel
             {
                 Key = LocationKey.For(key, n),
                 Name = nameTemplate.Replace("{n}", $"{n + 1}"),
-                Requirement = GameRequirement.AlwaysSatisfied,
                 AbilityCheckDC = abilityCheckDC,
                 UnrandomizedItem = item,
                 RewardIsFixed = false,
@@ -583,8 +584,6 @@ public sealed record LocationDefinitionModel
 
     public string? FlavorText { get; init; }
 
-    public required GameRequirement Requirement { get; init; }
-
     public required int AbilityCheckDC { get; init; }
 
     public required ItemDefinitionModel? UnrandomizedItem { get; init; }
@@ -599,11 +598,6 @@ public sealed record LocationDefinitionModel
 
     public bool TryCheck(ref GameState state)
     {
-        if (!Requirement.Satisfied(state))
-        {
-            return false;
-        }
-
         int extraDiceModifier = 0;
         switch (state.LuckFactor)
         {
@@ -639,8 +633,6 @@ public sealed record LocationDefinitionModel
 
 public abstract record GameRequirement
 {
-    public static readonly AllChildrenGameRequirement AlwaysSatisfied = new() { Children = [] };
-
     public virtual bool Satisfied(GameState state)
     {
         return true;

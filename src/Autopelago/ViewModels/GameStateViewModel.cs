@@ -372,9 +372,9 @@ public sealed class GameStateViewModel : ViewModelBase, IDisposable
         regions.Enqueue(GameDefinitions.Instance.StartRegion);
         while (regions.TryDequeue(out RegionDefinitionModel? region))
         {
-            if (region is LandmarkRegionDefinitionModel)
+            if (region is LandmarkRegionDefinitionModel landmark)
             {
-                region.Locations[0].Requirement.VisitItemKeys(itemKey => result.Add(itemKey, result.Count));
+                landmark.Requirement.VisitItemKeys(itemKey => result.Add(itemKey, result.Count));
             }
 
             foreach (RegionExitDefinitionModel exit in region.Exits)
