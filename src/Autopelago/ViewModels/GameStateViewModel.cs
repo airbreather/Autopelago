@@ -27,10 +27,6 @@ using ZstdSharp;
 
 namespace Autopelago.ViewModels;
 
-[JsonSourceGenerationOptions(PropertyNamingPolicy = JsonKnownNamingPolicy.SnakeCaseLower)]
-[JsonSerializable(typeof(ImmutableArray<ArchipelagoPacketModel>))]
-internal sealed partial class PacketSourceGenerationContext : JsonSerializerContext;
-
 [JsonSourceGenerationOptions(
     PropertyNamingPolicy = JsonKnownNamingPolicy.SnakeCaseLower,
     UseStringEnumConverter = true)]
@@ -61,10 +57,10 @@ public sealed class GameStateViewModel : ViewModelBase, IDisposable
     };
 
     private static readonly JsonTypeInfo<ArchipelagoPacketModel> s_packetTypeInfo =
-        PacketSourceGenerationContext.Default.ArchipelagoPacketModel;
+        PacketSerializerContext.Default.ArchipelagoPacketModel;
 
     private static readonly JsonTypeInfo<ImmutableArray<ArchipelagoPacketModel>> s_packetsTypeInfo =
-        PacketSourceGenerationContext.Default.ImmutableArrayArchipelagoPacketModel;
+        PacketSerializerContext.Default.ImmutableArrayArchipelagoPacketModel;
 
     private static readonly JsonTypeInfo<GameState.Proxy> s_gameStateProxyTypeInfo =
         GameStateProxySerializerContext.Default.Proxy;
@@ -422,6 +418,11 @@ public sealed class GameStateViewModel : ViewModelBase, IDisposable
         }
 
         ArchipelagoPacketModel packet = JsonSerializer.Deserialize(ref reader, s_packetTypeInfo)!;
+        if (packet is PrintJSONPacketModel printJSON)
+        {
+            packet = printJSON.ToBestDerivedType();
+        }
+
         readerState = reader.CurrentState;
         return (packet, reader.BytesConsumed);
     }

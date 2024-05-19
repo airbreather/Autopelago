@@ -74,6 +74,10 @@ public enum ArchipelagoItemsHandlingFlags
     All = FromOtherWorlds | _FromMyWorldOnly | _StartingInventoryOnly,
 }
 
+[JsonSourceGenerationOptions(PropertyNamingPolicy = JsonKnownNamingPolicy.SnakeCaseLower)]
+[JsonSerializable(typeof(ImmutableArray<ArchipelagoPacketModel>))]
+internal sealed partial class PacketSerializerContext : JsonSerializerContext;
+
 [JsonPolymorphic(TypeDiscriminatorPropertyName = "cmd", IgnoreUnrecognizedTypeDiscriminators = true, UnknownDerivedTypeHandling = JsonUnknownDerivedTypeHandling.FallBackToNearestAncestor)]
 [JsonDerivedType(typeof(RoomInfoPacketModel), "RoomInfo")]
 [JsonDerivedType(typeof(GetDataPackagePacketModel), "GetDataPackage")]
@@ -223,11 +227,11 @@ public record PrintJSONPacketModel : ArchipelagoPacketModel
         ["Countdown"] = typeof(CountdownPrintJSONPacketModel),
     };
 
-    public required string Type { get; init; } = "";
+    public string Type { get; init; } = "";
 
     public required ImmutableArray<JSONMessagePartModel> Data { get; init; }
 
-    public PrintJSONPacketModel ToBestDerivedType(JsonSerializerOptions options)
+    public PrintJSONPacketModel ToBestDerivedType()
     {
         if (!s_recognizedTypes.TryGetValue(Type, out Type? bestDerivedType))
         {
@@ -235,12 +239,12 @@ public record PrintJSONPacketModel : ArchipelagoPacketModel
         }
 
         JsonObject obj = new(
-            ExtensionData.Select(kvp => KeyValuePair.Create(kvp.Key, JsonSerializer.SerializeToNode(kvp.Value, options)))
-                .Prepend(KeyValuePair.Create("data", JsonSerializer.SerializeToNode(Data, options)))
-                .Prepend(KeyValuePair.Create("type", JsonSerializer.SerializeToNode(Type, options)))
+            ExtensionData.Select(kvp => KeyValuePair.Create(kvp.Key, JsonSerializer.SerializeToNode(kvp.Value, PacketSerializerContext.Default.JsonElement)))
+                .Prepend(KeyValuePair.Create("data", JsonSerializer.SerializeToNode(Data, PacketSerializerContext.Default.ImmutableArrayJSONMessagePartModel)))
+                .Prepend(KeyValuePair.Create("type", JsonSerializer.SerializeToNode(Type, PacketSerializerContext.Default.String)))
         );
 
-        return (PrintJSONPacketModel)obj.Deserialize(bestDerivedType, options)!;
+        return (PrintJSONPacketModel)obj.Deserialize(bestDerivedType, PacketSerializerContext.Default)!;
     }
 }
 
