@@ -100,7 +100,7 @@ public sealed class GameStateViewModel : ViewModelBase, IDisposable
 
     private readonly FrozenDictionary<ItemDefinitionModel, CollectableItemViewModel> _collectableItemsByModel;
 
-    private readonly FrozenDictionary<LocationDefinitionModel, CheckableLocationViewModel> _checkableLocationsByModel;
+    private readonly FrozenDictionary<LocationDefinitionModel, LandmarkRegionViewModel> _landmarkRegionsByLocation;
 
     private ClientWebSocketBox _clientWebSocketBox = null!;
 
@@ -138,25 +138,25 @@ public sealed class GameStateViewModel : ViewModelBase, IDisposable
         _subscriptions.Add(Observable.Interval(TimeSpan.FromMilliseconds(500), AvaloniaScheduler.Instance)
             .Subscribe(_ =>
             {
-                foreach (CheckableLocationViewModel loc in CheckableLocations)
+                foreach (LandmarkRegionViewModel landmark in LandmarkRegions)
                 {
-                    loc.NextFrame();
+                    landmark.NextFrame();
                 }
             }));
 
         FrozenDictionary<string, CollectableItemViewModel> progressionItemsLookup = ProgressionItems.ToFrozenDictionary(i => i.ItemKey);
         _collectableItemsByModel = progressionItemsLookup.ToFrozenDictionary(kvp => kvp.Value.Model, kvp => kvp.Value);
-        FrozenDictionary<string, CheckableLocationViewModel> checkableLocationsLookup = CheckableLocations.ToFrozenDictionary(l => l.LocationKey);
-        _checkableLocationsByModel = checkableLocationsLookup.ToFrozenDictionary(kvp => kvp.Value.Model, kvp => kvp.Value);
+        FrozenDictionary<string, LandmarkRegionViewModel> landmarkRegionsLookup = LandmarkRegions.ToFrozenDictionary(l => l.RegionKey);
+        _landmarkRegionsByLocation = landmarkRegionsLookup.ToFrozenDictionary(kvp => kvp.Value.Location, kvp => kvp.Value);
         FrozenDictionary<string, ImmutableArray<GameRequirementToolTipViewModel>> toolTipsByItem = (
-            from loc in CheckableLocations
+            from loc in LandmarkRegions
             from tt in loc.GameRequirementToolTipSource.DescendantsAndSelf()
             where tt.Model is ReceivedItemRequirement
             group tt by ((ReceivedItemRequirement)tt.Model).ItemKey
         ).ToFrozenDictionary(grp => grp.Key, grp => grp.ToImmutableArray());
 
         ImmutableArray<(int RatCount, GameRequirementToolTipViewModel ToolTip)> ratCountToolTips = [
-            .. from loc in CheckableLocations
+            .. from loc in LandmarkRegions
                from tt in loc.GameRequirementToolTipSource.DescendantsAndSelf()
                where tt.Model is RatCountRequirement
                select (((RatCountRequirement)tt.Model).RatCount, tt),
@@ -198,20 +198,20 @@ public sealed class GameStateViewModel : ViewModelBase, IDisposable
                 .Select(added => progressionItemsLookup[added]))
             .Subscribe(item => item.Collected = true));
 
-        _subscriptions.Add(LocationsAvailable.ObserveCollectionChanges()
+        _subscriptions.Add(LandmarksAvailable.ObserveCollectionChanges()
             .Select(c => c.EventArgs)
             .Where(args => args.Action == NotifyCollectionChangedAction.Add)
             .SelectMany(args => args.NewItems!.Cast<string>()
-                .Where(checkableLocationsLookup.ContainsKey)
-                .Select(added => checkableLocationsLookup[added]))
+                .Where(landmarkRegionsLookup.ContainsKey)
+                .Select(added => landmarkRegionsLookup[added]))
             .Subscribe(location => location.Available = true));
 
-        _subscriptions.Add(LocationsChecked.ObserveCollectionChanges()
+        _subscriptions.Add(LandmarksChecked.ObserveCollectionChanges()
             .Select(c => c.EventArgs)
             .Where(args => args.Action == NotifyCollectionChangedAction.Add)
             .SelectMany(args => args.NewItems!.Cast<string>()
-                .Where(checkableLocationsLookup.ContainsKey)
-                .Select(added => checkableLocationsLookup[added]))
+                .Where(landmarkRegionsLookup.ContainsKey)
+                .Select(added => landmarkRegionsLookup[added]))
             .Subscribe(location => location.Checked = true));
 
         FrozenDictionary<string, FillerRegionViewModel> fillerRegionLookup = GameDefinitions.Instance.FillerRegions
@@ -224,7 +224,7 @@ public sealed class GameStateViewModel : ViewModelBase, IDisposable
 
         _subscriptions.Add(this
             .WhenAnyValue(x => x.CurrentLocation)
-            .Select(x => checkableLocationsLookup.GetValueOrDefault(x.Key.RegionKey))
+            .Select(x => landmarkRegionsLookup.GetValueOrDefault(x.Key.RegionKey))
             .ToPropertyEx(this, x => x.CurrentLandmarkRegion));
 
         _subscriptions.Add(this
@@ -307,7 +307,7 @@ public sealed class GameStateViewModel : ViewModelBase, IDisposable
     public int CurrentRegionNum { get; }
 
     [ObservableAsProperty]
-    public CheckableLocationViewModel? CurrentLandmarkRegion { get; }
+    public LandmarkRegionViewModel? CurrentLandmarkRegion { get; }
 
     [ObservableAsProperty]
     public Point CurrentPoint { get; }
@@ -343,20 +343,20 @@ public sealed class GameStateViewModel : ViewModelBase, IDisposable
             .Select(key => new CollectableItemViewModel(key)),
     ];
 
-    public ImmutableArray<CheckableLocationViewModel> CheckableLocations { get; } =
+    public ImmutableArray<LandmarkRegionViewModel> LandmarkRegions { get; } =
     [
         .. GameDefinitions.Instance.LandmarkRegions.Keys
-            .Select(key => new CheckableLocationViewModel(key)),
+            .Select(key => new LandmarkRegionViewModel(key)),
     ];
 
     [DesignerSerializationVisibility(DesignerSerializationVisibility.Content)]
     public ObservableCollectionExtended<string> ProgressionItemsCollected { get; } = [];
 
     [DesignerSerializationVisibility(DesignerSerializationVisibility.Content)]
-    public ObservableCollectionExtended<string> LocationsChecked { get; } = [];
+    public ObservableCollectionExtended<string> LandmarksChecked { get; } = [];
 
     [DesignerSerializationVisibility(DesignerSerializationVisibility.Content)]
-    public ObservableCollectionExtended<string> LocationsAvailable { get; } = [];
+    public ObservableCollectionExtended<string> LandmarksAvailable { get; } = [];
 
     public void Dispose()
     {
@@ -504,7 +504,7 @@ public sealed class GameStateViewModel : ViewModelBase, IDisposable
 
                     foreach (LocationDefinitionModel location in _state.CheckedLocations)
                     {
-                        if (_checkableLocationsByModel.TryGetValue(location, out var viewModel))
+                        if (_landmarkRegionsByLocation.TryGetValue(location, out var viewModel))
                         {
                             viewModel.Checked = true;
                         }
@@ -720,7 +720,7 @@ public sealed class GameStateViewModel : ViewModelBase, IDisposable
             foreach (LocationDefinitionModel location in nextState.CheckedLocations.Except(prevState.CheckedLocations))
             {
                 locationIds.Add(_lastFullData.LocationIds[location]);
-                if (_checkableLocationsByModel.TryGetValue(location, out CheckableLocationViewModel? viewModel))
+                if (_landmarkRegionsByLocation.TryGetValue(location, out LandmarkRegionViewModel? viewModel))
                 {
                     viewModel.Checked = true;
                 }

@@ -19,10 +19,10 @@
                 <x:String>ratstronaut</x:String>
             </viewModels:GameStateViewModel.ProgressionItemsCollected>
 
-            <viewModels:GameStateViewModel.LocationsChecked>
+            <viewModels:GameStateViewModel.LandmarksChecked>
                 <x:String>basketball</x:String>
                 <x:String>prawn_stars</x:String>
-            </viewModels:GameStateViewModel.LocationsChecked>
+            </viewModels:GameStateViewModel.LandmarksChecked>
 
         </viewModels:GameStateViewModel>
     </Design.DataContext>
@@ -182,7 +182,7 @@
                         <Viewbox>
                             <Grid>
                                 <Svg Width="300" Height="450" Path="/Assets/Images/map.svg" />
-                                <ItemsControl ItemsSource="{Binding CheckableLocations, Mode=OneTime}">
+                                <ItemsControl ItemsSource="{Binding LandmarkRegions, Mode=OneTime}">
                                     <ItemsControl.ItemsPanel>
                                         <ItemsPanelTemplate>
                                             <Canvas Width="300" Height="450" />
@@ -190,8 +190,8 @@
                                     </ItemsControl.ItemsPanel>
                                     <ItemsControl.Styles>
                                         <Style Selector="ContentPresenter">
-                                            <Setter Property="Canvas.Left" Value="{Binding $self.((viewModels:CheckableLocationViewModel)DataContext).CanvasLocation.X, FallbackValue=0}" />
-                                            <Setter Property="Canvas.Top" Value="{Binding $self.((viewModels:CheckableLocationViewModel)DataContext).CanvasLocation.Y, FallbackValue=0}" />
+                                            <Setter Property="Canvas.Left" Value="{Binding $self.((viewModels:LandmarkRegionViewModel)DataContext).CanvasLocation.X, FallbackValue=0}" />
+                                            <Setter Property="Canvas.Top" Value="{Binding $self.((viewModels:LandmarkRegionViewModel)DataContext).CanvasLocation.Y, FallbackValue=0}" />
                                         </Style>
                                     </ItemsControl.Styles>
                                     <ItemsControl.ItemTemplate>
@@ -201,7 +201,7 @@
                                                     <StackPanel>
                                                         <Border Padding="4" Classes="tracker-box item">
                                                             <TextBlock Classes="tooltip big"
-                                                                       Text="{Binding Model.Name, Mode=OneTime}" />
+                                                                       Text="{Binding Location.Name, Mode=OneTime}" />
                                                         </Border>
 
                                                         <Border Margin="0,5,0,0" Padding="4" Classes="tracker-box item">
@@ -212,8 +212,8 @@
                                                                     <TextBlock Margin="0,5,0,0"
                                                                                DockPanel.Dock="Bottom"
                                                                                Classes="tooltip small"
-                                                                               Text="{Binding Model.FlavorText, StringFormat='“{0}”', Mode=OneTime}"
-                                                                               IsVisible="{Binding Model.FlavorText, Mode=OneTime, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
+                                                                               Text="{Binding Location.FlavorText, StringFormat='“{0}”', Mode=OneTime}"
+                                                                               IsVisible="{Binding Location.FlavorText, Mode=OneTime, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
                                                                     <ContentPresenter Classes="tooltip big"
                                                                                       Content="{Binding GameRequirementToolTipSource, Mode=OneWay}"
                                                                                       TextWrapping="Wrap" />

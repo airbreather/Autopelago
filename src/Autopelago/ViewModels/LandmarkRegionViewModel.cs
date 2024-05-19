@@ -11,7 +11,7 @@ using SkiaSharp;
 
 namespace Autopelago.ViewModels;
 
-public sealed class CheckableLocationViewModel : ViewModelBase, IDisposable
+public sealed class LandmarkRegionViewModel : ViewModelBase, IDisposable
 {
     private static readonly Vector s_toCenter = new Vector(16, 16) / 2;
 
@@ -64,14 +64,14 @@ public sealed class CheckableLocationViewModel : ViewModelBase, IDisposable
 
     private readonly Bitmap[] _desaturated;
 
-    public CheckableLocationViewModel(string locationKey)
+    public LandmarkRegionViewModel(string regionKey)
     {
-        LocationKey = locationKey;
-        Model = GameDefinitions.Instance.LandmarkRegions[locationKey].Locations[0];
-        GameRequirementToolTipSource = new(Model.Requirement);
-        CanvasLocation = s_canvasLocations[locationKey] - s_toCenter;
+        RegionKey = regionKey;
+        Location = GameDefinitions.Instance.LandmarkRegions[regionKey].Locations[0];
+        GameRequirementToolTipSource = new(Location.Requirement);
+        CanvasLocation = s_canvasLocations[regionKey] - s_toCenter;
 
-        (_saturated, _desaturated) = ReadFrames(locationKey);
+        (_saturated, _desaturated) = ReadFrames(regionKey);
         (Bitmap[] yellowQuestFrames, Bitmap[] grayQuestFrames) = s_questFrames.Value;
 
         _clearAvailableSubscription = this
@@ -92,9 +92,9 @@ public sealed class CheckableLocationViewModel : ViewModelBase, IDisposable
             .Subscribe(satisfied => Available = satisfied && !Checked);
     }
 
-    public string LocationKey { get; }
+    public string RegionKey { get; }
 
-    public LocationDefinitionModel Model { get; }
+    public LocationDefinitionModel Location { get; }
 
     public GameRequirementToolTipViewModel GameRequirementToolTipSource { get; }
 
@@ -139,9 +139,9 @@ public sealed class CheckableLocationViewModel : ViewModelBase, IDisposable
         ++FrameCounter;
     }
 
-    private static (Bitmap[] Saturated, Bitmap[] Desaturated) ReadFrames(string locationKey)
+    private static (Bitmap[] Saturated, Bitmap[] Desaturated) ReadFrames(string regionKey)
     {
-        using Stream data = AssetLoader.Open(new($"avares://Autopelago/Assets/Images/{locationKey}.webp"));
+        using Stream data = AssetLoader.Open(new($"avares://Autopelago/Assets/Images/{regionKey}.webp"));
         using SKCodec codec = SKCodec.Create(data);
         SKImageInfo imageInfo = codec.Info;
         SKCodecFrameInfo[] frameInfo = codec.FrameInfo;
