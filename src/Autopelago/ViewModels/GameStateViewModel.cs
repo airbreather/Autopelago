@@ -460,7 +460,7 @@ public sealed class GameStateViewModel : ViewModelBase, IDisposable
                     Game = "Autopelago",
                     Name = _settings.Slot,
                     Uuid = Guid.NewGuid(),
-                    Version = new(new("0.4.4")),
+                    Version = new(new("0.4.6")),
                     ItemsHandling = ArchipelagoItemsHandlingFlags.All,
                     Tags = ["AP"],
                     SlotData = true,
