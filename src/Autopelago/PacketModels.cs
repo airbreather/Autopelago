@@ -187,7 +187,6 @@ public sealed record ReceivedItemsPacketModel : ArchipelagoPacketModel
     public required ImmutableArray<ItemModel> Items { get; init; }
 }
 
-[JsonPolymorphic(TypeDiscriminatorPropertyName = nameof(Type), IgnoreUnrecognizedTypeDiscriminators = true)]
 [JsonDerivedType(typeof(ItemSendPrintJSONPacketModel))]
 [JsonDerivedType(typeof(ItemCheatPrintJSONPacketModel))]
 [JsonDerivedType(typeof(HintPrintJSONPacketModel))]
@@ -205,9 +204,44 @@ public sealed record ReceivedItemsPacketModel : ArchipelagoPacketModel
 [JsonDerivedType(typeof(CountdownPrintJSONPacketModel))]
 public record PrintJSONPacketModel : ArchipelagoPacketModel
 {
-    public string Type { get; init; } = "";
+    private static readonly Dictionary<string, Type> s_recognizedTypes = new()
+    {
+        ["ItemSend"] = typeof(ItemSendPrintJSONPacketModel),
+        ["ItemCheat"] = typeof(ItemCheatPrintJSONPacketModel),
+        ["Hint"] = typeof(HintPrintJSONPacketModel),
+        ["Join"] = typeof(JoinPrintJSONPacketModel),
+        ["Part"] = typeof(PartPrintJSONPacketModel),
+        ["Chat"] = typeof(ChatPrintJSONPacketModel),
+        ["ServerChat"] = typeof(ServerChatPrintJSONPacketModel),
+        ["Tutorial"] = typeof(TutorialPrintJSONPacketModel),
+        ["TagsChanged"] = typeof(TagsChangedPrintJSONPacketModel),
+        ["CommandResult"] = typeof(CommandResultPrintJSONPacketModel),
+        ["AdminCommandResult"] = typeof(AdminCommandResultPrintJSONPacketModel),
+        ["Goal"] = typeof(GoalPrintJSONPacketModel),
+        ["Release"] = typeof(ReleasePrintJSONPacketModel),
+        ["Collect"] = typeof(CollectPrintJSONPacketModel),
+        ["Countdown"] = typeof(CountdownPrintJSONPacketModel),
+    };
+
+    public required string Type { get; init; } = "";
 
     public required ImmutableArray<JSONMessagePartModel> Data { get; init; }
+
+    public PrintJSONPacketModel ToBestDerivedType(JsonSerializerOptions options)
+    {
+        if (!s_recognizedTypes.TryGetValue(Type, out Type? bestDerivedType))
+        {
+            return this;
+        }
+
+        JsonObject obj = new(
+            ExtensionData.Select(kvp => KeyValuePair.Create(kvp.Key, JsonSerializer.SerializeToNode(kvp.Value, options)))
+                .Prepend(KeyValuePair.Create("data", JsonSerializer.SerializeToNode(Data, options)))
+                .Prepend(KeyValuePair.Create("type", JsonSerializer.SerializeToNode(Type, options)))
+        );
+
+        return (PrintJSONPacketModel)obj.Deserialize(bestDerivedType, options)!;
+    }
 }
 
 public sealed record ItemSendPrintJSONPacketModel : PrintJSONPacketModel
