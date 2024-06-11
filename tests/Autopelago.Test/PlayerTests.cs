@@ -399,10 +399,15 @@ public sealed class PlayerTests
 
         // give it all randomized items except the last one.
         ItemDefinitionModel finalRandomizedItem = GameDefinitions.Instance.ProgressionItems["mongoose_in_a_combat_spacecraft"];
-        state = state with { ReceivedItems = [.. GameDefinitions.Instance.LocationsByKey.Values
-            .Where(l => l is { RewardIsFixed: false, UnrandomizedItem: not null })
-            .Select(l => l.UnrandomizedItem!)
-            .Where(i => i != finalRandomizedItem)] };
+        state = state with
+        {
+            ReceivedItems = [..
+                GameDefinitions.Instance.LocationsByKey.Values
+                    .Where(l => l is { RewardIsFixed: false, UnrandomizedItem: not null })
+                    .Select(l => l.UnrandomizedItem!)
+                    .Where(i => i != finalRandomizedItem),
+            ],
+        };
         Player player = new();
 
         // make a couple of steps where we have all items except the very last one. this is SOMEWHAT

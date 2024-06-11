@@ -9,6 +9,7 @@ public sealed class FillerRegionViewModel : ViewModelBase
 {
     private static readonly Vector s_toCenter = new Point(16, 16) / 2;
 
+#pragma warning disable format
     private static readonly FrozenDictionary<string, ImmutableArray<Point>> s_definingPoints = new Dictionary<string, ImmutableArray<Point>>
     {
         ["Menu"] = [new(0, 77), new(57, 77)],
@@ -54,6 +55,7 @@ public sealed class FillerRegionViewModel : ViewModelBase
         ["before_asteroid_with_pants"] = [new(195, 400), new(231, 406)],
         ["after_minotaur_labyrinth"] = [new(195, 398), new(207, 386), new(209, 385), new(216, 378), new(218, 377), new(226, 369), new(228, 368), new(236, 360), new(238, 359), new(242, 355)],
     }.ToFrozenDictionary(kvp => kvp.Key, kvp => ImmutableArray.CreateRange(kvp.Value, p => p - s_toCenter));
+#pragma warning restore format
 
     public FillerRegionViewModel(FillerRegionDefinitionModel model)
     {

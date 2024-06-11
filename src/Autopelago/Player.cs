@@ -184,7 +184,7 @@ public sealed class Player
             }
 
             return GameDefinitions.Instance.GoalLocation;
-            nextGoModePath:;
+        nextGoModePath:;
         }
 
         if (goModeTargets.Count > 0)
