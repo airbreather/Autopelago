@@ -492,7 +492,7 @@ public sealed class PlayerTests
         }
 
         ulong result = box.Seed!.Value;
-        TestContext.WriteLine($"ulong seed = {nameof(EnsureSeedProducesInitialD20Sequence)}({result}, [{string.Join(", ", Rolls(result, stackalloc int[cnt]).ToArray())}]);");
+        TestContext.Out.WriteLine($"ulong seed = {nameof(EnsureSeedProducesInitialD20Sequence)}({result}, [{string.Join(", ", Rolls(result, stackalloc int[cnt]).ToArray())}]);");
         return result;
 
         static void Search(object? obj)
