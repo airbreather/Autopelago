@@ -6,6 +6,7 @@ using System.ComponentModel;
 using System.Net.WebSockets;
 using System.Reactive.Disposables;
 using System.Reactive.Linq;
+using System.Reactive.Subjects;
 using System.Text;
 using System.Text.Json;
 using System.Text.Json.Serialization;
@@ -128,8 +129,6 @@ public sealed class GameStateViewModel : ViewModelBase, IDisposable
         _stateFile = new(Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "Autopelago", $"{settings.Host}_{settings.Port}_{settings.Slot}.json.zst"));
         _stateFile.Directory!.Create();
         _stateTmpFile = new(_stateFile.FullName.Replace(".json.zst", ".tmp.json.zst"));
-
-        ConnectionRefusedCommand = ReactiveCommand.Create<ConnectionRefusedPacketModel, ConnectionRefusedPacketModel>(x => x);
 
         _subscriptions.Add(Observable.Interval(TimeSpan.FromMilliseconds(500), AvaloniaScheduler.Instance)
             .Subscribe(_ =>
@@ -262,32 +261,6 @@ public sealed class GameStateViewModel : ViewModelBase, IDisposable
 
             return;
         }
-
-        _ = Task.Run(async () =>
-        {
-            try
-            {
-                await RunPacketReadLoopAsync();
-            }
-            catch (Exception ex)
-            {
-                Log.Fatal(ex, "Unhandled in packet read loop.");
-                throw;
-            }
-        });
-
-        _ = Task.Run(async () =>
-        {
-            try
-            {
-                await RunPlayLoopAsync();
-            }
-            catch (Exception ex)
-            {
-                Log.Fatal(ex, "Unhandled in play loop.");
-                throw;
-            }
-        });
     }
 
     [Reactive]
@@ -329,7 +302,11 @@ public sealed class GameStateViewModel : ViewModelBase, IDisposable
     [Reactive]
     public bool HasConfidence { get; set; }
 
-    public ReactiveCommand<ConnectionRefusedPacketModel, ConnectionRefusedPacketModel> ConnectionRefusedCommand { get; }
+    private readonly Subject<Exception> _unhandledException = new();
+    public IObservable<Exception> UnhandledException => _unhandledException.AsObservable();
+
+    private readonly Subject<ConnectionRefusedPacketModel> _connectionRefused = new();
+    public IObservable<ConnectionRefusedPacketModel> ConnectionRefused => _connectionRefused.AsObservable();
 
     public ImmutableArray<CollectableItemViewModel> ProgressionItems { get; } =
     [
@@ -353,6 +330,35 @@ public sealed class GameStateViewModel : ViewModelBase, IDisposable
 
     [DesignerSerializationVisibility(DesignerSerializationVisibility.Content)]
     public ObservableCollectionExtended<string> LandmarksAvailable { get; } = [];
+
+    public void Begin()
+    {
+        _ = Task.Run(async () =>
+        {
+            try
+            {
+                await RunPacketReadLoopAsync();
+            }
+            catch (Exception ex)
+            {
+                Log.Fatal(ex, "Unhandled in packet read loop.");
+                _unhandledException.OnNext(ex);
+            }
+        });
+
+        _ = Task.Run(async () =>
+        {
+            try
+            {
+                await RunPlayLoopAsync();
+            }
+            catch (Exception ex)
+            {
+                Log.Fatal(ex, "Unhandled in play loop.");
+                _unhandledException.OnNext(ex);
+            }
+        });
+    }
 
     public void Dispose()
     {
@@ -471,7 +477,7 @@ public sealed class GameStateViewModel : ViewModelBase, IDisposable
             case ConnectResponsePacketModel connectResponse:
                 if (connectResponse is ConnectionRefusedPacketModel connectionRefused)
                 {
-                    await ConnectionRefusedCommand.Execute(connectionRefused);
+                    _connectionRefused.OnNext(connectionRefused);
                     break;
                 }
 

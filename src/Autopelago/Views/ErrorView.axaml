@@ -1,0 +1,42 @@
+<reactiveUi:ReactiveUserControl
+    xmlns="https://github.com/avaloniaui"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+    xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+    xmlns:reactiveUi="http://reactiveui.net"
+    xmlns:viewModels="clr-namespace:Autopelago.ViewModels"
+    FontFamily="fonts:Inter#Inter, $Default"
+    mc:Ignorable="d" d:DesignWidth="800" d:DesignHeight="450"
+    x:Class="Autopelago.Views.ErrorView"
+    x:DataType="viewModels:ErrorViewModel"
+    x:TypeArguments="viewModels:ErrorViewModel">
+
+    <Design.DataContext>
+        <viewModels:ErrorViewModel />
+    </Design.DataContext>
+
+    <Grid RowDefinitions="Auto,*,Auto">
+        <DockPanel Grid.Row="0" Classes="GamerFont">
+            <Button DockPanel.Dock="Right"
+                    Click="CopyErrorToClipboard"
+                    Content="Copy to clipboard" />
+            <TextBlock VerticalAlignment="Center"
+                       Text="ERROR!" />
+        </DockPanel>
+
+        <ScrollViewer Grid.Row="1" HorizontalScrollBarVisibility="Auto">
+            <TextBox IsReadOnly="True"
+                     FontFamily="Mono"
+                     Text="{Binding Error}"
+                     TextWrapping="NoWrap" />
+        </ScrollViewer>
+
+        <Button Grid.Row="2"
+                Classes="GamerFont"
+                HorizontalAlignment="Stretch"
+                HorizontalContentAlignment="Center"
+                Command="{Binding BackToMainMenuCommand}"
+                Content="Back to Main Menu" />
+    </Grid>
+
+</reactiveUi:ReactiveUserControl>

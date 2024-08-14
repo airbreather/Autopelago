@@ -8,27 +8,26 @@ namespace Autopelago;
 
 public sealed class ViewLocator : IDataTemplate
 {
-    public Control? Build(object? param)
+    public bool Match(object? data)
     {
-        Control? control = param switch
+        return data is
+            GameStateViewModel or
+            MainWindowViewModel or
+            SettingsSelectionViewModel or
+            GameRequirementToolTipViewModel or
+            ErrorViewModel;
+    }
+
+    public Control Build(object? param)
+    {
+        return param switch
         {
             GameStateViewModel => new GameStateView(),
             MainWindowViewModel => new MainWindowView(),
             SettingsSelectionViewModel => new SettingsSelectionView(),
             GameRequirementToolTipViewModel => new GameRequirementToolTipView(),
-            _ => null,
+            ErrorViewModel => new ErrorView(),
+            _ => throw new InvalidOperationException("Match returned false."),
         };
-
-        if (control is not null)
-        {
-            control.DataContext = param;
-        }
-
-        return control;
-    }
-
-    public bool Match(object? data)
-    {
-        return data is GameStateViewModel or MainWindowViewModel or SettingsSelectionViewModel or GameRequirementToolTipViewModel;
     }
 }

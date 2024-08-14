@@ -5,6 +5,7 @@
     xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
     xmlns:reactiveUi="http://reactiveui.net"
     xmlns:viewModels="clr-namespace:Autopelago.ViewModels"
+    Classes="GamerFont"
     mc:Ignorable="d" d:DesignWidth="800"
     x:Class="Autopelago.Views.SettingsSelectionView"
     x:DataType="viewModels:SettingsSelectionViewModel"

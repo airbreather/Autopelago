@@ -24,10 +24,10 @@
             </FluentTheme.Palettes>
         </FluentTheme>
         <materialIcons:MaterialIconStyles />
-        <Style Selector=":is(TemplatedControl)">
+        <Style Selector=":is(TemplatedControl).GamerFont,.GamerFont :is(TemplatedControl)">
             <Setter Property="FontFamily" Value="{StaticResource PublicPixelFont}" />
         </Style>
-        <Style Selector="TextBlock">
+        <Style Selector="TextBlock.GamerFont,.GamerFont TextBlock">
             <Setter Property="FontFamily" Value="{StaticResource PublicPixelFont}" />
         </Style>
     </Application.Styles>

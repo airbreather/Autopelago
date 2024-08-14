@@ -5,13 +5,12 @@
     xmlns:reactiveUi="http://reactiveui.net"
     x:Class="Autopelago.Views.GameRequirementToolTipView"
     x:DataType="viewModels:GameRequirementToolTipViewModel"
-    x:TypeArguments="viewModels:GameRequirementToolTipViewModel"
-    x:Name="workaroundAvalonia16665">
+    x:TypeArguments="viewModels:GameRequirementToolTipViewModel">
     <StackPanel>
         <DockPanel IsVisible="{Binding HeaderContent, Mode=OneTime, Converter={x:Static ObjectConverters.IsNull}}">
             <TextBlock DockPanel.Dock="Left" Text="✓" IsVisible="{Binding Satisfied, Mode=OneWay}" />
             <TextBlock DockPanel.Dock="Left" Text="✕" IsVisible="{Binding !Satisfied, Mode=OneWay}" />
-            <ContentPresenter Margin="5,0,0,0" Content="{ReflectionBinding DataContext.MyContent, ElementName=workaroundAvalonia16665, Mode=OneWay}" />
+            <ContentPresenter Margin="5,0,0,0" Content="{Binding MyContent, Mode=OneWay}" />
         </DockPanel>
 
         <StackPanel Orientation="Vertical" IsVisible="{Binding HeaderContent, Mode=OneTime, Converter={x:Static ObjectConverters.IsNotNull}}">

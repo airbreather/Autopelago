@@ -1,4 +1,7 @@
+using ReactiveUI;
 using ReactiveUI.Fody.Helpers;
+
+using Serilog;
 
 namespace Autopelago.ViewModels;
 
@@ -8,6 +11,7 @@ public sealed class MainWindowViewModel : ViewModelBase, IDisposable
 
     public MainWindowViewModel()
     {
+        Error = new() { BackToMainMenuCommand = ReactiveCommand.Create(() => { ContentViewModel = SettingsSelection; }) };
         _connectCommandSubscription = SettingsSelection.ConnectCommand
             .Subscribe(settings =>
             {
@@ -15,18 +19,28 @@ public sealed class MainWindowViewModel : ViewModelBase, IDisposable
                 {
                     SlotName = settings.Slot,
                 };
-                ContentViewModel = gameStateViewModel;
-                gameStateViewModel.ConnectionRefusedCommand.Subscribe(_ =>
+                gameStateViewModel.ConnectionRefused.Subscribe(connectionRefused =>
                 {
                     gameStateViewModel.Dispose();
-                    ContentViewModel = SettingsSelection;
+                    Error.Error = string.Join(Environment.NewLine, connectionRefused.Errors);
+                    ContentViewModel = Error;
                 });
+                gameStateViewModel.UnhandledException.Subscribe(ex =>
+                {
+                    gameStateViewModel.Dispose();
+                    Error.Error = $"{ex}";
+                    ContentViewModel = Error;
+                });
+                ContentViewModel = gameStateViewModel;
+                gameStateViewModel.Begin();
             });
 
         ContentViewModel = SettingsSelection;
     }
 
     public SettingsSelectionViewModel SettingsSelection { get; } = new();
+
+    public ErrorViewModel Error { get; }
 
     [Reactive]
     public ViewModelBase ContentViewModel { get; set; }

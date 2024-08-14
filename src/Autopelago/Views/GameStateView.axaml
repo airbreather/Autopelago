@@ -6,6 +6,7 @@
     xmlns:viewModels="clr-namespace:Autopelago.ViewModels"
     xmlns:reactiveUi="http://reactiveui.net"
     xmlns:materialIcons="clr-namespace:Material.Icons.Avalonia;assembly=Material.Icons.Avalonia"
+    Classes="GamerFont"
     mc:Ignorable="d" d:DesignWidth="950" d:DesignHeight="450"
     x:Class="Autopelago.Views.GameStateView"
     x:DataType="viewModels:GameStateViewModel"
