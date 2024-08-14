@@ -258,8 +258,6 @@ public sealed class GameStateViewModel : ViewModelBase, IDisposable
 
                 return GameDefinitions.Instance.LocationsByKey[CurrentLocation.Key with { N = CurrentLocation.Key.N + 1 }];
             }
-
-            return;
         }
     }
 
