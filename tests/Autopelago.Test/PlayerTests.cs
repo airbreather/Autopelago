@@ -1,3 +1,8 @@
+using System.Buffers;
+using System.Buffers.Text;
+using System.Runtime.CompilerServices;
+using System.Runtime.InteropServices;
+
 namespace Autopelago;
 
 [TestFixture]
@@ -24,9 +29,9 @@ public sealed class PlayerTests
     [Test]
     public void FirstAttemptsShouldMakeSense()
     {
-        ulong seed = EnsureSeedProducesInitialD20Sequence(12999128, [9, 14, 19, 10, 14]);
-        Prng.State prngState = Prng.State.Start(seed);
-        GameState state = GameState.Start(prngState);
+        Prng.State seed = EnsureSeedProducesInitialD20Sequence(12999128, [9, 14, 19, 10, 14]);
+        Prng.State prngState = seed;
+        GameState state = GameState.Start(seed);
 
         Player player = new();
 
@@ -79,7 +84,7 @@ public sealed class PlayerTests
     [Test]
     public void ShouldHeadFurtherAfterCompletingBasketball([Values(true, false)] bool unblockAngryTurtlesFirst)
     {
-        ulong seed = EnsureSeedProducesInitialD20Sequence(2449080649, [20, 20, 20, 20, 20, 20, 20, 20]);
+        Prng.State seed = EnsureSeedProducesInitialD20Sequence(2449080649, [20, 20, 20, 20, 20, 20, 20, 20]);
 
         GameState state = GameState.Start(seed);
         state = state with
@@ -145,7 +150,7 @@ public sealed class PlayerTests
     [Test]
     public void LuckyAuraShouldForceSuccess([Values(1, 2, 3)] int effectCount)
     {
-        ulong seed = EnsureSeedProducesInitialD20Sequence(8626806680, [1, 1, 1, 1, 1, 1, 1, 1]);
+        Prng.State seed = EnsureSeedProducesInitialD20Sequence(8626806680, [1, 1, 1, 1, 1, 1, 1, 1]);
         GameState state = GameState.Start(seed);
 
         state = state with { LuckFactor = effectCount };
@@ -160,7 +165,7 @@ public sealed class PlayerTests
     [Test]
     public void UnluckyAuraShouldReduceModifier()
     {
-        ulong seed = EnsureSeedProducesInitialD20Sequence(2242996, [14, 19, 20, 14, 15]);
+        Prng.State seed = EnsureSeedProducesInitialD20Sequence(2242996, [14, 19, 20, 14, 15]);
         GameState state = GameState.Start(seed);
 
         state = state with { LuckFactor = -4 };
@@ -181,7 +186,7 @@ public sealed class PlayerTests
     [Test]
     public void PositiveEnergyFactorShouldGiveFreeMovement()
     {
-        ulong seed = EnsureSeedProducesInitialD20Sequence(8626806680, [1, 1, 1, 1, 1, 1, 1, 1]);
+        Prng.State seed = EnsureSeedProducesInitialD20Sequence(8626806680, [1, 1, 1, 1, 1, 1, 1, 1]);
         GameState state = GameState.Start(seed);
 
         // with an "energy factor" of 5, you can make up to a total of 6 checks in two rounds before
@@ -213,7 +218,7 @@ public sealed class PlayerTests
     [Test]
     public void NegativeEnergyFactorShouldEncumberMovement()
     {
-        ulong seed = EnsureSeedProducesInitialD20Sequence(13033555434, [20, 20, 1, 20, 20, 20, 20, 1]);
+        Prng.State seed = EnsureSeedProducesInitialD20Sequence(13033555434, [20, 20, 1, 20, 20, 20, 20, 1]);
         GameState state = GameState.Start(seed);
 
         state = state with { EnergyFactor = -3 };
@@ -244,7 +249,7 @@ public sealed class PlayerTests
     [Test]
     public void PositiveFoodFactorShouldGrantOneExtraAction()
     {
-        ulong seed = EnsureSeedProducesInitialD20Sequence(2449080649, [20, 20, 20, 20, 20, 20, 20, 20]);
+        Prng.State seed = EnsureSeedProducesInitialD20Sequence(2449080649, [20, 20, 20, 20, 20, 20, 20, 20]);
         GameState state = GameState.Start(seed);
 
         state = state with { FoodFactor = 2 };
@@ -291,7 +296,7 @@ public sealed class PlayerTests
     [Test]
     public void NegativeFoodFactorShouldSubtractOneAction()
     {
-        ulong seed = EnsureSeedProducesInitialD20Sequence(2449080649, [20, 20, 20, 20, 20, 20, 20, 20]);
+        Prng.State seed = EnsureSeedProducesInitialD20Sequence(2449080649, [20, 20, 20, 20, 20, 20, 20, 20]);
         GameState state = GameState.Start(seed);
 
         state = state with { FoodFactor = -2 };
@@ -338,7 +343,7 @@ public sealed class PlayerTests
     [Test]
     public void DistractionCounterShouldWasteEntireRound()
     {
-        ulong seed = EnsureSeedProducesInitialD20Sequence(2449080649, [20, 20, 20, 20, 20, 20, 20, 20]);
+        Prng.State seed = EnsureSeedProducesInitialD20Sequence(2449080649, [20, 20, 20, 20, 20, 20, 20, 20]);
         GameState state = GameState.Start(seed);
 
         state = state with
@@ -370,7 +375,7 @@ public sealed class PlayerTests
     [Test]
     public void StyleFactorShouldImproveModifier()
     {
-        ulong seed = EnsureSeedProducesInitialD20Sequence(80387, [5, 10]);
+        Prng.State seed = EnsureSeedProducesInitialD20Sequence(80387, [5, 10]);
         GameState state = GameState.Start(seed);
 
         state = state with { StyleFactor = 2 };
@@ -390,10 +395,8 @@ public sealed class PlayerTests
     [Test]
     public void TestGoMode()
     {
-        ulong lowSeed = EnsureSeedProducesInitialD20Sequence(8626806680, [1, 1, 1, 1, 1, 1, 1, 1]);
-        ulong highSeed = EnsureSeedProducesInitialD20Sequence(2449080649, [20, 20, 20, 20, 20, 20, 20, 20]);
-        Prng.State lowRolls = Prng.State.Start(lowSeed);
-        Prng.State highRolls = Prng.State.Start(highSeed);
+        Prng.State lowRolls = EnsureSeedProducesInitialD20Sequence("Sr8rXn/wy4+RmchoEi8DdYc99ConsS+Fj2g7IoicNns="u8, [1, 1, 1, 1, 1, 1, 1, 1]);
+        Prng.State highRolls = EnsureSeedProducesInitialD20Sequence("ZcuBXfRkZixzx/eQAL1UiHpMG3kLbaDksoajUfxCis8="u8, [20, 20, 20, 20, 20, 20, 20, 20]);
 
         GameState state = GameState.Start();
 
@@ -440,12 +443,29 @@ public sealed class PlayerTests
         }
     }
 
-    private static ulong EnsureSeedProducesInitialD20Sequence(ulong seed, ReadOnlySpan<int> exactVals)
+    private static Prng.State EnsureSeedProducesInitialD20Sequence(ulong seed, ReadOnlySpan<int> exactVals)
     {
         int[] actual = [.. Rolls(seed, stackalloc int[exactVals.Length])];
         int[] expected = [.. exactVals];
         Assume.That(actual, Is.EqualTo(expected));
-        return seed;
+        return Prng.State.Start(seed);
+    }
+
+    private static Prng.State EnsureSeedProducesInitialD20Sequence(ReadOnlySpan<byte> seed, ReadOnlySpan<int> exactVals)
+    {
+        Assume.That(seed.Length, Is.EqualTo(Base64.GetMaxEncodedToUtf8Length(Unsafe.SizeOf<Prng.State>())));
+        Assume.That(Base64.IsValid(seed));
+        Prng.State initialState = default;
+        OperationStatus decodeStatus = Base64.DecodeFromUtf8(seed, MemoryMarshal.AsBytes(MemoryMarshal.CreateSpan(ref initialState, 1)), out int bytesConsumed, out int bytesWritten);
+        Assume.That(decodeStatus, Is.EqualTo(OperationStatus.Done));
+        Assume.That(bytesConsumed, Is.EqualTo(seed.Length));
+        Assume.That(bytesWritten, Is.EqualTo(Unsafe.SizeOf<Prng.State>()));
+
+        Prng.State state = initialState;
+        int[] actual = [.. Rolls(ref state, stackalloc int[exactVals.Length])];
+        int[] expected = [.. exactVals];
+        Assume.That(actual, Is.EqualTo(expected));
+        return initialState;
     }
 
     private static ReadOnlySpan<int> Rolls(ulong searchSeed, Span<int> rolls)
