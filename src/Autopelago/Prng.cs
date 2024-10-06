@@ -101,6 +101,8 @@ public static class Prng
     private static void Jump(ref State s, ReadOnlySpan<ulong> jump)
     {
         State ss = default;
+
+        // ReSharper disable once ForCanBeConvertedToForeach
         for (int i = 0; i < jump.Length; i++)
         {
             for (int b = 0; b < 64; b++)

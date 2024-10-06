@@ -1,8 +1,6 @@
 using ReactiveUI;
 using ReactiveUI.Fody.Helpers;
 
-using Serilog;
-
 namespace Autopelago.ViewModels;
 
 public sealed class MainWindowViewModel : ViewModelBase, IDisposable
