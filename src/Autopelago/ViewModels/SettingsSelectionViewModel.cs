@@ -48,8 +48,6 @@ public sealed record Settings
 
 public sealed partial class SettingsSelectionViewModel : ViewModelBase, IDisposable
 {
-    private static readonly Regex s_portRegex = HasPortRegex();
-
     private readonly CompositeDisposable _subscriptions = [];
 
     public SettingsSelectionViewModel()
@@ -70,7 +68,7 @@ public sealed partial class SettingsSelectionViewModel : ViewModelBase, IDisposa
             .WhenAnyValue(x => x.Host)
             .Subscribe(host =>
             {
-                Match m = s_portRegex.Match(host);
+                Match m = HasPortRegex().Match(host);
                 if (!m.Success)
                 {
                     UserCanEditPort = true;
@@ -111,7 +109,7 @@ public sealed partial class SettingsSelectionViewModel : ViewModelBase, IDisposa
     {
         get => new()
         {
-            Host = s_portRegex.Replace(Host, ""),
+            Host = HasPortRegex().Replace(Host, ""),
             Port = (ushort)Port.GetValueOrDefault(),
             Slot = Slot,
             Password = Password,
