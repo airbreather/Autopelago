@@ -116,11 +116,11 @@
                         <ToolTip.Tip>
                             <StackPanel>
                                 <TextBlock>RAT: Number of rats</TextBlock>
-                                <TextBlock>NOM: Food (or hunger)</TextBlock>
-                                <TextBlock>LCK: Luck (or unluckiness)</TextBlock>
-                                <TextBlock>NRG: Energy (or fatigue)</TextBlock>
-                                <TextBlock>STY: Style factor</TextBlock>
-                                <TextBlock>DIS: Distraction counter</TextBlock>
+                                <TextBlock>NOM: Food</TextBlock>
+                                <TextBlock>LCK: Luck</TextBlock>
+                                <TextBlock>NRG: Energy</TextBlock>
+                                <TextBlock>STY: Style</TextBlock>
+                                <TextBlock>DIS: Distraction</TextBlock>
                                 <TextBlock>CNF: Confidence</TextBlock>
                             </StackPanel>
                         </ToolTip.Tip>
