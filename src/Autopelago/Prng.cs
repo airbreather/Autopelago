@@ -152,7 +152,7 @@ public static class Prng
 
     [InlineArray(4)]
     [JsonConverter(typeof(Converter))]
-    public record struct State
+    public struct State
     {
         [SuppressMessage("Style", "IDE0044: Add readonly modifier", Justification = "https://github.com/dotnet/roslyn/issues/69143")]
         private ulong _element0;
@@ -178,9 +178,18 @@ public static class Prng
 
         public readonly bool IsValid => !((ReadOnlySpan<ulong>)this).SequenceEqual([0ul, 0ul, 0ul, 0ul]);
 
+        public static bool operator==(State first, State second) => first.Equals(second);
+
+        public static bool operator!=(State first, State second) => !(first == second);
+
         public readonly bool Equals(State other)
         {
             return ((ReadOnlySpan<ulong>)this).SequenceEqual(other);
+        }
+
+        public readonly override bool Equals([NotNullWhen(true)] object? obj)
+        {
+            return obj is State other && Equals(other);
         }
 
         public override readonly int GetHashCode()
