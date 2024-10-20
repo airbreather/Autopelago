@@ -99,6 +99,8 @@ public sealed class GameStateViewModel : ViewModelBase, IDisposable
 
     private readonly FrozenDictionary<LocationDefinitionModel, LandmarkRegionViewModel> _landmarkRegionsByLocation;
 
+    private readonly CancellationTokenSource _gameCompleteCts = new();
+
     private ClientWebSocketBox _clientWebSocketBox = null!;
 
     private DataPackagePacketModel _dataPackage = null!;
@@ -622,12 +624,22 @@ public sealed class GameStateViewModel : ViewModelBase, IDisposable
             }
         }
 
+        LandmarkRegionViewModel goalRegion = _landmarkRegionsByLocation[GameDefinitions.Instance.GoalLocation];
         using IMemoryOwner<byte> firstBufOwner = MemoryPool<byte>.Shared.Rent(65536);
         Memory<byte> fullFirstBuf = firstBufOwner.Memory;
         Queue<IDisposable?> extraDisposables = [];
-        while (true)
+        while (!goalRegion.Checked)
         {
-            ValueWebSocketReceiveResult prevReceiveResult = await socketBox.Socket.ReceiveAsync(fullFirstBuf, default);
+            ValueWebSocketReceiveResult prevReceiveResult;
+            try
+            {
+                prevReceiveResult = await socketBox.Socket.ReceiveAsync(fullFirstBuf, _gameCompleteCts.Token);
+            }
+            catch (OperationCanceledException)
+            {
+                continue;
+            }
+
             ReadOnlyMemory<byte> firstBuf = fullFirstBuf[..prevReceiveResult.Count];
             if (firstBuf.IsEmpty)
             {
@@ -733,6 +745,7 @@ public sealed class GameStateViewModel : ViewModelBase, IDisposable
 
             LocationChecksPacketModel locationChecks = new() { Locations = locationIds.ToArray() };
             await SendPacketsAsync([locationChecks]);
+            _gameCompleteCts.Cancel();
         }
 
         _landmarkRegionsByLocation[GameDefinitions.Instance.GoalLocation].Checked = true;
