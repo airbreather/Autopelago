@@ -105,8 +105,14 @@
                 </Viewbox>
 
                 <Border DockPanel.Dock="Top" Margin="0,5,0,0" Padding="5,2" Classes="tracker-box horizontal-only">
-                    <Grid ColumnDefinitions="Auto,*,Auto" RowDefinitions="Auto,Auto,Auto,Auto,Auto,Auto,Auto"
+                    <Grid RowDefinitions="Auto,Auto,Auto,Auto,Auto,Auto,Auto"
                           ToolTip.VerticalOffset="0" PointerMoved="OnPointerMovedOverControlWithToolTip">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="Auto" />
+                            <ColumnDefinition Width="*" />
+                            <!-- 21 = the actual width for a 2-digit number in our gamer font -->
+                            <ColumnDefinition Width="Auto" MinWidth="21" />
+                        </Grid.ColumnDefinitions>
                         <ToolTip.Tip>
                             <StackPanel>
                                 <TextBlock>RAT: Number of rats</TextBlock>
