@@ -15,7 +15,8 @@ public sealed class ViewLocator : IDataTemplate
             MainWindowViewModel or
             SettingsSelectionViewModel or
             GameRequirementToolTipViewModel or
-            ErrorViewModel;
+            ErrorViewModel or
+            EndingFanfareViewModel;
     }
 
     public Control Build(object? param)
@@ -27,6 +28,7 @@ public sealed class ViewLocator : IDataTemplate
             SettingsSelectionViewModel => new SettingsSelectionView(),
             GameRequirementToolTipViewModel => new GameRequirementToolTipView(),
             ErrorViewModel => new ErrorView(),
+            EndingFanfareViewModel => new EndingFanfareView(),
             _ => throw new InvalidOperationException("Match returned false."),
         };
     }

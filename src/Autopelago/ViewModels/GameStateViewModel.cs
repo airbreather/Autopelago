@@ -4,6 +4,7 @@ using System.Collections.Immutable;
 using System.Collections.Specialized;
 using System.ComponentModel;
 using System.Net.WebSockets;
+using System.Reactive;
 using System.Reactive.Disposables;
 using System.Reactive.Linq;
 using System.Reactive.Subjects;
@@ -265,6 +266,8 @@ public sealed class GameStateViewModel : ViewModelBase, IDisposable
 
     [Reactive]
     public string SlotName { get; set; } = "";
+
+    public required ReactiveCommand<Unit, Unit> EndingFanfareCommand { get; init; }
 
     [Reactive]
     public LocationDefinitionModel CurrentLocation { get; set; } = GameDefinitions.Instance.StartLocation;
@@ -751,6 +754,7 @@ public sealed class GameStateViewModel : ViewModelBase, IDisposable
         _landmarkRegionsByLocation[GameDefinitions.Instance.GoalLocation].Checked = true;
         StatusUpdatePacketModel statusUpdate = new() { Status = ArchipelagoClientStatus.Goal };
         await SendPacketsAsync([statusUpdate]);
+        await EndingFanfareCommand.Execute();
     }
 
     private void UpdateLastFullData()

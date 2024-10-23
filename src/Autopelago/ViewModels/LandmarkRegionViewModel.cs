@@ -15,7 +15,7 @@ public sealed class LandmarkRegionViewModel : ViewModelBase, IDisposable
 {
     private static readonly Vector s_toCenter = new Vector(16, 16) / 2;
 
-    private static readonly Lazy<(Bitmap[] Yellow, Bitmap[] Gray)> s_questFrames = new(() => (ReadFrames("yellow_quest").Saturated, ReadFrames("gray_quest").Saturated));
+    private static readonly Lazy<(Bitmap[] Yellow, Bitmap[] Gray)> s_questFrames = new(() => (ReadFrames("yellow_quest", false).Saturated, ReadFrames("gray_quest", false).Saturated));
 
     private static readonly FrozenDictionary<string, Point> s_canvasLocations = new[]
     {
@@ -72,7 +72,8 @@ public sealed class LandmarkRegionViewModel : ViewModelBase, IDisposable
         GameRequirementToolTipSource = new(Region.Requirement);
         CanvasLocation = s_canvasLocations[regionKey] - s_toCenter;
 
-        (_saturated, _desaturated) = ReadFrames(regionKey);
+        (_saturated, Bitmap[]? desaturated) = ReadFrames(regionKey, true);
+        _desaturated = desaturated!;
         (Bitmap[] yellowQuestFrames, Bitmap[] grayQuestFrames) = s_questFrames.Value;
 
         _clearAvailableSubscription = this
@@ -142,14 +143,14 @@ public sealed class LandmarkRegionViewModel : ViewModelBase, IDisposable
         ++FrameCounter;
     }
 
-    private static (Bitmap[] Saturated, Bitmap[] Desaturated) ReadFrames(string regionKey)
+    internal static (Bitmap[] Saturated, Bitmap[]? Desaturated) ReadFrames(string regionKey, bool andDesaturated)
     {
         using Stream data = AssetLoader.Open(new($"avares://Autopelago/Assets/Images/{regionKey}.webp"));
         using SKCodec codec = SKCodec.Create(data);
         SKImageInfo imageInfo = codec.Info;
         SKCodecFrameInfo[] frameInfo = codec.FrameInfo;
         Bitmap[] saturated = new Bitmap[2];
-        Bitmap[] desaturated = new Bitmap[2];
+        Bitmap[]? desaturated = andDesaturated ? new Bitmap[2] : null;
         if (frameInfo.Length is not (0 or 2))
         {
             throw new NotSupportedException("These were all supposed to be 1- or 2-frame images.");
@@ -171,7 +172,10 @@ public sealed class LandmarkRegionViewModel : ViewModelBase, IDisposable
             encoded.SaveTo(ms);
             ms.Position = 0;
             saturated[i] = new(ms);
-            desaturated[i] = ToDesaturated(bmp);
+            if (desaturated is not null)
+            {
+                desaturated[i] = ToDesaturated(bmp);
+            }
         }
 
         if (frameInfo.Length == 0)
@@ -185,7 +189,10 @@ public sealed class LandmarkRegionViewModel : ViewModelBase, IDisposable
             encoded.SaveTo(ms);
             ms.Position = 0;
             saturated[0] = saturated[1] = new(ms);
-            desaturated[0] = desaturated[1] = ToDesaturated(bmp);
+            if (desaturated is not null)
+            {
+                desaturated[0] = desaturated[1] = ToDesaturated(bmp);
+            }
         }
 
         return (saturated, desaturated);

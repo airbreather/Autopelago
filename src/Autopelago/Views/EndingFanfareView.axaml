@@ -1,0 +1,34 @@
+<reactiveUi:ReactiveUserControl
+    xmlns="https://github.com/avaloniaui"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+    xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+    xmlns:reactiveUi="http://reactiveui.net"
+    xmlns:viewModels="clr-namespace:Autopelago.ViewModels"
+    Classes="GamerFont"
+    mc:Ignorable="d" d:DesignWidth="800" d:DesignHeight="450"
+    x:Class="Autopelago.Views.EndingFanfareView"
+    x:DataType="viewModels:EndingFanfareViewModel"
+    x:TypeArguments="viewModels:EndingFanfareViewModel">
+
+    <Design.DataContext>
+        <viewModels:EndingFanfareViewModel />
+    </Design.DataContext>
+
+    <Grid RowDefinitions="*,Auto">
+        <StackPanel Orientation="Horizontal" VerticalAlignment="Center" HorizontalAlignment="Center">
+            <TextBlock FontSize="40">
+                u win.
+            </TextBlock>
+            <Image Height="30" Width="30" Source="{Binding Image, Mode=OneWay}" />
+        </StackPanel>
+
+        <Button Grid.Row="2"
+                Classes="GamerFont"
+                HorizontalAlignment="Stretch"
+                HorizontalContentAlignment="Center"
+                Command="{Binding BackToMapCommand}"
+                Content="Back to Map" />
+    </Grid>
+
+</reactiveUi:ReactiveUserControl>

@@ -1,3 +1,5 @@
+using System.Reactive;
+
 using ReactiveUI;
 using ReactiveUI.Fody.Helpers;
 
@@ -10,12 +12,16 @@ public sealed class MainWindowViewModel : ViewModelBase, IDisposable
     public MainWindowViewModel()
     {
         Error = new() { BackToMainMenuCommand = ReactiveCommand.Create(() => { ContentViewModel = SettingsSelection; }) };
+        GameStateViewModel? gameStateViewModel = null;
+        EndingFanfare = new() { BackToMapCommand = ReactiveCommand.Create(() => { ContentViewModel = gameStateViewModel!; }) };
+
         _connectCommandSubscription = SettingsSelection.ConnectCommand
             .Subscribe(settings =>
             {
-                GameStateViewModel gameStateViewModel = new(settings)
+                gameStateViewModel = new(settings)
                 {
                     SlotName = settings.Slot,
+                    EndingFanfareCommand = ReactiveCommand.Create(() => { ContentViewModel = EndingFanfare; }),
                 };
                 gameStateViewModel.ConnectionRefused.Subscribe(connectionRefused =>
                 {
@@ -39,6 +45,8 @@ public sealed class MainWindowViewModel : ViewModelBase, IDisposable
     public SettingsSelectionViewModel SettingsSelection { get; } = new();
 
     public ErrorViewModel Error { get; }
+
+    public EndingFanfareViewModel EndingFanfare { get; }
 
     [Reactive]
     public ViewModelBase ContentViewModel { get; set; }
