@@ -774,13 +774,13 @@ public sealed class GameStateViewModel : ViewModelBase, IDisposable
 
             LocationChecksPacketModel locationChecks = new() { Locations = locationIds.ToArray() };
             await SendPacketsAsync([locationChecks]);
-            _gameCompleteCts.Cancel();
         }
 
         _landmarkRegionsByLocation[GameDefinitions.Instance.GoalLocation].Checked = true;
         StatusUpdatePacketModel statusUpdate = new() { Status = ArchipelagoClientStatus.Goal };
         await SendPacketsAsync([statusUpdate]);
         await EndingFanfareCommand.Execute();
+        _gameCompleteCts.Cancel();
     }
 
     private void UpdateLastFullData()
