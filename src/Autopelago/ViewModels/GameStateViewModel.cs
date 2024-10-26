@@ -120,6 +120,10 @@ public sealed class GameStateViewModel : ViewModelBase, IDisposable
 
     private long _prevStartTimestamp;
 
+    private CancellationTokenSource _pauseCts = new();
+
+    private CancellationTokenSource _playCts = new();
+
     public GameStateViewModel()
         : this(Settings.ForDesigner)
     {
@@ -707,9 +711,24 @@ public sealed class GameStateViewModel : ViewModelBase, IDisposable
         while (!_state.IsCompleted)
         {
             TimeSpan remaining = _nextFullInterval - _timeProvider.GetElapsedTime(_prevStartTimestamp);
-            if (remaining > TimeSpan.Zero)
+            long dueTime = _timeProvider.GetTimestamp() + ((long)(_nextFullInterval.TotalSeconds * _timeProvider.TimestampFrequency));
+            while (_timeProvider.GetTimestamp() < dueTime)
             {
-                await Task.Delay(remaining, _timeProvider);
+                try
+                {
+                    await Task.Delay(remaining, _timeProvider, _pauseCts.Token);
+                }
+                catch (OperationCanceledException)
+                {
+                    // user clicked Pause
+                    long waitStart = _timeProvider.GetTimestamp();
+                    TaskCompletionSource cancelTcs = new(TaskCreationOptions.RunContinuationsAsynchronously);
+                    using CancellationTokenRegistration reg = _playCts.Token.Register(() => cancelTcs.TrySetResult());
+                    await cancelTcs.Task;
+                    dueTime += _timeProvider.GetTimestamp() - waitStart;
+                    _playCts = new();
+                    _pauseCts = new();
+                }
             }
 
             GameState prevState, nextState;
