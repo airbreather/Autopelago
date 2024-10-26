@@ -137,6 +137,9 @@ public sealed class GameStateViewModel : ViewModelBase, IDisposable
         _stateFile.Directory!.Create();
         _stateTmpFile = new(_stateFile.FullName.Replace(".json.zst", ".tmp.json.zst"));
 
+        PlayCommand = ReactiveCommand.Create(() => _playCts.Cancel());
+        PauseCommand = ReactiveCommand.Create(() => _pauseCts.Cancel());
+
         _subscriptions.Add(Observable.Interval(TimeSpan.FromMilliseconds(500), AvaloniaScheduler.Instance)
             .Subscribe(_ =>
             {
@@ -272,6 +275,10 @@ public sealed class GameStateViewModel : ViewModelBase, IDisposable
     public string SlotName { get; set; } = "";
 
     public required ReactiveCommand<Unit, Unit> EndingFanfareCommand { get; init; }
+
+    public ReactiveCommand<Unit, Unit> PlayCommand { get; }
+
+    public ReactiveCommand<Unit, Unit> PauseCommand { get; }
 
     [Reactive]
     public LocationDefinitionModel CurrentLocation { get; set; } = GameDefinitions.Instance.StartLocation;

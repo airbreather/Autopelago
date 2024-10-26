@@ -278,6 +278,16 @@
                         </StackPanel>
                     </TabItem.Header>
                 </TabItem>
+                <TabItem>
+                    <TabItem.Header>
+                        <Button Command="{Binding PlayCommand}" Content="Play" />
+                    </TabItem.Header>
+                </TabItem>
+                <TabItem>
+                    <TabItem.Header>
+                        <Button Command="{Binding PauseCommand}" Content="Pause" />
+                    </TabItem.Header>
+                </TabItem>
             </TabControl>
         </Border>
     </Grid>
