@@ -234,9 +234,8 @@
                                                                                Classes="tooltip small"
                                                                                Text="{Binding Location.FlavorText, StringFormat='“{0}”', Mode=OneTime}"
                                                                                IsVisible="{Binding Location.FlavorText, Mode=OneTime, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
-                                                                    <ContentPresenter Classes="tooltip big"
-                                                                                      Content="{Binding GameRequirementToolTipSource, Mode=OneWay}"
-                                                                                      TextWrapping="Wrap" />
+                                                                    <ContentControl Classes="tooltip big"
+                                                                                    Content="{Binding GameRequirementToolTipSource, Mode=OneWay}" />
                                                                 </DockPanel>
                                                             </Grid>
                                                         </Border>
