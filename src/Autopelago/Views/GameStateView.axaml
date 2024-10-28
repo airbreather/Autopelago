@@ -198,76 +198,85 @@
                 </TabControl.ItemsPanel>
 
                 <TabItem Header="Map">
-                    <ScrollViewer HorizontalScrollBarVisibility="Disabled" VerticalScrollBarVisibility="Auto">
-                        <Viewbox>
-                            <Grid>
-                                <Svg Width="300" Height="450" Path="/Assets/Images/map.svg" />
-                                <ItemsControl ItemsSource="{Binding LandmarkRegions, Mode=OneTime}">
-                                    <ItemsControl.ItemsPanel>
-                                        <ItemsPanelTemplate>
-                                            <Canvas Width="300" Height="450" />
-                                        </ItemsPanelTemplate>
-                                    </ItemsControl.ItemsPanel>
-                                    <ItemsControl.Styles>
-                                        <Style Selector="ContentPresenter">
-                                            <Setter Property="Canvas.Left" Value="{Binding $self.((viewModels:LandmarkRegionViewModel)DataContext).CanvasLocation.X, FallbackValue=0}" />
-                                            <Setter Property="Canvas.Top" Value="{Binding $self.((viewModels:LandmarkRegionViewModel)DataContext).CanvasLocation.Y, FallbackValue=0}" />
-                                        </Style>
-                                    </ItemsControl.Styles>
-                                    <ItemsControl.ItemTemplate>
-                                        <DataTemplate>
-                                            <Grid ToolTip.VerticalOffset="0" PointerMoved="OnPointerMovedOverControlWithToolTip">
-                                                <ToolTip.Tip>
-                                                    <StackPanel>
-                                                        <Border Padding="4" Classes="tracker-box item">
-                                                            <TextBlock Classes="tooltip big"
-                                                                       Text="{Binding Location.Name, Mode=OneTime}" />
-                                                        </Border>
+                    <Panel>
+                        <ScrollViewer HorizontalScrollBarVisibility="Disabled" VerticalScrollBarVisibility="Auto">
+                            <Viewbox>
+                                <Panel>
+                                    <Svg Width="300" Height="450" Path="/Assets/Images/map.svg" />
+                                    <ItemsControl ItemsSource="{Binding LandmarkRegions, Mode=OneTime}">
+                                        <ItemsControl.ItemsPanel>
+                                            <ItemsPanelTemplate>
+                                                <Canvas Width="300" Height="450" />
+                                            </ItemsPanelTemplate>
+                                        </ItemsControl.ItemsPanel>
+                                        <ItemsControl.Styles>
+                                            <Style Selector="ContentPresenter">
+                                                <Setter Property="Canvas.Left" Value="{Binding $self.((viewModels:LandmarkRegionViewModel)DataContext).CanvasLocation.X, FallbackValue=0}" />
+                                                <Setter Property="Canvas.Top" Value="{Binding $self.((viewModels:LandmarkRegionViewModel)DataContext).CanvasLocation.Y, FallbackValue=0}" />
+                                            </Style>
+                                        </ItemsControl.Styles>
+                                        <ItemsControl.ItemTemplate>
+                                            <DataTemplate>
+                                                <Grid ToolTip.VerticalOffset="0" PointerMoved="OnPointerMovedOverControlWithToolTip">
+                                                    <ToolTip.Tip>
+                                                        <StackPanel>
+                                                            <Border Padding="4" Classes="tracker-box item">
+                                                                <TextBlock Classes="tooltip big"
+                                                                           Text="{Binding Location.Name, Mode=OneTime}" />
+                                                            </Border>
 
-                                                        <Border Margin="0,5,0,0" Padding="4" Classes="tracker-box item">
-                                                            <Grid ColumnDefinitions="Auto,*">
-                                                                <!-- Note: coordinates are NOT scaled like everything else on the map. -->
-                                                                <Image Height="64" Width="64" Source="{Binding SaturatedImage, Mode=OneWay}" />
-                                                                <DockPanel Margin="5,0,0,0" Grid.Column="1">
-                                                                    <TextBlock Margin="0,5,0,0"
-                                                                               DockPanel.Dock="Bottom"
-                                                                               Classes="tooltip small"
-                                                                               Text="{Binding Location.FlavorText, StringFormat='“{0}”', Mode=OneTime}"
-                                                                               IsVisible="{Binding Location.FlavorText, Mode=OneTime, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
-                                                                    <ContentControl Classes="tooltip big"
-                                                                                    Content="{Binding GameRequirementToolTipSource, Mode=OneWay}" />
-                                                                </DockPanel>
-                                                            </Grid>
-                                                        </Border>
-                                                    </StackPanel>
-                                                </ToolTip.Tip>
+                                                            <Border Margin="0,5,0,0" Padding="4" Classes="tracker-box item">
+                                                                <Grid ColumnDefinitions="Auto,*">
+                                                                    <!-- Note: coordinates are NOT scaled like everything else on the map. -->
+                                                                    <Image Height="64" Width="64" Source="{Binding SaturatedImage, Mode=OneWay}" />
+                                                                    <DockPanel Margin="5,0,0,0" Grid.Column="1">
+                                                                        <TextBlock Margin="0,5,0,0"
+                                                                                   DockPanel.Dock="Bottom"
+                                                                                   Classes="tooltip small"
+                                                                                   Text="{Binding Location.FlavorText, StringFormat='“{0}”', Mode=OneTime}"
+                                                                                   IsVisible="{Binding Location.FlavorText, Mode=OneTime, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
+                                                                        <ContentControl Classes="tooltip big"
+                                                                                        Content="{Binding GameRequirementToolTipSource, Mode=OneWay}" />
+                                                                    </DockPanel>
+                                                                </Grid>
+                                                            </Border>
+                                                        </StackPanel>
+                                                    </ToolTip.Tip>
 
-                                                <Image Height="16" Width="16" Source="{Binding Image, Mode=OneWay}" />
-                                                <Image Height="12" Width="12" Source="{Binding QuestImage, Mode=OneWay}">
-                                                    <Image.RenderTransform>
-                                                        <TranslateTransform Y="-13" />
-                                                    </Image.RenderTransform>
-                                                </Image>
-                                            </Grid>
-                                        </DataTemplate>
-                                    </ItemsControl.ItemTemplate>
-                                </ItemsControl>
-                                <Canvas Width="300" Height="450">
-                                    <Image Classes="player" Classes.onFiller="{Binding CurrentFillerRegion, Mode=OneWay, Converter={x:Static ObjectConverters.IsNotNull}}"
-                                           Width="16" Canvas.Left="{Binding CurrentPoint.X, Mode=OneWay}"
-                                           Height="16" Canvas.Top="{Binding CurrentPoint.Y, Mode=OneWay}"
-                                           Source="/Assets/Images/pack_rat.webp">
-                                        <Image.Transitions>
-                                            <Transitions>
-                                                <DoubleTransition Property="Canvas.Left" Duration="0:0:0.5" />
-                                                <DoubleTransition Property="Canvas.Top" Duration="0:0:0.5" />
-                                            </Transitions>
-                                        </Image.Transitions>
-                                    </Image>
-                                </Canvas>
-                            </Grid>
-                        </Viewbox>
-                    </ScrollViewer>
+                                                    <Image Height="16" Width="16" Source="{Binding Image, Mode=OneWay}" />
+                                                    <Image Height="12" Width="12" Source="{Binding QuestImage, Mode=OneWay}">
+                                                        <Image.RenderTransform>
+                                                            <TranslateTransform Y="-13" />
+                                                        </Image.RenderTransform>
+                                                    </Image>
+                                                </Grid>
+                                            </DataTemplate>
+                                        </ItemsControl.ItemTemplate>
+                                    </ItemsControl>
+                                    <Canvas Width="300" Height="450">
+                                        <Image Classes="player" Classes.onFiller="{Binding CurrentFillerRegion, Mode=OneWay, Converter={x:Static ObjectConverters.IsNotNull}}"
+                                               Width="16" Canvas.Left="{Binding CurrentPoint.X, Mode=OneWay}"
+                                               Height="16" Canvas.Top="{Binding CurrentPoint.Y, Mode=OneWay}"
+                                               Source="/Assets/Images/pack_rat.webp">
+                                            <Image.Transitions>
+                                                <Transitions>
+                                                    <DoubleTransition Property="Canvas.Left" Duration="0:0:0.5" />
+                                                    <DoubleTransition Property="Canvas.Top" Duration="0:0:0.5" />
+                                                </Transitions>
+                                            </Image.Transitions>
+                                        </Image>
+                                    </Canvas>
+                                </Panel>
+                            </Viewbox>
+                        </ScrollViewer>
+                        <ToggleButton HorizontalAlignment="Left"
+                                      VerticalAlignment="Bottom"
+                                      Margin="5,0,0,5"
+                                      Width="32"
+                                      Height="32"
+                                      Command="{Binding PlayPauseCommand}"
+                                      Content="{materialIcons:MaterialIconExt Pause, Size=24}" />
+                    </Panel>
                 </TabItem>
                 <TabItem IsEnabled="False">
                     <TabItem.Header>
@@ -275,16 +284,6 @@
                             <materialIcons:MaterialIcon Kind="Lock" />
                             <TextBlock Margin="5,0,0,0" Text="Arcade" />
                         </StackPanel>
-                    </TabItem.Header>
-                </TabItem>
-                <TabItem>
-                    <TabItem.Header>
-                        <Button Command="{Binding PlayCommand}" Content="Play" />
-                    </TabItem.Header>
-                </TabItem>
-                <TabItem>
-                    <TabItem.Header>
-                        <Button Command="{Binding PauseCommand}" Content="Pause" />
                     </TabItem.Header>
                 </TabItem>
             </TabControl>

@@ -124,6 +124,8 @@ public sealed class GameStateViewModel : ViewModelBase, IDisposable
 
     private CancellationTokenSource _playCts = new();
 
+    private bool _paused;
+
     public GameStateViewModel()
         : this(Settings.ForDesigner)
     {
@@ -137,8 +139,19 @@ public sealed class GameStateViewModel : ViewModelBase, IDisposable
         _stateFile.Directory!.Create();
         _stateTmpFile = new(_stateFile.FullName.Replace(".json.zst", ".tmp.json.zst"));
 
-        PlayCommand = ReactiveCommand.Create(() => _playCts.Cancel());
-        PauseCommand = ReactiveCommand.Create(() => _pauseCts.Cancel());
+        PlayPauseCommand = ReactiveCommand.Create(() =>
+        {
+            if (_paused)
+            {
+                _playCts.Cancel();
+                _paused = false;
+            }
+            else
+            {
+                _pauseCts.Cancel();
+                _paused = true;
+            }
+        });
 
         _subscriptions.Add(Observable.Interval(TimeSpan.FromMilliseconds(500), AvaloniaScheduler.Instance)
             .Subscribe(_ =>
@@ -251,6 +264,7 @@ public sealed class GameStateViewModel : ViewModelBase, IDisposable
 
             _subscriptions.Add(Observable
                 .Interval(TimeSpan.FromSeconds(1), AvaloniaScheduler.Instance)
+                .Where(_ => !_paused)
                 .Subscribe(_ => CurrentLocation = NextLocation()));
 
             LocationDefinitionModel NextLocation()
@@ -276,9 +290,7 @@ public sealed class GameStateViewModel : ViewModelBase, IDisposable
 
     public required ReactiveCommand<Unit, Unit> EndingFanfareCommand { get; init; }
 
-    public ReactiveCommand<Unit, Unit> PlayCommand { get; }
-
-    public ReactiveCommand<Unit, Unit> PauseCommand { get; }
+    public ReactiveCommand<Unit, Unit> PlayPauseCommand { get; }
 
     [Reactive]
     public LocationDefinitionModel CurrentLocation { get; set; } = GameDefinitions.Instance.StartLocation;
