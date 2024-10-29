@@ -156,11 +156,6 @@ public sealed class Player
 
     private LocationDefinitionModel BestTargetLocation(GameState state)
     {
-        if (BestPriorityLocation(state) is { } bestPriorityLocation)
-        {
-            return bestPriorityLocation;
-        }
-
         List<(LocationDefinitionModel Location, int Depth)> goModeTargets = [];
         HashSet<string> satisfiedLandmarks = [];
         HashSet<string> unsatisfiedLandmarks = [];
@@ -214,6 +209,11 @@ public sealed class Player
         if (goModeTargets.Count > 0)
         {
             return goModeTargets.MaxBy(tgt => tgt.Depth).Location;
+        }
+
+        if (BestPriorityLocation(state) is { } bestPriorityLocation)
+        {
+            return bestPriorityLocation;
         }
 
         // TODO: this will still need a revamp, taking into account things like:
