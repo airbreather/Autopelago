@@ -446,25 +446,44 @@ public sealed class PlayerTests
     [Test]
     public void PriorityLocationsShouldShiftTarget()
     {
-        Prng.State seed = EnsureSeedProducesInitialD20Sequence("ZcuBXfRkZixzx/eQAL1UiHpMG3kLbaDksoajUfxCis8="u8, [20, 20, 20, 20, 20, 20, 20, 20, 20, 20, 20]);
-        GameState state = GameState.Start(seed);
+        Prng.State lowRolls = EnsureSeedProducesInitialD20Sequence("Sr8rXn/wy4+RmchoEi8DdYc99ConsS+Fj2g7IoicNns="u8, [1, 1, 1, 1, 1, 1, 1, 1]);
+        Prng.State highRolls = EnsureSeedProducesInitialD20Sequence("ZcuBXfRkZixzx/eQAL1UiHpMG3kLbaDksoajUfxCis8="u8, [20, 20, 20, 20, 20, 20, 20, 20]);
+        GameState state = GameState.Start(lowRolls);
+
+        LocationDefinitionModel prawnStars = GameDefinitions.Instance.LocationsByName["Prawn Stars"];
 
         Assert.That(state.TargetLocation.Key, Is.EqualTo(new LocationKey { RegionKey = "Menu", N = 0 }));
 
-        state = state with { PriorityLocations = [GameDefinitions.Instance.LocationsByName["Prawn Stars"]] };
+        // prioritize Prawn Stars
+        state = state with { PriorityLocations = [prawnStars] };
 
         Player player = new();
         GameState scrubbedState = player.Advance(state);
 
-        Assert.That(scrubbedState.TargetLocation.Region.Key, Is.Not.EqualTo("prawn_stars"));
+        // should NOT be targeting Prawn Stars now, because we can't reach it out the gate.
+        Assert.That(scrubbedState.TargetLocation, Is.Not.EqualTo(prawnStars));
 
+        // give what's needed to reach Prawn Stars
         state = player.Advance(state with
         {
             CheckedLocations = [s_basketball],
             ReceivedItems = [.. Enumerable.Range(0, 5).Select(_ => s_normalRat), s_premiumCanOfPrawnFood],
         });
 
-        Assert.That(state.TargetLocation.Region.Key, Is.EqualTo("prawn_stars"));
+        // NOW that's what we should be targeting
+        Assert.That(state.TargetLocation, Is.EqualTo(prawnStars));
+
+        // teleport the rat over to Prawn Stars and have it do its thing (remember it's rolling all
+        // natural 1s today).
+        state = player.Advance(state with { CurrentLocation = state.TargetLocation });
+
+        // it should still be there, and it should still be our priority location.
+        Assert.That(state.PriorityLocations, Is.EqualTo(new[] { prawnStars }));
+
+        // now roll natural 20s.
+        state = player.Advance(state with { PrngState = highRolls });
+
+        Assert.That(state.PriorityLocations, Is.Empty);
     }
 
     private static Prng.State EnsureSeedProducesInitialD20Sequence(ulong seed, ReadOnlySpan<int> exactVals)

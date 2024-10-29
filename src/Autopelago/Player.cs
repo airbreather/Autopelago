@@ -93,6 +93,16 @@ public sealed class Player
 
             if (LocationIsChecked(state.CurrentLocation.Key))
             {
+                if (state.PriorityLocations.FirstOrDefault() == state.TargetLocation)
+                {
+                    // we've reached our next priority location. remove it from the queue.
+                    state = state with { PriorityLocations = state.PriorityLocations.RemoveAt(0) };
+
+                    // don't break just yet: there could be another priority location, or else there
+                    // could be a non-priority location that we just haven't checked yet.
+                    continue;
+                }
+
                 // nowhere to move, nothing to do where we are.
                 break;
             }
@@ -102,6 +112,15 @@ public sealed class Player
             if (success)
             {
                 MarkLocationChecked(state.CurrentLocation.Key);
+
+                if (state.PriorityLocations.FirstOrDefault() == state.TargetLocation)
+                {
+                    // we've finished off our next priority location. remove it from the queue.
+                    state = state with 
+                    {
+                        PriorityLocations = state.PriorityLocations.RemoveAt(0),
+                    };
+                }
 
                 // pointing to the next target location on the current route does not take an action
                 state = state with { TargetLocation = BestTargetLocation(state) };
@@ -220,11 +239,6 @@ public sealed class Player
 
         foreach (LocationDefinitionModel priorityLocation in state.PriorityLocations)
         {
-            if (_checkedLocations[priorityLocation.Region.Key][priorityLocation.Key.N])
-            {
-                continue;
-            }
-
             foreach ((LocationDefinitionModel reachableLocation, _) in state.CurrentLocation.EnumerateReachableLocationsByDistance(state))
             {
                 if (reachableLocation.Key == priorityLocation.Key)
