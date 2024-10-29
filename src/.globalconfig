@@ -7,6 +7,9 @@ dotnet_diagnostic.CA1051.severity = none
 # Specify IFormatProvider
 dotnet_diagnostic.CA1305.severity = none
 
+# Use ordinal StringComparison
+dotnet_diagnostic.CA1309.severity = none
+
 # Identifiers should not contain underscores
 dotnet_diagnostic.CA1707.severity = none
 
