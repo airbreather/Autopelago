@@ -125,8 +125,6 @@ public sealed class GameStateViewModel : ViewModelBase, IDisposable
 
     private CancellationTokenSource _playCts = new();
 
-    private bool _paused;
-
     public GameStateViewModel()
         : this(Settings.ForDesigner)
     {
@@ -142,19 +140,20 @@ public sealed class GameStateViewModel : ViewModelBase, IDisposable
 
         PlayPauseCommand = ReactiveCommand.Create(() =>
         {
-            if (_paused)
+            if (Paused)
             {
                 _playCts.Cancel();
-                _paused = false;
+                Paused = false;
             }
             else
             {
                 _pauseCts.Cancel();
-                _paused = true;
+                Paused = true;
             }
         });
 
         _subscriptions.Add(Observable.Interval(TimeSpan.FromMilliseconds(500), AvaloniaScheduler.Instance)
+            .Where(_ => !Paused)
             .Subscribe(_ =>
             {
                 foreach (LandmarkRegionViewModel landmark in LandmarkRegions)
@@ -265,7 +264,7 @@ public sealed class GameStateViewModel : ViewModelBase, IDisposable
 
             _subscriptions.Add(Observable
                 .Interval(TimeSpan.FromSeconds(1), AvaloniaScheduler.Instance)
-                .Where(_ => !_paused)
+                .Where(_ => !Paused)
                 .Subscribe(_ => CurrentLocation = NextLocation()));
 
             LocationDefinitionModel NextLocation()
@@ -292,6 +291,9 @@ public sealed class GameStateViewModel : ViewModelBase, IDisposable
     public required ReactiveCommand<Unit, Unit> EndingFanfareCommand { get; init; }
 
     public ReactiveCommand<Unit, Unit> PlayPauseCommand { get; }
+
+    [Reactive]
+    public bool Paused { get; private set; }
 
     [Reactive]
     public LocationDefinitionModel CurrentLocation { get; set; } = GameDefinitions.Instance.StartLocation;
