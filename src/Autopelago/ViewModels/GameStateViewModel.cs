@@ -636,30 +636,47 @@ public sealed class GameStateViewModel : ViewModelBase, IDisposable
     {
         await Helper.ConfigureAwaitFalse();
 
-        Match goMatch = Regex.Match(cmd, $@"@{SlotName}>go\[(?<loc>[^\]]*)\]");
+        Match goMatch = Regex.Match(cmd, $@"@{SlotName}>(?<command>\w+)\[(?<loc>[^\]]*)\]");
         if (goMatch.Success)
         {
+            string command = goMatch.Groups["cmd"].Value;
             string loc = goMatch.Groups["loc"]!.Value;
-            if (GameDefinitions.Instance.LocationsByNameCaseInsensitive.TryGetValue(loc, out LocationDefinitionModel? toPrioritize))
+            if (command.Equals("go", StringComparison.OrdinalIgnoreCase))
+            {
+                if (GameDefinitions.Instance.LocationsByNameCaseInsensitive.TryGetValue(loc, out LocationDefinitionModel? toPrioritize))
+                {
+                    await _gameStateMutex.WaitAsync();
+                    try
+                    {
+                        _state = _state with { PriorityLocations = _state.PriorityLocations.Add(toPrioritize) };
+                        await SaveAsync();
+                    }
+                    finally
+                    {
+                        _gameStateMutex.Release();
+                    }
+                }
+                else
+                {
+                    SayPacketModel say = new()
+                    {
+                        Text = $"Um... excuse me, but... I don't know what a '{loc}' is...",
+                    };
+                    await SendPacketsAsync([say]);
+                }
+            }
+            else if (command.Equals("stop", StringComparison.OrdinalIgnoreCase))
             {
                 await _gameStateMutex.WaitAsync();
                 try
                 {
-                    _state = _state with { PriorityLocations = _state.PriorityLocations.Add(toPrioritize) };
+                    _state = _state with { PriorityLocations = _state.PriorityLocations.RemoveAll(l => l.Name.Equals(loc, StringComparison.InvariantCultureIgnoreCase)) };
                     await SaveAsync();
                 }
                 finally
                 {
                     _gameStateMutex.Release();
                 }
-            }
-            else
-            {
-                SayPacketModel say = new()
-                {
-                    Text = $"Um... excuse me, but... I don't know what a '{loc}' is...",
-                };
-                await SendPacketsAsync([say]);
             }
         }
     }

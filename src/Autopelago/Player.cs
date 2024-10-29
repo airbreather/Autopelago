@@ -137,6 +137,11 @@ public sealed class Player
 
     private LocationDefinitionModel BestTargetLocation(GameState state)
     {
+        if (BestPriorityLocation(state) is { } bestPriorityLocation)
+        {
+            return bestPriorityLocation;
+        }
+
         List<(LocationDefinitionModel Location, int Depth)> goModeTargets = [];
         HashSet<string> satisfiedLandmarks = [];
         HashSet<string> unsatisfiedLandmarks = [];
@@ -204,6 +209,32 @@ public sealed class Player
         }
 
         return closestUncheckedLocation;
+    }
+
+    private LocationDefinitionModel? BestPriorityLocation(GameState state)
+    {
+        if (state.PriorityLocations.IsEmpty)
+        {
+            return null;
+        }
+
+        foreach (LocationDefinitionModel priorityLocation in state.PriorityLocations)
+        {
+            if (_checkedLocations[priorityLocation.Region.Key][priorityLocation.Key.N])
+            {
+                continue;
+            }
+
+            foreach ((LocationDefinitionModel reachableLocation, _) in state.CurrentLocation.EnumerateReachableLocationsByDistance(state))
+            {
+                if (reachableLocation.Key == priorityLocation.Key)
+                {
+                    return reachableLocation;
+                }
+            }
+        }
+
+        return null;
     }
 
     private static ImmutableArray<ImmutableArray<LandmarkRegionDefinitionModel>> ComputeAllGoModePaths()

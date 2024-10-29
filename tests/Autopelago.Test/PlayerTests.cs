@@ -443,6 +443,30 @@ public sealed class PlayerTests
         }
     }
 
+    [Test]
+    public void PriorityLocationsShouldShiftTarget()
+    {
+        Prng.State seed = EnsureSeedProducesInitialD20Sequence("ZcuBXfRkZixzx/eQAL1UiHpMG3kLbaDksoajUfxCis8="u8, [20, 20, 20, 20, 20, 20, 20, 20, 20, 20, 20]);
+        GameState state = GameState.Start(seed);
+
+        Assert.That(state.TargetLocation.Key, Is.EqualTo(new LocationKey { RegionKey = "Menu", N = 0 }));
+
+        state = state with { PriorityLocations = [ GameDefinitions.Instance.LocationsByName["Prawn Stars"] ] };
+
+        Player player = new();
+        GameState scrubbedState = player.Advance(state);
+
+        Assert.That(scrubbedState.TargetLocation.Region.Key, Is.Not.EqualTo("prawn_stars"));
+
+        state = player.Advance(state with
+        {
+            CheckedLocations = [ s_basketball ],
+            ReceivedItems = [ ..Enumerable.Range(0, 5).Select(_ => s_normalRat), s_premiumCanOfPrawnFood ],
+        });
+
+        Assert.That(state.TargetLocation.Region.Key, Is.EqualTo("prawn_stars"));
+    }
+
     private static Prng.State EnsureSeedProducesInitialD20Sequence(ulong seed, ReadOnlySpan<int> exactVals)
     {
         int[] actual = [.. Rolls(seed, stackalloc int[exactVals.Length])];
