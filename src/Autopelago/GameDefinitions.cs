@@ -43,6 +43,8 @@ public sealed record GameDefinitions
 
     public required FrozenDictionary<string, LocationDefinitionModel> LocationsByName { get; init; }
 
+    public required FrozenDictionary<string, LocationDefinitionModel> LocationsByNameCaseInsensitive { get; init; }
+
     public required FrozenDictionary<LocationDefinitionModel, ImmutableArray<LocationDefinitionModel>> ConnectedLocations { get; init; }
 
     public required FrozenDictionary<ArchipelagoItemFlags, ImmutableArray<ItemDefinitionModel>> NonGameSpecificItemsByFlags { get; init; }
@@ -82,6 +84,7 @@ public sealed record GameDefinitions
 
             LocationsByKey = locationsByKey.Values.ToFrozenDictionary(location => location.Key),
             LocationsByName = locationsByKey.Values.ToFrozenDictionary(location => location.Name),
+            LocationsByNameCaseInsensitive = locationsByKey.Values.ToFrozenDictionary(location => location.Name, StringComparer.InvariantCultureIgnoreCase),
             ConnectedLocations = regions.ConnectedLocations,
 
             // things that should only be needed in the debugger to help populate the filler regions

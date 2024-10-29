@@ -16,6 +16,7 @@ public sealed record GameState
         TargetLocation = copyFrom.TargetLocation;
         ReceivedItems = copyFrom.ReceivedItems;
         CheckedLocations = copyFrom.CheckedLocations;
+        PriorityLocations = copyFrom.PriorityLocations;
         FoodFactor = copyFrom.FoodFactor;
         LuckFactor = copyFrom.LuckFactor;
         EnergyFactor = copyFrom.EnergyFactor;
@@ -38,6 +39,8 @@ public sealed record GameState
     public required ImmutableList<ItemDefinitionModel> ReceivedItems { get; init; }
 
     public required ImmutableList<LocationDefinitionModel> CheckedLocations { get; init; }
+
+    public required ImmutableList<LocationDefinitionModel> PriorityLocations { get; init; }
 
     public required int FoodFactor { get; init; }
 
@@ -84,6 +87,7 @@ public sealed record GameState
             TargetLocation = GameDefinitions.Instance.StartLocation,
             ReceivedItems = [],
             CheckedLocations = [],
+            PriorityLocations = [],
             FoodFactor = 0,
             LuckFactor = 0,
             EnergyFactor = 0,
@@ -141,6 +145,7 @@ public sealed record GameState
             TargetLocation = TargetLocation.Name,
             ReceivedItems = [.. ReceivedItems.Select(i => i.Name)],
             CheckedLocations = [.. CheckedLocations.Select(l => l.Name)],
+            PriorityLocations = [.. PriorityLocations.Select(l => l.Name)],
             FoodFactor = FoodFactor,
             LuckFactor = LuckFactor,
             EnergyFactor = EnergyFactor,
@@ -171,7 +176,8 @@ public sealed record GameState
             DistractionCounter == other.DistractionCounter &&
             HasConfidence == other.HasConfidence &&
             ReceivedItems.SequenceEqual(other.ReceivedItems) &&
-            CheckedLocations.SequenceEqual(other.CheckedLocations);
+            CheckedLocations.SequenceEqual(other.CheckedLocations) &&
+            PriorityLocations.SequenceEqual(other.PriorityLocations);
     }
 
     public override int GetHashCode() => Epoch.GetHashCode();
@@ -189,6 +195,8 @@ public sealed record GameState
         public required ImmutableArray<string> ReceivedItems { get; init; }
 
         public required ImmutableArray<string> CheckedLocations { get; init; }
+
+        public required ImmutableArray<string> PriorityLocations { get; init; }
 
         public required int FoodFactor { get; init; }
 
@@ -218,6 +226,7 @@ public sealed record GameState
                 TargetLocation = GameDefinitions.Instance.LocationsByName[TargetLocation],
                 ReceivedItems = [.. ReceivedItems.Select(name => GameDefinitions.Instance.ItemsByName[name])],
                 CheckedLocations = [.. CheckedLocations.Select(name => GameDefinitions.Instance.LocationsByName[name])],
+                PriorityLocations = [.. PriorityLocations.Select(name => GameDefinitions.Instance.LocationsByName[name])],
                 FoodFactor = FoodFactor,
                 LuckFactor = LuckFactor,
                 EnergyFactor = EnergyFactor,

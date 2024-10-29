@@ -12,6 +12,7 @@ using System.Text;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using System.Text.Json.Serialization.Metadata;
+using System.Text.RegularExpressions;
 
 using Avalonia;
 using Avalonia.Controls;
@@ -612,7 +613,12 @@ public sealed class GameStateViewModel : ViewModelBase, IDisposable
                         }
                     }
 
-                    Log.Information($"{messageTemplateBuilder}");
+                    string message = $"{messageTemplateBuilder}";
+                    Log.Information(message);
+                    if (message.Contains($"@{SlotName}", StringComparison.OrdinalIgnoreCase))
+                    {
+                        await ProcessChatCommand(message);
+                    }
                 }
                 finally
                 {
@@ -623,6 +629,38 @@ public sealed class GameStateViewModel : ViewModelBase, IDisposable
                 }
 
                 break;
+        }
+    }
+
+    private async ValueTask ProcessChatCommand(string cmd)
+    {
+        await Helper.ConfigureAwaitFalse();
+
+        Match goMatch = Regex.Match(cmd, $@"@{SlotName}>go\[(?<loc>[^\]]*)\]");
+        if (goMatch.Success)
+        {
+            string loc = goMatch.Groups["loc"]!.Value;
+            if (GameDefinitions.Instance.LocationsByNameCaseInsensitive.TryGetValue(loc, out LocationDefinitionModel? toPrioritize))
+            {
+                await _gameStateMutex.WaitAsync();
+                try
+                {
+                    _state = _state with { PriorityLocations = _state.PriorityLocations.Add(toPrioritize) };
+                    await SaveAsync();
+                }
+                finally
+                {
+                    _gameStateMutex.Release();
+                }
+            }
+            else
+            {
+                SayPacketModel say = new()
+                {
+                    Text = $"Um... excuse me, but... I don't know what a '{loc}' is...",
+                };
+                await SendPacketsAsync([say]);
+            }
         }
     }
 
