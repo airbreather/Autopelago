@@ -82,7 +82,7 @@ public sealed class PlayerTests
     }
 
     [Test]
-    public void ShouldHeadFurtherAfterCompletingBasketball([Values(true, false)] bool unblockAngryTurtlesFirst)
+    public void ShouldHeadFurtherAfterCompletingBasketball([Values] bool unblockAngryTurtlesFirst)
     {
         Prng.State seed = EnsureSeedProducesInitialD20Sequence(2449080649, [20, 20, 20, 20, 20, 20, 20, 20]);
 
