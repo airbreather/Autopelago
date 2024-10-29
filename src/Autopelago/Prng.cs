@@ -178,9 +178,9 @@ public static class Prng
 
         public readonly bool IsValid => !((ReadOnlySpan<ulong>)this).SequenceEqual([0ul, 0ul, 0ul, 0ul]);
 
-        public static bool operator==(State first, State second) => first.Equals(second);
+        public static bool operator ==(State first, State second) => first.Equals(second);
 
-        public static bool operator!=(State first, State second) => !(first == second);
+        public static bool operator !=(State first, State second) => !(first == second);
 
         public readonly bool Equals(State other)
         {

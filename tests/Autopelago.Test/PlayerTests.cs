@@ -451,7 +451,7 @@ public sealed class PlayerTests
 
         Assert.That(state.TargetLocation.Key, Is.EqualTo(new LocationKey { RegionKey = "Menu", N = 0 }));
 
-        state = state with { PriorityLocations = [ GameDefinitions.Instance.LocationsByName["Prawn Stars"] ] };
+        state = state with { PriorityLocations = [GameDefinitions.Instance.LocationsByName["Prawn Stars"]] };
 
         Player player = new();
         GameState scrubbedState = player.Advance(state);
@@ -460,8 +460,8 @@ public sealed class PlayerTests
 
         state = player.Advance(state with
         {
-            CheckedLocations = [ s_basketball ],
-            ReceivedItems = [ ..Enumerable.Range(0, 5).Select(_ => s_normalRat), s_premiumCanOfPrawnFood ],
+            CheckedLocations = [s_basketball],
+            ReceivedItems = [.. Enumerable.Range(0, 5).Select(_ => s_normalRat), s_premiumCanOfPrawnFood],
         });
 
         Assert.That(state.TargetLocation.Region.Key, Is.EqualTo("prawn_stars"));
