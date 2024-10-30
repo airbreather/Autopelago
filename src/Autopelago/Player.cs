@@ -224,8 +224,6 @@ public sealed class Player
             return bestPriorityLocation;
         }
 
-        // TODO: this will still need a revamp, taking into account things like:
-        // - requests / hints from other players
         LocationDefinitionModel? closestUncheckedLocation = state.CurrentLocation
             .EnumerateReachableLocationsByDistance(state)
             .FirstOrDefault(l => !LocationIsChecked(l.Location.Key))
