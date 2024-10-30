@@ -2,6 +2,44 @@ using System.Collections.Immutable;
 
 namespace Autopelago;
 
+public sealed record PriorityLocationModel
+{
+    public required LocationDefinitionModel Location { get; init; }
+
+    public required SourceKind Source { get; init; }
+
+    public PriorityLocationModelProxy ToProxy()
+    {
+        return new()
+        {
+            Location = Location.Name,
+            Source = Source,
+        };
+    }
+
+    public enum SourceKind
+    {
+        Player,
+        Aura,
+    }
+
+    public sealed record PriorityLocationModelProxy
+    {
+        public required string Location { get; init; }
+
+        public required SourceKind Source { get; init; }
+
+        public PriorityLocationModel ToPriorityLocation()
+        {
+            return new()
+            {
+                Location = GameDefinitions.Instance.LocationsByName[Location],
+                Source = Source,
+            };
+        }
+    }
+}
+
 public sealed record GameState
 {
     private GameState()
@@ -22,6 +60,7 @@ public sealed record GameState
         EnergyFactor = copyFrom.EnergyFactor;
         StyleFactor = copyFrom.StyleFactor;
         DistractionCounter = copyFrom.DistractionCounter;
+        StartledCounter = copyFrom.StartledCounter;
         HasConfidence = copyFrom.HasConfidence;
         LocationCheckAttemptsThisStep = copyFrom.LocationCheckAttemptsThisStep;
         ActionBalanceAfterPreviousStep = copyFrom.ActionBalanceAfterPreviousStep;
@@ -40,7 +79,7 @@ public sealed record GameState
 
     public required ImmutableList<LocationDefinitionModel> CheckedLocations { get; init; }
 
-    public required ImmutableList<LocationDefinitionModel> PriorityLocations { get; init; }
+    public required ImmutableList<PriorityLocationModel> PriorityLocations { get; init; }
 
     public required int FoodFactor { get; init; }
 
@@ -51,6 +90,8 @@ public sealed record GameState
     public required int StyleFactor { get; init; }
 
     public required int DistractionCounter { get; init; }
+
+    public required int StartledCounter { get; init; }
 
     public required bool HasConfidence { get; init; }
 
@@ -93,6 +134,7 @@ public sealed record GameState
             EnergyFactor = 0,
             StyleFactor = 0,
             DistractionCounter = 0,
+            StartledCounter = 0,
             HasConfidence = false,
             LocationCheckAttemptsThisStep = 0,
             ActionBalanceAfterPreviousStep = 0,
@@ -135,7 +177,36 @@ public sealed record GameState
         }
     }
 
-    public Proxy ToProxy()
+    public GameState AddStartled(int toAdd)
+    {
+        ArgumentOutOfRangeException.ThrowIfLessThan(toAdd, 0);
+        if (toAdd == 0)
+        {
+            return this;
+        }
+
+        int newStartledCounter = StartledCounter + toAdd;
+        LocationDefinitionModel newTargetLocation = TargetLocation;
+        ImmutableList<PriorityLocationModel> newPriorityLocations = PriorityLocations;
+        if (newStartledCounter == toAdd)
+        {
+            // the rat wasn't startled, and now it is.
+            newPriorityLocations = newPriorityLocations.Insert(0, new()
+            {
+                Location = newTargetLocation = CurrentLocation.NextLocationTowards(GameDefinitions.Instance.StartLocation, this),
+                Source = PriorityLocationModel.SourceKind.Aura,
+            });
+        }
+
+        return this with
+        {
+            TargetLocation = newTargetLocation,
+            StartledCounter = newStartledCounter,
+            PriorityLocations = newPriorityLocations,
+        };
+    }
+
+    public GameStateProxy ToProxy()
     {
         return new()
         {
@@ -145,12 +216,13 @@ public sealed record GameState
             TargetLocation = TargetLocation.Name,
             ReceivedItems = [.. ReceivedItems.Select(i => i.Name)],
             CheckedLocations = [.. CheckedLocations.Select(l => l.Name)],
-            PriorityLocations = [.. PriorityLocations.Select(l => l.Name)],
+            PriorityLocations = [.. PriorityLocations.Select(l => l.ToProxy())],
             FoodFactor = FoodFactor,
             LuckFactor = LuckFactor,
             EnergyFactor = EnergyFactor,
             StyleFactor = StyleFactor,
             DistractionCounter = DistractionCounter,
+            StartledCounter = StartledCounter,
             HasConfidence = HasConfidence,
             LocationCheckAttemptsThisStep = LocationCheckAttemptsThisStep,
             ActionBalanceAfterPreviousStep = ActionBalanceAfterPreviousStep,
@@ -174,6 +246,7 @@ public sealed record GameState
             EnergyFactor == other.EnergyFactor &&
             StyleFactor == other.StyleFactor &&
             DistractionCounter == other.DistractionCounter &&
+            StartledCounter == other.StartledCounter &&
             HasConfidence == other.HasConfidence &&
             ReceivedItems.SequenceEqual(other.ReceivedItems) &&
             CheckedLocations.SequenceEqual(other.CheckedLocations) &&
@@ -182,7 +255,7 @@ public sealed record GameState
 
     public override int GetHashCode() => Epoch.GetHashCode();
 
-    public sealed record Proxy
+    public sealed record GameStateProxy
     {
         public ulong Epoch { get; init; }
 
@@ -196,7 +269,7 @@ public sealed record GameState
 
         public required ImmutableArray<string> CheckedLocations { get; init; }
 
-        public required ImmutableArray<string> PriorityLocations { get; init; }
+        public required ImmutableArray<PriorityLocationModel.PriorityLocationModelProxy> PriorityLocations { get; init; }
 
         public required int FoodFactor { get; init; }
 
@@ -207,6 +280,8 @@ public sealed record GameState
         public required int StyleFactor { get; init; }
 
         public required int DistractionCounter { get; init; }
+
+        public required int StartledCounter { get; init; }
 
         public required bool HasConfidence { get; init; }
 
@@ -226,12 +301,13 @@ public sealed record GameState
                 TargetLocation = GameDefinitions.Instance.LocationsByName[TargetLocation],
                 ReceivedItems = [.. ReceivedItems.Select(name => GameDefinitions.Instance.ItemsByName[name])],
                 CheckedLocations = [.. CheckedLocations.Select(name => GameDefinitions.Instance.LocationsByName[name])],
-                PriorityLocations = [.. PriorityLocations.Select(name => GameDefinitions.Instance.LocationsByName[name])],
+                PriorityLocations = [.. PriorityLocations.Select(loc => loc.ToPriorityLocation())],
                 FoodFactor = FoodFactor,
                 LuckFactor = LuckFactor,
                 EnergyFactor = EnergyFactor,
                 StyleFactor = StyleFactor,
                 DistractionCounter = DistractionCounter,
+                StartledCounter = StartledCounter,
                 HasConfidence = HasConfidence,
                 LocationCheckAttemptsThisStep = LocationCheckAttemptsThisStep,
                 ActionBalanceAfterPreviousStep = ActionBalanceAfterPreviousStep,

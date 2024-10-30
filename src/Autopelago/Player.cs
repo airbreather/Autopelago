@@ -70,6 +70,7 @@ public sealed class Player
                 continue;
             }
 
+            bool moved = false;
             if (state.CurrentLocation != state.TargetLocation)
             {
                 switch (state.EnergyFactor)
@@ -86,44 +87,51 @@ public sealed class Player
                 }
 
                 state = state with { CurrentLocation = state.CurrentLocation.NextLocationTowards(state.TargetLocation, state) };
-
-                // movement takes an action
-                continue;
+                moved = true;
             }
 
-            if (LocationIsChecked(state.CurrentLocation.Key))
+            if (!moved && state.StartledCounter == 0 && !LocationIsChecked(state.CurrentLocation.Key))
             {
-                if (state.PriorityLocations.FirstOrDefault() == state.TargetLocation)
+                bool success = state.CurrentLocation.TryCheck(ref state);
+                state = state with { LocationCheckAttemptsThisStep = state.LocationCheckAttemptsThisStep + 1 };
+                if (!success)
                 {
-                    // we've reached our next priority location. remove it from the queue.
-                    state = state with { PriorityLocations = state.PriorityLocations.RemoveAt(0) };
-
-                    // don't break just yet: there could be another priority location, or else there
-                    // could be a non-priority location that we just haven't checked yet.
                     continue;
                 }
 
-                // nowhere to move, nothing to do where we are.
-                break;
+                MarkLocationChecked(state.CurrentLocation.Key);
             }
 
-            bool success = state.CurrentLocation.TryCheck(ref state);
-            state = state with { LocationCheckAttemptsThisStep = state.LocationCheckAttemptsThisStep + 1 };
-            if (success)
+            if (state.PriorityLocations.FirstOrDefault()?.Location == state.CurrentLocation)
             {
-                MarkLocationChecked(state.CurrentLocation.Key);
+                // we've reached our next priority location. remove it from the queue.
+                state = state with { PriorityLocations = state.PriorityLocations.RemoveAt(0) };
 
-                if (state.PriorityLocations.FirstOrDefault() == state.TargetLocation)
+                if (state.StartledCounter > 0)
                 {
-                    // we've finished off our next priority location. remove it from the queue.
-                    state = state with 
+                    // rat was startled towards this location.
+                    state = state with { StartledCounter = state.StartledCounter - 1 };
+                    if (state.StartledCounter > 0)
                     {
-                        PriorityLocations = state.PriorityLocations.RemoveAt(0),
-                    };
+                        // it's still startled. figure out the next location to run towards.
+                        state = state with
+                        {
+                            PriorityLocations = state.PriorityLocations.Insert(0, new()
+                            {
+                                Location = state.CurrentLocation.NextLocationTowards(GameDefinitions.Instance.StartLocation, state),
+                                Source = PriorityLocationModel.SourceKind.Aura,
+                            }),
+                        };
+                    }
                 }
+            }
 
-                // pointing to the next target location on the current route does not take an action
-                state = state with { TargetLocation = BestTargetLocation(state) };
+            // figure out if anything above changed our best target location. if not, then don't
+            // update anything so that the Epoch will stay the same!
+            bestTargetLocation = BestTargetLocation(state);
+            if (bestTargetLocation != state.TargetLocation)
+            {
+                state = state with { TargetLocation = bestTargetLocation };
             }
         }
 
@@ -237,11 +245,11 @@ public sealed class Player
             return null;
         }
 
-        foreach (LocationDefinitionModel priorityLocation in state.PriorityLocations)
+        foreach (PriorityLocationModel priorityLocation in state.PriorityLocations)
         {
             foreach ((LocationDefinitionModel reachableLocation, _) in state.CurrentLocation.EnumerateReachableLocationsByDistance(state))
             {
-                if (reachableLocation.Key == priorityLocation.Key)
+                if (reachableLocation.Key == priorityLocation.Location.Key)
                 {
                     return reachableLocation;
                 }

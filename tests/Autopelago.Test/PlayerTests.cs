@@ -26,6 +26,10 @@ public sealed class PlayerTests
 
     private static readonly ItemDefinitionModel s_premiumCanOfPrawnFood = GameDefinitions.Instance.ProgressionItems["premium_can_of_prawn_food"];
 
+    private static readonly Prng.State s_highRolls = EnsureSeedProducesInitialD20Sequence("ZcuBXfRkZixzx/eQAL1UiHpMG3kLbaDksoajUfxCis8="u8, [20, 20, 20, 20, 20, 20, 20, 20, 20, 20, 20]);
+
+    private static readonly Prng.State s_lowRolls = EnsureSeedProducesInitialD20Sequence("Sr8rXn/wy4+RmchoEi8DdYc99ConsS+Fj2g7IoicNns="u8, [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1]);
+
     [Test]
     public void FirstAttemptsShouldMakeSense()
     {
@@ -84,9 +88,7 @@ public sealed class PlayerTests
     [Test]
     public void ShouldHeadFurtherAfterCompletingBasketball([Values] bool unblockAngryTurtlesFirst)
     {
-        Prng.State seed = EnsureSeedProducesInitialD20Sequence(2449080649, [20, 20, 20, 20, 20, 20, 20, 20]);
-
-        GameState state = GameState.Start(seed);
+        GameState state = GameState.Start(s_highRolls);
         state = state with
         {
             ReceivedItems = [.. Enumerable.Repeat(s_normalRat, 5), unblockAngryTurtlesFirst ? s_pizzaRat : s_premiumCanOfPrawnFood],
@@ -249,8 +251,7 @@ public sealed class PlayerTests
     [Test]
     public void PositiveFoodFactorShouldGrantOneExtraAction()
     {
-        Prng.State seed = EnsureSeedProducesInitialD20Sequence(2449080649, [20, 20, 20, 20, 20, 20, 20, 20]);
-        GameState state = GameState.Start(seed);
+        GameState state = GameState.Start(s_highRolls);
 
         state = state with { FoodFactor = 2 };
 
@@ -296,8 +297,7 @@ public sealed class PlayerTests
     [Test]
     public void NegativeFoodFactorShouldSubtractOneAction()
     {
-        Prng.State seed = EnsureSeedProducesInitialD20Sequence(2449080649, [20, 20, 20, 20, 20, 20, 20, 20]);
-        GameState state = GameState.Start(seed);
+        GameState state = GameState.Start(s_highRolls);
 
         state = state with { FoodFactor = -2 };
 
@@ -343,8 +343,7 @@ public sealed class PlayerTests
     [Test]
     public void DistractionCounterShouldWasteEntireRound()
     {
-        Prng.State seed = EnsureSeedProducesInitialD20Sequence(2449080649, [20, 20, 20, 20, 20, 20, 20, 20]);
-        GameState state = GameState.Start(seed);
+        GameState state = GameState.Start(s_highRolls);
 
         state = state with
         {
@@ -395,9 +394,6 @@ public sealed class PlayerTests
     [Test]
     public void TestGoMode()
     {
-        Prng.State lowRolls = EnsureSeedProducesInitialD20Sequence("Sr8rXn/wy4+RmchoEi8DdYc99ConsS+Fj2g7IoicNns="u8, [1, 1, 1, 1, 1, 1, 1, 1]);
-        Prng.State highRolls = EnsureSeedProducesInitialD20Sequence("ZcuBXfRkZixzx/eQAL1UiHpMG3kLbaDksoajUfxCis8="u8, [20, 20, 20, 20, 20, 20, 20, 20]);
-
         GameState state = GameState.Start();
 
         // give it all randomized items except the last one.
@@ -418,7 +414,7 @@ public sealed class PlayerTests
         // and that somehow brings you out of the starting region, then that's a BIG change.
         for (int i = 0; i < 2; i++)
         {
-            state = player.Advance(state with { PrngState = lowRolls });
+            state = player.Advance(state with { PrngState = s_lowRolls });
             Assert.That(state.TargetLocation.Key.RegionKey, Is.EqualTo(GameDefinitions.Instance.StartRegion.Key));
         }
 
@@ -428,7 +424,7 @@ public sealed class PlayerTests
         int advancesSoFar = 0;
         while (!state.IsCompleted)
         {
-            state = player.Advance(state with { PrngState = highRolls });
+            state = player.Advance(state with { PrngState = s_highRolls });
             Assert.That(state.TargetLocation.Region, Is.InstanceOf<LandmarkRegionDefinitionModel>());
             foreach (LocationDefinitionModel checkedLocation in state.CheckedLocations)
             {
@@ -446,16 +442,19 @@ public sealed class PlayerTests
     [Test]
     public void PriorityLocationsShouldShiftTarget()
     {
-        Prng.State lowRolls = EnsureSeedProducesInitialD20Sequence("Sr8rXn/wy4+RmchoEi8DdYc99ConsS+Fj2g7IoicNns="u8, [1, 1, 1, 1, 1, 1, 1, 1]);
-        Prng.State highRolls = EnsureSeedProducesInitialD20Sequence("ZcuBXfRkZixzx/eQAL1UiHpMG3kLbaDksoajUfxCis8="u8, [20, 20, 20, 20, 20, 20, 20, 20]);
-        GameState state = GameState.Start(lowRolls);
+        GameState state = GameState.Start(s_lowRolls);
 
         LocationDefinitionModel prawnStars = GameDefinitions.Instance.LocationsByName["Prawn Stars"];
+        PriorityLocationModel prawnStarsPriority = new()
+        {
+            Location = prawnStars,
+            Source = PriorityLocationModel.SourceKind.Player,
+        };
 
         Assert.That(state.TargetLocation.Key, Is.EqualTo(new LocationKey { RegionKey = "Menu", N = 0 }));
 
         // prioritize Prawn Stars
-        state = state with { PriorityLocations = [prawnStars] };
+        state = state with { PriorityLocations = [prawnStarsPriority] };
 
         Player player = new();
         GameState scrubbedState = player.Advance(state);
@@ -478,12 +477,56 @@ public sealed class PlayerTests
         state = player.Advance(state with { CurrentLocation = state.TargetLocation });
 
         // it should still be there, and it should still be our priority location.
-        Assert.That(state.PriorityLocations, Is.EqualTo(new[] { prawnStars }));
+        Assert.That(state.PriorityLocations, Is.EqualTo(new[] { prawnStarsPriority }));
 
         // now roll natural 20s.
-        state = player.Advance(state with { PrngState = highRolls });
+        state = player.Advance(state with { PrngState = s_highRolls });
 
         Assert.That(state.PriorityLocations, Is.Empty);
+    }
+
+    [Test]
+    public void StartledShouldMovePlayerTowardsStart()
+    {
+        GameState state = GameState.Start(s_highRolls);
+        Player player = new();
+
+        // force the first steps to move it towards the last reachable location in this region
+        state = state with
+        {
+            PriorityLocations = state.PriorityLocations.Add(new()
+            {
+                Location = GameDefinitions.Instance.StartRegion.Locations[^1],
+                Source = PriorityLocationModel.SourceKind.Player,
+            }),
+        };
+
+        state = player.Advance(state);
+        state = player.Advance(state);
+        if (state.CurrentLocation == state.TargetLocation)
+        {
+            Assert.Inconclusive("YAML was changed too much: there aren't enough locations in the starting region for this test.");
+        }
+
+        // even though it's all high rolls, we shouldn't have any checks because the rat is hard-prioritizing.
+        int stepsAwayBeforeStartle = state.CurrentLocation.Key.N;
+        Assert.Multiple(() =>
+        {
+            Assert.That(state.CheckedLocations, Is.Empty);
+            Assert.That(stepsAwayBeforeStartle, Is.GreaterThanOrEqualTo(3));
+        });
+
+        state = state.AddStartled(3);
+        Assert.That(state.StartledCounter, Is.EqualTo(3));
+
+        // those 3 startled steps should get it to go 3 steps towards the start.
+        state = player.Advance(state);
+        Assert.Multiple(() =>
+        {
+            Assert.That(state.StartledCounter, Is.Zero);
+            Assert.That(state.CurrentLocation.Key.N, Is.EqualTo(stepsAwayBeforeStartle - 3));
+            Assert.That(state.PriorityLocations, Has.Count.EqualTo(1));
+        });
     }
 
     private static Prng.State EnsureSeedProducesInitialD20Sequence(ulong seed, ReadOnlySpan<int> exactVals)

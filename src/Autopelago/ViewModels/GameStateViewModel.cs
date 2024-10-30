@@ -33,7 +33,7 @@ namespace Autopelago.ViewModels;
 [JsonSourceGenerationOptions(
     PropertyNamingPolicy = JsonKnownNamingPolicy.SnakeCaseLower,
     UseStringEnumConverter = true)]
-[JsonSerializable(typeof(GameState.Proxy))]
+[JsonSerializable(typeof(GameState.GameStateProxy))]
 internal sealed partial class GameStateProxySerializerContext : JsonSerializerContext;
 
 public sealed class GameStateViewModel : ViewModelBase, IDisposable
@@ -65,8 +65,8 @@ public sealed class GameStateViewModel : ViewModelBase, IDisposable
     private static readonly JsonTypeInfo<ImmutableArray<ArchipelagoPacketModel>> s_packetsTypeInfo =
         PacketSerializerContext.Default.ImmutableArrayArchipelagoPacketModel;
 
-    private static readonly JsonTypeInfo<GameState.Proxy> s_gameStateProxyTypeInfo =
-        GameStateProxySerializerContext.Default.Proxy;
+    private static readonly JsonTypeInfo<GameState.GameStateProxy> s_gameStateProxyTypeInfo =
+        GameStateProxySerializerContext.Default.GameStateProxy;
 
     private static readonly FrozenSet<string> s_hiddenProgressionItems = new[]
     {
@@ -327,6 +327,9 @@ public sealed class GameStateViewModel : ViewModelBase, IDisposable
 
     [Reactive]
     public int DistractionCounter { get; set; }
+
+    [Reactive]
+    public int StartledCounter { get; set; }
 
     [Reactive]
     public bool HasConfidence { get; set; }
@@ -642,7 +645,7 @@ public sealed class GameStateViewModel : ViewModelBase, IDisposable
         if (goMatch.Success)
         {
             string command = goMatch.Groups["cmd"].Value;
-            string loc = goMatch.Groups["loc"]!.Value;
+            string loc = goMatch.Groups["loc"].Value;
             if (command.Equals("go", StringComparison.OrdinalIgnoreCase))
             {
                 if (GameDefinitions.Instance.LocationsByNameCaseInsensitive.TryGetValue(loc, out LocationDefinitionModel? toPrioritize))
@@ -650,7 +653,14 @@ public sealed class GameStateViewModel : ViewModelBase, IDisposable
                     await _gameStateMutex.WaitAsync();
                     try
                     {
-                        _state = _state with { PriorityLocations = _state.PriorityLocations.Add(toPrioritize) };
+                        _state = _state with
+                        {
+                            PriorityLocations = _state.PriorityLocations.Add(new()
+                            {
+                                Location = toPrioritize,
+                                Source = PriorityLocationModel.SourceKind.Player,
+                            }),
+                        };
                         await SaveAsync();
                     }
                     finally
@@ -672,7 +682,13 @@ public sealed class GameStateViewModel : ViewModelBase, IDisposable
                 await _gameStateMutex.WaitAsync();
                 try
                 {
-                    _state = _state with { PriorityLocations = _state.PriorityLocations.RemoveAll(l => l.Name.Equals(loc, StringComparison.InvariantCultureIgnoreCase)) };
+                    _state = _state with
+                    {
+                        PriorityLocations = _state.PriorityLocations.RemoveAll(l =>
+                            l.Source == PriorityLocationModel.SourceKind.Player &&
+                            l.Location.Name.Equals(loc, StringComparison.InvariantCultureIgnoreCase)
+                        ),
+                    };
                     await SaveAsync();
                 }
                 finally
@@ -732,7 +748,7 @@ public sealed class GameStateViewModel : ViewModelBase, IDisposable
             // we're going to stream the objects in the array one-by-one.
             int startIndex = 0;
             JsonReaderState readerState = new(s_jsonReaderOptions);
-            while (TryGetNextPacket(new(firstBuf[startIndex..]), prevReceiveResult.EndOfMessage, ref readerState) is (ArchipelagoPacketModel packet, long bytesConsumed))
+            while (TryGetNextPacket(new(firstBuf[startIndex..]), prevReceiveResult.EndOfMessage, ref readerState) is ({ } packet, long bytesConsumed))
             {
                 startIndex = checked((int)(startIndex + bytesConsumed));
                 await HandleNextPacketAsync(packet);
@@ -755,7 +771,7 @@ public sealed class GameStateViewModel : ViewModelBase, IDisposable
                     Memory<byte> fullNextBuf = nextBufOwner.Memory;
                     prevReceiveResult = await socketBox.Socket.ReceiveAsync(fullNextBuf, default);
                     endSegment = endSegment.Append(fullNextBuf[..prevReceiveResult.Count]);
-                    while (TryGetNextPacket(new(startSegment, startIndex, endSegment, endSegment.Memory.Length), prevReceiveResult.EndOfMessage, ref readerState) is (ArchipelagoPacketModel packet, long bytesConsumed))
+                    while (TryGetNextPacket(new(startSegment, startIndex, endSegment, endSegment.Memory.Length), prevReceiveResult.EndOfMessage, ref readerState) is ({ } packet, long bytesConsumed))
                     {
                         long totalBytesConsumed = startIndex + bytesConsumed;
                         while (totalBytesConsumed > startSegment.Memory.Length)
@@ -799,7 +815,7 @@ public sealed class GameStateViewModel : ViewModelBase, IDisposable
                     // user clicked Pause
                     long waitStart = _timeProvider.GetTimestamp();
                     TaskCompletionSource cancelTcs = new(TaskCreationOptions.RunContinuationsAsynchronously);
-                    using CancellationTokenRegistration reg = _playCts.Token.Register(() => cancelTcs.TrySetResult());
+                    await using CancellationTokenRegistration reg = _playCts.Token.Register(() => cancelTcs.TrySetResult());
                     await cancelTcs.Task;
                     dueTime += _timeProvider.GetTimestamp() - waitStart;
                     _playCts = new();
@@ -849,7 +865,7 @@ public sealed class GameStateViewModel : ViewModelBase, IDisposable
         StatusUpdatePacketModel statusUpdate = new() { Status = ArchipelagoClientStatus.Goal };
         await SendPacketsAsync([statusUpdate]);
         await EndingFanfareCommand.Execute();
-        _gameCompleteCts.Cancel();
+        await _gameCompleteCts.CancelAsync();
     }
 
     private void UpdateLastFullData()
@@ -888,6 +904,7 @@ public sealed class GameStateViewModel : ViewModelBase, IDisposable
         int luckFactorMod = 0;
         int distractedMod = 0;
         int stylishMod = 0;
+        int startledMod = 0;
         foreach (ItemDefinitionModel newItem in newItems)
         {
             // "confidence" takes place right away: it could apply to another item in the batch.
@@ -901,6 +918,7 @@ public sealed class GameStateViewModel : ViewModelBase, IDisposable
                     case "unlucky" when state.HasConfidence:
                     case "sluggish" when state.HasConfidence:
                     case "distracted" when state.HasConfidence:
+                    case "startled" when state.HasConfidence:
                         subtractConfidence = true;
                         break;
 
@@ -936,6 +954,10 @@ public sealed class GameStateViewModel : ViewModelBase, IDisposable
                         ++stylishMod;
                         break;
 
+                    case "startled":
+                        ++startledMod;
+                        break;
+
                     case "confident":
                         addConfidence = true;
                         break;
@@ -954,7 +976,7 @@ public sealed class GameStateViewModel : ViewModelBase, IDisposable
             }
         }
 
-        state = state with
+        state = state.AddStartled(startledMod) with
         {
             ReceivedItems = state.ReceivedItems.AddRange(newItems),
             FoodFactor = state.FoodFactor + (foodMod * 5),
@@ -992,6 +1014,7 @@ public sealed class GameStateViewModel : ViewModelBase, IDisposable
         LuckFactor = _state.LuckFactor;
         StyleFactor = _state.StyleFactor;
         DistractionCounter = _state.DistractionCounter;
+        StartledCounter = _state.StartledCounter;
         HasConfidence = _state.HasConfidence;
     }
 
@@ -1001,7 +1024,7 @@ public sealed class GameStateViewModel : ViewModelBase, IDisposable
         {
             await using FileStream rawStream = _stateFile.Open(s_readOptions);
             await using DecompressionStream stream = new(rawStream);
-            GameState.Proxy proxy = (await JsonSerializer.DeserializeAsync(stream, s_gameStateProxyTypeInfo))!;
+            GameState.GameStateProxy proxy = (await JsonSerializer.DeserializeAsync(stream, s_gameStateProxyTypeInfo))!;
             _state = proxy.ToState();
             UpdateMeters();
         }

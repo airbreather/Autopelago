@@ -105,7 +105,7 @@
                 </Viewbox>
 
                 <Border DockPanel.Dock="Top" Margin="0,5,0,0" Padding="5,2" Classes="tracker-box horizontal-only">
-                    <Grid RowDefinitions="Auto,Auto,Auto,Auto,Auto,Auto,Auto"
+                    <Grid RowDefinitions="Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto"
                           ToolTip.VerticalOffset="0" PointerMoved="OnPointerMovedOverControlWithToolTip">
                         <Grid.ColumnDefinitions>
                             <ColumnDefinition Width="Auto" />
@@ -121,6 +121,7 @@
                                 <TextBlock>NRG: Energy</TextBlock>
                                 <TextBlock>STY: Style</TextBlock>
                                 <TextBlock>DIS: Distraction</TextBlock>
+                                <TextBlock>STT: Startled</TextBlock>
                                 <TextBlock>CNF: Confidence</TextBlock>
                             </StackPanel>
                         </ToolTip.Tip>
@@ -149,9 +150,13 @@
                         <ProgressBar Grid.Row="5" Grid.Column="1" Minimum="0" Maximum="4" Value="{Binding DistractionCounter}" />
                         <TextBlock Margin="5,0,0,0" Grid.Row="5" Grid.Column="2" Classes="meter-label" Text="{Binding DistractionCounter}" />
 
-                        <TextBlock Grid.Row="6" Grid.Column="0" Classes="meter-label" Text="CNF:" />
-                        <ProgressBar Grid.Row="6" Grid.Column="1" IsIndeterminate="{Binding HasConfidence}" />
-                        <TextBlock Margin="5,0,0,0" Grid.Row="6" Grid.Column="2" Classes="meter-label" Text="{Binding HasConfidence, Converter={StaticResource YNConverter}}" />
+                        <TextBlock Grid.Row="6" Grid.Column="0" Classes="meter-label" Text="STT:" />
+                        <ProgressBar Grid.Row="6" Grid.Column="1" Minimum="0" Maximum="4" Value="{Binding StartledCounter}" />
+                        <TextBlock Margin="5,0,0,0" Grid.Row="6" Grid.Column="2" Classes="meter-label" Text="{Binding StartledCounter}" />
+
+                        <TextBlock Grid.Row="7" Grid.Column="0" Classes="meter-label" Text="CNF:" />
+                        <ProgressBar Grid.Row="7" Grid.Column="1" IsIndeterminate="{Binding HasConfidence}" />
+                        <TextBlock Margin="5,0,0,0" Grid.Row="7" Grid.Column="2" Classes="meter-label" Text="{Binding HasConfidence, Converter={StaticResource YNConverter}}" />
                     </Grid>
                 </Border>
 
