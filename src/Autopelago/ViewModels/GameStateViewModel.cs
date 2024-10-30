@@ -113,7 +113,7 @@ public sealed class GameStateViewModel : ViewModelBase, IDisposable
 
     private AutopelagoData _lastFullData = null!;
 
-    private FrozenDictionary<LocationDefinitionModel, ArchipelagoItemFlags>? _spoilerData;
+    private FrozenDictionary<LocationDefinitionModel, ArchipelagoItemFlags> _spoilerData = null!;
 
     private GameState _state = GameState.Start();
 
@@ -563,7 +563,6 @@ public sealed class GameStateViewModel : ViewModelBase, IDisposable
                     _gameStateMutex.Release();
                 }
 
-                _dataAvailableSignal.Release();
                 await requestSpoilerTask;
                 break;
 
@@ -575,6 +574,7 @@ public sealed class GameStateViewModel : ViewModelBase, IDisposable
                 }
 
                 _spoilerData = spoilerData.ToFrozenDictionary();
+                _dataAvailableSignal.Release();
                 break;
 
             case RoomUpdatePacketModel roomUpdate:
