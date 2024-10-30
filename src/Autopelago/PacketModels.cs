@@ -95,6 +95,8 @@ internal sealed partial class PacketSerializerContext : JsonSerializerContext;
 [JsonDerivedType(typeof(RetrievedPacketModel), "Retrieved")]
 [JsonDerivedType(typeof(SetPacketModel), "Set")]
 [JsonDerivedType(typeof(SetReplyPacketModel), "SetReply")]
+[JsonDerivedType(typeof(LocationScoutsPacketModel), "LocationScouts")]
+[JsonDerivedType(typeof(LocationInfoPacketModel), "LocationInfo")]
 public record ArchipelagoPacketModel
 {
     [JsonExtensionData]
@@ -336,6 +338,18 @@ public sealed record SayPacketModel : ArchipelagoPacketModel
 public sealed record LocationChecksPacketModel : ArchipelagoPacketModel
 {
     public required ReadOnlyMemory<long> Locations { get; init; }
+}
+
+public sealed record LocationScoutsPacketModel : ArchipelagoPacketModel
+{
+    public required ReadOnlyMemory<long> Locations { get; init; }
+
+    public int CreateAsHint { get; init; }
+}
+
+public sealed record LocationInfoPacketModel : ArchipelagoPacketModel
+{
+    public required ImmutableArray<ItemModel> Locations { get; init; }
 }
 
 public sealed record RoomUpdatePacketModel : ArchipelagoPacketModel
