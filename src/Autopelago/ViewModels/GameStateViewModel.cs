@@ -8,6 +8,7 @@ using System.Reactive;
 using System.Reactive.Disposables;
 using System.Reactive.Linq;
 using System.Reactive.Subjects;
+using System.Runtime.InteropServices;
 using System.Text;
 using System.Text.Json;
 using System.Text.Json.Serialization;
@@ -923,6 +924,7 @@ public sealed class GameStateViewModel : ViewModelBase, IDisposable
         int distractedMod = 0;
         int stylishMod = 0;
         int startledMod = 0;
+        List<PriorityLocationModel.SourceKind> smartAndConspiratorial = [];
         foreach (ItemDefinitionModel newItem in newItems)
         {
             // "confidence" takes place right away: it could apply to another item in the batch.
@@ -937,6 +939,7 @@ public sealed class GameStateViewModel : ViewModelBase, IDisposable
                     case "sluggish" when state.HasConfidence:
                     case "distracted" when state.HasConfidence:
                     case "startled" when state.HasConfidence:
+                    case "conspiratorial" when state.HasConfidence:
                         subtractConfidence = true;
                         break;
 
@@ -976,6 +979,14 @@ public sealed class GameStateViewModel : ViewModelBase, IDisposable
                         ++startledMod;
                         break;
 
+                    case "smart":
+                        smartAndConspiratorial.Add(PriorityLocationModel.SourceKind.Smart);
+                        break;
+
+                    case "conspiratorial":
+                        smartAndConspiratorial.Add(PriorityLocationModel.SourceKind.Conspiratorial);
+                        break;
+
                     case "confident":
                         addConfidence = true;
                         break;
@@ -994,15 +1005,17 @@ public sealed class GameStateViewModel : ViewModelBase, IDisposable
             }
         }
 
-        state = state.AddStartled(startledMod) with
-        {
-            ReceivedItems = state.ReceivedItems.AddRange(newItems),
-            FoodFactor = state.FoodFactor + (foodMod * 5),
-            EnergyFactor = state.EnergyFactor + (energyFactorMod * 5),
-            LuckFactor = state.LuckFactor + luckFactorMod,
-            StyleFactor = state.StyleFactor + (stylishMod * 2),
-            DistractionCounter = state.DistractionCounter + distractedMod,
-        };
+        state = state
+            .AddStartled(startledMod)
+            .ResolveSmartAndConspiratorialAuras(CollectionsMarshal.AsSpan(smartAndConspiratorial), _spoilerData) with
+            {
+                ReceivedItems = state.ReceivedItems.AddRange(newItems),
+                FoodFactor = state.FoodFactor + (foodMod * 5),
+                EnergyFactor = state.EnergyFactor + (energyFactorMod * 5),
+                LuckFactor = state.LuckFactor + luckFactorMod,
+                StyleFactor = state.StyleFactor + (stylishMod * 2),
+                DistractionCounter = state.DistractionCounter + distractedMod,
+            };
 
         UpdateMeters();
     }
