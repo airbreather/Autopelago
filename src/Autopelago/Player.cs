@@ -119,7 +119,7 @@ public sealed class Player
                             PriorityLocations = state.PriorityLocations.Insert(0, new()
                             {
                                 Location = state.CurrentLocation.NextLocationTowards(GameDefinitions.Instance.StartLocation, state),
-                                Source = PriorityLocationModel.SourceKind.Aura,
+                                Source = PriorityLocationModel.SourceKind.Startled,
                             }),
                         };
                     }

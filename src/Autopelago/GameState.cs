@@ -20,7 +20,7 @@ public sealed record PriorityLocationModel
     public enum SourceKind
     {
         Player,
-        Aura,
+        Startled,
     }
 
     public sealed record PriorityLocationModelProxy
@@ -194,7 +194,7 @@ public sealed record GameState
             newPriorityLocations = newPriorityLocations.Insert(0, new()
             {
                 Location = newTargetLocation = CurrentLocation.NextLocationTowards(GameDefinitions.Instance.StartLocation, this),
-                Source = PriorityLocationModel.SourceKind.Aura,
+                Source = PriorityLocationModel.SourceKind.Startled,
             });
         }
 
