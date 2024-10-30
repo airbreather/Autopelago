@@ -1,3 +1,4 @@
+using System.Collections.Frozen;
 using System.Collections.Immutable;
 
 namespace Autopelago;
@@ -21,6 +22,8 @@ public sealed record PriorityLocationModel
     {
         Player,
         Startled,
+        Smart,
+        Conspiratorial,
     }
 
     public sealed record PriorityLocationModelProxy
@@ -204,6 +207,76 @@ public sealed record GameState
             StartledCounter = newStartledCounter,
             PriorityLocations = newPriorityLocations,
         };
+    }
+
+    public GameState ResolveSmartAndConspiratorialAuras(ReadOnlySpan<PriorityLocationModel.SourceKind> receivedAuras, FrozenDictionary<LocationDefinitionModel, ArchipelagoItemFlags> spoilerData)
+    {
+        if (receivedAuras.IsEmpty)
+        {
+            return this;
+        }
+
+        HashSet<LocationDefinitionModel> locationsToIgnore =
+        [
+            .. CheckedLocations,
+            .. PriorityLocations.Select(p => p.Location),
+        ];
+        List<PriorityLocationModel> locationsToAppend = [];
+        using IEnumerator<LocationDefinitionModel> smartTargets = Targets(ArchipelagoItemFlags.LogicalAdvancement).GetEnumerator();
+        using IEnumerator<LocationDefinitionModel> conspiratorialTargets = Targets(ArchipelagoItemFlags.Trap).GetEnumerator();
+        foreach (PriorityLocationModel.SourceKind receivedAura in receivedAuras)
+        {
+            IEnumerator<LocationDefinitionModel> appendFrom = receivedAura switch
+            {
+                PriorityLocationModel.SourceKind.Smart => smartTargets,
+                PriorityLocationModel.SourceKind.Conspiratorial => conspiratorialTargets,
+                _ => throw new ArgumentException("inputs need to be smart or conspiratorial", nameof(receivedAuras)),
+            };
+
+            if (!appendFrom.MoveNext())
+            {
+                // we've reached the end of everything that this aura can do for us. it fizzles.
+                continue;
+            }
+
+            locationsToAppend.Add(new()
+            {
+                Location = appendFrom.Current,
+                Source = receivedAura,
+            });
+        }
+
+        return this with { PriorityLocations = PriorityLocations.AddRange(locationsToAppend) };
+        IEnumerable<LocationDefinitionModel> Targets(ArchipelagoItemFlags flags)
+        {
+            // go through all the reachable ones first
+            foreach ((LocationDefinitionModel nxt, _) in CurrentLocation.EnumerateReachableLocationsByDistance(this))
+            {
+                if ((spoilerData[nxt] & flags) != ArchipelagoItemFlags.None && locationsToIgnore.Add(nxt))
+                {
+                    yield return nxt;
+                }
+            }
+
+            // don't let the aura fizzle just because nothing's immediately reachable, though.
+            Queue<LocationDefinitionModel> q = new([CurrentLocation]);
+            HashSet<LocationDefinitionModel> queued = [];
+            while (q.TryDequeue(out LocationDefinitionModel? nxt))
+            {
+                if ((spoilerData[nxt] & flags) != ArchipelagoItemFlags.None && locationsToIgnore.Add(nxt))
+                {
+                    yield return nxt;
+                }
+
+                foreach (LocationDefinitionModel connected in GameDefinitions.Instance.ConnectedLocations[nxt])
+                {
+                    if (queued.Add(connected))
+                    {
+                        q.Enqueue(connected);
+                    }
+                }
+            }
+        }
     }
 
     public GameStateProxy ToProxy()

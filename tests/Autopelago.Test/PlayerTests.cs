@@ -1,5 +1,6 @@
 using System.Buffers;
 using System.Buffers.Text;
+using System.Collections.Frozen;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 
@@ -527,6 +528,91 @@ public sealed class PlayerTests
             Assert.That(state.CurrentLocation.Key.N, Is.EqualTo(stepsAwayBeforeStartle - 3));
             Assert.That(state.PriorityLocations, Has.Count.EqualTo(1));
         });
+    }
+
+    [Test]
+    public void SmartShouldResolveToNearestReachableIfPossible([Values(PriorityLocationModel.SourceKind.Smart, PriorityLocationModel.SourceKind.Conspiratorial)] PriorityLocationModel.SourceKind smartOrConspiratorial)
+    {
+        GameState state = GameState.Start() with
+        {
+            CurrentLocation = GameDefinitions.Instance.StartRegion.Locations[^1],
+            TargetLocation = GameDefinitions.Instance.StartRegion.Locations[^1],
+        };
+
+        ArchipelagoItemFlags targetFlags = smartOrConspiratorial switch
+        {
+            PriorityLocationModel.SourceKind.Smart => ArchipelagoItemFlags.LogicalAdvancement,
+            PriorityLocationModel.SourceKind.Conspiratorial => ArchipelagoItemFlags.Trap,
+            _ => throw null!,
+        };
+        FrozenDictionary<LocationDefinitionModel, ArchipelagoItemFlags> spoilerData = CreateSpoiler(
+        [
+            (GameDefinitions.Instance.StartLocation, targetFlags),
+            (s_beforePrawnStars.Locations[0], targetFlags),
+            (s_beforePrawnStars.Locations[^1], targetFlags),
+        ]);
+
+        // even though there's a target RIGHT on the other side, we still favor the nearest one that
+        // we can already reach with what we currently have.
+        state = state.ResolveSmartAndConspiratorialAuras([smartOrConspiratorial], spoilerData);
+        Assert.That(state.PriorityLocations, Is.EqualTo(new[]
+        {
+            new PriorityLocationModel
+            {
+                Source = smartOrConspiratorial,
+                Location = GameDefinitions.Instance.StartLocation,
+            },
+        }));
+
+        // but if there's nothing else that we can reach, then we should still be able to get the
+        // nearest thing that we can't.
+        state = state.ResolveSmartAndConspiratorialAuras([smartOrConspiratorial], spoilerData);
+        Assert.That(state.PriorityLocations, Is.EqualTo(new[]
+        {
+            new PriorityLocationModel
+            {
+                Source = smartOrConspiratorial,
+                Location = GameDefinitions.Instance.StartLocation,
+            },
+            new PriorityLocationModel
+            {
+                Source = smartOrConspiratorial,
+                Location = s_beforePrawnStars.Locations[0],
+            },
+        }));
+
+        // finally, if we get another call without there being ANY other targets in the spoiler data
+        // that we can go to, it shouldn't *fail*, per se. it should just fizzle out.
+        state = state.ResolveSmartAndConspiratorialAuras([smartOrConspiratorial, smartOrConspiratorial], spoilerData);
+        Assert.That(state.PriorityLocations, Is.EqualTo(new[]
+        {
+            new PriorityLocationModel
+            {
+                Source = smartOrConspiratorial,
+                Location = GameDefinitions.Instance.StartLocation,
+            },
+            new PriorityLocationModel
+            {
+                Source = smartOrConspiratorial,
+                Location = s_beforePrawnStars.Locations[0],
+            },
+            new PriorityLocationModel
+            {
+                Source = smartOrConspiratorial,
+                Location = s_beforePrawnStars.Locations[^1],
+            },
+        }));
+    }
+
+    private static FrozenDictionary<LocationDefinitionModel, ArchipelagoItemFlags> CreateSpoiler(ReadOnlySpan<(LocationDefinitionModel Location, ArchipelagoItemFlags Flags)> defined)
+    {
+        Dictionary<LocationDefinitionModel, ArchipelagoItemFlags> result = GameDefinitions.Instance.LocationsByName.Values.ToDictionary(l => l, _ => ArchipelagoItemFlags.None);
+        foreach ((LocationDefinitionModel location, ArchipelagoItemFlags flags) in defined)
+        {
+            result[location] = flags;
+        }
+
+        return result.ToFrozenDictionary();
     }
 
     private static Prng.State EnsureSeedProducesInitialD20Sequence(ulong seed, ReadOnlySpan<int> exactVals)
