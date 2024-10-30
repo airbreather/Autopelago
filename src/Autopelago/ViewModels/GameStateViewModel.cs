@@ -113,6 +113,8 @@ public sealed class GameStateViewModel : ViewModelBase, IDisposable
 
     private AutopelagoData _lastFullData = null!;
 
+    private FrozenDictionary<LocationDefinitionModel, ArchipelagoItemFlags>? _spoilerData;
+
     private GameState _state = GameState.Start();
 
     private Prng.State _intervalPrngState = Prng.State.Start();
@@ -515,6 +517,11 @@ public sealed class GameStateViewModel : ViewModelBase, IDisposable
 
                 _connected = (ConnectedPacketModel)connectResponse;
                 UpdateLastFullData();
+                LocationScoutsPacketModel locationScouts = new()
+                {
+                    Locations = _lastFullData.LocationsById.Where(kvp => !kvp.Value.RewardIsFixed).Select(kvp => kvp.Key).ToArray(),
+                };
+                ValueTask requestSpoilerTask = SendPacketsAsync([locationScouts]);
                 await _gameStateMutex.WaitAsync();
                 try
                 {
@@ -557,6 +564,17 @@ public sealed class GameStateViewModel : ViewModelBase, IDisposable
                 }
 
                 _dataAvailableSignal.Release();
+                await requestSpoilerTask;
+                break;
+
+            case LocationInfoPacketModel locationInfo:
+                Dictionary<LocationDefinitionModel, ArchipelagoItemFlags> spoilerData = [];
+                foreach (ItemModel networkItem in locationInfo.Locations)
+                {
+                    spoilerData[_lastFullData.LocationsById[networkItem.Location]] = _lastFullData.ItemsById[networkItem.Item].ArchipelagoFlags;
+                }
+
+                _spoilerData = spoilerData.ToFrozenDictionary();
                 break;
 
             case RoomUpdatePacketModel roomUpdate:
