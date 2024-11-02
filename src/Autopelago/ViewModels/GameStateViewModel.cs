@@ -639,9 +639,10 @@ public sealed class GameStateViewModel : ViewModelBase, IDisposable
 
                     string message = $"{messageTemplateBuilder}";
                     Log.Information(message);
-                    if (message.Contains($"@{SlotName}", StringComparison.OrdinalIgnoreCase))
+                    int tagIndex = message.IndexOf($"@{SlotName}", StringComparison.InvariantCultureIgnoreCase);
+                    if (tagIndex >= 0)
                     {
-                        await ProcessChatCommand(message);
+                        await ProcessChatCommand(message, tagIndex);
                     }
                 }
                 finally
@@ -656,57 +657,44 @@ public sealed class GameStateViewModel : ViewModelBase, IDisposable
         }
     }
 
-    private async ValueTask ProcessChatCommand(string cmd)
+    private async ValueTask ProcessChatCommand(string cmd, int tagIndex)
     {
         await Helper.ConfigureAwaitFalse();
 
-        Match goMatch = Regex.Match(cmd, $@"@{SlotName}>(?<command>\w+)\[(?<loc>[^\]]*)\]");
-        if (goMatch.Success)
+        // chat message format is "{UserAlias}: {Message}", so it needs to be at least this long.
+        if (tagIndex <= ": ".Length)
         {
-            string command = goMatch.Groups["cmd"].Value;
-            string loc = goMatch.Groups["loc"].Value;
-            if (command.Equals("go", StringComparison.OrdinalIgnoreCase))
-            {
-                if (GameDefinitions.Instance.LocationsByNameCaseInsensitive.TryGetValue(loc, out LocationDefinitionModel? toPrioritize))
-                {
-                    await _gameStateMutex.WaitAsync();
-                    try
-                    {
-                        _state = _state with
-                        {
-                            PriorityLocations = _state.PriorityLocations.Add(new()
-                            {
-                                Location = toPrioritize,
-                                Source = PriorityLocationModel.SourceKind.Player,
-                            }),
-                        };
-                        await SaveAsync();
-                    }
-                    finally
-                    {
-                        _gameStateMutex.Release();
-                    }
-                }
-                else
-                {
-                    SayPacketModel say = new()
-                    {
-                        Text = $"Um... excuse me, but... I don't know what a '{loc}' is...",
-                    };
-                    await SendPacketsAsync([say]);
-                }
-            }
-            else if (command.Equals("stop", StringComparison.OrdinalIgnoreCase))
+            Log.Error("Unexpected message format, aborting: {Command}", cmd);
+            return;
+        }
+
+        string probablyPlayerAlias = cmd[..(tagIndex - ": ".Length)];
+        if (!_lastFullData.SlotByPlayerAlias.TryGetValue(probablyPlayerAlias, out int chattingSlot))
+        {
+            // this isn't necessarily an error or a mistaken assumption. it could just be that the
+            // "@{SlotName}" happened partway through their message. don't test every single user's
+            // alias against every single chat message that contains "@{SlotName}", just require it
+            // to be at the start of the message. done.
+            return;
+        }
+
+        // if we got here, then the entire rest of the message after "@{SlotName}" is the command.
+        cmd = Regex.Replace(cmd[tagIndex..], @$"^@{SlotName} ", "", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant | RegexOptions.Compiled);
+        if (cmd.StartsWith("go ", StringComparison.OrdinalIgnoreCase))
+        {
+            string loc = cmd["go ".Length..];
+            if (GameDefinitions.Instance.LocationsByNameCaseInsensitive.TryGetValue(loc, out LocationDefinitionModel? toPrioritize))
             {
                 await _gameStateMutex.WaitAsync();
                 try
                 {
                     _state = _state with
                     {
-                        PriorityLocations = _state.PriorityLocations.RemoveAll(l =>
-                            l.Source == PriorityLocationModel.SourceKind.Player &&
-                            l.Location.Name.Equals(loc, StringComparison.InvariantCultureIgnoreCase)
-                        ),
+                        PriorityLocations = _state.PriorityLocations.Add(new()
+                        {
+                            Location = toPrioritize,
+                            Source = PriorityLocationModel.SourceKind.Player,
+                        }),
                     };
                     await SaveAsync();
                 }
@@ -714,7 +702,52 @@ public sealed class GameStateViewModel : ViewModelBase, IDisposable
                 {
                     _gameStateMutex.Release();
                 }
+
+                SayPacketModel say = new()
+                {
+                    Text = $"Confirm prioritizing '{toPrioritize.Name}' for user '{probablyPlayerAlias}'",
+                };
+                await SendPacketsAsync([say]);
             }
+            else
+            {
+                SayPacketModel say = new()
+                {
+                    Text = $"Um... excuse me, but... I don't know what a '{loc}' is...",
+                };
+                await SendPacketsAsync([say]);
+            }
+        }
+        else if (cmd.StartsWith("stop ", StringComparison.OrdinalIgnoreCase))
+        {
+            string loc = cmd["stop ".Length..];
+            PriorityLocationModel? toRemove = null;
+            await _gameStateMutex.WaitAsync();
+            try
+            {
+                toRemove = _state.PriorityLocations.FirstOrDefault(l =>
+                    l.Source == PriorityLocationModel.SourceKind.Player &&
+                    l.Location.Name.Equals(loc, StringComparison.InvariantCultureIgnoreCase)
+                );
+
+                if (toRemove is not null)
+                {
+                    _state = _state with { PriorityLocations = _state.PriorityLocations.Remove(toRemove) };
+                    await SaveAsync();
+                }
+            }
+            finally
+            {
+                _gameStateMutex.Release();
+            }
+
+            SayPacketModel say = new()
+            {
+                Text = toRemove is null
+                    ? $"Um... excuse me, but... I don't see a '{loc}' to remove..."
+                    : $"Confirm deprioritizing '{toRemove.Location.Name}' for user '{probablyPlayerAlias}'",
+            };
+            await SendPacketsAsync([say]);
         }
     }
 
@@ -898,6 +931,7 @@ public sealed class GameStateViewModel : ViewModelBase, IDisposable
             LocationIds = gameData.LocationNameToId.ToFrozenDictionary(kvp => GameDefinitions.Instance.LocationsByName[kvp.Key], kvp => kvp.Value),
             ItemsById = gameData.ItemNameToId.ToFrozenDictionary(kvp => kvp.Value, kvp => GameDefinitions.Instance.ItemsByName[kvp.Key]),
             LocationsById = gameData.LocationNameToId.ToFrozenDictionary(kvp => kvp.Value, kvp => GameDefinitions.Instance.LocationsByName[kvp.Key]),
+            SlotByPlayerAlias = (_lastRoomUpdate?.Players ?? _connected.Players).ToFrozenDictionary(p => p.Alias, p => p.Slot),
         };
     }
 
@@ -1118,5 +1152,7 @@ public sealed class GameStateViewModel : ViewModelBase, IDisposable
         public required FrozenDictionary<long, ItemDefinitionModel> ItemsById { get; init; }
 
         public required FrozenDictionary<long, LocationDefinitionModel> LocationsById { get; init; }
+
+        public required FrozenDictionary<string, int> SlotByPlayerAlias { get; init; }
     }
 }
