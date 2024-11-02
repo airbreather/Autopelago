@@ -682,7 +682,7 @@ public sealed class GameStateViewModel : ViewModelBase, IDisposable
         cmd = Regex.Replace(cmd[tagIndex..], @$"^@{SlotName} ", "", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant | RegexOptions.Compiled);
         if (cmd.StartsWith("go ", StringComparison.OrdinalIgnoreCase))
         {
-            string loc = cmd["go ".Length..];
+            string loc = cmd["go ".Length..].Trim('"');
             if (GameDefinitions.Instance.LocationsByNameCaseInsensitive.TryGetValue(loc, out LocationDefinitionModel? toPrioritize))
             {
                 await _gameStateMutex.WaitAsync();
@@ -720,7 +720,7 @@ public sealed class GameStateViewModel : ViewModelBase, IDisposable
         }
         else if (cmd.StartsWith("stop ", StringComparison.OrdinalIgnoreCase))
         {
-            string loc = cmd["stop ".Length..];
+            string loc = cmd["stop ".Length..].Trim('"');
             PriorityLocationModel? toRemove = null;
             await _gameStateMutex.WaitAsync();
             try
@@ -746,6 +746,25 @@ public sealed class GameStateViewModel : ViewModelBase, IDisposable
                 Text = toRemove is null
                     ? $"Um... excuse me, but... I don't see a '{loc}' to remove..."
                     : $"Confirm deprioritizing '{toRemove.Location.Name}' for user '{probablyPlayerAlias}'",
+            };
+            await SendPacketsAsync([say]);
+        }
+        else if (cmd.StartsWith("help", StringComparison.OrdinalIgnoreCase))
+        {
+            ImmutableArray<SayPacketModel> packets =
+            [
+                new() { Text = "Commands you can use are:" },
+                new() { Text = $"1. @{SlotName} go LOCATION_NAME" },
+                new() { Text = $"2. @{SlotName} stop LOCATION_NAME" },
+                new() { Text = "LOCATION_NAME refers to whatever text you got in your hint, like \"Basketball\" or \"Before Prawn Stars #12\"." },
+            ];
+            await SendPacketsAsync(packets.CastArray<ArchipelagoPacketModel>());
+        }
+        else
+        {
+            SayPacketModel say = new()
+            {
+                Text = $"Say \"@{SlotName} help\" (without the quotes) for a list of commands.",
             };
             await SendPacketsAsync([say]);
         }
