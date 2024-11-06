@@ -874,23 +874,26 @@ public sealed class GameStateViewModel : ViewModelBase, IDisposable
         while (!_state.IsCompleted)
         {
             TimeSpan remaining = _nextFullInterval - _timeProvider.GetElapsedTime(_prevStartTimestamp);
-            long dueTime = _timeProvider.GetTimestamp() + ((long)(_nextFullInterval.TotalSeconds * _timeProvider.TimestampFrequency));
-            while (_timeProvider.GetTimestamp() < dueTime)
+            if (remaining > TimeSpan.Zero)
             {
-                try
+                long dueTime = _timeProvider.GetTimestamp() + ((long)(_nextFullInterval.TotalSeconds * _timeProvider.TimestampFrequency));
+                while (_timeProvider.GetTimestamp() < dueTime)
                 {
-                    await Task.Delay(remaining, _timeProvider, _pauseCts.Token);
-                }
-                catch (OperationCanceledException)
-                {
-                    // user clicked Pause
-                    long waitStart = _timeProvider.GetTimestamp();
-                    TaskCompletionSource cancelTcs = new(TaskCreationOptions.RunContinuationsAsynchronously);
-                    await using CancellationTokenRegistration reg = _unpauseCts.Token.Register(() => cancelTcs.TrySetResult());
-                    await cancelTcs.Task;
-                    dueTime += _timeProvider.GetTimestamp() - waitStart;
-                    _unpauseCts = new();
-                    _pauseCts = new();
+                    try
+                    {
+                        await Task.Delay(remaining, _timeProvider, _pauseCts.Token);
+                    }
+                    catch (OperationCanceledException)
+                    {
+                        // user clicked Pause
+                        long waitStart = _timeProvider.GetTimestamp();
+                        TaskCompletionSource cancelTcs = new(TaskCreationOptions.RunContinuationsAsynchronously);
+                        await using CancellationTokenRegistration reg = _unpauseCts.Token.Register(() => cancelTcs.TrySetResult());
+                        await cancelTcs.Task;
+                        dueTime += _timeProvider.GetTimestamp() - waitStart;
+                        _unpauseCts = new();
+                        _pauseCts = new();
+                    }
                 }
             }
 
