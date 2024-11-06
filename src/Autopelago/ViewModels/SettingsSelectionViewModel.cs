@@ -18,8 +18,8 @@ public sealed record Settings
         Port = 65535,
         Slot = "",
         Password = "",
-        MinStepSeconds = 60,
-        MaxStepSeconds = 90,
+        MinStepSeconds = 30,
+        MaxStepSeconds = 60,
     };
 
     public static readonly Settings ForDesigner = new()
