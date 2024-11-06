@@ -604,6 +604,37 @@ public sealed class PlayerTests
         }));
     }
 
+    [Test]
+    [Property("Regression", 45)]
+    public void PriorityLocationsPastClearableLandmarksShouldBlockThePlayer()
+    {
+        GameState state = GameState.Start() with
+        {
+            CurrentLocation = GameDefinitions.Instance.StartRegion.Locations[^1],
+            TargetLocation = GameDefinitions.Instance.StartRegion.Locations[^1],
+            ReceivedItems =
+            [
+                .. Enumerable.Repeat(s_normalRat, 5),
+            ],
+            PriorityLocations =
+            [
+                new()
+                {
+                    Location = s_beforePrawnStars.Locations[1],
+                    Source = PriorityLocationModel.SourceKind.Player,
+                },
+            ],
+            PrngState = s_lowRolls,
+        };
+
+        Player player = new();
+        state = player.Advance(state) with { PrngState = s_lowRolls };
+        state = player.Advance(state) with { PrngState = s_lowRolls };
+        state = player.Advance(state) with { PrngState = s_lowRolls };
+
+        Assert.That(state.CurrentLocation, Is.EqualTo(s_basketball));
+    }
+
     private static FrozenDictionary<LocationDefinitionModel, ArchipelagoItemFlags> CreateSpoiler(ReadOnlySpan<(LocationDefinitionModel Location, ArchipelagoItemFlags Flags)> defined)
     {
         Dictionary<LocationDefinitionModel, ArchipelagoItemFlags> result = GameDefinitions.Instance.LocationsByName.Values.ToDictionary(l => l, _ => ArchipelagoItemFlags.None);

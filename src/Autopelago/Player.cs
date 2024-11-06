@@ -245,12 +245,26 @@ public sealed class Player
 
         foreach (PriorityLocationModel priorityLocation in state.PriorityLocations)
         {
-            foreach ((LocationDefinitionModel reachableLocation, _) in state.CurrentLocation.EnumerateReachableLocationsByDistance(state))
+            foreach ((LocationDefinitionModel reachableLocation, ImmutableList<LocationDefinitionModel> path) in state.CurrentLocation.EnumerateReachableLocationsByDistance(state))
             {
-                if (reachableLocation.Key == priorityLocation.Location.Key)
+                if (reachableLocation.Key != priorityLocation.Location.Key)
                 {
-                    return reachableLocation;
+                    continue;
                 }
+
+                // #45: the current priority location may be "reachable" in some sense, but the path
+                // to it may include one or more clearABLE landmarks that haven't been clearED yet.
+                foreach (LocationDefinitionModel nextLocation in path.Prepend(state.CurrentLocation))
+                {
+                    if (nextLocation.Region is LandmarkRegionDefinitionModel && !LocationIsChecked(nextLocation.Key))
+                    {
+                        return nextLocation;
+                    }
+                }
+
+                // if we've made it here, then the whole path is open. you're all clear, kid, now
+                // let's check this thing and go home!
+                return reachableLocation;
             }
         }
 
