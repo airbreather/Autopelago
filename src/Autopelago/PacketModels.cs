@@ -229,7 +229,12 @@ public record PrintJSONPacketModel : ArchipelagoPacketModel
         ["Countdown"] = typeof(CountdownPrintJSONPacketModel),
     };
 
-    public string Type { get; init; } = "";
+    private string _type = "";
+    public string Type
+    {
+        get => _type;
+        init => _type = value ?? "";
+    }
 
     public required ImmutableArray<JSONMessagePartModel> Data { get; init; }
 
