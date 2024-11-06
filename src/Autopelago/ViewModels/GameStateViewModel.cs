@@ -571,7 +571,7 @@ public sealed class GameStateViewModel : ViewModelBase, IDisposable
                 Dictionary<LocationDefinitionModel, ArchipelagoItemFlags> spoilerData = [];
                 foreach (ItemModel networkItem in locationInfo.Locations)
                 {
-                    spoilerData[_lastFullData.LocationsById[networkItem.Location]] = _lastFullData.ItemsById[networkItem.Item].ArchipelagoFlags;
+                    spoilerData[_lastFullData.LocationsById[networkItem.Location]] = networkItem.Flags;
                 }
 
                 _spoilerData = spoilerData.ToFrozenDictionary();
