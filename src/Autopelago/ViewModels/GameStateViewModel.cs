@@ -126,7 +126,7 @@ public sealed class GameStateViewModel : ViewModelBase, IDisposable
 
     private CancellationTokenSource _pauseCts = new();
 
-    private CancellationTokenSource _playCts = new();
+    private CancellationTokenSource _unpauseCts = new();
 
     public GameStateViewModel()
         : this(Settings.ForDesigner)
@@ -145,7 +145,7 @@ public sealed class GameStateViewModel : ViewModelBase, IDisposable
         {
             if (Paused)
             {
-                _playCts.Cancel();
+                _unpauseCts.Cancel();
                 Paused = false;
             }
             else
@@ -886,10 +886,10 @@ public sealed class GameStateViewModel : ViewModelBase, IDisposable
                     // user clicked Pause
                     long waitStart = _timeProvider.GetTimestamp();
                     TaskCompletionSource cancelTcs = new(TaskCreationOptions.RunContinuationsAsynchronously);
-                    await using CancellationTokenRegistration reg = _playCts.Token.Register(() => cancelTcs.TrySetResult());
+                    await using CancellationTokenRegistration reg = _unpauseCts.Token.Register(() => cancelTcs.TrySetResult());
                     await cancelTcs.Task;
                     dueTime += _timeProvider.GetTimestamp() - waitStart;
-                    _playCts = new();
+                    _unpauseCts = new();
                     _pauseCts = new();
                 }
             }
