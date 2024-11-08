@@ -292,6 +292,13 @@
                         </StackPanel>
                     </TabItem.Header>
                 </TabItem>
+                <TabItem>
+                  <TabItem.Header>
+                    <Button Command="{Binding BackToMainMenuCommand}">
+                      Back to Menu
+                    </Button>
+                  </TabItem.Header>
+                </TabItem>
             </TabControl>
         </Border>
     </Grid>

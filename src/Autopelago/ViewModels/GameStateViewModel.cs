@@ -293,6 +293,8 @@ public sealed class GameStateViewModel : ViewModelBase, IDisposable
 
     public required ReactiveCommand<Unit, Unit> EndingFanfareCommand { get; init; }
 
+    public required ReactiveCommand<Unit, Unit> BackToMainMenuCommand { get; init; }
+
     public ReactiveCommand<Unit, Unit> PlayPauseCommand { get; }
 
     [Reactive]

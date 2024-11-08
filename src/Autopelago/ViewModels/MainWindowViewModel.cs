@@ -11,7 +11,8 @@ public sealed class MainWindowViewModel : ViewModelBase, IDisposable
 
     public MainWindowViewModel()
     {
-        Error = new() { BackToMainMenuCommand = ReactiveCommand.Create(() => { ContentViewModel = SettingsSelection; }) };
+        ReactiveCommand<Unit, Unit> backToMainMenuCommand = ReactiveCommand.Create(() => { ContentViewModel = SettingsSelection; });
+        Error = new() { BackToMainMenuCommand = backToMainMenuCommand };
         GameStateViewModel? gameStateViewModel = null;
         EndingFanfare = new() { BackToMapCommand = ReactiveCommand.Create(() => { ContentViewModel = gameStateViewModel!; }) };
 
@@ -21,6 +22,7 @@ public sealed class MainWindowViewModel : ViewModelBase, IDisposable
                 gameStateViewModel = new(settings)
                 {
                     SlotName = settings.Slot,
+                    BackToMainMenuCommand = backToMainMenuCommand,
                     EndingFanfareCommand = ReactiveCommand.Create(() => { ContentViewModel = EndingFanfare; }),
                 };
                 gameStateViewModel.ConnectionRefused.Subscribe(connectionRefused =>
