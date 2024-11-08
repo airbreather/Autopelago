@@ -268,7 +268,11 @@ public sealed class GameStateViewModel : ViewModelBase, IDisposable
             _subscriptions.Add(Observable
                 .Interval(TimeSpan.FromSeconds(1), AvaloniaScheduler.Instance)
                 .Where(_ => !Paused)
-                .Subscribe(_ => CurrentLocation = NextLocation()));
+                .Subscribe(_ =>
+                {
+                    CurrentLocation = NextLocation();
+                    TargetLocation = CurrentLocation;
+                }));
 
             LocationDefinitionModel NextLocation()
             {
@@ -302,6 +306,9 @@ public sealed class GameStateViewModel : ViewModelBase, IDisposable
 
     [Reactive]
     public LocationDefinitionModel CurrentLocation { get; set; } = GameDefinitions.Instance.StartLocation;
+
+    [Reactive]
+    public LocationDefinitionModel TargetLocation { get; set; } = GameDefinitions.Instance.StartLocation;
 
     [ObservableAsProperty]
     public FillerRegionViewModel? CurrentFillerRegion { get; }
@@ -1088,6 +1095,7 @@ public sealed class GameStateViewModel : ViewModelBase, IDisposable
     private void UpdateMeters()
     {
         CurrentLocation = _state.CurrentLocation;
+        TargetLocation = _state.TargetLocation;
 
         foreach (ItemDefinitionModel item in _state.ReceivedItems)
         {
