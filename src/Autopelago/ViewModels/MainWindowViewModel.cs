@@ -11,9 +11,18 @@ public sealed class MainWindowViewModel : ViewModelBase, IDisposable
 
     public MainWindowViewModel()
     {
-        ReactiveCommand<Unit, Unit> backToMainMenuCommand = ReactiveCommand.Create(() => { ContentViewModel = SettingsSelection; });
-        Error = new() { BackToMainMenuCommand = backToMainMenuCommand };
         GameStateViewModel? gameStateViewModel = null;
+        ReactiveCommand<Unit, Unit> backToMainMenuCommand = ReactiveCommand.Create(() =>
+        {
+            if (gameStateViewModel is not null)
+            {
+                gameStateViewModel.Dispose();
+                gameStateViewModel = null;
+            }
+
+            ContentViewModel = SettingsSelection;
+        });
+        Error = new() { BackToMainMenuCommand = backToMainMenuCommand };
         EndingFanfare = new() { BackToMapCommand = ReactiveCommand.Create(() => { ContentViewModel = gameStateViewModel!; }) };
 
         _connectCommandSubscription = SettingsSelection.ConnectCommand
