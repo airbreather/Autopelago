@@ -580,10 +580,10 @@ regions:
       unrandomized_item: pack_rat
       requires:
         any_two:
-            - item: turbo_encabulator
-            - item: ratstronaut
-            - item: energy_drink_that_is_pure_rocket_fuel
-            - item: pile_of_scrap_metal_in_the_shape_of_a_rocket_ship
+          - item: turbo_encabulator
+          - item: ratstronaut
+          - item: energy_drink_that_is_pure_rocket_fuel
+          - item: pile_of_scrap_metal_in_the_shape_of_a_rocket_ship
       exits:
         - before_roboclop_the_robot_war_horse
 
