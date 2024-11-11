@@ -86,8 +86,16 @@ public sealed class Player
                         break;
                 }
 
-                state = state with { CurrentLocation = state.CurrentLocation.NextLocationTowards(state.TargetLocation, state) };
-                moved = true;
+                // we're not in the right spot, so we're going to move at least a bit. playtesting
+                // has shown that very long moves can be very boring (and a little too frequent). to
+                // combat this, every time the player decides to move, they can advance up to five
+                // whole spaces towards their target. this keeps the overall progression speed the
+                // same in dense areas.
+                for (int i = 0; i < 5 && state.CurrentLocation != state.TargetLocation; i++)
+                {
+                    state = state with { CurrentLocation = state.CurrentLocation.NextLocationTowards(state.TargetLocation, state) };
+                    moved = true;
+                }
             }
 
             if (!moved && state.StartledCounter == 0 && !LocationIsChecked(state.CurrentLocation.Key))

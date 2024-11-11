@@ -635,6 +635,42 @@ public sealed class PlayerTests
         Assert.That(state.CurrentLocation, Is.EqualTo(s_basketball));
     }
 
+    [Test]
+    public void LongMovesShouldBeAccelerated()
+    {
+        GameState state = GameState.Start() with
+        {
+            CurrentLocation = GameDefinitions.Instance.StartLocation,
+            TargetLocation = s_basketball,
+            ReceivedItems =
+            [
+                .. Enumerable.Repeat(s_normalRat, 5),
+            ],
+            CheckedLocations =
+            [
+                .. s_startRegion.Locations,
+            ],
+            PrngState = s_highRolls,
+        };
+
+        if (s_startRegion.Locations.Length != 31)
+        {
+            Assert.Inconclusive("This test is particularly sensitive to changes in the number of locations in the start region. Please re-evaluate.");
+        }
+
+        Player player = new();
+        state = player.Advance(state);
+        Assert.That(state.CurrentLocation.Key.N, Is.EqualTo(15));
+        state = player.Advance(state);
+        Assert.That(state.CurrentLocation.Key.N, Is.EqualTo(30));
+        state = player.Advance(state);
+        Assert.Multiple(() =>
+        {
+            Assert.That(GameDefinitions.Instance.ConnectedLocations[state.CurrentLocation], Contains.Item(s_basketball));
+            Assert.That(state.CheckedLocations, Does.Not.Contain(state.CurrentLocation));
+        });
+    }
+
     private static FrozenDictionary<LocationDefinitionModel, ArchipelagoItemFlags> CreateSpoiler(ReadOnlySpan<(LocationDefinitionModel Location, ArchipelagoItemFlags Flags)> defined)
     {
         Dictionary<LocationDefinitionModel, ArchipelagoItemFlags> result = GameDefinitions.Instance.LocationsByName.Values.ToDictionary(l => l, _ => ArchipelagoItemFlags.None);
