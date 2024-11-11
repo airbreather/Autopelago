@@ -3,6 +3,7 @@
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
     xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
     xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+    xmlns:my="clr-namespace:Autopelago"
     xmlns:viewModels="clr-namespace:Autopelago.ViewModels"
     xmlns:reactiveUi="http://reactiveui.net"
     xmlns:materialIcons="clr-namespace:Material.Icons.Avalonia;assembly=Material.Icons.Avalonia"
@@ -72,19 +73,19 @@
                 <Animation Duration="0:0:1"
                            IterationCount="Infinite">
                     <KeyFrame Cue="0%">
-                        <Setter Property="RotateTransform.Angle" Value="0" />
+                        <Setter Property="my:PlayerWiggleProperties.WiggleFactor" Value="0" />
                     </KeyFrame>
                     <KeyFrame Cue="25%">
-                        <Setter Property="RotateTransform.Angle" Value="10" />
+                        <Setter Property="my:PlayerWiggleProperties.WiggleFactor" Value="10" />
                     </KeyFrame>
                     <KeyFrame Cue="50%">
-                        <Setter Property="RotateTransform.Angle" Value="0" />
+                        <Setter Property="my:PlayerWiggleProperties.WiggleFactor" Value="0" />
                     </KeyFrame>
                     <KeyFrame Cue="75%">
-                        <Setter Property="RotateTransform.Angle" Value="-10" />
+                        <Setter Property="my:PlayerWiggleProperties.WiggleFactor" Value="-10" />
                     </KeyFrame>
                     <KeyFrame Cue="100%">
-                        <Setter Property="RotateTransform.Angle" Value="0" />
+                        <Setter Property="my:PlayerWiggleProperties.WiggleFactor" Value="0" />
                     </KeyFrame>
                 </Animation>
             </Style.Animations>
@@ -264,7 +265,19 @@
                                                PointerMoved="OnPointerMovedOverControlWithToolTip"
                                                Width="16" Canvas.Left="{Binding CurrentPoint.X, Mode=OneWay}"
                                                Height="16" Canvas.Top="{Binding CurrentPoint.Y, Mode=OneWay}"
-                                               Source="/Assets/Images/pack_rat.webp">
+                                               Source="/Assets/Images/pack_rat.webp"
+                                               my:PlayerWiggleProperties.TargetAngle="{Binding RelativeAngle}">
+                                            <Image.RenderTransform>
+                                              <!--
+                                              HACK: this must be TransformGroup with RotateTransform
+                                              in the first slot, otherwise PlayerWiggleProperties
+                                              would break!
+                                              -->
+                                              <TransformGroup>
+                                                <RotateTransform />
+                                                <ScaleTransform ScaleX="{Binding ScaleX}" />
+                                              </TransformGroup>
+                                            </Image.RenderTransform>
                                             <Image.Transitions>
                                                 <Transitions>
                                                     <DoubleTransition Property="Canvas.Left" Duration="0:0:0.5" />

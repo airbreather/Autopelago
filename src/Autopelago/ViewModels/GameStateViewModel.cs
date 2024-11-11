@@ -86,7 +86,7 @@ public sealed class GameStateViewModel : ViewModelBase, IDisposable
 
     private readonly TimeProvider _timeProvider = TimeProvider.System;
 
-    private readonly CompositeDisposable _subscriptions = new();
+    private readonly CompositeDisposable _subscriptions = [];
 
     private readonly SemaphoreSlim _dataAvailableSignal = new(0);
 
@@ -254,9 +254,45 @@ public sealed class GameStateViewModel : ViewModelBase, IDisposable
             .ToPropertyEx(this, x => x.CurrentRegionNum));
 
         _subscriptions.Add(this
+            .WhenAnyValue(x => x.TargetLocation)
+            .Select(x => fillerRegionLookup.GetValueOrDefault(x.Key.RegionKey))
+            .ToPropertyEx(this, x => x.TargetFillerRegion));
+
+        _subscriptions.Add(this
+            .WhenAnyValue(x => x.TargetLocation)
+            .Select(x => landmarkRegionsLookup.GetValueOrDefault(x.Key.RegionKey))
+            .ToPropertyEx(this, x => x.TargetLandmarkRegion));
+
+        _subscriptions.Add(this
+            .WhenAnyValue(x => x.TargetLocation)
+            .Select(x => x.Key.N)
+            .ToPropertyEx(this, x => x.TargetRegionNum));
+
+        _subscriptions.Add(this
             .WhenAnyValue(x => x.CurrentLandmarkRegion, x => x.CurrentFillerRegion, x => x.CurrentRegionNum)
             .Select(tup => tup.Item1?.CanvasLocation ?? (tup.Item2 ?? fillerRegionLookup["Menu"]).LocationPoints.ElementAtOrDefault(tup.Item3))
             .ToPropertyEx(this, x => x.CurrentPoint));
+
+        _subscriptions.Add(this
+            .WhenAnyValue(x => x.TargetLandmarkRegion, x => x.TargetFillerRegion, x => x.TargetRegionNum)
+            .Select(tup => tup.Item1?.CanvasLocation ?? (tup.Item2 ?? fillerRegionLookup["Menu"]).LocationPoints.ElementAtOrDefault(tup.Item3))
+            .ToPropertyEx(this, x => x.TargetPoint));
+
+        _subscriptions.Add(this
+            .WhenAnyValue(x => x.CurrentPoint, x => x.TargetPoint)
+            .Where(tup => tup.Item1 != tup.Item2)
+            .Select(tup => Math.Atan2(tup.Item2.Y - tup.Item1.Y, tup.Item2.X - tup.Item1.X) * 180 / Math.PI)
+            .ToPropertyEx(this, x => x.TrueAngle));
+
+        _subscriptions.Add(this
+            .WhenAnyValue(x => x.TrueAngle)
+            .Select(angle => Math.Abs(angle) < 90 ? (double)1 : -1)
+            .ToPropertyEx(this, x => x.ScaleX));
+
+        _subscriptions.Add(this
+            .WhenAnyValue(x => x.TrueAngle)
+            .Select(angle => Math.Abs(angle) < 90 ? angle : angle - 180)
+            .ToPropertyEx(this, x => x.RelativeAngle));
 
         if (Design.IsDesignMode)
         {
@@ -314,13 +350,34 @@ public sealed class GameStateViewModel : ViewModelBase, IDisposable
     public FillerRegionViewModel? CurrentFillerRegion { get; }
 
     [ObservableAsProperty]
+    public FillerRegionViewModel? TargetFillerRegion { get; }
+
+    [ObservableAsProperty]
     public int CurrentRegionNum { get; }
+
+    [ObservableAsProperty]
+    public int TargetRegionNum { get; }
 
     [ObservableAsProperty]
     public LandmarkRegionViewModel? CurrentLandmarkRegion { get; }
 
     [ObservableAsProperty]
+    public LandmarkRegionViewModel? TargetLandmarkRegion { get; }
+
+    [ObservableAsProperty]
     public Point CurrentPoint { get; }
+
+    [ObservableAsProperty]
+    public Point TargetPoint { get; }
+
+    [ObservableAsProperty]
+    public double TrueAngle { get; }
+
+    [ObservableAsProperty]
+    public double RelativeAngle { get; }
+
+    [ObservableAsProperty]
+    public double ScaleX { get; }
 
     [Reactive]
     public int RatCount { get; set; }
