@@ -3,6 +3,7 @@ using System.Collections.Frozen;
 using System.Collections.Immutable;
 using System.Collections.Specialized;
 using System.ComponentModel;
+using System.Diagnostics;
 using System.Net.WebSockets;
 using System.Reactive;
 using System.Reactive.Disposables;
@@ -123,6 +124,8 @@ public sealed class GameStateViewModel : ViewModelBase, IDisposable
     private TimeSpan _nextFullInterval;
 
     private long _prevStartTimestamp;
+
+    private long? _prevBlockedReportTimestamp;
 
     private CancellationTokenSource _pauseCts = new();
 
@@ -939,6 +942,22 @@ public sealed class GameStateViewModel : ViewModelBase, IDisposable
         }
     }
 
+    private static readonly ImmutableArray<string> s_blockedMessages =
+    [
+        "I don't have anything to do right now. Go team!",
+        "Hey, I'm completely stuck. But I still believe in you!",
+        "I've run out of things to do. How are you?",
+        "I'm out of things for now, gonna get a coffee. Anyone want something?",
+    ];
+
+    private static readonly ImmutableArray<string> s_unblockedMessages =
+    [
+        "Yippee, that's just what I needed!",
+        "I'm back! I knew you could do it!",
+        "Sweet, I'm unblocked! Thanks!",
+        "Squeak-squeak, it's rattin' time!",
+    ];
+
     private async Task RunPlayLoopAsync()
     {
         _nextFullInterval = NextInterval(_state);
@@ -981,6 +1000,43 @@ public sealed class GameStateViewModel : ViewModelBase, IDisposable
                 if (prevState.Epoch != nextState.Epoch)
                 {
                     await SaveAsync();
+                }
+
+                if (_state.CurrentLocation.EnumerateReachableLocationsByDistance(_state).Count() == _state.CheckedLocations.Count)
+                {
+                    if (_prevBlockedReportTimestamp is long prevBlockedReportTimestamp)
+                    {
+                        if (Stopwatch.GetElapsedTime(prevBlockedReportTimestamp).TotalMinutes >= 15)
+                        {
+                            _prevBlockedReportTimestamp = null;
+                        }
+                    }
+
+                    if (_prevBlockedReportTimestamp is null)
+                    {
+                        Prng.State prngState = _state.PrngState;
+                        double num = Prng.NextDouble(ref prngState);
+                        _state = _state with { PrngState = prngState };
+                        await SendPacketsAsync([new SayPacketModel
+                        {
+                            Text = s_blockedMessages[(int)(s_blockedMessages.Length * num)],
+                        }]);
+                        _prevBlockedReportTimestamp = Stopwatch.GetTimestamp();
+                    }
+                }
+                else
+                {
+                    if (_prevBlockedReportTimestamp is not null)
+                    {
+                        Prng.State prngState = _state.PrngState;
+                        double num = Prng.NextDouble(ref prngState);
+                        _state = _state with { PrngState = prngState };
+                        await SendPacketsAsync([new SayPacketModel
+                        {
+                            Text = s_unblockedMessages[(int)(s_unblockedMessages.Length * num)],
+                        }]);
+                        _prevBlockedReportTimestamp = null;
+                    }
                 }
             }
             finally
