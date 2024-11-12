@@ -58,11 +58,12 @@ public sealed class Player
             state = state with { DistractionCounter = state.DistractionCounter - 1 };
         }
 
+        BestTargetLocationReason bestTargetLocationReason;
         while (actionBalance > 0 && !state.IsCompleted)
         {
             --actionBalance;
 
-            LocationDefinitionModel bestTargetLocation = BestTargetLocation(state);
+            LocationDefinitionModel bestTargetLocation = BestTargetLocation(state, out bestTargetLocationReason);
             if (state.TargetLocation != bestTargetLocation)
             {
                 // changing your route takes an action
@@ -110,10 +111,10 @@ public sealed class Player
                 MarkLocationChecked(state.CurrentLocation.Key);
             }
 
-            if (state.PriorityLocations.FirstOrDefault()?.Location == state.CurrentLocation)
+            if (bestTargetLocationReason == BestTargetLocationReason.Priority && state.CurrentLocation == state.TargetLocation)
             {
                 // we've reached our next priority location. remove it from the queue.
-                state = state with { PriorityLocations = state.PriorityLocations.RemoveAt(0) };
+                state = state with { PriorityLocations = state.PriorityLocations.RemoveAll(l => l.Location == state.TargetLocation) };
 
                 if (state.StartledCounter > 0)
                 {
@@ -136,7 +137,7 @@ public sealed class Player
 
             // figure out if anything above changed our best target location. if not, then don't
             // update anything so that the Epoch will stay the same!
-            bestTargetLocation = BestTargetLocation(state);
+            bestTargetLocation = BestTargetLocation(state, out bestTargetLocationReason);
             if (bestTargetLocation != state.TargetLocation)
             {
                 state = state with { TargetLocation = bestTargetLocation };
@@ -170,7 +171,7 @@ public sealed class Player
 
     private void MarkLocationChecked(LocationKey key) => _checkedLocations[key.RegionKey][key.N] = true;
 
-    private LocationDefinitionModel BestTargetLocation(GameState state)
+    private LocationDefinitionModel BestTargetLocation(GameState state, out BestTargetLocationReason reason)
     {
         List<(LocationDefinitionModel Location, int Depth)> goModeTargets = [];
         HashSet<string> satisfiedLandmarks = [];
@@ -218,17 +219,20 @@ public sealed class Player
                 }
             }
 
+            reason = BestTargetLocationReason.GoMode;
             return GameDefinitions.Instance.GoalLocation;
         nextGoModePath:;
         }
 
         if (goModeTargets.Count > 0)
         {
+            reason = BestTargetLocationReason.GoMode;
             return goModeTargets.MaxBy(tgt => tgt.Depth).Location;
         }
 
         if (BestPriorityLocation(state) is { } bestPriorityLocation)
         {
+            reason = BestTargetLocationReason.Priority;
             return bestPriorityLocation;
         }
 
@@ -241,6 +245,7 @@ public sealed class Player
             closestUncheckedLocation = state.CurrentLocation;
         }
 
+        reason = BestTargetLocationReason.ClosestReachable;
         return closestUncheckedLocation;
     }
 
@@ -305,5 +310,12 @@ public sealed class Player
         }
 
         return [.. paths];
+    }
+
+    private enum BestTargetLocationReason
+    {
+        ClosestReachable,
+        Priority,
+        GoMode,
     }
 }

@@ -671,6 +671,41 @@ public sealed class PlayerTests
         });
     }
 
+    [Test]
+    [Property("Regression", 53)]
+    public void PriorityLocationChecksShouldBypassUnreachableLocations()
+    {
+        LocationDefinitionModel lastLocationBeforeBasketball = GameDefinitions.Instance.StartRegion.Locations[^1];
+        GameState state = GameState.Start() with
+        {
+            CurrentLocation = lastLocationBeforeBasketball,
+            TargetLocation = lastLocationBeforeBasketball,
+            PriorityLocations =
+            [
+                new()
+                {
+                    Location = s_basketball,
+                    Source = PriorityLocationModel.SourceKind.Smart,
+                },
+                new()
+                {
+                    Location = lastLocationBeforeBasketball,
+                    Source = PriorityLocationModel.SourceKind.Conspiratorial,
+                },
+            ],
+            CheckedLocations =
+            [
+                lastLocationBeforeBasketball,
+            ],
+            PrngState = s_lowRolls,
+        };
+
+        Player player = new();
+        state = player.Advance(state);
+
+        Assert.That(state.TargetLocation, Is.Not.EqualTo(lastLocationBeforeBasketball));
+    }
+
     private static FrozenDictionary<LocationDefinitionModel, ArchipelagoItemFlags> CreateSpoiler(ReadOnlySpan<(LocationDefinitionModel Location, ArchipelagoItemFlags Flags)> defined)
     {
         Dictionary<LocationDefinitionModel, ArchipelagoItemFlags> result = GameDefinitions.Instance.LocationsByName.Values.ToDictionary(l => l, _ => ArchipelagoItemFlags.None);
