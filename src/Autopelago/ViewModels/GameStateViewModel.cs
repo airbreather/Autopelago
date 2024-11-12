@@ -654,7 +654,13 @@ public sealed class GameStateViewModel : ViewModelBase, IDisposable
                 try
                 {
                     ulong prevEpoch = _state.Epoch;
-                    Handle(ref _state, receivedItems);
+                    ImmutableArray<SayPacketModel> thingsToSay = Handle(ref _state, receivedItems);
+                    if (!thingsToSay.IsEmpty)
+                    {
+                        ImmutableArray<ArchipelagoPacketModel> packets = thingsToSay.CastArray<ArchipelagoPacketModel>();
+                        await SendPacketsAsync(packets);
+                    }
+
                     if (_state.Epoch != prevEpoch)
                     {
                         await SaveAsync();
@@ -771,7 +777,7 @@ public sealed class GameStateViewModel : ViewModelBase, IDisposable
 
                 SayPacketModel say = new()
                 {
-                    Text = $"Confirm prioritizing '{toPrioritize.Name}' for user '{probablyPlayerAlias}'",
+                    Text = $"All right, I'll get right over to '{toPrioritize.Name}', {probablyPlayerAlias}!",
                 };
                 await SendPacketsAsync([say]);
             }
@@ -811,7 +817,7 @@ public sealed class GameStateViewModel : ViewModelBase, IDisposable
             {
                 Text = toRemove is null
                     ? $"Um... excuse me, but... I don't see a '{loc}' to remove..."
-                    : $"Confirm deprioritizing '{toRemove.Location.Name}' for user '{probablyPlayerAlias}'",
+                    : $"Oh, OK. I'll stop trying to get to '{toRemove.Location.Name}', {probablyPlayerAlias}.",
             };
             await SendPacketsAsync([say]);
         }
@@ -1023,7 +1029,15 @@ public sealed class GameStateViewModel : ViewModelBase, IDisposable
         };
     }
 
-    private void Handle(ref GameState state, ReceivedItemsPacketModel receivedItems)
+    private static readonly ImmutableArray<string> s_newTargetPhrases =
+    [
+        "Oh, hey, what's that thing over there at '{LOCATION}'?",
+        "There's something at '{LOCATION}', I'm sure of it!",
+        "Something at '{LOCATION}' smells good!",
+        "There's a rumor that something's going on at '{LOCATION}'!",
+    ];
+
+    private ImmutableArray<SayPacketModel> Handle(ref GameState state, ReceivedItemsPacketModel receivedItems)
     {
         var convertedItems = ImmutableArray.CreateRange(receivedItems.Items, (item, itemsReverseMapping) => itemsReverseMapping[item.Item], _lastFullData.ItemsById);
         for (int i = receivedItems.Index; i < state.ReceivedItems.Count; i++)
@@ -1037,7 +1051,7 @@ public sealed class GameStateViewModel : ViewModelBase, IDisposable
         ImmutableArray<ItemDefinitionModel> newItems = convertedItems[(state.ReceivedItems.Count - receivedItems.Index)..];
         if (newItems.IsEmpty)
         {
-            return;
+            return [];
         }
 
         int foodMod = 0;
@@ -1129,17 +1143,36 @@ public sealed class GameStateViewModel : ViewModelBase, IDisposable
 
         state = state
             .AddStartled(startledMod)
-            .ResolveSmartAndConspiratorialAuras(CollectionsMarshal.AsSpan(smartAndConspiratorial), _spoilerData) with
-            {
-                ReceivedItems = state.ReceivedItems.AddRange(newItems),
-                FoodFactor = state.FoodFactor + (foodMod * 5),
-                EnergyFactor = state.EnergyFactor + (energyFactorMod * 5),
-                LuckFactor = state.LuckFactor + luckFactorMod,
-                StyleFactor = state.StyleFactor + (stylishMod * 2),
-                DistractionCounter = state.DistractionCounter + distractedMod,
-            };
+            .ResolveSmartAndConspiratorialAuras(CollectionsMarshal.AsSpan(smartAndConspiratorial), _spoilerData, out ImmutableArray<PriorityLocationModel> newPriorityLocations) with
+        {
+            ReceivedItems = state.ReceivedItems.AddRange(newItems),
+            FoodFactor = state.FoodFactor + (foodMod * 5),
+            EnergyFactor = state.EnergyFactor + (energyFactorMod * 5),
+            LuckFactor = state.LuckFactor + luckFactorMod,
+            StyleFactor = state.StyleFactor + (stylishMod * 2),
+            DistractionCounter = state.DistractionCounter + distractedMod,
+        };
 
         UpdateMeters();
+
+        if (newPriorityLocations.IsEmpty)
+        {
+            return [];
+        }
+
+        Prng.State prngState = state.PrngState;
+        SayPacketModel[] newPackets = new SayPacketModel[newPriorityLocations.Length];
+        for (int i = 0; i < newPackets.Length; i++)
+        {
+            double num = Prng.NextDouble(ref prngState);
+            newPackets[i] = new()
+            {
+                Text = s_newTargetPhrases[(int)(s_newTargetPhrases.Length * num)].Replace("{LOCATION}", newPriorityLocations[i].Location.Name),
+            };
+        }
+
+        state = state with { PrngState = prngState };
+        return ImmutableCollectionsMarshal.AsImmutableArray(newPackets);
     }
 
     private TimeSpan NextInterval(GameState state)

@@ -209,10 +209,11 @@ public sealed record GameState
         };
     }
 
-    public GameState ResolveSmartAndConspiratorialAuras(ReadOnlySpan<PriorityLocationModel.SourceKind> receivedAuras, FrozenDictionary<LocationDefinitionModel, ArchipelagoItemFlags> spoilerData)
+    public GameState ResolveSmartAndConspiratorialAuras(ReadOnlySpan<PriorityLocationModel.SourceKind> receivedAuras, FrozenDictionary<LocationDefinitionModel, ArchipelagoItemFlags> spoilerData, out ImmutableArray<PriorityLocationModel> resolvedLocations)
     {
         if (receivedAuras.IsEmpty)
         {
+            resolvedLocations = [];
             return this;
         }
 
@@ -246,6 +247,7 @@ public sealed record GameState
             });
         }
 
+        resolvedLocations = [.. locationsToAppend];
         return this with { PriorityLocations = PriorityLocations.AddRange(locationsToAppend) };
         IEnumerable<LocationDefinitionModel> Targets(ArchipelagoItemFlags flags)
         {
