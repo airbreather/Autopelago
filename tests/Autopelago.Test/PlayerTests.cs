@@ -554,7 +554,7 @@ public sealed class PlayerTests
 
         // even though there's a target RIGHT on the other side, we still favor the nearest one that
         // we can already reach with what we currently have.
-        state = state.ResolveSmartAndConspiratorialAuras([smartOrConspiratorial], spoilerData);
+        state = state.ResolveSmartAndConspiratorialAuras([smartOrConspiratorial], spoilerData, out _);
         Assert.That(state.PriorityLocations, Is.EqualTo(new[]
         {
             new PriorityLocationModel
@@ -566,7 +566,7 @@ public sealed class PlayerTests
 
         // but if there's nothing else that we can reach, then we should still be able to get the
         // nearest thing that we can't.
-        state = state.ResolveSmartAndConspiratorialAuras([smartOrConspiratorial], spoilerData);
+        state = state.ResolveSmartAndConspiratorialAuras([smartOrConspiratorial], spoilerData, out _);
         Assert.That(state.PriorityLocations, Is.EqualTo(new[]
         {
             new PriorityLocationModel
@@ -583,7 +583,7 @@ public sealed class PlayerTests
 
         // finally, if we get another call without there being ANY other targets in the spoiler data
         // that we can go to, it shouldn't *fail*, per se. it should just fizzle out.
-        state = state.ResolveSmartAndConspiratorialAuras([smartOrConspiratorial, smartOrConspiratorial], spoilerData);
+        state = state.ResolveSmartAndConspiratorialAuras([smartOrConspiratorial, smartOrConspiratorial], spoilerData, out _);
         Assert.That(state.PriorityLocations, Is.EqualTo(new[]
         {
             new PriorityLocationModel
