@@ -242,6 +242,7 @@ public sealed class GameStateViewModel : ViewModelBase, IDisposable
 
         FrozenDictionary<string, FillerRegionViewModel> fillerRegionLookup = GameDefinitions.Instance.FillerRegions
             .ToFrozenDictionary(kvp => kvp.Key, kvp => new FillerRegionViewModel(kvp.Value));
+        FillerLocationPoints = [.. fillerRegionLookup.Values.SelectMany(r => r.LocationPoints).Select(p => p + FillerRegionViewModel.s_toCenter)];
 
         _subscriptions.Add(this
             .WhenAnyValue(x => x.CurrentLocation)
@@ -356,6 +357,8 @@ public sealed class GameStateViewModel : ViewModelBase, IDisposable
 
     [ObservableAsProperty]
     public FillerRegionViewModel? TargetFillerRegion { get; }
+
+    public ImmutableArray<Point> FillerLocationPoints { get; }
 
     [ObservableAsProperty]
     public int CurrentRegionNum { get; }

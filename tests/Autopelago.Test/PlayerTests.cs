@@ -654,7 +654,7 @@ public sealed class PlayerTests
             EnergyFactor = -100,
         };
 
-        if (s_startRegion.Locations.Length != 31)
+        if (s_startRegion.Locations.Length != 18)
         {
             Assert.Inconclusive("This test is particularly sensitive to changes in the number of locations in the start region. Please re-evaluate.");
         }
@@ -666,14 +666,12 @@ public sealed class PlayerTests
         Assert.That(state.CurrentLocation.Key.N, Is.EqualTo(9));
         state = player.Advance(state);
         Assert.That(state.CurrentLocation.Key.N, Is.EqualTo(15));
-        state = player.Advance(state);
-        Assert.That(state.CurrentLocation.Key.N, Is.EqualTo(18));
-        state = player.Advance(state);
-        Assert.That(state.CurrentLocation.Key.N, Is.EqualTo(24));
-        state = player.Advance(state);
-        Assert.That(state.CurrentLocation.Key.N, Is.EqualTo(27));
         state = player.Advance(state with { EnergyFactor = 0 });
-        Assert.That(state.CheckedLocations, Contains.Item(s_basketball));
+        Assert.Multiple(() =>
+        {
+            Assert.That(state.CheckedLocations, Contains.Item(s_basketball));
+            Assert.That(state.CurrentLocation, Is.EqualTo(s_basketball));
+        });
     }
 
     [Test]

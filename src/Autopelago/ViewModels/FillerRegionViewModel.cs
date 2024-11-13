@@ -7,7 +7,7 @@ namespace Autopelago.ViewModels;
 
 public sealed class FillerRegionViewModel : ViewModelBase
 {
-    private static readonly Vector s_toCenter = new Point(16, 16) / 2;
+    internal static readonly Vector s_toCenter = new Point(16, 16) / 2;
 
 #pragma warning disable format
     private static readonly FrozenDictionary<string, ImmutableArray<Point>> s_definingPoints = new Dictionary<string, ImmutableArray<Point>>
