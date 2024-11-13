@@ -92,7 +92,7 @@ public sealed class Player
                 // combat this, every time the player decides to move, they can advance up to five
                 // whole spaces towards their target. this keeps the overall progression speed the
                 // same in dense areas.
-                for (int i = 0; i < 5 && state.CurrentLocation != state.TargetLocation; i++)
+                for (int i = 0; i < 3 && state.CurrentLocation != state.TargetLocation; i++)
                 {
                     state = state with { CurrentLocation = state.CurrentLocation.NextLocationTowards(state.TargetLocation, state) };
                     moved = true;

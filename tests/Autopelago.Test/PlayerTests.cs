@@ -651,6 +651,7 @@ public sealed class PlayerTests
                 .. s_startRegion.Locations,
             ],
             PrngState = s_highRolls,
+            EnergyFactor = -100,
         };
 
         if (s_startRegion.Locations.Length != 31)
@@ -660,15 +661,19 @@ public sealed class PlayerTests
 
         Player player = new();
         state = player.Advance(state);
+        Assert.That(state.CurrentLocation.Key.N, Is.EqualTo(6));
+        state = player.Advance(state);
+        Assert.That(state.CurrentLocation.Key.N, Is.EqualTo(9));
+        state = player.Advance(state);
         Assert.That(state.CurrentLocation.Key.N, Is.EqualTo(15));
         state = player.Advance(state);
-        Assert.That(state.CurrentLocation.Key.N, Is.EqualTo(30));
+        Assert.That(state.CurrentLocation.Key.N, Is.EqualTo(18));
         state = player.Advance(state);
-        Assert.Multiple(() =>
-        {
-            Assert.That(GameDefinitions.Instance.ConnectedLocations[state.CurrentLocation], Contains.Item(s_basketball));
-            Assert.That(state.CheckedLocations, Does.Not.Contain(state.CurrentLocation));
-        });
+        Assert.That(state.CurrentLocation.Key.N, Is.EqualTo(24));
+        state = player.Advance(state);
+        Assert.That(state.CurrentLocation.Key.N, Is.EqualTo(27));
+        state = player.Advance(state with { EnergyFactor = 0 });
+        Assert.That(state.CheckedLocations, Contains.Item(s_basketball));
     }
 
     [Test]
