@@ -274,8 +274,8 @@
                                               would break!
                                               -->
                                               <TransformGroup>
-                                                <RotateTransform />
                                                 <ScaleTransform ScaleX="{Binding ScaleX}" />
+                                                <RotateTransform />
                                               </TransformGroup>
                                             </Image.RenderTransform>
                                             <Image.Transitions>

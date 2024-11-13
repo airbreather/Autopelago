@@ -21,7 +21,7 @@ public sealed class PlayerWiggleProperties : AvaloniaObject
     {
         // HACK: this relies way too much on the exact way I've structured the transform on the
         // player image itself... maybe revisit if that becomes an issue.
-        ((RotateTransform)((TransformGroup)tgt.RenderTransform!).Children[0]).Angle = GetWiggleFactor(tgt) + GetTargetAngle(tgt);
+        ((RotateTransform)((TransformGroup)tgt.RenderTransform!).Children[1]).Angle = GetWiggleFactor(tgt) + GetTargetAngle(tgt);
     }
 
     public static double GetWiggleFactor(Visual tgt)

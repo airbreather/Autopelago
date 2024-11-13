@@ -289,12 +289,12 @@ public sealed class GameStateViewModel : ViewModelBase, IDisposable
 
         _subscriptions.Add(this
             .WhenAnyValue(x => x.TrueAngle)
-            .Select(angle => Math.Abs(angle) <= 90 ? (double)1 : -1)
+            .Select(angle => Math.Abs(angle) < 90 ? (double)1 : -1)
             .ToPropertyEx(this, x => x.ScaleX));
 
         _subscriptions.Add(this
             .WhenAnyValue(x => x.TrueAngle)
-            .Select(angle => Math.Abs(angle) <= 90 ? angle : angle - 180)
+            .Select(angle => Math.Abs(angle) < 90 ? angle : angle - 180)
             .ToPropertyEx(this, x => x.RelativeAngle));
 
         if (Design.IsDesignMode)
