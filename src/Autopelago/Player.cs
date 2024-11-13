@@ -167,11 +167,7 @@ public sealed class Player
             : state with { TotalNontrivialStepCount = state.TotalNontrivialStepCount + 1 };
     }
 
-    private bool LocationIsChecked(LocationKey key) => _checkedLocations[key.RegionKey][key.N];
-
-    private void MarkLocationChecked(LocationKey key) => _checkedLocations[key.RegionKey][key.N] = true;
-
-    private LocationDefinitionModel BestTargetLocation(GameState state, out BestTargetLocationReason reason)
+    public LocationDefinitionModel? NextGoModeLocation(GameState state)
     {
         List<(LocationDefinitionModel Location, int Depth)> goModeTargets = [];
         HashSet<string> satisfiedLandmarks = [];
@@ -219,15 +215,28 @@ public sealed class Player
                 }
             }
 
-            reason = BestTargetLocationReason.GoMode;
             return GameDefinitions.Instance.GoalLocation;
         nextGoModePath:;
         }
 
         if (goModeTargets.Count > 0)
         {
-            reason = BestTargetLocationReason.GoMode;
             return goModeTargets.MaxBy(tgt => tgt.Depth).Location;
+        }
+
+        return null;
+    }
+
+    private bool LocationIsChecked(LocationKey key) => _checkedLocations[key.RegionKey][key.N];
+
+    private void MarkLocationChecked(LocationKey key) => _checkedLocations[key.RegionKey][key.N] = true;
+
+    private LocationDefinitionModel BestTargetLocation(GameState state, out BestTargetLocationReason reason)
+    {
+        if (NextGoModeLocation(state) is { } nextGoModeLocation)
+        {
+            reason = BestTargetLocationReason.GoMode;
+            return nextGoModeLocation;
         }
 
         if (BestPriorityLocation(state) is { } bestPriorityLocation)

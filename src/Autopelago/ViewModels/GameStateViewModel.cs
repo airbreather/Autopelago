@@ -127,6 +127,8 @@ public sealed class GameStateViewModel : ViewModelBase, IDisposable
 
     private long? _prevBlockedReportTimestamp;
 
+    private bool _wasGoMode;
+
     private CancellationTokenSource _pauseCts = new();
 
     private CancellationTokenSource _unpauseCts = new();
@@ -989,13 +991,28 @@ public sealed class GameStateViewModel : ViewModelBase, IDisposable
             }
 
             GameState prevState, nextState;
+            async ValueTask CheckGoMode()
+            {
+                if (!_wasGoMode && _player.NextGoModeLocation(_state) is not null)
+                {
+                    SayPacketModel say = new()
+                    {
+                        Text = "That's it! I have everything I need! The moon is in sight!",
+                    };
+                    await SendPacketsAsync([say]);
+                    _wasGoMode = true;
+                }
+            }
+
             _prevStartTimestamp = _timeProvider.GetTimestamp();
             await _gameStateMutex.WaitAsync();
             try
             {
                 prevState = _state;
                 _nextFullInterval = NextInterval(_state);
+                await CheckGoMode();
                 _state = nextState = _player.Advance(prevState);
+                await CheckGoMode();
 
                 if (prevState.Epoch != nextState.Epoch)
                 {
