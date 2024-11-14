@@ -17,7 +17,7 @@ jobs:
           global-json-file: global.json
 
       - name: Restore
-        run: dotnet restore --locked-mode
+        run: dotnet restore
 
       - name: Build
         shell: bash
