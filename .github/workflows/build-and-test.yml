@@ -1,0 +1,59 @@
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          global-json-file: global.json
+
+      - name: Restore
+        run: dotnet restore --locked-mode
+
+      - name: Build
+        shell: bash
+        run: |
+          dotnet format --no-restore --verify-no-changes &
+          dotnet build --no-restore -c Release &
+          dotnet publish src/Autopelago/Autopelago.csproj --no-restore -c Release -r win-x64 -o dist/Autopelago_win-x64 &
+          dotnet publish src/Autopelago/Autopelago.csproj --no-restore -c Release -r linux-x64 -o dist/Autopelago_linux-x64 &
+          dotnet publish src/Autopelago/Autopelago.csproj --no-restore -c Release -r osx-x64 -o dist/Autopelago_osx-x64 &
+          wait < <(jobs -p);
+
+      - name: Run tests
+        run: dotnet test -c Release --no-build --logger 'console;verbosity=detailed' --logger trx --results-directory=TestResults
+
+      - name: Upload test results
+        uses: actions/upload-artifact@v4
+        with:
+          name: dotnet-test-results
+          path: TestResults
+        if: always()
+
+      - name: Prepare release directory
+        shell: bash
+        run: |
+          pushd dist;
+          mkdir release;
+          zip -9 -r release/Autopelago_win-x64.zip Autopelago_win-x64 &
+          tar -cf - Autopelago_linux-x64 | zstd -10 -T0 -o release/Autopelago_linux-x64.tar.zst &
+          tar -cf - Autopelago_osx-x64 | zstd -10 -T0 -o release/Autopelago_osx-x64.tar.zst &
+          echo "RELEASE_NUMBER=$(date -u +%Y%m%d%H%M%S)" >> "$GITHUB_ENV";
+          wait < <(jobs -p);
+          popd;
+
+      - name: Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: 'Autopelago_${{ env.RELEASE_NUMBER }}'
+          files: dist/release
+          prerelease: true
