@@ -275,13 +275,13 @@ public sealed class GameStateViewModel : ViewModelBase, IDisposable
             .ToPropertyEx(this, x => x.TargetRegionNum));
 
         _subscriptions.Add(this
-            .WhenAnyValue(x => x.CurrentLandmarkRegion, x => x.CurrentFillerRegion, x => x.CurrentRegionNum)
-            .Select(tup => tup.Item1?.CanvasLocation ?? (tup.Item2 ?? fillerRegionLookup["Menu"]).LocationPoints.ElementAtOrDefault(tup.Item3))
+            .WhenAnyValue(x => x.CurrentLocation)
+            .Select(GetPoint)
             .ToPropertyEx(this, x => x.CurrentPoint));
 
         _subscriptions.Add(this
-            .WhenAnyValue(x => x.TargetLandmarkRegion, x => x.TargetFillerRegion, x => x.TargetRegionNum)
-            .Select(tup => tup.Item1?.CanvasLocation ?? (tup.Item2 ?? fillerRegionLookup["Menu"]).LocationPoints.ElementAtOrDefault(tup.Item3))
+            .WhenAnyValue(x => x.TargetLocation)
+            .Select(GetPoint)
             .ToPropertyEx(this, x => x.TargetPoint));
 
         _subscriptions.Add(this
@@ -331,6 +331,15 @@ public sealed class GameStateViewModel : ViewModelBase, IDisposable
 
                 return GameDefinitions.Instance.LocationsByKey[CurrentLocation.Key with { N = CurrentLocation.Key.N + 1 }];
             }
+        }
+
+        return;
+
+        Point GetPoint(LocationDefinitionModel location)
+        {
+            return landmarkRegionsLookup.TryGetValue(location.Region.Key, out LandmarkRegionViewModel? landmark)
+                ? landmark.CanvasLocation
+                : fillerRegionLookup[location.Key.RegionKey].LocationPoints[location.Key.N];
         }
     }
 
@@ -749,7 +758,7 @@ public sealed class GameStateViewModel : ViewModelBase, IDisposable
         }
 
         string probablyPlayerAlias = cmd[..(tagIndex - ": ".Length)];
-        if (!_lastFullData.SlotByPlayerAlias.TryGetValue(probablyPlayerAlias, out int chattingSlot))
+        if (!_lastFullData.SlotByPlayerAlias.ContainsKey(probablyPlayerAlias))
         {
             // this isn't necessarily an error or a mistaken assumption. it could just be that the
             // "@{SlotName}" happened partway through their message. don't test every single user's
@@ -801,7 +810,7 @@ public sealed class GameStateViewModel : ViewModelBase, IDisposable
         else if (cmd.StartsWith("stop ", StringComparison.OrdinalIgnoreCase))
         {
             string loc = cmd["stop ".Length..].Trim('"');
-            PriorityLocationModel? toRemove = null;
+            PriorityLocationModel? toRemove;
             await _gameStateMutex.WaitAsync();
             try
             {

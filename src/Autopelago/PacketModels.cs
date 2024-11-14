@@ -4,6 +4,7 @@ using System.Diagnostics.CodeAnalysis;
 using System.Text.Json;
 using System.Text.Json.Nodes;
 using System.Text.Json.Serialization;
+using System.Text.Json.Serialization.Metadata;
 
 namespace Autopelago;
 
@@ -575,7 +576,7 @@ internal sealed class JSONMessagePartModelConverter : JsonConverter<JSONMessageP
 {
     public override JSONMessagePartModel? Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
     {
-        JsonElement element = JsonSerializer.Deserialize<JsonElement>(ref reader, options);
+        JsonElement element = JsonSerializer.Deserialize(ref reader, (JsonTypeInfo<JsonElement>)options.GetTypeInfo(typeof(JsonElement)));
         if (element.ValueKind != JsonValueKind.Object)
         {
             return null;
@@ -596,8 +597,8 @@ internal sealed class JSONMessagePartModelConverter : JsonConverter<JSONMessageP
             null => new() { Text = text },
             "player_id" => new PlayerIdJSONMessagePartModel { Text = text },
             "player_name" => new PlayerNameJSONMessagePartModel { Text = text },
-            "item_id" => new ItemIdJSONMessagePartModel { Text = text, Player = element.GetProperty("player"u8).GetInt32(), Flags = element.GetProperty("flags"u8).Deserialize<ArchipelagoItemFlags>(options) },
-            "item_name" => new ItemNameJSONMessagePartModel { Text = text, Player = element.GetProperty("player"u8).GetInt32(), Flags = element.GetProperty("flags"u8).Deserialize<ArchipelagoItemFlags>(options) },
+            "item_id" => new ItemIdJSONMessagePartModel { Text = text, Player = element.GetProperty("player"u8).GetInt32(), Flags = element.GetProperty("flags"u8).Deserialize((JsonTypeInfo<ArchipelagoItemFlags>)options.GetTypeInfo(typeof(ArchipelagoItemFlags))) },
+            "item_name" => new ItemNameJSONMessagePartModel { Text = text, Player = element.GetProperty("player"u8).GetInt32(), Flags = element.GetProperty("flags"u8).Deserialize((JsonTypeInfo<ArchipelagoItemFlags>)options.GetTypeInfo(typeof(ArchipelagoItemFlags))) },
             "location_id" => new LocationIdJSONMessagePartModel { Text = text, Player = element.GetProperty("player"u8).GetInt32() },
             "location_name" => new LocationNameJSONMessagePartModel { Text = text, Player = element.GetProperty("player"u8).GetInt32() },
             "entrance_name" => new EntranceNameJSONMessagePartModel { Text = text },
