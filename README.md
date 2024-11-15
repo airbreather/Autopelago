@@ -13,9 +13,11 @@ There are the usual Archipelago parameters, plus a couple more described below i
 Of course, you need to use an Archipelago server that supports this game (probably via an `apworld`) to actually get this going. Instructions for that are outside the scope of this document for now.
 
 ### Platforms (x64 only)
-Linux: you need [these packages](https://github.com/dotnet/core/blob/main/release-notes/8.0/linux-packages.md).
+The application is created using .NET 8.0. Unlike what you may have seen elsewhere, Linux and Windows users **DO NOT NEED** to install a .NET runtime or .NET SDK to run the published application.
 
-Windows: 10+ only (8.1 and below are not supported by .NET 8).
+Linux: you do need to install [these very common packages](https://github.com/dotnet/core/blob/v9.0.0/release-notes/8.0/linux-packages.md), most or all of which many people will already have anyway. [File a bug](https://github.com/airbreather/Autopelago/issues/new) if I'm missing something. 
+
+Windows (10+): the .exe file should work as-is without you doing anything special. Feel free to [file a bug](https://github.com/airbreather/Autopelago/issues/new) if you can't see a screen with "Host" and "Port" boxes.
 
 Anything else: If you have the .NET SDK 8.0, then you should be able to clone this source code repository, go to `src/Autopelago`, and then `dotnet run -c Release`. macOS in particular should have the easiest time with this (I just don't know how to properly publish something user-friendly that will work, and I especially don't feel like paying Apple any money for the privilege to do so), and it looks like there's a native port for FreeBSD (`lang/dotnet`) that will probably work there too. For everyone else, you probably knew what you were getting into.
 
