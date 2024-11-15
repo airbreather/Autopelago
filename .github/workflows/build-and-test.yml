@@ -55,7 +55,7 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           tag_name: 'Autopelago_${{ env.RELEASE_NUMBER }}'
-          files: dist/release
+          files: dist/release/**
           prerelease: true
 
       - name: Drop old pre-releases
