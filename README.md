@@ -4,6 +4,21 @@ A game that's so easy, it plays itself!
 
 Intended to integrate with [Archipelago](https://archipelago.gg) to help people practice by themselves in a realistic(ish) setting.
 
+## Getting started
+
+Grab the latest release from https://github.com/airbreather/Autopelago/releases. It's just a single zipped-up executable file: put it somewhere, run it, wait for an annoyingly long startup (sorry), and you're off to the races.
+
+There are the usual Archipelago parameters, plus a couple more described below in the "How this works" section. For host/port, you can either fill the separate text boxes or paste the complete `host:port` format into the "Host" box.
+
+Of course, you need to use an Archipelago server that supports this game (probably via an `apworld`) to actually get this going. Instructions for that are outside the scope of this document for now.
+
+### Platforms (x64 only)
+Linux: you need [these packages](https://github.com/dotnet/core/blob/main/release-notes/8.0/linux-packages.md).
+
+Windows: 10+ only (8.1 and below are not supported by .NET 8).
+
+Anything else: If you have the .NET SDK 8.0, then you should be able to clone this source code repository, go to `src/Autopelago`, and then `dotnet run -c Release`. macOS in particular should have the easiest time with this (I just don't know how to properly publish something user-friendly that will work, and I especially don't feel like paying Apple any money for the privilege to do so), and it looks like there's a native port for FreeBSD (`lang/dotnet`) that will probably work there too. For everyone else, you probably knew what you were getting into.
+
 ## How this works
 
 Once connected, the "player" (represented by a rat icon) will autonomously move across the game world, sending location checks along the way. Its own items that it receives will be more-or-less what you expect:
