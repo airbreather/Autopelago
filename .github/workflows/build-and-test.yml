@@ -47,7 +47,6 @@ jobs:
           shopt -s dotglob
           (cd Autopelago_win-x64; zip -9 -r ../release/Autopelago_win-x64.zip *) &
           (cd Autopelago_linux-x64; tar -cf - * | zstd --ultra -22 -T0 -o ../release/Autopelago_linux-x64.tar.zst) &
-          (cd Autopelago_osx-x64; tar -cf - * | zstd --ultra -22 -T0 -o ../release/Autopelago_osx-x64.tar.zst) &
           echo "RELEASE_NUMBER=$(date -u +%Y%m%d%H%M%S)" >> "$GITHUB_ENV";
           wait < <(jobs -p);
           popd;
