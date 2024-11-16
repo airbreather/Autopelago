@@ -431,8 +431,11 @@ public sealed partial class GameStateViewModel : ViewModelBase, IDisposable
             }
             catch (Exception ex)
             {
-                Log.Fatal(ex, "Unhandled in packet read loop.");
-                _unhandledException.OnNext(ex);
+                if (!_subscriptions.IsDisposed)
+                {
+                    Log.Fatal(ex, "Unhandled in packet read loop.");
+                    _unhandledException.OnNext(ex);
+                }
             }
         });
 
@@ -444,8 +447,11 @@ public sealed partial class GameStateViewModel : ViewModelBase, IDisposable
             }
             catch (Exception ex)
             {
-                Log.Fatal(ex, "Unhandled in play loop.");
-                _unhandledException.OnNext(ex);
+                if (!_subscriptions.IsDisposed)
+                {
+                    Log.Fatal(ex, "Unhandled in play loop.");
+                    _unhandledException.OnNext(ex);
+                }
             }
         });
     }
@@ -453,6 +459,7 @@ public sealed partial class GameStateViewModel : ViewModelBase, IDisposable
     public void Dispose()
     {
         _subscriptions.Dispose();
+        _clientWebSocketBox?.Dispose();
     }
 
     private static FrozenDictionary<string, int> ProgressionItemSortOrder()
@@ -680,6 +687,7 @@ public sealed partial class GameStateViewModel : ViewModelBase, IDisposable
                 }
 
                 _completedHandshake = true;
+                UpdateMeters();
                 _dataAvailableSignal.Release();
                 break;
 
@@ -982,6 +990,11 @@ public sealed partial class GameStateViewModel : ViewModelBase, IDisposable
                     }
                     catch (OperationCanceledException)
                     {
+                        if (_subscriptions.IsDisposed)
+                        {
+                            return;
+                        }
+
                         // user clicked Pause
                         long waitStart = _timeProvider.GetTimestamp();
                         TaskCompletionSource cancelTcs = new(TaskCreationOptions.RunContinuationsAsynchronously);
@@ -990,6 +1003,11 @@ public sealed partial class GameStateViewModel : ViewModelBase, IDisposable
                         dueTime += _timeProvider.GetTimestamp() - waitStart;
                         _unpauseCts = new();
                         _pauseCts = new();
+                    }
+
+                    if (_subscriptions.IsDisposed)
+                    {
+                        return;
                     }
                 }
             }
