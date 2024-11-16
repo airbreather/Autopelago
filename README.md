@@ -4,22 +4,23 @@ A game that's so easy, it plays itself!
 
 Intended to integrate with [Archipelago](https://archipelago.gg) to help people practice by themselves in a realistic(ish) setting.
 
-## Getting started
+## Get Started
 
-Grab the latest release from https://github.com/airbreather/Autopelago/releases. It's just a single zipped-up executable file: put it somewhere, run it, wait for an annoyingly long startup (sorry), and you're off to the races.
+### Download + Launch
+x86-64 only. There's no "installer" or anything like that, just a zipped-up single executable file. Put it somewhere and run it.
+
+- Windows (10+): easy. just download the `win-x64` file from the latest [release](https://github.com/airbreather/Autopelago/releases) and run it.
+- Linux: pretty easy. make sure [these packages](https://github.com/dotnet/core/blob/v9.0.0/release-notes/8.0/linux-packages.md) are installed, download the `linux-x64` file from the latest [release](https://github.com/airbreather/Autopelago/releases), and run it.
+- macOS / FreeBSD: harder and untested. install .NET 8.0 SDK, clone this repository, go to `src/Autopelago`, and `dotnet run -c Release`.
+   - macOS users: apparently you can get the SDK from here https://dotnet.microsoft.com/en-us/download/dotnet/8.0
+   - FreeBSD users: apparently the SDK comes from the `lang/dotnet` port. This is kind of new, see [the wiki](https://wiki.freebsd.org/.NET) for any updates.
+- Anything else: probably impossible.
+
+### First Steps
 
 There are the usual Archipelago parameters, plus a couple more described below in the "How this works" section. For host/port, you can either fill the separate text boxes or paste the complete `host:port` format into the "Host" box.
 
 Of course, you need to use an Archipelago server that supports this game (probably via an `apworld`) to actually get this going. Instructions for that are outside the scope of this document for now.
-
-### Platforms (x64 only)
-The application is created using .NET 8.0. Unlike what you may have seen elsewhere, Linux and Windows users **DO NOT NEED** to install a .NET runtime or .NET SDK to run the published application.
-
-Linux: you do need to install [these very common packages](https://github.com/dotnet/core/blob/v9.0.0/release-notes/8.0/linux-packages.md), most or all of which many people will already have anyway. [File a bug](https://github.com/airbreather/Autopelago/issues/new) if I'm missing something. 
-
-Windows (10+): the .exe file should work as-is without you doing anything special. Feel free to [file a bug](https://github.com/airbreather/Autopelago/issues/new) if you can't see a screen with "Host" and "Port" boxes.
-
-Anything else: If you have the .NET SDK 8.0, then you should be able to clone this source code repository, go to `src/Autopelago`, and then `dotnet run -c Release`. macOS in particular should have the easiest time with this (I just don't know how to properly publish something user-friendly that will work, and I especially don't feel like paying Apple any money for the privilege to do so), and it looks like there's a native port for FreeBSD (`lang/dotnet`) that will probably work there too. For everyone else, you probably knew what you were getting into.
 
 ## How this works
 
