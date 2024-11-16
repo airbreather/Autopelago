@@ -503,6 +503,8 @@ public sealed class PlayerTests
         };
 
         state = player.Advance(state);
+        LocationDefinitionModel middleLocation = state.CurrentLocation;
+
         state = player.Advance(state);
         if (state.CurrentLocation == state.TargetLocation)
         {
@@ -510,26 +512,54 @@ public sealed class PlayerTests
         }
 
         // even though it's all high rolls, we shouldn't have any checks because the rat is hard-prioritizing.
-        int stepsAwayBeforeStartle = state.CurrentLocation.Key.N;
-        Assert.Multiple(() =>
-        {
-            Assert.That(state.CheckedLocations, Is.Empty);
-            Assert.That(stepsAwayBeforeStartle, Is.GreaterThanOrEqualTo(3));
-        });
+        Assert.That(state.CheckedLocations, Is.Empty);
 
-        state = state.AddStartled(3);
-        Assert.That(state.StartledCounter, Is.EqualTo(3));
+        state = state with { StartledCounter = state.StartledCounter + 1 };
 
-        // those 3 startled steps should get it to go 3 steps towards the start.
+        // it used all its movement to get from middleLocation to here previously, so being startled
+        // should cause it to use that same movement to get exactly back to middleLocation again.
         state = player.Advance(state);
         Assert.Multiple(() =>
         {
             Assert.That(state.StartledCounter, Is.Zero);
-            Assert.That(state.CurrentLocation.Key.N, Is.EqualTo(stepsAwayBeforeStartle - 3));
-            Assert.That(state.PriorityLocations, Has.Count.EqualTo(1));
+            Assert.That(state.CurrentLocation, Is.EqualTo(middleLocation));
         });
     }
 
+    [Test]
+    public void StartledShouldTakePriorityOverDistracted()
+    {
+        GameState state = GameState.Start(s_highRolls) with
+        {
+            CurrentLocation = GameDefinitions.Instance.StartRegion.Locations[^1],
+            StartledCounter = 1,
+            DistractionCounter = 2,
+        };
+        
+        Player player = new();
+
+        // first step, we're startled out of our distraction.
+        state = player.Advance(state);
+
+        LocationDefinitionModel expectedStartleTarget = GameDefinitions.Instance.StartRegion.Locations[^10];
+        Assert.Multiple(() =>
+        {
+            Assert.That(state.StartledCounter, Is.Zero);
+            Assert.That(state.DistractionCounter, Is.EqualTo(1));
+            Assert.That(state.CurrentLocation, Is.EqualTo(expectedStartleTarget));
+        });
+        
+        // second step, there's a new distraction that we hadn't gotten to yet.
+        state = player.Advance(state);
+        
+        // distraction burns a whole step
+        Assert.That(state.CurrentLocation, Is.EqualTo(expectedStartleTarget));
+        
+        // now we're fine
+        state = player.Advance(state);
+        Assert.That(state.CheckedLocations, Has.Count.EqualTo(2));
+    }
+    
     [Test]
     public void SmartShouldResolveToNearestReachableIfPossible([Values(PriorityLocationModel.SourceKind.Smart, PriorityLocationModel.SourceKind.Conspiratorial)] PriorityLocationModel.SourceKind smartOrConspiratorial)
     {

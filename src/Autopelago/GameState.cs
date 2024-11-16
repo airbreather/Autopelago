@@ -21,7 +21,6 @@ public sealed record PriorityLocationModel
     public enum SourceKind
     {
         Player,
-        Startled,
         Smart,
         Conspiratorial,
     }
@@ -178,35 +177,6 @@ public sealed record GameState
                 regionsQueue.Enqueue(exit.Region);
             }
         }
-    }
-
-    public GameState AddStartled(int toAdd)
-    {
-        ArgumentOutOfRangeException.ThrowIfLessThan(toAdd, 0);
-        if (toAdd == 0)
-        {
-            return this;
-        }
-
-        int newStartledCounter = StartledCounter + toAdd;
-        LocationDefinitionModel newTargetLocation = TargetLocation;
-        ImmutableList<PriorityLocationModel> newPriorityLocations = PriorityLocations;
-        if (newStartledCounter == toAdd)
-        {
-            // the rat wasn't startled, and now it is.
-            newPriorityLocations = newPriorityLocations.Insert(0, new()
-            {
-                Location = newTargetLocation = CurrentLocation.NextLocationTowards(GameDefinitions.Instance.StartLocation, this),
-                Source = PriorityLocationModel.SourceKind.Startled,
-            });
-        }
-
-        return this with
-        {
-            TargetLocation = newTargetLocation,
-            StartledCounter = newStartledCounter,
-            PriorityLocations = newPriorityLocations,
-        };
     }
 
     public GameState ResolveSmartAndConspiratorialAuras(ReadOnlySpan<PriorityLocationModel.SourceKind> receivedAuras, FrozenDictionary<LocationDefinitionModel, ArchipelagoItemFlags> spoilerData, out ImmutableArray<PriorityLocationModel> resolvedLocations)

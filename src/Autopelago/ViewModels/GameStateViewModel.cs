@@ -1227,7 +1227,6 @@ public sealed class GameStateViewModel : ViewModelBase, IDisposable
         }
 
         state = state
-            .AddStartled(startledMod)
             .ResolveSmartAndConspiratorialAuras(CollectionsMarshal.AsSpan(smartAndConspiratorial), _spoilerData, out ImmutableArray<PriorityLocationModel> newPriorityLocations) with
         {
             ReceivedItems = state.ReceivedItems.AddRange(newItems),
@@ -1236,6 +1235,7 @@ public sealed class GameStateViewModel : ViewModelBase, IDisposable
             LuckFactor = state.LuckFactor + luckFactorMod,
             StyleFactor = state.StyleFactor + (stylishMod * 2),
             DistractionCounter = state.DistractionCounter + distractedMod,
+            StartledCounter = state.StartledCounter + startledMod,
         };
 
         UpdateMeters();

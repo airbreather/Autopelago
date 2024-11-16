@@ -54,25 +54,35 @@ public sealed class Player
 
         if (state.DistractionCounter > 0)
         {
-            actionBalance = 0;
+            // being startled takes priority over a distraction. you just saw a ghost, you're not
+            // thinking about the Rubik's Cube that you got at about the same time!
+            if (state.StartledCounter == 0)
+            {
+                actionBalance = 0;
+            }
+
             state = state with { DistractionCounter = state.DistractionCounter - 1 };
         }
 
-        BestTargetLocationReason bestTargetLocationReason;
         while (actionBalance > 0 && !state.IsCompleted)
         {
             --actionBalance;
 
-            LocationDefinitionModel bestTargetLocation = BestTargetLocation(state, out bestTargetLocationReason);
+            LocationDefinitionModel bestTargetLocation = BestTargetLocation(state, out BestTargetLocationReason bestTargetLocationReason);
             if (state.TargetLocation != bestTargetLocation)
             {
-                // changing your route takes an action
+                // changing your route takes an action...
                 state = state with { TargetLocation = bestTargetLocation };
-                continue;
+                
+                // ...unless you're startled, in which case it was instinct.
+                if (bestTargetLocationReason != BestTargetLocationReason.Startled)
+                {
+                    continue;
+                }
             }
 
             bool moved = false;
-            if (state.CurrentLocation != state.TargetLocation)
+            if (state.CurrentLocation != bestTargetLocation)
             {
                 switch (state.EnergyFactor)
                 {
@@ -96,6 +106,11 @@ public sealed class Player
                 {
                     state = state with { CurrentLocation = state.CurrentLocation.NextLocationTowards(state.TargetLocation, state) };
                     moved = true;
+                    bestTargetLocation = BestTargetLocation(state, out bestTargetLocationReason);
+                    if (state.TargetLocation != bestTargetLocation)
+                    {
+                        state = state with { TargetLocation = bestTargetLocation };
+                    }
                 }
             }
 
@@ -115,24 +130,6 @@ public sealed class Player
             {
                 // we've reached our next priority location. remove it from the queue.
                 state = state with { PriorityLocations = state.PriorityLocations.RemoveAll(l => l.Location == state.TargetLocation) };
-
-                if (state.StartledCounter > 0)
-                {
-                    // rat was startled towards this location.
-                    state = state with { StartledCounter = state.StartledCounter - 1 };
-                    if (state.StartledCounter > 0)
-                    {
-                        // it's still startled. figure out the next location to run towards.
-                        state = state with
-                        {
-                            PriorityLocations = state.PriorityLocations.Insert(0, new()
-                            {
-                                Location = state.CurrentLocation.NextLocationTowards(GameDefinitions.Instance.StartLocation, state),
-                                Source = PriorityLocationModel.SourceKind.Startled,
-                            }),
-                        };
-                    }
-                }
             }
 
             // figure out if anything above changed our best target location. if not, then don't
@@ -160,6 +157,19 @@ public sealed class Player
         if (state.ActionBalanceAfterPreviousStep != actionBalance)
         {
             state = state with { ActionBalanceAfterPreviousStep = actionBalance };
+        }
+
+        if (state.StartledCounter > 0)
+        {
+            state = state with { StartledCounter = state.StartledCounter - 1 };
+            if (state.StartledCounter == 0)
+            {
+                LocationDefinitionModel bestTargetLocation = BestTargetLocation(state, out _);
+                if (bestTargetLocation != state.TargetLocation)
+                {
+                    state = state with { TargetLocation = bestTargetLocation };
+                }
+            }
         }
 
         return state.Epoch == initialEpoch
@@ -233,6 +243,12 @@ public sealed class Player
 
     private LocationDefinitionModel BestTargetLocation(GameState state, out BestTargetLocationReason reason)
     {
+        if (state.StartledCounter > 0)
+        {
+            reason = BestTargetLocationReason.Startled;
+            return state.CurrentLocation.NextLocationTowards(GameDefinitions.Instance.StartLocation, state);
+        }
+
         if (NextGoModeLocation(state) is { } nextGoModeLocation)
         {
             reason = BestTargetLocationReason.GoMode;
@@ -325,6 +341,7 @@ public sealed class Player
     {
         ClosestReachable,
         Priority,
+        Startled,
         GoMode,
     }
 }
