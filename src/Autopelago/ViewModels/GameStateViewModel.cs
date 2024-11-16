@@ -104,6 +104,8 @@ public sealed class GameStateViewModel : ViewModelBase, IDisposable
 
     private bool _wasGoMode;
 
+    private bool _ignoreAurasFromNextReceivedItemsPacket;
+
     private CancellationTokenSource _pauseCts = new();
 
     private CancellationTokenSource _unpauseCts = new();
@@ -543,6 +545,11 @@ public sealed class GameStateViewModel : ViewModelBase, IDisposable
 
     private async ValueTask HandleNextPacketAsync(ArchipelagoPacketModel packet)
     {
+        if (packet is not ReceivedItemsPacketModel)
+        {
+            _ignoreAurasFromNextReceivedItemsPacket = false;
+        }
+
         switch (packet)
         {
             case RoomInfoPacketModel roomInfo:
@@ -583,28 +590,14 @@ public sealed class GameStateViewModel : ViewModelBase, IDisposable
                 await _gameStateMutex.WaitAsync();
                 try
                 {
-                    HashSet<LocationDefinitionModel> knownCheckedLocations = [.. _state.CheckedLocations];
-                    HashSet<LocationDefinitionModel> newCheckedLocations = [];
-                    foreach (long locationId in _connected.CheckedLocations)
+                    _state = _state with
                     {
-                        LocationDefinitionModel location = _lastFullData.LocationsById[locationId];
-                        if (!knownCheckedLocations.Remove(location))
-                        {
-                            newCheckedLocations.Add(location);
-                        }
-                    }
-
-                    if (knownCheckedLocations.Count + newCheckedLocations.Count != 0)
-                    {
-                        _state = _state with
-                        {
-                            CheckedLocations = [
-                                .. _state.CheckedLocations
-                                    .Except(knownCheckedLocations)
-                                    .Concat(newCheckedLocations),
-                            ],
-                        };
-                    }
+                        CheckedLocations =
+                        [
+                            .. _connected.CheckedLocations
+                                .Select(locationId => _lastFullData.LocationsById[locationId]),
+                        ]
+                    };
 
                     foreach (LocationDefinitionModel location in _state.CheckedLocations)
                     {
@@ -622,6 +615,16 @@ public sealed class GameStateViewModel : ViewModelBase, IDisposable
                 }
 
                 await requestSpoilerTask;
+
+                // "Server MAY send ReceivedItems to the client, in the case that the client is
+                // missing items that are queued up for it." (emphasis mine).
+                // That "MAY" part is really annoying. It would suck to rejoin the game and then get
+                // every single aura from every single item you've ever received (not to mention it
+                // would be incorrect), but also it would be wrong to just ignore the auras from the
+                // first items ACTUALLY received. So if the VERY next packet after "Connected" is
+                // ReceivedItems (as the handshake protocol says it "MAY" be), then we know it's
+                // this situation. Otherwise, we're all good.
+                _ignoreAurasFromNextReceivedItemsPacket = true;
                 break;
 
             case LocationInfoPacketModel locationInfo:
@@ -644,11 +647,25 @@ public sealed class GameStateViewModel : ViewModelBase, IDisposable
                 await _gameStateMutex.WaitAsync();
                 try
                 {
-                    ImmutableArray<SayPacketModel> thingsToSay = Handle(ref _state, receivedItems);
-                    if (!thingsToSay.IsEmpty)
+                    if (_ignoreAurasFromNextReceivedItemsPacket)
                     {
-                        ImmutableArray<ArchipelagoPacketModel> packets = thingsToSay.CastArray<ArchipelagoPacketModel>();
-                        await SendPacketsAsync(packets);
+                        _state = _state with
+                        {
+                            ReceivedItems = [
+                                .. receivedItems.Items
+                                    .Select(i => _lastFullData.ItemsById[i.Item]),
+                            ],
+                        };
+                        _ignoreAurasFromNextReceivedItemsPacket = false;
+                    }
+                    else
+                    {
+                        ImmutableArray<SayPacketModel> thingsToSay = Handle(ref _state, receivedItems);
+                        if (!thingsToSay.IsEmpty)
+                        {
+                            ImmutableArray<ArchipelagoPacketModel> packets = thingsToSay.CastArray<ArchipelagoPacketModel>();
+                            await SendPacketsAsync(packets);
+                        }
                     }
 
                     UpdateMeters();
@@ -1095,7 +1112,7 @@ public sealed class GameStateViewModel : ViewModelBase, IDisposable
         {
             if (convertedItems[i - receivedItems.Index] != state.ReceivedItems[i])
             {
-                throw new NotImplementedException("Need to resync.");
+                throw new InvalidOperationException("Need to resync. Try connecting again.");
             }
         }
 
@@ -1203,8 +1220,6 @@ public sealed class GameStateViewModel : ViewModelBase, IDisposable
             DistractionCounter = state.DistractionCounter + distractedMod,
             StartledCounter = state.StartledCounter + startledMod,
         };
-
-        UpdateMeters();
 
         if (newPriorityLocations.IsEmpty)
         {

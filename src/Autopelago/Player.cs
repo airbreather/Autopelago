@@ -5,6 +5,14 @@ using System.Runtime.InteropServices;
 
 namespace Autopelago;
 
+public enum BestTargetLocationReason
+{
+    ClosestReachable,
+    Priority,
+    Startled,
+    GoMode,
+}
+
 public sealed class Player
 {
     private static readonly ImmutableArray<ImmutableArray<LandmarkRegionDefinitionModel>> s_allGoModePaths = ComputeAllGoModePaths();
@@ -241,7 +249,7 @@ public sealed class Player
 
     private void MarkLocationChecked(LocationKey key) => _checkedLocations[key.RegionKey][key.N] = true;
 
-    private LocationDefinitionModel BestTargetLocation(GameState state, out BestTargetLocationReason reason)
+    public LocationDefinitionModel BestTargetLocation(GameState state, out BestTargetLocationReason reason)
     {
         if (state.StartledCounter > 0)
         {
@@ -335,13 +343,5 @@ public sealed class Player
         }
 
         return [.. paths];
-    }
-
-    private enum BestTargetLocationReason
-    {
-        ClosestReachable,
-        Priority,
-        Startled,
-        GoMode,
     }
 }
