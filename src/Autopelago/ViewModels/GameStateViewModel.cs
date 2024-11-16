@@ -30,14 +30,10 @@ using Serilog.Context;
 
 namespace Autopelago.ViewModels;
 
-[JsonSourceGenerationOptions(
-    PropertyNamingPolicy = JsonKnownNamingPolicy.SnakeCaseLower,
-    UseStringEnumConverter = true)]
-[JsonSerializable(typeof(GameState.GameStateProxy))]
-internal sealed partial class GameStateProxySerializerContext : JsonSerializerContext;
-
-public sealed class GameStateViewModel : ViewModelBase, IDisposable
+public sealed partial class GameStateViewModel : ViewModelBase, IDisposable
 {
+    private const string AurasKey = "Auras";
+
     private static readonly JsonReaderOptions s_jsonReaderOptions = new()
     {
         MaxDepth = 1000,
@@ -92,6 +88,8 @@ public sealed class GameStateViewModel : ViewModelBase, IDisposable
 
     private FrozenDictionary<LocationDefinitionModel, ArchipelagoItemFlags> _spoilerData = null!;
 
+    private bool _completedHandshake;
+
     private GameState _state = GameState.Start();
 
     private Prng.State _intervalPrngState = Prng.State.Start();
@@ -103,8 +101,6 @@ public sealed class GameStateViewModel : ViewModelBase, IDisposable
     private long? _prevBlockedReportTimestamp;
 
     private bool _wasGoMode;
-
-    private bool _ignoreAurasFromNextReceivedItemsPacket;
 
     private CancellationTokenSource _pauseCts = new();
 
@@ -545,11 +541,6 @@ public sealed class GameStateViewModel : ViewModelBase, IDisposable
 
     private async ValueTask HandleNextPacketAsync(ArchipelagoPacketModel packet)
     {
-        if (packet is not ReceivedItemsPacketModel)
-        {
-            _ignoreAurasFromNextReceivedItemsPacket = false;
-        }
-
         switch (packet)
         {
             case RoomInfoPacketModel roomInfo:
@@ -586,7 +577,9 @@ public sealed class GameStateViewModel : ViewModelBase, IDisposable
                 {
                     Locations = _lastFullData.LocationsById.Where(kvp => !kvp.Value.RewardIsFixed).Select(kvp => kvp.Key).ToArray(),
                 };
-                ValueTask requestSpoilerTask = SendPacketsAsync([locationScouts]);
+
+                GetPacketModel getPacket = new() { Keys = [AurasKey] };
+                ValueTask requestSpoilerTask = SendPacketsAsync([locationScouts, getPacket]);
                 await _gameStateMutex.WaitAsync();
                 try
                 {
@@ -606,8 +599,6 @@ public sealed class GameStateViewModel : ViewModelBase, IDisposable
                             viewModel.Checked = true;
                         }
                     }
-
-                    UpdateMeters();
                 }
                 finally
                 {
@@ -615,16 +606,6 @@ public sealed class GameStateViewModel : ViewModelBase, IDisposable
                 }
 
                 await requestSpoilerTask;
-
-                // "Server MAY send ReceivedItems to the client, in the case that the client is
-                // missing items that are queued up for it." (emphasis mine).
-                // That "MAY" part is really annoying. It would suck to rejoin the game and then get
-                // every single aura from every single item you've ever received (not to mention it
-                // would be incorrect), but also it would be wrong to just ignore the auras from the
-                // first items ACTUALLY received. So if the VERY next packet after "Connected" is
-                // ReceivedItems (as the handshake protocol says it "MAY" be), then we know it's
-                // this situation. Otherwise, we're all good.
-                _ignoreAurasFromNextReceivedItemsPacket = true;
                 break;
 
             case LocationInfoPacketModel locationInfo:
@@ -635,7 +616,6 @@ public sealed class GameStateViewModel : ViewModelBase, IDisposable
                 }
 
                 _spoilerData = spoilerData.ToFrozenDictionary();
-                _dataAvailableSignal.Release();
                 break;
 
             case RoomUpdatePacketModel roomUpdate:
@@ -647,7 +627,28 @@ public sealed class GameStateViewModel : ViewModelBase, IDisposable
                 await _gameStateMutex.WaitAsync();
                 try
                 {
-                    if (_ignoreAurasFromNextReceivedItemsPacket)
+                    if (_completedHandshake)
+                    {
+                        await SendPacketsAsync([
+                            ..Handle(ref _state, receivedItems),
+                            new SetPacketModel
+                            {
+                                Key = AurasKey,
+                                Operations =
+                                [
+                                    new()
+                                    {
+                                        Operation = ArchipelagoDataStorageOperationType.Replace,
+                                        Value = JsonSerializer.SerializeToNode(
+                                            GetAuraData(_state),
+                                            AuraDataSerializationContext.Default.AuraData
+                                        )!,
+                                    },
+                                ],
+                            },
+                        ]);
+                    }
+                    else
                     {
                         _state = _state with
                         {
@@ -656,16 +657,6 @@ public sealed class GameStateViewModel : ViewModelBase, IDisposable
                                     .Select(i => _lastFullData.ItemsById[i.Item]),
                             ],
                         };
-                        _ignoreAurasFromNextReceivedItemsPacket = false;
-                    }
-                    else
-                    {
-                        ImmutableArray<SayPacketModel> thingsToSay = Handle(ref _state, receivedItems);
-                        if (!thingsToSay.IsEmpty)
-                        {
-                            ImmutableArray<ArchipelagoPacketModel> packets = thingsToSay.CastArray<ArchipelagoPacketModel>();
-                            await SendPacketsAsync(packets);
-                        }
                     }
 
                     UpdateMeters();
@@ -675,6 +666,21 @@ public sealed class GameStateViewModel : ViewModelBase, IDisposable
                     _gameStateMutex.Release();
                 }
 
+                break;
+
+            case RetrievedPacketModel retrieved:
+                if (!retrieved.Keys.TryGetValue(AurasKey, out JsonElement auras))
+                {
+                    break;
+                }
+
+                if (auras.Deserialize(AuraDataSerializationContext.Default.AuraData) is { } auraData)
+                {
+                    _state = ApplyAuraData(_state, auraData);
+                }
+
+                _completedHandshake = true;
+                _dataAvailableSignal.Release();
                 break;
 
             case PrintJSONPacketModel printJSON:
@@ -1271,6 +1277,36 @@ public sealed class GameStateViewModel : ViewModelBase, IDisposable
         HasConfidence = _state.HasConfidence;
     }
 
+    private static AuraData GetAuraData(GameState state)
+    {
+        return new()
+        {
+            DistractionCounter = state.DistractionCounter,
+            StartledCounter = state.StartledCounter,
+            HasConfidence = state.HasConfidence,
+            FoodFactor = state.FoodFactor,
+            LuckFactor = state.LuckFactor,
+            StyleFactor = state.StyleFactor,
+            EnergyFactor = state.EnergyFactor,
+            PriorityLocations = [.. state.PriorityLocations.Select(l => l.ToProxy())],
+        };
+    }
+
+    private static GameState ApplyAuraData(GameState state, AuraData auraData)
+    {
+        return state with
+        {
+            DistractionCounter = auraData.DistractionCounter,
+            StartledCounter = auraData.StartledCounter,
+            HasConfidence = auraData.HasConfidence,
+            FoodFactor = auraData.FoodFactor,
+            LuckFactor = auraData.LuckFactor,
+            StyleFactor = auraData.StyleFactor,
+            EnergyFactor = auraData.EnergyFactor,
+            PriorityLocations = [.. auraData.PriorityLocations.Select(p => p.ToPriorityLocation())],
+        };
+    }
+
     private sealed record ClientWebSocketBox : IDisposable
     {
         public ClientWebSocketBox()
@@ -1310,4 +1346,26 @@ public sealed class GameStateViewModel : ViewModelBase, IDisposable
 
         public required FrozenDictionary<string, int> SlotByPlayerAlias { get; init; }
     }
+
+    private sealed record AuraData
+    {
+        public required int FoodFactor { get; init; }
+
+        public required int LuckFactor { get; init; }
+
+        public required int EnergyFactor { get; init; }
+
+        public required int StyleFactor { get; init; }
+
+        public required int DistractionCounter { get; init; }
+
+        public required int StartledCounter { get; init; }
+
+        public required bool HasConfidence { get; init; }
+
+        public required ImmutableArray<PriorityLocationModel.PriorityLocationModelProxy> PriorityLocations { get; init; }
+    }
+
+    [JsonSerializable(typeof(AuraData))]
+    private sealed partial class AuraDataSerializationContext : JsonSerializerContext;
 }
