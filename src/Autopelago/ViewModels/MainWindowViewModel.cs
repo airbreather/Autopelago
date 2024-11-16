@@ -37,13 +37,13 @@ public sealed class MainWindowViewModel : ViewModelBase, IDisposable
                 gameStateViewModel.ConnectionRefused.Subscribe(connectionRefused =>
                 {
                     gameStateViewModel.Dispose();
-                    Error.Error = string.Join(Environment.NewLine, connectionRefused.Errors);
+                    Error.Message = string.Join(Environment.NewLine, connectionRefused.Errors);
                     ContentViewModel = Error;
                 });
                 gameStateViewModel.UnhandledException.Subscribe(ex =>
                 {
                     gameStateViewModel.Dispose();
-                    Error.Error = $"{ex}";
+                    Error.Message = $"{ex}";
                     ContentViewModel = Error;
                 });
                 ContentViewModel = gameStateViewModel;

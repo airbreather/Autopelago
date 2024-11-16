@@ -27,7 +27,7 @@
         <ScrollViewer Grid.Row="1" HorizontalScrollBarVisibility="Auto">
             <TextBox IsReadOnly="True"
                      FontFamily="Mono"
-                     Text="{Binding Error}"
+                     Text="{Binding Message}"
                      TextWrapping="NoWrap" />
         </ScrollViewer>
 

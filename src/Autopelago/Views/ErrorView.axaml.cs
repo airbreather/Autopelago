@@ -17,7 +17,7 @@ public sealed partial class ErrorView : ReactiveUserControl<ErrorViewModel>
     {
         if (TopLevel.GetTopLevel(this)?.Clipboard is { } clipboard && ViewModel is { } viewModel)
         {
-            await clipboard.SetTextAsync(viewModel.Error);
+            await clipboard.SetTextAsync(viewModel.Message);
         }
     }
 }
