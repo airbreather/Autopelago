@@ -28,8 +28,6 @@ using ReactiveUI.Fody.Helpers;
 using Serilog;
 using Serilog.Context;
 
-using ZstdSharp;
-
 namespace Autopelago.ViewModels;
 
 [JsonSourceGenerationOptions(
@@ -45,30 +43,11 @@ public sealed class GameStateViewModel : ViewModelBase, IDisposable
         MaxDepth = 1000,
     };
 
-    private static readonly FileStreamOptions s_readOptions = new()
-    {
-        Mode = FileMode.Open,
-        Access = FileAccess.Read,
-        Share = FileShare.ReadWrite | FileShare.Delete,
-        Options = FileOptions.Asynchronous | FileOptions.SequentialScan,
-    };
-
-    private static readonly FileStreamOptions s_writeOptions = new()
-    {
-        Mode = FileMode.Create,
-        Access = FileAccess.ReadWrite,
-        Share = FileShare.Read | FileShare.Delete,
-        Options = FileOptions.Asynchronous,
-    };
-
     private static readonly JsonTypeInfo<ArchipelagoPacketModel> s_packetTypeInfo =
         PacketSerializerContext.Default.ArchipelagoPacketModel;
 
     private static readonly JsonTypeInfo<ImmutableArray<ArchipelagoPacketModel>> s_packetsTypeInfo =
         PacketSerializerContext.Default.ImmutableArrayArchipelagoPacketModel;
-
-    private static readonly JsonTypeInfo<GameState.GameStateProxy> s_gameStateProxyTypeInfo =
-        GameStateProxySerializerContext.Default.GameStateProxy;
 
     private static readonly FrozenSet<string> s_hiddenProgressionItems = new[]
     {
@@ -80,10 +59,6 @@ public sealed class GameStateViewModel : ViewModelBase, IDisposable
     }.ToFrozenSet();
 
     private static readonly FrozenDictionary<string, int> s_progressionItemSortOrder = ProgressionItemSortOrder();
-
-    private readonly FileInfo _stateFile;
-
-    private readonly FileInfo _stateTmpFile;
 
     private readonly TimeProvider _timeProvider = TimeProvider.System;
 
@@ -142,9 +117,8 @@ public sealed class GameStateViewModel : ViewModelBase, IDisposable
     {
         _settings = settings;
         _prevStartTimestamp = _timeProvider.GetTimestamp();
-        _stateFile = new(Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "Autopelago", $"{settings.Host}_{settings.Port}_{settings.Slot}.json.zst"));
-        _stateFile.Directory!.Create();
-        _stateTmpFile = new(_stateFile.FullName.Replace(".json.zst", ".tmp.json.zst"));
+        FileInfo stateFile = new(Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "Autopelago", $"{settings.Host}_{settings.Port}_{settings.Slot}.json.zst"));
+        stateFile.Directory!.Create();
 
         PlayPauseCommand = ReactiveCommand.Create(() =>
         {
@@ -640,7 +614,7 @@ public sealed class GameStateViewModel : ViewModelBase, IDisposable
                         }
                     }
 
-                    await SaveAsync();
+                    UpdateMeters();
                 }
                 finally
                 {
@@ -670,7 +644,6 @@ public sealed class GameStateViewModel : ViewModelBase, IDisposable
                 await _gameStateMutex.WaitAsync();
                 try
                 {
-                    ulong prevEpoch = _state.Epoch;
                     ImmutableArray<SayPacketModel> thingsToSay = Handle(ref _state, receivedItems);
                     if (!thingsToSay.IsEmpty)
                     {
@@ -678,10 +651,7 @@ public sealed class GameStateViewModel : ViewModelBase, IDisposable
                         await SendPacketsAsync(packets);
                     }
 
-                    if (_state.Epoch != prevEpoch)
-                    {
-                        await SaveAsync();
-                    }
+                    UpdateMeters();
                 }
                 finally
                 {
@@ -785,7 +755,7 @@ public sealed class GameStateViewModel : ViewModelBase, IDisposable
                             Source = PriorityLocationModel.SourceKind.Player,
                         }),
                     };
-                    await SaveAsync();
+                    UpdateMeters();
                 }
                 finally
                 {
@@ -822,7 +792,7 @@ public sealed class GameStateViewModel : ViewModelBase, IDisposable
                 if (toRemove is not null)
                 {
                     _state = _state with { PriorityLocations = _state.PriorityLocations.Remove(toRemove) };
-                    await SaveAsync();
+                    UpdateMeters();
                 }
             }
             finally
@@ -861,7 +831,6 @@ public sealed class GameStateViewModel : ViewModelBase, IDisposable
 
     private async Task RunPacketReadLoopAsync()
     {
-        await LoadAsync();
         using ClientWebSocketBox socketBox = _clientWebSocketBox = new();
         try
         {
@@ -1026,10 +995,7 @@ public sealed class GameStateViewModel : ViewModelBase, IDisposable
                 _state = nextState = _player.Advance(prevState);
                 await CheckGoMode();
 
-                if (prevState.Epoch != nextState.Epoch)
-                {
-                    await SaveAsync();
-                }
+                UpdateMeters();
 
                 if (_state.CurrentLocation.EnumerateReachableLocationsByDistance(_state).Count() == _state.CheckedLocations.Count)
                 {
@@ -1288,39 +1254,6 @@ public sealed class GameStateViewModel : ViewModelBase, IDisposable
         DistractionCounter = _state.DistractionCounter;
         StartledCounter = _state.StartledCounter;
         HasConfidence = _state.HasConfidence;
-    }
-
-    private async ValueTask LoadAsync()
-    {
-        try
-        {
-            await using FileStream rawStream = _stateFile.Open(s_readOptions);
-            await using DecompressionStream stream = new(rawStream);
-            GameState.GameStateProxy proxy = (await JsonSerializer.DeserializeAsync(stream, s_gameStateProxyTypeInfo))!;
-            _state = proxy.ToState();
-            UpdateMeters();
-        }
-        catch (IOException)
-        {
-        }
-    }
-
-    private async ValueTask SaveAsync()
-    {
-        UpdateMeters();
-        try
-        {
-            await using (FileStream rawStream = _stateTmpFile.Open(s_writeOptions))
-            {
-                await using CompressionStream stream = new(rawStream, level: 10, leaveOpen: true);
-                await JsonSerializer.SerializeAsync(stream, _state.ToProxy(), s_gameStateProxyTypeInfo);
-            }
-
-            _stateTmpFile.MoveTo(_stateFile.FullName, overwrite: true);
-        }
-        catch (IOException)
-        {
-        }
     }
 
     private sealed record ClientWebSocketBox : IDisposable
