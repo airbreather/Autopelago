@@ -239,7 +239,7 @@ public sealed record GameState
             HashSet<LocationDefinitionModel> queued = [];
             while (q.TryDequeue(out LocationDefinitionModel? nxt))
             {
-                if ((spoilerData[nxt] & flags) != ArchipelagoItemFlags.None && locationsToIgnore.Add(nxt))
+                if (!nxt.RewardIsFixed && (spoilerData[nxt] & flags) != ArchipelagoItemFlags.None && locationsToIgnore.Add(nxt))
                 {
                     yield return nxt;
                 }
