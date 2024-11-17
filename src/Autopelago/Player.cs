@@ -72,6 +72,7 @@ public sealed class Player
             state = state with { DistractionCounter = state.DistractionCounter - 1 };
         }
 
+        LocationDefinitionModel previousLocation = state.PreviousLocation;
         while (actionBalance > 0 && !state.IsCompleted)
         {
             --actionBalance;
@@ -81,7 +82,7 @@ public sealed class Player
             {
                 // changing your route takes an action...
                 state = state with { TargetLocation = bestTargetLocation };
-                
+
                 // ...unless you're startled, in which case it was instinct.
                 if (bestTargetLocationReason != BestTargetLocationReason.Startled)
                 {
@@ -112,6 +113,7 @@ public sealed class Player
                 // same in dense areas.
                 for (int i = 0; i < 3 && state.CurrentLocation != state.TargetLocation; i++)
                 {
+                    previousLocation = state.CurrentLocation;
                     state = state with { CurrentLocation = state.CurrentLocation.NextLocationTowards(state.TargetLocation, state) };
                     moved = true;
                     bestTargetLocation = BestTargetLocation(state, out bestTargetLocationReason);
@@ -178,6 +180,11 @@ public sealed class Player
                     state = state with { TargetLocation = bestTargetLocation };
                 }
             }
+        }
+
+        if (state.PreviousLocation != previousLocation)
+        {
+            state = state with { PreviousLocation = previousLocation };
         }
 
         return state.Epoch == initialEpoch

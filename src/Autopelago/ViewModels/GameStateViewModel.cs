@@ -247,6 +247,11 @@ public sealed partial class GameStateViewModel : ViewModelBase, IDisposable
             .ToPropertyEx(this, x => x.TargetRegionNum));
 
         _subscriptions.Add(this
+            .WhenAnyValue(x => x.PreviousLocation)
+            .Select(GetPoint)
+            .ToPropertyEx(this, x => x.PreviousPoint));
+
+        _subscriptions.Add(this
             .WhenAnyValue(x => x.CurrentLocation)
             .Select(GetPoint)
             .ToPropertyEx(this, x => x.CurrentPoint));
@@ -257,9 +262,8 @@ public sealed partial class GameStateViewModel : ViewModelBase, IDisposable
             .ToPropertyEx(this, x => x.TargetPoint));
 
         _subscriptions.Add(this
-            .WhenAnyValue(x => x.CurrentPoint, x => x.TargetPoint)
-            .Where(tup => tup.Item1 != tup.Item2)
-            .Select(tup => Math.Atan2(tup.Item2.Y - tup.Item1.Y, tup.Item2.X - tup.Item1.X) * 180 / Math.PI)
+            .WhenAnyValue(x => x.PreviousPoint, x => x.CurrentPoint, x => x.TargetPoint)
+            .Select(tup => GetTrueAngle(tup.Item1, tup.Item2, tup.Item3))
             .ToPropertyEx(this, x => x.TrueAngle));
 
         _subscriptions.Add(this
@@ -313,6 +317,21 @@ public sealed partial class GameStateViewModel : ViewModelBase, IDisposable
                 ? landmark.CanvasLocation
                 : fillerRegionLookup[location.Key.RegionKey].LocationPoints[location.Key.N];
         }
+
+        double GetTrueAngle(Point prev, Point curr, Point next)
+        {
+            if (curr == next)
+            {
+                curr = prev;
+            }
+
+            if (curr == next)
+            {
+                return 0;
+            }
+
+            return Math.Atan2(next.Y - curr.Y, next.X - curr.X) * 180 / Math.PI;
+        }
     }
 
     [Reactive]
@@ -326,6 +345,9 @@ public sealed partial class GameStateViewModel : ViewModelBase, IDisposable
 
     [Reactive]
     public bool Paused { get; private set; }
+
+    [Reactive]
+    public LocationDefinitionModel PreviousLocation { get; set; } = GameDefinitions.Instance.StartLocation;
 
     [Reactive]
     public LocationDefinitionModel CurrentLocation { get; set; } = GameDefinitions.Instance.StartLocation;
@@ -352,6 +374,9 @@ public sealed partial class GameStateViewModel : ViewModelBase, IDisposable
 
     [ObservableAsProperty]
     public LandmarkRegionViewModel? TargetLandmarkRegion { get; }
+
+    [ObservableAsProperty]
+    public Point PreviousPoint { get; }
 
     [ObservableAsProperty]
     public Point CurrentPoint { get; }
@@ -1274,6 +1299,7 @@ public sealed partial class GameStateViewModel : ViewModelBase, IDisposable
 
     private void UpdateMeters()
     {
+        PreviousLocation = _state.PreviousLocation;
         CurrentLocation = _state.CurrentLocation;
         TargetLocation = _state.TargetLocation;
 

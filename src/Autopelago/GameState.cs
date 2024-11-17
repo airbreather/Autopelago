@@ -52,6 +52,7 @@ public sealed record GameState
     {
         Epoch = copyFrom.Epoch + 1;
         TotalNontrivialStepCount = copyFrom.TotalNontrivialStepCount;
+        PreviousLocation = copyFrom.PreviousLocation;
         CurrentLocation = copyFrom.CurrentLocation;
         TargetLocation = copyFrom.TargetLocation;
         ReceivedItems = copyFrom.ReceivedItems;
@@ -72,6 +73,8 @@ public sealed record GameState
     public ulong Epoch { get; private init; }
 
     public required ulong TotalNontrivialStepCount { get; init; }
+
+    public required LocationDefinitionModel PreviousLocation { get; init; }
 
     public required LocationDefinitionModel CurrentLocation { get; init; }
 
@@ -126,6 +129,7 @@ public sealed record GameState
         return new()
         {
             TotalNontrivialStepCount = 0,
+            PreviousLocation = GameDefinitions.Instance.StartLocation,
             CurrentLocation = GameDefinitions.Instance.StartLocation,
             TargetLocation = GameDefinitions.Instance.StartLocation,
             ReceivedItems = [],
@@ -257,6 +261,7 @@ public sealed record GameState
         {
             Epoch = Epoch,
             TotalNontrivialStepCount = TotalNontrivialStepCount,
+            PreviousLocation = PreviousLocation.Name,
             CurrentLocation = CurrentLocation.Name,
             TargetLocation = TargetLocation.Name,
             ReceivedItems = [.. ReceivedItems.Select(i => i.Name)],
@@ -282,6 +287,7 @@ public sealed record GameState
             Epoch == other.Epoch &&
             PrngState == other.PrngState &&
             TotalNontrivialStepCount == other.TotalNontrivialStepCount &&
+            PreviousLocation == other.PreviousLocation &&
             CurrentLocation == other.CurrentLocation &&
             TargetLocation == other.TargetLocation &&
             LocationCheckAttemptsThisStep == other.LocationCheckAttemptsThisStep &&
@@ -305,6 +311,8 @@ public sealed record GameState
         public ulong Epoch { get; init; }
 
         public required ulong TotalNontrivialStepCount { get; init; }
+
+        public required string PreviousLocation { get; init; }
 
         public required string CurrentLocation { get; init; }
 
@@ -342,6 +350,7 @@ public sealed record GameState
             {
                 Epoch = Epoch,
                 TotalNontrivialStepCount = TotalNontrivialStepCount,
+                PreviousLocation = GameDefinitions.Instance.LocationsByName[PreviousLocation],
                 CurrentLocation = GameDefinitions.Instance.LocationsByName[CurrentLocation],
                 TargetLocation = GameDefinitions.Instance.LocationsByName[TargetLocation],
                 ReceivedItems = [.. ReceivedItems.Select(name => GameDefinitions.Instance.ItemsByName[name])],

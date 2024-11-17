@@ -535,7 +535,7 @@ public sealed class PlayerTests
             StartledCounter = 1,
             DistractionCounter = 2,
         };
-        
+
         Player player = new();
 
         // first step, we're startled out of our distraction.
@@ -548,18 +548,18 @@ public sealed class PlayerTests
             Assert.That(state.DistractionCounter, Is.EqualTo(1));
             Assert.That(state.CurrentLocation, Is.EqualTo(expectedStartleTarget));
         });
-        
+
         // second step, there's a new distraction that we hadn't gotten to yet.
         state = player.Advance(state);
-        
+
         // distraction burns a whole step
         Assert.That(state.CurrentLocation, Is.EqualTo(expectedStartleTarget));
-        
+
         // now we're fine
         state = player.Advance(state);
         Assert.That(state.CheckedLocations, Has.Count.EqualTo(2));
     }
-    
+
     [Test]
     public void SmartShouldResolveToNearestReachableIfPossible([Values(PriorityLocationModel.SourceKind.Smart, PriorityLocationModel.SourceKind.Conspiratorial)] PriorityLocationModel.SourceKind smartOrConspiratorial)
     {
@@ -737,6 +737,23 @@ public sealed class PlayerTests
         state = player.Advance(state);
 
         Assert.That(state.TargetLocation, Is.Not.EqualTo(lastLocationBeforeBasketball));
+    }
+
+    [Test]
+    public void PreviousLocationShouldStickThroughNonMovementSteps()
+    {
+        GameState state = GameState.Start();
+
+        Player player = new();
+        for (int i = 0; i < 40; i++)
+        {
+            state = player.Advance(state with
+            {
+                PrngState = i % 3 == 0 ? s_highRolls : s_lowRolls,
+            });
+
+            Assert.That(GameDefinitions.Instance.ConnectedLocations[state.CurrentLocation], Contains.Item(state.PreviousLocation));
+        }
     }
 
     private static FrozenDictionary<LocationDefinitionModel, ArchipelagoItemFlags> CreateSpoiler(ReadOnlySpan<(LocationDefinitionModel Location, ArchipelagoItemFlags Flags)> defined)
