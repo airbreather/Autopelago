@@ -26,12 +26,21 @@ jobs:
       - name: Build
         shell: bash
         run: |
-          dotnet format --no-restore --verify-no-changes &
-          dotnet build --no-restore -c Release &
-          dotnet publish src/Autopelago/Autopelago.csproj --no-restore -c Release -r win-x64 -o dist/Autopelago_win-x64 &
-          dotnet publish src/Autopelago/Autopelago.csproj --no-restore -c Release -r linux-x64 -o dist/Autopelago_linux-x64 &
-          dotnet publish src/Autopelago/Autopelago.csproj --no-restore -c Release -r osx-x64 -o dist/Autopelago_osx-x64 &
-          wait < <(jobs -p);
+          pids=()
+          dotnet format --no-restore --verify-no-changes & pids+=($!)
+          dotnet build --no-restore -c Release & pids+=($!)
+          dotnet publish src/Autopelago/Autopelago.csproj --no-restore -c Release -r win-x64 -o dist/Autopelago_win-x64 & pids+=($!)
+          dotnet publish src/Autopelago/Autopelago.csproj --no-restore -c Release -r linux-x64 -o dist/Autopelago_linux-x64 & pids+=($!)
+          dotnet publish src/Autopelago/Autopelago.csproj --no-restore -c Release -r osx-x64 -o dist/Autopelago_osx-x64 & pids+=($!)
+          failure=false
+          for pid in ${pids[*]}; do
+              if ! wait $pid; then
+                failure=true
+              fi
+          done
+          if $failure; then
+            exit 1
+          fi
 
       - name: Run tests
         run: dotnet test -c Release --no-build --logger 'console;verbosity=detailed' --logger trx --results-directory=TestResults
@@ -49,10 +58,19 @@ jobs:
           pushd dist;
           mkdir release;
           shopt -s dotglob
-          (cd Autopelago_win-x64; zip -9 -r ../release/Autopelago_win-x64.zip *) &
-          (cd Autopelago_linux-x64; tar -cf - * | zstd --ultra -22 -T0 -o ../release/Autopelago_linux-x64.tar.zst) &
+          pids=()
+          (cd Autopelago_win-x64; zip -9 -r ../release/Autopelago_win-x64.zip *) & pids+=($!)
+          (cd Autopelago_linux-x64; tar -cf - * | zstd --ultra -22 -T0 -o ../release/Autopelago_linux-x64.tar.zst) & pids+=($!)
           echo "RELEASE_NUMBER=$(date -u +%Y%m%d%H%M%S)" >> "$GITHUB_ENV";
-          wait < <(jobs -p);
+          failure=false
+          for pid in ${pids[*]}; do
+              if ! wait $pid; then
+                failure=true
+              fi
+          done
+          if $failure; then
+            exit 1
+          fi
           popd;
 
       - name: Release

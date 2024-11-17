@@ -663,7 +663,7 @@ public sealed partial class GameStateViewModel : ViewModelBase, IDisposable
                     if (_completedHandshake)
                     {
                         await SendPacketsAsync([
-                            ..Handle(ref _state, receivedItems),
+                            .. Handle(ref _state, receivedItems),
                             new SetPacketModel
                             {
                                 Key = AurasKey,
