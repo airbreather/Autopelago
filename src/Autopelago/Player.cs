@@ -108,7 +108,7 @@ public sealed class Player
 
                 // we're not in the right spot, so we're going to move at least a bit. playtesting
                 // has shown that very long moves can be very boring (and a little too frequent). to
-                // combat this, every time the player decides to move, they can advance up to five
+                // combat this, every time the player decides to move, they can advance up to three
                 // whole spaces towards their target. this keeps the overall progression speed the
                 // same in dense areas.
                 for (int i = 0; i < 3 && state.CurrentLocation != state.TargetLocation; i++)
