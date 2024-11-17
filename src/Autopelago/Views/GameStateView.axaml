@@ -225,7 +225,7 @@
                                             <DataTemplate>
                                               <Grid RenderTransform="translate(-1.5px, -1.5px)">
                                                 <Rectangle Width="2" Height="2" Fill="#808080" />
-                                                <Rectangle HorizontalAlignment="Center" VerticalAlignment="Center" Width="1" Height="1" Fill="#202020" />
+                                                <Rectangle RenderTransform="translate(0.5px, 0.5px)" Width="1" Height="1" Fill="#202020" />
                                               </Grid>
                                             </DataTemplate>
                                         </ItemsControl.ItemTemplate>
@@ -352,7 +352,7 @@
                         </StackPanel>
                     </TabItem.Header>
                 </TabItem>
-                <TabItem>
+                <TabItem IsEnabled="False">
                   <TabItem.Header>
                     <Button Command="{Binding BackToMainMenuCommand}">
                       Back to Menu

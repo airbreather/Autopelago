@@ -288,6 +288,7 @@ public sealed partial class GameStateViewModel : ViewModelBase, IDisposable
                 .Where(_ => !Paused)
                 .Subscribe(_ =>
                 {
+                    PreviousLocation = CurrentLocation;
                     CurrentLocation = NextLocation();
                     TargetLocation = CurrentLocation;
                 }));
