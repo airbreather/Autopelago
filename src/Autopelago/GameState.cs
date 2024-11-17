@@ -228,7 +228,7 @@ public sealed record GameState
             // go through all the reachable ones first
             foreach ((LocationDefinitionModel nxt, _) in CurrentLocation.EnumerateReachableLocationsByDistance(this))
             {
-                if ((spoilerData[nxt] & flags) != ArchipelagoItemFlags.None && locationsToIgnore.Add(nxt))
+                if (!nxt.RewardIsFixed && (spoilerData[nxt] & flags) != ArchipelagoItemFlags.None && locationsToIgnore.Add(nxt))
                 {
                     yield return nxt;
                 }
