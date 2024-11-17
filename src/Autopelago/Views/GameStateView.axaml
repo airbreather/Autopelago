@@ -352,7 +352,7 @@
                         </StackPanel>
                     </TabItem.Header>
                 </TabItem>
-                <TabItem IsEnabled="False">
+                <TabItem>
                   <TabItem.Header>
                     <Button Command="{Binding BackToMainMenuCommand}">
                       Back to Menu
