@@ -1,4 +1,5 @@
 using System.Reactive;
+using System.Reactive.Subjects;
 
 using ReactiveUI;
 using ReactiveUI.Fody.Helpers;
@@ -7,6 +8,8 @@ namespace Autopelago.ViewModels;
 
 public sealed class MainWindowViewModel : ViewModelBase, IDisposable
 {
+    private readonly Subject<Unit> _shouldSaveSettings = new();
+
     private readonly IDisposable _connectCommandSubscription;
 
     public MainWindowViewModel()
@@ -28,6 +31,7 @@ public sealed class MainWindowViewModel : ViewModelBase, IDisposable
         _connectCommandSubscription = SettingsSelection.ConnectCommand
             .Subscribe(settings =>
             {
+                _shouldSaveSettings.OnNext(Unit.Default);
                 gameStateViewModel = new(settings)
                 {
                     SlotName = settings.Slot,
@@ -52,6 +56,8 @@ public sealed class MainWindowViewModel : ViewModelBase, IDisposable
 
         ContentViewModel = SettingsSelection;
     }
+
+    public IObservable<Unit> ShouldSaveSettings => _shouldSaveSettings;
 
     public SettingsSelectionViewModel SettingsSelection { get; } = new();
 

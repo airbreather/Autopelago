@@ -122,15 +122,27 @@ public sealed partial class App : Application
         MainWindow.Width = size.Width;
         MainWindow.Height = size.Height;
 
+        // Track the position as it changes. Under at least some conditions, MainWindow.Position
+        // seems to just always give PixelPoint.Origin on my XWayland machine.
+        PixelPoint mainWindowPosition = MainWindow.Position;
+        MainWindow.PositionChanged += (_, args) => mainWindowPosition = args.Point;
+
         desktop.MainWindow = MainWindow;
 
         if (settingsFile is not null)
         {
             FileInfo tmpSettingsFile = new(Path.Combine(settingsFile.DirectoryName!, "tmp.json"));
+            IDisposable saveSettingsSubscription = mainWindowViewModel.ShouldSaveSettings.Subscribe(_ => SaveSettings());
             desktop.ShutdownRequested += OnShutdownRequested;
             void OnShutdownRequested(object? sender, ShutdownRequestedEventArgs args)
             {
-                PixelRect bounds = new(MainWindow.Position, new PixelSize((int)MainWindow.Width, (int)MainWindow.Height));
+                saveSettingsSubscription.Dispose();
+                SaveSettings();
+            }
+
+            void SaveSettings()
+            {
+                PixelRect bounds = new(mainWindowPosition, new PixelSize((int)MainWindow.Width, (int)MainWindow.Height));
                 AppState finalState = new()
                 {
                     SlotSettings = mainWindowViewModel.SettingsSelection.SettingsModel,
