@@ -255,31 +255,6 @@ public sealed record GameState
         }
     }
 
-    public GameStateProxy ToProxy()
-    {
-        return new()
-        {
-            Epoch = Epoch,
-            TotalNontrivialStepCount = TotalNontrivialStepCount,
-            PreviousLocation = PreviousLocation.Name,
-            CurrentLocation = CurrentLocation.Name,
-            TargetLocation = TargetLocation.Name,
-            ReceivedItems = [.. ReceivedItems.Select(i => i.Name)],
-            CheckedLocations = [.. CheckedLocations.Select(l => l.Name)],
-            PriorityLocations = [.. PriorityLocations.Select(l => l.ToProxy())],
-            FoodFactor = FoodFactor,
-            LuckFactor = LuckFactor,
-            EnergyFactor = EnergyFactor,
-            StyleFactor = StyleFactor,
-            DistractionCounter = DistractionCounter,
-            StartledCounter = StartledCounter,
-            HasConfidence = HasConfidence,
-            LocationCheckAttemptsThisStep = LocationCheckAttemptsThisStep,
-            ActionBalanceAfterPreviousStep = ActionBalanceAfterPreviousStep,
-            PrngState = PrngState,
-        };
-    }
-
     public bool Equals(GameState? other)
     {
         return
@@ -305,68 +280,4 @@ public sealed record GameState
     }
 
     public override int GetHashCode() => Epoch.GetHashCode();
-
-    public sealed record GameStateProxy
-    {
-        public ulong Epoch { get; init; }
-
-        public required ulong TotalNontrivialStepCount { get; init; }
-
-        public required string PreviousLocation { get; init; }
-
-        public required string CurrentLocation { get; init; }
-
-        public required string TargetLocation { get; init; }
-
-        public required ImmutableArray<string> ReceivedItems { get; init; }
-
-        public required ImmutableArray<string> CheckedLocations { get; init; }
-
-        public required ImmutableArray<PriorityLocationModel.PriorityLocationModelProxy> PriorityLocations { get; init; }
-
-        public required int FoodFactor { get; init; }
-
-        public required int LuckFactor { get; init; }
-
-        public required int EnergyFactor { get; init; }
-
-        public required int StyleFactor { get; init; }
-
-        public required int DistractionCounter { get; init; }
-
-        public required int StartledCounter { get; init; }
-
-        public required bool HasConfidence { get; init; }
-
-        public required int LocationCheckAttemptsThisStep { get; init; }
-
-        public required int ActionBalanceAfterPreviousStep { get; init; }
-
-        public Prng.State PrngState { get; init; }
-
-        public GameState ToState()
-        {
-            return new()
-            {
-                Epoch = Epoch,
-                TotalNontrivialStepCount = TotalNontrivialStepCount,
-                PreviousLocation = GameDefinitions.Instance.LocationsByName[PreviousLocation],
-                CurrentLocation = GameDefinitions.Instance.LocationsByName[CurrentLocation],
-                TargetLocation = GameDefinitions.Instance.LocationsByName[TargetLocation],
-                ReceivedItems = [.. ReceivedItems.Select(name => GameDefinitions.Instance.ItemsByName[name])],
-                CheckedLocations = [.. CheckedLocations.Select(name => GameDefinitions.Instance.LocationsByName[name])],
-                PriorityLocations = [.. PriorityLocations.Select(loc => loc.ToPriorityLocation())],
-                FoodFactor = FoodFactor,
-                LuckFactor = LuckFactor,
-                EnergyFactor = EnergyFactor,
-                StyleFactor = StyleFactor,
-                DistractionCounter = DistractionCounter,
-                StartledCounter = StartledCounter,
-                HasConfidence = HasConfidence,
-                LocationCheckAttemptsThisStep = LocationCheckAttemptsThisStep,
-                ActionBalanceAfterPreviousStep = ActionBalanceAfterPreviousStep,
-                PrngState = PrngState,
-            };
-        }
-    }
 }
