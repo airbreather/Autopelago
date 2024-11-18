@@ -736,8 +736,9 @@ public sealed partial class GameStateViewModel : ViewModelBase, IDisposable
                                 break;
 
                             case ItemIdJSONMessagePartModel itemId:
+                                string game = _lastFullData.SlotInfo[itemId.Player].Game;
                                 string itemPlaceholder = $"Item{nextItemPlaceholder++}";
-                                ctxStack.Push(LogContext.PushProperty(itemPlaceholder, _lastFullData.GeneralItemNameMapping[long.Parse(itemId.Text)]));
+                                ctxStack.Push(LogContext.PushProperty(itemPlaceholder, _lastFullData.GeneralItemNameMapping[(game, long.Parse(itemId.Text))]));
                                 messageTemplateBuilder.Append($"{{{itemPlaceholder}}}");
                                 break;
 
@@ -1137,7 +1138,7 @@ public sealed partial class GameStateViewModel : ViewModelBase, IDisposable
         GameDataModel gameData = _dataPackage.Data.Games["Autopelago"];
         _lastFullData = new()
         {
-            GeneralItemNameMapping = _dataPackage.Data.Games.Values.SelectMany(game => game.ItemNameToId).ToFrozenDictionary(kvp => kvp.Value, kvp => kvp.Key),
+            GeneralItemNameMapping = _dataPackage.Data.Games.SelectMany(game => game.Value.ItemNameToId.Select(kvp => (Game: game.Key, ItemName: kvp.Key, ItemId: kvp.Value))).ToFrozenDictionary(tup => (tup.Game, tup.ItemId), tup => tup.ItemName),
             GeneralLocationNameMapping = _dataPackage.Data.Games.Values.SelectMany(game => game.LocationNameToId).ToFrozenDictionary(kvp => kvp.Value, kvp => kvp.Key),
             SlotInfo = (_lastRoomUpdate?.SlotInfo ?? _connected.SlotInfo).ToFrozenDictionary(),
             LocationIds = gameData.LocationNameToId.ToFrozenDictionary(kvp => GameDefinitions.Instance.LocationsByName[kvp.Key], kvp => kvp.Value),
@@ -1377,7 +1378,7 @@ public sealed partial class GameStateViewModel : ViewModelBase, IDisposable
 
     private sealed record AutopelagoData
     {
-        public required FrozenDictionary<long, string> GeneralItemNameMapping { get; init; }
+        public required FrozenDictionary<(string GameName, long ItemId), string> GeneralItemNameMapping { get; init; }
 
         public required FrozenDictionary<long, string> GeneralLocationNameMapping { get; init; }
 
