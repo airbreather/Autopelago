@@ -736,15 +736,16 @@ public sealed partial class GameStateViewModel : ViewModelBase, IDisposable
                                 break;
 
                             case ItemIdJSONMessagePartModel itemId:
-                                string game = _lastFullData.SlotInfo[itemId.Player].Game;
+                                string gameForItem = _lastFullData.SlotInfo[itemId.Player].Game;
                                 string itemPlaceholder = $"Item{nextItemPlaceholder++}";
-                                ctxStack.Push(LogContext.PushProperty(itemPlaceholder, _lastFullData.GeneralItemNameMapping[(game, long.Parse(itemId.Text))]));
+                                ctxStack.Push(LogContext.PushProperty(itemPlaceholder, _lastFullData.GeneralItemNameMapping[(gameForItem, long.Parse(itemId.Text))]));
                                 messageTemplateBuilder.Append($"{{{itemPlaceholder}}}");
                                 break;
 
                             case LocationIdJSONMessagePartModel locationId:
+                                string gameForLocation = _lastFullData.SlotInfo[locationId.Player].Game;
                                 string locationPlaceholder = $"Location{nextLocationPlaceholder++}";
-                                ctxStack.Push(LogContext.PushProperty(locationPlaceholder, _lastFullData.GeneralLocationNameMapping[long.Parse(locationId.Text)]));
+                                ctxStack.Push(LogContext.PushProperty(locationPlaceholder, _lastFullData.GeneralLocationNameMapping[(gameForLocation, long.Parse(locationId.Text))]));
                                 messageTemplateBuilder.Append($"{{{locationPlaceholder}}}");
                                 break;
 
@@ -1139,7 +1140,7 @@ public sealed partial class GameStateViewModel : ViewModelBase, IDisposable
         _lastFullData = new()
         {
             GeneralItemNameMapping = _dataPackage.Data.Games.SelectMany(game => game.Value.ItemNameToId.Select(kvp => (Game: game.Key, ItemName: kvp.Key, ItemId: kvp.Value))).ToFrozenDictionary(tup => (tup.Game, tup.ItemId), tup => tup.ItemName),
-            GeneralLocationNameMapping = _dataPackage.Data.Games.Values.SelectMany(game => game.LocationNameToId).ToFrozenDictionary(kvp => kvp.Value, kvp => kvp.Key),
+            GeneralLocationNameMapping = _dataPackage.Data.Games.SelectMany(game => game.Value.LocationNameToId.Select(kvp => (Game: game.Key, LocationName: kvp.Key, LocationId: kvp.Value))).ToFrozenDictionary(tup => (tup.Game, tup.LocationId), tup => tup.LocationName),
             SlotInfo = (_lastRoomUpdate?.SlotInfo ?? _connected.SlotInfo).ToFrozenDictionary(),
             LocationIds = gameData.LocationNameToId.ToFrozenDictionary(kvp => GameDefinitions.Instance.LocationsByName[kvp.Key], kvp => kvp.Value),
             ItemsById = gameData.ItemNameToId.ToFrozenDictionary(kvp => kvp.Value, kvp => GameDefinitions.Instance.ItemsByName[kvp.Key]),
@@ -1380,7 +1381,7 @@ public sealed partial class GameStateViewModel : ViewModelBase, IDisposable
     {
         public required FrozenDictionary<(string GameName, long ItemId), string> GeneralItemNameMapping { get; init; }
 
-        public required FrozenDictionary<long, string> GeneralLocationNameMapping { get; init; }
+        public required FrozenDictionary<(string GameName, long LocationId), string> GeneralLocationNameMapping { get; init; }
 
         public required FrozenDictionary<int, SlotModel> SlotInfo { get; init; }
 
