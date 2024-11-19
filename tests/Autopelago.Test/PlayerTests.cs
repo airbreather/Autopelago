@@ -789,6 +789,48 @@ public sealed class PlayerTests
         Assert.That(state.TargetLocation, Is.Not.EqualTo(lastLocationBeforeBasketball));
     }
 
+    [Test]
+    public void StartledShouldNotMoveThroughLockedLocations()
+    {
+        GameState state = GameState.Start() with
+        {
+            CurrentLocation = GameDefinitions.Instance.LocationsByName["After Pirate Bake Sale #1"],
+            TargetLocation = GameDefinitions.Instance.LocationsByName["Bowling Ball Door"],
+            ReceivedItems =
+            [
+                .. Enumerable.Repeat(s_normalRat, 40),
+                GameDefinitions.Instance.ItemsByName["Priceless Antique"],
+                GameDefinitions.Instance.ItemsByName["Pie Rat"],
+                GameDefinitions.Instance.ItemsByName["Pizza Rat"],
+                GameDefinitions.Instance.ItemsByName["Chef Rat"],
+            ],
+            CheckedLocations =
+            [
+                s_basketball,
+                GameDefinitions.Instance.LocationsByName["Angry Turtles"],
+                GameDefinitions.Instance.LocationsByName["Restaurant"],
+                GameDefinitions.Instance.LocationsByName["Bowling Ball Door"],
+            ],
+        };
+
+        Player player = new();
+        for (int i = 0; i < 100; i++)
+        {
+            state = player.Advance(state with { StartledCounter = 1 });
+            Assert.That(
+                state.PreviousStepMovementLog.Select(m => m.CurrentLocation),
+                Has.None
+                    .EqualTo(GameDefinitions.Instance.LocationsByName["Pirate Bake Sale"])
+                    .Or.EqualTo(GameDefinitions.Instance.LocationsByName["Prawn Stars"]));
+            if (state.CurrentLocation == s_startLocation)
+            {
+                break;
+            }
+        }
+
+        Assert.That(state.CurrentLocation, Is.EqualTo(s_startLocation));
+    }
+
     private static FrozenDictionary<LocationDefinitionModel, ArchipelagoItemFlags> CreateSpoiler(ReadOnlySpan<(LocationDefinitionModel Location, ArchipelagoItemFlags Flags)> defined)
     {
         Dictionary<LocationDefinitionModel, ArchipelagoItemFlags> result = GameDefinitions.Instance.LocationsByName.Values.ToDictionary(l => l, _ => ArchipelagoItemFlags.None);

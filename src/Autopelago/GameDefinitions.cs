@@ -637,21 +637,39 @@ public sealed record LocationDefinitionModel
     public RegionDefinitionModel Region => GameDefinitions.Instance.AllRegions[Key.RegionKey];
 
     public LocationDefinitionModel NextLocationTowards(LocationDefinitionModel target, GameState state) =>
-        this.EnumerateReachableLocationsByDistance(state, true)
+        this.EnumerateReachableLocationsByDistance(state, true, false)
             .FirstOrDefault(tup => tup.Location == target)
             .Path
             ?.FirstOrDefault()
-            ?? this;
+        ?? this;
+
+    public LocationDefinitionModel NextOpenLocationTowards(LocationDefinitionModel target, GameState state) =>
+        this.EnumerateReachableLocationsByDistance(state, false, true)
+            .FirstOrDefault(tup => tup.Location == target)
+            .Path
+            ?.FirstOrDefault()
+        ?? this;
 
     public IEnumerable<(LocationDefinitionModel Location, ImmutableList<LocationDefinitionModel> Path)> EnumerateReachableLocationsByDistance(GameState state)
     {
-        return this.EnumerateReachableLocationsByDistance(state, false);
+        return this.EnumerateReachableLocationsByDistance(state, false, false);
     }
 
-    private IEnumerable<(LocationDefinitionModel Location, ImmutableList<LocationDefinitionModel> Path)> EnumerateReachableLocationsByDistance(GameState state, bool collect)
+    private IEnumerable<(LocationDefinitionModel Location, ImmutableList<LocationDefinitionModel> Path)> EnumerateReachableLocationsByDistance(GameState state, bool collect, bool onlyOpen)
     {
         Dictionary<string, bool> testedRegions = new() { [this.Key.RegionKey] = true };
         HashSet<LocationKey> testedLocations = [this.Key];
+        FrozenSet<string>? allowedLandmarks = null;
+        if (onlyOpen)
+        {
+            allowedLandmarks = state.CheckedLocations
+                .DistinctBy(l => l.Key.RegionKey)
+                .Select(l => l.Region)
+                .OfType<LandmarkRegionDefinitionModel>()
+                .Select(r => r.Key)
+                .ToFrozenSet();
+        }
+
         Queue<(LocationDefinitionModel Location, ImmutableList<LocationDefinitionModel> Path, ImmutableList<ItemDefinitionModel> ReceivedItems)> q = new([(this, [], state.ReceivedItems)]);
         while (q.TryDequeue(out (LocationDefinitionModel Location, ImmutableList<LocationDefinitionModel> Path, ImmutableList<ItemDefinitionModel> ReceivedItems) curr))
         {
@@ -679,7 +697,8 @@ public sealed record LocationDefinitionModel
             if (!existed)
             {
                 result = (!GameDefinitions.Instance.LandmarkRegions.TryGetValue(regionKey, out LandmarkRegionDefinitionModel? landmark)) ||
-                         landmark.Requirement.Satisfied(state with { ReceivedItems = receivedItems });
+                         (allowedLandmarks?.Contains(landmark.Key) != false &&
+                          landmark.Requirement.Satisfied(state with { ReceivedItems = receivedItems }));
             }
 
             return result;

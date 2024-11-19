@@ -272,7 +272,7 @@ public sealed class Player
         if (state.StartledCounter > 0)
         {
             reason = BestTargetLocationReason.Startled;
-            return state.CurrentLocation.NextLocationTowards(GameDefinitions.Instance.StartLocation, state);
+            return state.CurrentLocation.NextOpenLocationTowards(GameDefinitions.Instance.StartLocation, state);
         }
 
         if (NextGoModeLocation(state) is { } nextGoModeLocation)
