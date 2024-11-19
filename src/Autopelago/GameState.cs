@@ -48,33 +48,7 @@ public sealed record GameState
     {
     }
 
-    private GameState(GameState copyFrom)
-    {
-        Epoch = copyFrom.Epoch + 1;
-        TotalNontrivialStepCount = copyFrom.TotalNontrivialStepCount;
-        PreviousLocation = copyFrom.PreviousLocation;
-        CurrentLocation = copyFrom.CurrentLocation;
-        TargetLocation = copyFrom.TargetLocation;
-        ReceivedItems = copyFrom.ReceivedItems;
-        CheckedLocations = copyFrom.CheckedLocations;
-        PriorityLocations = copyFrom.PriorityLocations;
-        FoodFactor = copyFrom.FoodFactor;
-        LuckFactor = copyFrom.LuckFactor;
-        EnergyFactor = copyFrom.EnergyFactor;
-        StyleFactor = copyFrom.StyleFactor;
-        DistractionCounter = copyFrom.DistractionCounter;
-        StartledCounter = copyFrom.StartledCounter;
-        HasConfidence = copyFrom.HasConfidence;
-        LocationCheckAttemptsThisStep = copyFrom.LocationCheckAttemptsThisStep;
-        ActionBalanceAfterPreviousStep = copyFrom.ActionBalanceAfterPreviousStep;
-        PrngState = copyFrom.PrngState;
-    }
-
-    public ulong Epoch { get; private init; }
-
-    public required ulong TotalNontrivialStepCount { get; init; }
-
-    public required LocationDefinitionModel PreviousLocation { get; init; }
+    public required ImmutableArray<LocationVector> PreviousStepMovementLog { get; init; }
 
     public required LocationDefinitionModel CurrentLocation { get; init; }
 
@@ -128,8 +102,7 @@ public sealed record GameState
     {
         return new()
         {
-            TotalNontrivialStepCount = 0,
-            PreviousLocation = GameDefinitions.Instance.StartLocation,
+            PreviousStepMovementLog = [],
             CurrentLocation = GameDefinitions.Instance.StartLocation,
             TargetLocation = GameDefinitions.Instance.StartLocation,
             ReceivedItems = [],
@@ -259,10 +232,8 @@ public sealed record GameState
     {
         return
             other is not null &&
-            Epoch == other.Epoch &&
             PrngState == other.PrngState &&
-            TotalNontrivialStepCount == other.TotalNontrivialStepCount &&
-            PreviousLocation == other.PreviousLocation &&
+            PreviousStepMovementLog.SequenceEqual(other.PreviousStepMovementLog) &&
             CurrentLocation == other.CurrentLocation &&
             TargetLocation == other.TargetLocation &&
             LocationCheckAttemptsThisStep == other.LocationCheckAttemptsThisStep &&
@@ -279,5 +250,27 @@ public sealed record GameState
             PriorityLocations.SequenceEqual(other.PriorityLocations);
     }
 
-    public override int GetHashCode() => Epoch.GetHashCode();
+    public override int GetHashCode()
+    {
+        return HashCode.Combine(
+            HashCode.Combine(
+                PrngState,
+                PreviousStepMovementLog.Length,
+                CurrentLocation,
+                TargetLocation,
+                LocationCheckAttemptsThisStep,
+                ActionBalanceAfterPreviousStep,
+                FoodFactor,
+                LuckFactor),
+            HashCode.Combine(
+                EnergyFactor,
+                StyleFactor,
+                DistractionCounter,
+                StartledCounter,
+                HasConfidence,
+                ReceivedItems.Count,
+                CheckedLocations.Count,
+                PriorityLocations.Count)
+        );
+    }
 }

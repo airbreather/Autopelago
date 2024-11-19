@@ -250,7 +250,7 @@ public sealed record ItemDefinitionsModel
     }
 }
 
-public record ItemDefinitionModel
+public sealed record ItemDefinitionModel
 {
     public required string? AssociatedGame { get; init; }
 
@@ -342,6 +342,30 @@ public record ItemDefinitionModel
             FlavorText = flavorText,
         };
     }
+
+    public bool Equals(ItemDefinitionModel? other)
+    {
+        return
+            other is not null &&
+            AssociatedGame == other.AssociatedGame &&
+            Name == other.Name &&
+            ArchipelagoFlags == other.ArchipelagoFlags &&
+            AurasGranted.SequenceEqual(other.AurasGranted) && // order is important!
+            FlavorText == other.FlavorText &&
+            RatCount == other.RatCount;
+    }
+
+    public override int GetHashCode()
+    {
+        return HashCode.Combine(
+            AssociatedGame,
+            Name,
+            ArchipelagoFlags,
+            AurasGranted.Length,
+            FlavorText,
+            RatCount
+        );
+    }
 }
 
 public sealed record RegionDefinitionsModel
@@ -416,6 +440,26 @@ public abstract record RegionDefinitionModel
     public required ImmutableArray<RegionExitDefinitionModel> Exits { get; init; }
 
     public required ImmutableArray<LocationDefinitionModel> Locations { get; init; }
+
+    public virtual bool Equals(RegionDefinitionModel? other)
+    {
+        return
+            other is not null &&
+            EqualityContract == other.EqualityContract &&
+            Key == other.Key &&
+            Exits.SequenceEqual(other.Exits) &&
+            Locations.SequenceEqual(other.Locations);
+    }
+
+    public override int GetHashCode()
+    {
+        return HashCode.Combine(
+            EqualityContract,
+            Key,
+            Exits.Length,
+            Locations.Length
+        );
+    }
 }
 
 public sealed record RegionExitDefinitionModel

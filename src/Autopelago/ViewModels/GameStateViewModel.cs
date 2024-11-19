@@ -257,13 +257,8 @@ public sealed partial class GameStateViewModel : ViewModelBase, IDisposable
             .ToPropertyEx(this, x => x.CurrentPoint));
 
         _subscriptions.Add(this
-            .WhenAnyValue(x => x.TargetLocation)
-            .Select(GetPoint)
-            .ToPropertyEx(this, x => x.TargetPoint));
-
-        _subscriptions.Add(this
-            .WhenAnyValue(x => x.PreviousPoint, x => x.CurrentPoint, x => x.TargetPoint)
-            .Select(tup => GetTrueAngle(tup.Item1, tup.Item2, tup.Item3))
+            .WhenAnyValue(x => x.PreviousPoint, x => x.CurrentPoint)
+            .Select(tup => GetTrueAngle(tup.Item1, tup.Item2))
             .ToPropertyEx(this, x => x.TrueAngle));
 
         _subscriptions.Add(this
@@ -319,19 +314,14 @@ public sealed partial class GameStateViewModel : ViewModelBase, IDisposable
                 : fillerRegionLookup[location.Key.RegionKey].LocationPoints[location.Key.N];
         }
 
-        double GetTrueAngle(Point prev, Point curr, Point next)
+        double GetTrueAngle(Point prev, Point curr)
         {
-            if (curr == next)
-            {
-                curr = prev;
-            }
-
-            if (curr == next)
+            if (prev == curr)
             {
                 return 0;
             }
 
-            return Math.Atan2(next.Y - curr.Y, next.X - curr.X) * 180 / Math.PI;
+            return Math.Atan2(curr.Y - prev.Y, curr.X - prev.X) * 180 / Math.PI;
         }
     }
 
@@ -381,9 +371,6 @@ public sealed partial class GameStateViewModel : ViewModelBase, IDisposable
 
     [ObservableAsProperty]
     public Point CurrentPoint { get; }
-
-    [ObservableAsProperty]
-    public Point TargetPoint { get; }
 
     [ObservableAsProperty]
     public double TrueAngle { get; }
@@ -814,7 +801,6 @@ public sealed partial class GameStateViewModel : ViewModelBase, IDisposable
                             Source = PriorityLocationModel.SourceKind.Player,
                         }),
                     };
-                    UpdateMeters();
                 }
                 finally
                 {
@@ -851,7 +837,6 @@ public sealed partial class GameStateViewModel : ViewModelBase, IDisposable
                 if (toRemove is not null)
                 {
                     _state = _state with { PriorityLocations = _state.PriorityLocations.Remove(toRemove) };
-                    UpdateMeters();
                 }
             }
             finally
@@ -1063,54 +1048,10 @@ public sealed partial class GameStateViewModel : ViewModelBase, IDisposable
                 await CheckGoMode();
                 _state = nextState = _player.Advance(prevState);
                 await CheckGoMode();
-
-                UpdateMeters();
-
-                if (_state.CurrentLocation.EnumerateReachableLocationsByDistance(_state).Count() == _state.CheckedLocations.Count)
-                {
-                    if (_prevBlockedReportTimestamp is long prevBlockedReportTimestamp)
-                    {
-                        if (Stopwatch.GetElapsedTime(prevBlockedReportTimestamp).TotalMinutes >= 15)
-                        {
-                            _prevBlockedReportTimestamp = null;
-                        }
-                    }
-
-                    if (_prevBlockedReportTimestamp is null)
-                    {
-                        Prng.State prngState = _state.PrngState;
-                        double num = Prng.NextDouble(ref prngState);
-                        _state = _state with { PrngState = prngState };
-                        await SendPacketsAsync([new SayPacketModel
-                        {
-                            Text = s_blockedMessages[(int)(s_blockedMessages.Length * num)],
-                        }]);
-                        _prevBlockedReportTimestamp = Stopwatch.GetTimestamp();
-                    }
-                }
-                else
-                {
-                    if (_prevBlockedReportTimestamp is not null)
-                    {
-                        Prng.State prngState = _state.PrngState;
-                        double num = Prng.NextDouble(ref prngState);
-                        _state = _state with { PrngState = prngState };
-                        await SendPacketsAsync([new SayPacketModel
-                        {
-                            Text = s_unblockedMessages[(int)(s_unblockedMessages.Length * num)],
-                        }]);
-                        _prevBlockedReportTimestamp = null;
-                    }
-                }
             }
             finally
             {
                 _gameStateMutex.Release();
-            }
-
-            if (nextState.CheckedLocations.Count == prevState.CheckedLocations.Count)
-            {
-                continue;
             }
 
             List<long> locationIds = [];
@@ -1123,8 +1064,65 @@ public sealed partial class GameStateViewModel : ViewModelBase, IDisposable
                 }
             }
 
-            LocationChecksPacketModel locationChecks = new() { Locations = locationIds.ToArray() };
-            await SendPacketsAsync([locationChecks]);
+            if (locationIds.Count > 0)
+            {
+                LocationChecksPacketModel locationChecks = new() { Locations = locationIds.ToArray() };
+                await SendPacketsAsync([locationChecks]);
+            }
+
+            TargetLocation = _state.TargetLocation;
+            bool delayNextMovement = false;
+            foreach (LocationVector mov in _state.PreviousStepMovementLog)
+            {
+                PreviousLocation = mov.PreviousLocation;
+                CurrentLocation = mov.CurrentLocation;
+                if (delayNextMovement)
+                {
+                    await Task.Delay(100);
+                    if (Paused)
+                    {
+                        TaskCompletionSource cancelTcs = new(TaskCreationOptions.RunContinuationsAsynchronously);
+                        await using CancellationTokenRegistration reg = _unpauseCts.Token.Register(() => cancelTcs.TrySetResult());
+                        await cancelTcs.Task;
+                        _unpauseCts = new();
+                        _pauseCts = new();
+                    }
+                }
+
+                delayNextMovement = true;
+            }
+            UpdateMeters();
+
+            if (_state.CurrentLocation.EnumerateReachableLocationsByDistance(_state).Count() == _state.CheckedLocations.Count)
+            {
+                if (_prevBlockedReportTimestamp is long prevBlockedReportTimestamp)
+                {
+                    if (Stopwatch.GetElapsedTime(prevBlockedReportTimestamp).TotalMinutes >= 15)
+                    {
+                        _prevBlockedReportTimestamp = null;
+                    }
+                }
+
+                if (_prevBlockedReportTimestamp is null)
+                {
+                    await SendPacketsAsync([new SayPacketModel
+                    {
+                        Text = s_blockedMessages[Random.Shared.Next(s_blockedMessages.Length)],
+                    }]);
+                    _prevBlockedReportTimestamp = Stopwatch.GetTimestamp();
+                }
+            }
+            else
+            {
+                if (_prevBlockedReportTimestamp is not null)
+                {
+                    await SendPacketsAsync([new SayPacketModel
+                    {
+                        Text = s_unblockedMessages[Random.Shared.Next((s_unblockedMessages.Length))],
+                    }]);
+                    _prevBlockedReportTimestamp = null;
+                }
+            }
         }
 
         _landmarkRegionsByLocation[GameDefinitions.Instance.GoalLocation].Checked = true;
@@ -1302,10 +1300,6 @@ public sealed partial class GameStateViewModel : ViewModelBase, IDisposable
 
     private void UpdateMeters()
     {
-        PreviousLocation = _state.PreviousLocation;
-        CurrentLocation = _state.CurrentLocation;
-        TargetLocation = _state.TargetLocation;
-
         foreach (ItemDefinitionModel item in _state.ReceivedItems)
         {
             if (_collectableItemsByModel.TryGetValue(item, out CollectableItemViewModel? viewModel))

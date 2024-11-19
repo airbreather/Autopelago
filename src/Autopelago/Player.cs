@@ -13,6 +13,13 @@ public enum BestTargetLocationReason
     GoMode,
 }
 
+public sealed record LocationVector
+{
+    public required LocationDefinitionModel PreviousLocation { get; init; }
+
+    public required LocationDefinitionModel CurrentLocation { get; init; }
+}
+
 public sealed class Player
 {
     private static readonly ImmutableArray<ImmutableArray<LandmarkRegionDefinitionModel>> s_allGoModePaths = ComputeAllGoModePaths();
@@ -23,8 +30,6 @@ public sealed class Player
 
     public GameState Advance(GameState state)
     {
-        ulong initialEpoch = state.Epoch;
-
         if (state.IsCompleted)
         {
             return state;
@@ -72,7 +77,7 @@ public sealed class Player
             state = state with { DistractionCounter = state.DistractionCounter - 1 };
         }
 
-        LocationDefinitionModel previousLocation = state.PreviousLocation;
+        List<LocationVector> movementLog = [];
         while (actionBalance > 0 && !state.IsCompleted)
         {
             --actionBalance;
@@ -113,14 +118,14 @@ public sealed class Player
                 // same in dense areas.
                 for (int i = 0; i < 3 && state.CurrentLocation != state.TargetLocation; i++)
                 {
-                    previousLocation = state.CurrentLocation;
-                    state = state with { CurrentLocation = state.CurrentLocation.NextLocationTowards(state.TargetLocation, state) };
-                    moved = true;
-                    bestTargetLocation = BestTargetLocation(state, out bestTargetLocationReason);
-                    if (state.TargetLocation != bestTargetLocation)
+                    movementLog.Add(new()
                     {
-                        state = state with { TargetLocation = bestTargetLocation };
-                    }
+                        PreviousLocation = state.CurrentLocation,
+                        CurrentLocation = state.CurrentLocation.NextLocationTowards(state.TargetLocation, state),
+                    });
+                    state = state with { CurrentLocation = movementLog[^1].CurrentLocation };
+                    state = state with { TargetLocation = BestTargetLocation(state, out bestTargetLocationReason) };
+                    moved = true;
                 }
             }
 
@@ -139,7 +144,8 @@ public sealed class Player
             if (bestTargetLocationReason == BestTargetLocationReason.Priority && state.CurrentLocation == state.TargetLocation)
             {
                 // we've reached our next priority location. remove it from the queue.
-                state = state with { PriorityLocations = state.PriorityLocations.RemoveAll(l => l.Location == state.TargetLocation) };
+                LocationDefinitionModel targetLocation = state.TargetLocation;
+                state = state with { PriorityLocations = state.PriorityLocations.RemoveAll(l => l.Location == targetLocation) };
             }
 
             // figure out if anything above changed our best target location. if not, then don't
@@ -182,14 +188,19 @@ public sealed class Player
             }
         }
 
-        if (state.PreviousLocation != previousLocation)
+        if (movementLog.Count == 0)
         {
-            state = state with { PreviousLocation = previousLocation };
+            if (state.PreviousStepMovementLog.Length > 1)
+            {
+                state = state with { PreviousStepMovementLog = [state.PreviousStepMovementLog[^1]] };
+            }
+        }
+        else
+        {
+            state = state with { PreviousStepMovementLog = [.. movementLog] };
         }
 
-        return state.Epoch == initialEpoch
-            ? state
-            : state with { TotalNontrivialStepCount = state.TotalNontrivialStepCount + 1 };
+        return state;
     }
 
     public LocationDefinitionModel? NextGoModeLocation(GameState state)

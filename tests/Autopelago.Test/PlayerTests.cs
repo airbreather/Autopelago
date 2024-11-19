@@ -1,6 +1,7 @@
 using System.Buffers;
 using System.Buffers.Text;
 using System.Collections.Frozen;
+using System.Collections.Immutable;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 
@@ -75,15 +76,18 @@ public sealed class PlayerTests
     [Test]
     public void ShouldOnlyTryBasketballWithAtLeastFiveRats([Range(0, 7)] int ratCount)
     {
-        GameState state = GameState.Start();
+        GameState state = GameState.Start(s_highRolls);
         state = state with
         {
-            ReceivedItems = [.. Enumerable.Repeat(s_normalRat, ratCount)],
+            CurrentLocation = s_startRegion.Locations[^1],
+            TargetLocation = s_startRegion.Locations[^1],
             CheckedLocations = [.. s_startRegion.Locations],
+            ReceivedItems = [.. Enumerable.Repeat(s_normalRat, ratCount)],
         };
 
         Player player = new();
-        Assert.That(player.Advance(state), ratCount < 5 ? Is.EqualTo(state) : Is.Not.EqualTo(state));
+        state = player.Advance(state);
+        Assert.That(state.CheckedLocations, ratCount < 5 ? Does.Not.Contain(s_basketball) : Contains.Item(s_basketball));
     }
 
     [Test]
@@ -691,16 +695,62 @@ public sealed class PlayerTests
 
         Player player = new();
         state = player.Advance(state);
-        Assert.That(state.CurrentLocation.Key.N, Is.EqualTo(6));
+        Assert.Multiple(() =>
+        {
+            Assert.That(
+                state.PreviousStepMovementLog.Select(v => v.PreviousLocation),
+                Is.EqualTo(s_startRegion.Locations[..6]));
+            Assert.That(
+                state.PreviousStepMovementLog.Select(v => v.CurrentLocation),
+                Is.EqualTo(s_startRegion.Locations[1..7]));
+            Assert.That(
+                state.CurrentLocation,
+                Is.EqualTo(state.PreviousStepMovementLog[^1].CurrentLocation));
+        });
         state = player.Advance(state);
-        Assert.That(state.CurrentLocation.Key.N, Is.EqualTo(9));
+        Assert.Multiple(() =>
+        {
+            Assert.That(
+                state.PreviousStepMovementLog.Select(v => v.PreviousLocation),
+                Is.EqualTo(s_startRegion.Locations[6..9]));
+            Assert.That(
+                state.PreviousStepMovementLog.Select(v => v.CurrentLocation),
+                Is.EqualTo(s_startRegion.Locations[7..10]));
+            Assert.That(
+                state.CurrentLocation,
+                Is.EqualTo(state.PreviousStepMovementLog[^1].CurrentLocation));
+        });
         state = player.Advance(state);
-        Assert.That(state.CurrentLocation.Key.N, Is.EqualTo(15));
+        Assert.Multiple(() =>
+        {
+            Assert.That(
+                state.PreviousStepMovementLog.Select(v => v.PreviousLocation),
+                Is.EqualTo(s_startRegion.Locations[9..15]));
+            Assert.That(
+                state.PreviousStepMovementLog.Select(v => v.CurrentLocation),
+                Is.EqualTo(s_startRegion.Locations[10..16]));
+            Assert.That(
+                state.CurrentLocation,
+                Is.EqualTo(state.PreviousStepMovementLog[^1].CurrentLocation));
+        });
         state = player.Advance(state with { EnergyFactor = 0 });
         Assert.Multiple(() =>
         {
+            ImmutableArray<LocationDefinitionModel> expectedCurrentLocationSequence =
+            [
+                .. s_startRegion.Locations[16..],
+                s_basketball,
+            ];
+            Assert.That(
+                state.PreviousStepMovementLog.Select(v => v.PreviousLocation),
+                Is.EqualTo(s_startRegion.Locations[15..]));
+            Assert.That(
+                state.PreviousStepMovementLog.Select(v => v.CurrentLocation),
+                Is.EqualTo(expectedCurrentLocationSequence));
+            Assert.That(
+                state.CurrentLocation,
+                Is.EqualTo(state.PreviousStepMovementLog[^1].CurrentLocation));
             Assert.That(state.CheckedLocations, Contains.Item(s_basketball));
-            Assert.That(state.CurrentLocation, Is.EqualTo(s_basketball));
         });
     }
 
@@ -737,23 +787,6 @@ public sealed class PlayerTests
         state = player.Advance(state);
 
         Assert.That(state.TargetLocation, Is.Not.EqualTo(lastLocationBeforeBasketball));
-    }
-
-    [Test]
-    public void PreviousLocationShouldStickThroughNonMovementSteps()
-    {
-        GameState state = GameState.Start();
-
-        Player player = new();
-        for (int i = 0; i < 40; i++)
-        {
-            state = player.Advance(state with
-            {
-                PrngState = i % 3 == 0 ? s_highRolls : s_lowRolls,
-            });
-
-            Assert.That(GameDefinitions.Instance.ConnectedLocations[state.CurrentLocation], Contains.Item(state.PreviousLocation));
-        }
     }
 
     private static FrozenDictionary<LocationDefinitionModel, ArchipelagoItemFlags> CreateSpoiler(ReadOnlySpan<(LocationDefinitionModel Location, ArchipelagoItemFlags Flags)> defined)
