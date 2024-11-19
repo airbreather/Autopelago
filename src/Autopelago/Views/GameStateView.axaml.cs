@@ -3,6 +3,7 @@ using Autopelago.ViewModels;
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Input;
+using Avalonia.Interactivity;
 using Avalonia.Platform;
 using Avalonia.ReactiveUI;
 using Avalonia.VisualTree;
@@ -43,5 +44,10 @@ public partial class GameStateView : ReactiveUserControl<GameStateViewModel>
         }
 
         ToolTip.SetPlacement(ctrl, pt.Y < s.Bounds.Height / 2 ? PlacementMode.Bottom : PlacementMode.Top);
+    }
+
+    private void OnPlayerToolTipOpening(object? sender, CancelRoutedEventArgs e)
+    {
+        ViewModel?.NextRatThought();
     }
 }

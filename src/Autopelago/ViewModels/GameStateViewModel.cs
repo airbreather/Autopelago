@@ -985,6 +985,22 @@ public sealed partial class GameStateViewModel : ViewModelBase, IDisposable
         "Squeak-squeak, it's rattin' time!",
     ];
 
+    private static readonly ImmutableArray<string> s_ratThoughts =
+    [
+        "the moon looks cheesy today",
+        "i could really go for some cheddar",
+        "squeak squeak",
+        "wait, is there even air in space?",
+        "i sure hope the moon hasn't gotten moldy",
+        "wait... you can read my mind?",
+        "did you know, real rats don't even like cheese all that much!",
+        "don't you DARE call me a mouse!",
+        "rat rat rat rat rat rat rat rat rat rat rat rat",
+        "i may live in a sewer, but i'm squeaky clean!",
+        "ahem, a little privacy please?",
+        "you're not a cat, are you? just checking...",
+    ];
+
     private async Task RunPlayLoopAsync()
     {
         _nextFullInterval = NextInterval(_state);
@@ -1346,6 +1362,21 @@ public sealed partial class GameStateViewModel : ViewModelBase, IDisposable
             EnergyFactor = auraData.EnergyFactor,
             PriorityLocations = [.. auraData.PriorityLocations.Select(p => p.ToPriorityLocation())],
         };
+    }
+
+    [Reactive]
+    public string RatThought { get; set; } = s_ratThoughts[0];
+
+    public void NextRatThought()
+    {
+        string prevRatThought = RatThought;
+        string nextRatThought = RatThought;
+        while (nextRatThought == prevRatThought)
+        {
+            nextRatThought = s_ratThoughts[Random.Shared.Next(s_ratThoughts.Length)];
+        }
+
+        RatThought = nextRatThought;
     }
 
     private sealed record ClientWebSocketBox : IDisposable

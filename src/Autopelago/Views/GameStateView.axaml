@@ -287,7 +287,8 @@
                                                Width="16" Canvas.Left="{Binding CurrentPoint.X, Mode=OneWay}"
                                                Height="16" Canvas.Top="{Binding CurrentPoint.Y, Mode=OneWay}"
                                                Source="/Assets/Images/pack_rat.webp"
-                                               my:PlayerWiggleProperties.TargetAngle="{Binding RelativeAngle}">
+                                               my:PlayerWiggleProperties.TargetAngle="{Binding RelativeAngle}"
+                                               ToolTip.ToolTipOpening="OnPlayerToolTipOpening">
                                             <Image.RenderTransform>
                                               <!--
                                               HACK: this must be TransformGroup with RotateTransform
@@ -324,7 +325,7 @@
                                                       <TextBlock Grid.Row="0" Grid.Column="1" Margin="2,0,0,0" Text="{Binding CurrentLocation.Name, StringFormat='At \'{0}\'.'}" />
                                                       <TextBlock Grid.Row="1" Grid.Column="0" Margin="5,10,0,0" VerticalAlignment="Center" Text="●" />
                                                       <TextBlock Grid.Row="1" Grid.Column="1" Margin="2,10,0,0" Text="{Binding TargetLocation.Name, StringFormat='Going to \'{0}\'.'}" />
-                                                      <TextBlock Grid.Row="3" Margin="5,20,0,0" Grid.ColumnSpan="2" Classes="tooltip small" Text="the moon looks cheesy today." />
+                                                      <TextBlock Grid.Row="3" Margin="5,20,0,0" Grid.ColumnSpan="2" Classes="tooltip small" Text="{Binding RatThought}" />
                                                     </Grid>
                                                   </Grid>
                                                 </Border>
