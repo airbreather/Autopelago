@@ -14,7 +14,7 @@
     x:TypeArguments="viewModels:GameStateViewModel">
 
     <Design.DataContext>
-        <viewModels:GameStateViewModel SlotName="Ratthew" RatCount="16" HasConfidence="True">
+        <viewModels:GameStateViewModel SlotName="Ratthew" RatCount="16" StartledCounter="1" HasConfidence="True">
             <viewModels:GameStateViewModel.ProgressionItemsCollected>
                 <x:String>pizza_rat</x:String>
                 <x:String>premium_can_of_prawn_food</x:String>
@@ -332,6 +332,12 @@
                                               </DockPanel>
                                             </ToolTip.Tip>
                                         </Image>
+                                        <TextBlock Text="eek!"
+                                                   FontSize="3.5"
+                                                   IsVisible="{Binding StartledCounter, Converter={StaticResource NonZeroConverter}}"
+                                                   Canvas.Left="{Binding CurrentPoint.X, Mode=OneWay}"
+                                                   Canvas.Top="{Binding CurrentPoint.Y, Mode=OneWay}"
+                                                   RenderTransform="translate(2px, -3px)" />
                                     </Canvas>
                                 </Panel>
                             </Viewbox>
