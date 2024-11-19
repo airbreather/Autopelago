@@ -115,8 +115,6 @@ public sealed partial class GameStateViewModel : ViewModelBase, IDisposable
     {
         _settings = settings;
         _prevStartTimestamp = _timeProvider.GetTimestamp();
-        FileInfo stateFile = new(Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "Autopelago", $"{settings.Host}_{settings.Port}_{settings.Slot}.json.zst"));
-        stateFile.Directory!.Create();
 
         PlayPauseCommand = ReactiveCommand.Create(() =>
         {
