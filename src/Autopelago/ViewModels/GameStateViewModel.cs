@@ -323,6 +323,8 @@ public sealed partial class GameStateViewModel : ViewModelBase, IDisposable
         }
     }
 
+    public static TimeSpan MovementAnimationTime { get; } = TimeSpan.FromSeconds(0.1);
+
     [Reactive]
     public string SlotName { get; set; } = "";
 
@@ -1085,26 +1087,30 @@ public sealed partial class GameStateViewModel : ViewModelBase, IDisposable
             }
 
             TargetLocation = _state.TargetLocation;
-            bool delayNextMovement = false;
-            foreach (LocationVector mov in _state.PreviousStepMovementLog)
+            for (int i = 0; i < _state.PreviousStepMovementLog.Length; i++)
             {
+                LocationVector mov = _state.PreviousStepMovementLog[i];
                 PreviousLocation = mov.PreviousLocation;
                 CurrentLocation = mov.CurrentLocation;
-                if (delayNextMovement)
+                if (i == _state.PreviousStepMovementLog.Length - 1)
                 {
-                    await Task.Delay(100);
-                    if (Paused)
-                    {
-                        TaskCompletionSource cancelTcs = new(TaskCreationOptions.RunContinuationsAsynchronously);
-                        await using CancellationTokenRegistration reg = _unpauseCts.Token.Register(() => cancelTcs.TrySetResult());
-                        await cancelTcs.Task;
-                        _unpauseCts = new();
-                        _pauseCts = new();
-                    }
+                    // don't delay the last movement, Avalonia's easing will take care of it.
+                    continue;
                 }
 
-                delayNextMovement = true;
+                await Task.Delay(MovementAnimationTime, _timeProvider);
+                if (!Paused)
+                {
+                    continue;
+                }
+
+                TaskCompletionSource cancelTcs = new(TaskCreationOptions.RunContinuationsAsynchronously);
+                await using CancellationTokenRegistration reg = _unpauseCts.Token.Register(() => cancelTcs.TrySetResult());
+                await cancelTcs.Task;
+                _unpauseCts = new();
+                _pauseCts = new();
             }
+
             UpdateMeters();
 
             if (_state.CurrentLocation.EnumerateReachableLocationsByDistance(_state).Count() == _state.CheckedLocations.Count)

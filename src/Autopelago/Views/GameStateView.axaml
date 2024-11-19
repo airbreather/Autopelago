@@ -302,8 +302,8 @@
                                             </Image.RenderTransform>
                                             <Image.Transitions>
                                                 <Transitions>
-                                                    <DoubleTransition Property="Canvas.Left" Duration="0:0:0.1" />
-                                                    <DoubleTransition Property="Canvas.Top" Duration="0:0:0.1" />
+                                                    <DoubleTransition Property="Canvas.Left" Duration="{x:Static viewModels:GameStateViewModel.MovementAnimationTime}" />
+                                                    <DoubleTransition Property="Canvas.Top" Duration="{x:Static viewModels:GameStateViewModel.MovementAnimationTime}" />
                                                 </Transitions>
                                             </Image.Transitions>
                                             <ToolTip.Tip>
