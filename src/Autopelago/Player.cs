@@ -1,7 +1,4 @@
-using System.Collections;
-using System.Collections.Frozen;
 using System.Collections.Immutable;
-using System.Runtime.InteropServices;
 
 namespace Autopelago;
 
@@ -24,9 +21,7 @@ public sealed class Player
 {
     private static readonly ImmutableArray<ImmutableArray<LandmarkRegionDefinitionModel>> s_allGoModePaths = ComputeAllGoModePaths();
 
-    private readonly FrozenDictionary<string, BitArray> _checkedLocations = GameDefinitions.Instance.AllRegions.ToFrozenDictionary(kvp => kvp.Key, kvp => new BitArray(kvp.Value.Locations.Length));
-
-    private readonly Dictionary<ItemDefinitionModel, int> _receivedItemsMap = [];
+    private HashSet<LocationKey> _checkedLocations = [];
 
     public GameState Advance(GameState state)
     {
@@ -35,21 +30,7 @@ public sealed class Player
             return state;
         }
 
-        foreach (BitArray isChecked in _checkedLocations.Values)
-        {
-            isChecked.SetAll(false);
-        }
-
-        foreach (LocationDefinitionModel checkedLocation in state.CheckedLocations)
-        {
-            MarkLocationChecked(checkedLocation.Key);
-        }
-
-        _receivedItemsMap.Clear();
-        foreach (ItemDefinitionModel receivedItem in state.ReceivedItems)
-        {
-            ++CollectionsMarshal.GetValueRefOrAddDefault(_receivedItemsMap, receivedItem, out _);
-        }
+        _checkedLocations = [.. state.CheckedLocations.Select(l => l.Key)];
 
         int actionBalance = 3 + state.ActionBalanceAfterPreviousStep;
         switch (state.FoodFactor)
@@ -129,7 +110,7 @@ public sealed class Player
                 }
             }
 
-            if (!moved && state.StartledCounter == 0 && !LocationIsChecked(state.CurrentLocation.Key))
+            if (!moved && state.StartledCounter == 0 && !_checkedLocations.Contains(state.CurrentLocation.Key))
             {
                 bool success = state.CurrentLocation.TryCheck(ref state);
                 state = state with { LocationCheckAttemptsThisStep = state.LocationCheckAttemptsThisStep + 1 };
@@ -138,7 +119,7 @@ public sealed class Player
                     continue;
                 }
 
-                MarkLocationChecked(state.CurrentLocation.Key);
+                _checkedLocations.Add(state.CurrentLocation.Key);
             }
 
             if (bestTargetLocationReason == BestTargetLocationReason.Priority && state.CurrentLocation == state.TargetLocation)
@@ -244,7 +225,7 @@ public sealed class Player
             for (int i = 0; i < goModePath.Length; i++)
             {
                 LocationDefinitionModel goModeTarget = goModePath[i].Locations[0];
-                if (!LocationIsChecked(goModeTarget.Key))
+                if (!_checkedLocations.Contains(goModeTarget.Key))
                 {
                     goModeTargets.Add((goModeTarget, i));
                     goto nextGoModePath;
@@ -262,10 +243,6 @@ public sealed class Player
 
         return null;
     }
-
-    private bool LocationIsChecked(LocationKey key) => _checkedLocations[key.RegionKey][key.N];
-
-    private void MarkLocationChecked(LocationKey key) => _checkedLocations[key.RegionKey][key.N] = true;
 
     public LocationDefinitionModel BestTargetLocation(GameState state, out BestTargetLocationReason reason)
     {
@@ -289,7 +266,7 @@ public sealed class Player
 
         LocationDefinitionModel? closestUncheckedLocation = state.CurrentLocation
             .EnumerateReachableLocationsByDistance(state)
-            .FirstOrDefault(l => !LocationIsChecked(l.Location.Key))
+            .FirstOrDefault(l => !_checkedLocations.Contains(l.Location.Key))
             .Location;
         if (closestUncheckedLocation is null)
         {
@@ -320,7 +297,7 @@ public sealed class Player
                 // to it may include one or more clearABLE landmarks that haven't been clearED yet.
                 foreach (LocationDefinitionModel nextLocation in path.Prepend(state.CurrentLocation))
                 {
-                    if (nextLocation.Region is LandmarkRegionDefinitionModel && !LocationIsChecked(nextLocation.Key))
+                    if (nextLocation.Region is LandmarkRegionDefinitionModel && !_checkedLocations.Contains(nextLocation.Key))
                     {
                         return nextLocation;
                     }

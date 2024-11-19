@@ -69,22 +69,11 @@ jobs:
           fi
           popd;
 
-      - name: Release
-        uses: softprops/action-gh-release@v2
+      - name: Upload release
+        uses: actions/upload-artifact@v4
         with:
-          tag_name: 'Autopelago_${{ env.RELEASE_NUMBER }}'
-          files: dist/release/**
-          prerelease: true
-
-      - name: Drop old pre-releases
-        uses: sgpublic/delete-release-action@v1.1
-        with:
-          release-drop: false
-
-          pre-release-drop: true
-          pre-release-keep-count: 1
-          pre-release-drop-tag: false
-
-          draft-drop: false
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          name: game-clients
+          path: dist/release/**
+          if-no-files-found: 'error'
+          compression-level: '0' # these files are already compressed.
+          include-hidden-files: 'true' # if we made any, then they'd be needed.
