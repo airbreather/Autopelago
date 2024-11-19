@@ -129,33 +129,6 @@ public sealed record GameState
         return result;
     }
 
-    public IEnumerable<RegionDefinitionModel> EnumerateOpenRegions()
-    {
-        Queue<RegionDefinitionModel> regionsQueue = new();
-        regionsQueue.Enqueue(GameDefinitions.Instance.StartRegion);
-        HashSet<RegionDefinitionModel> seenRegions = [];
-        while (regionsQueue.TryDequeue(out RegionDefinitionModel? nextRegion))
-        {
-            yield return nextRegion;
-
-            foreach (RegionExitDefinitionModel exit in nextRegion.Exits)
-            {
-                RegionDefinitionModel exitRegion = exit.Region;
-                if (!seenRegions.Add(exit.Region))
-                {
-                    continue;
-                }
-
-                if (exitRegion is LandmarkRegionDefinitionModel { Requirement: { } req } && !req.Satisfied(this))
-                {
-                    continue;
-                }
-
-                regionsQueue.Enqueue(exit.Region);
-            }
-        }
-    }
-
     public GameState ResolveSmartAndConspiratorialAuras(ReadOnlySpan<PriorityLocationModel.SourceKind> receivedAuras, FrozenDictionary<LocationDefinitionModel, ArchipelagoItemFlags> spoilerData, out ImmutableArray<PriorityLocationModel> resolvedLocations)
     {
         if (receivedAuras.IsEmpty)
