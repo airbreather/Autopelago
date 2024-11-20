@@ -3,43 +3,11 @@ using System.Collections.Immutable;
 
 namespace Autopelago;
 
-public sealed record PriorityLocationModel
+public enum UncheckedLandmarkBehavior
 {
-    public required LocationDefinitionModel Location { get; init; }
-
-    public required SourceKind Source { get; init; }
-
-    public PriorityLocationModelProxy ToProxy()
-    {
-        return new()
-        {
-            Location = Location.Name,
-            Source = Source,
-        };
-    }
-
-    public enum SourceKind
-    {
-        Player,
-        Smart,
-        Conspiratorial,
-    }
-
-    public sealed record PriorityLocationModelProxy
-    {
-        public required string Location { get; init; }
-
-        public required SourceKind Source { get; init; }
-
-        public PriorityLocationModel ToPriorityLocation()
-        {
-            return new()
-            {
-                Location = GameDefinitions.Instance.LocationsByName[Location],
-                Source = Source,
-            };
-        }
-    }
+    DoNotPassThrough,
+    PassThroughIfRequirementsSatisfied,
+    AlwaysPassThrough,
 }
 
 public sealed record GameState
@@ -58,7 +26,9 @@ public sealed record GameState
 
     public required ImmutableList<LocationDefinitionModel> CheckedLocations { get; init; }
 
-    public required ImmutableList<PriorityLocationModel> PriorityLocations { get; init; }
+    public required ImmutableList<LocationDefinitionModel> PriorityPriorityLocations { get; init; }
+
+    public required ImmutableList<LocationDefinitionModel> PriorityLocations { get; init; }
 
     public required int FoodFactor { get; init; }
 
@@ -79,8 +49,6 @@ public sealed record GameState
     public required int ActionBalanceAfterPreviousStep { get; init; }
 
     public required Prng.State PrngState { get; init; }
-
-    public double IntervalDurationMultiplier => 1;
 
     public bool IsCompleted => CurrentLocation == GameDefinitions.Instance.GoalLocation;
 
@@ -107,6 +75,7 @@ public sealed record GameState
             TargetLocation = GameDefinitions.Instance.StartLocation,
             ReceivedItems = [],
             CheckedLocations = [],
+            PriorityPriorityLocations = [],
             PriorityLocations = [],
             FoodFactor = 0,
             LuckFactor = 0,
@@ -129,73 +98,67 @@ public sealed record GameState
         return result;
     }
 
-    public GameState ResolveSmartAndConspiratorialAuras(ReadOnlySpan<PriorityLocationModel.SourceKind> receivedAuras, FrozenDictionary<LocationDefinitionModel, ArchipelagoItemFlags> spoilerData, out ImmutableArray<PriorityLocationModel> resolvedLocations)
+    public void VisitLocationsByDistanceFromCurrentLocation(LocationVisitor visitor, UncheckedLandmarkBehavior uncheckedLandmarkBehavior)
     {
-        if (receivedAuras.IsEmpty)
+        IEnumerable<string> allowedRegions = GameDefinitions.Instance.FillerRegions.Keys;
+        switch (uncheckedLandmarkBehavior)
         {
-            resolvedLocations = [];
-            return this;
+            case UncheckedLandmarkBehavior.PassThroughIfRequirementsSatisfied:
+                allowedRegions = allowedRegions.Concat(GameDefinitions.Instance.LandmarkRegions.Values
+                    .Where(r => r.Requirement.Satisfied(this))
+                    .Select(r => r.Key));
+                goto case UncheckedLandmarkBehavior.DoNotPassThrough;
+
+            case UncheckedLandmarkBehavior.DoNotPassThrough:
+                allowedRegions = allowedRegions.Concat(CheckedLocations.Select(l => l.Key.RegionKey));
+                break;
+
+            case UncheckedLandmarkBehavior.AlwaysPassThrough:
+                allowedRegions = GameDefinitions.Instance.AllRegions.Keys;
+                break;
         }
 
-        HashSet<LocationDefinitionModel> locationsToIgnore =
-        [
-            .. CheckedLocations,
-            .. PriorityLocations.Select(p => p.Location),
-        ];
-        List<PriorityLocationModel> locationsToAppend = [];
-        using IEnumerator<LocationDefinitionModel> smartTargets = Targets(ArchipelagoItemFlags.LogicalAdvancement).GetEnumerator();
-        using IEnumerator<LocationDefinitionModel> conspiratorialTargets = Targets(ArchipelagoItemFlags.Trap).GetEnumerator();
-        foreach (PriorityLocationModel.SourceKind receivedAura in receivedAuras)
-        {
-            IEnumerator<LocationDefinitionModel> appendFrom = receivedAura switch
-            {
-                PriorityLocationModel.SourceKind.Smart => smartTargets,
-                PriorityLocationModel.SourceKind.Conspiratorial => conspiratorialTargets,
-                _ => throw new ArgumentException("inputs need to be smart or conspiratorial", nameof(receivedAuras)),
-            };
+        FrozenSet<string> allowedRegionsSet = [.. allowedRegions];
 
-            if (!appendFrom.MoveNext())
+        // we skip visiting CurrentLocation so that previousLocation can be non-nullable
+        HashSet<LocationDefinitionModel> visitedLocations = [CurrentLocation];
+        FrozenSet<LocationDefinitionModel> checkedLocations = [.. CheckedLocations];
+        PriorityQueue<(LocationDefinitionModel CurrentLocation, LocationDefinitionModel PreviousLocation), int> q = new();
+        foreach (LocationDefinitionModel connectedLocation in GameDefinitions.Instance.ConnectedLocations[CurrentLocation])
+        {
+            if (allowedRegionsSet.Contains(connectedLocation.Key.RegionKey))
             {
-                // we've reached the end of everything that this aura can do for us. it fizzles.
+                q.Enqueue((connectedLocation, CurrentLocation), 1);
+            }
+        }
+
+        while (q.TryDequeue(out var tup, out int distance))
+        {
+            (LocationDefinitionModel curr, LocationDefinitionModel prev) = tup;
+            if (!visitedLocations.Add(curr))
+            {
                 continue;
             }
 
-            locationsToAppend.Add(new()
+            if (!visitor.VisitLocation(
+                    currentLocation: curr,
+                    previousLocation: prev,
+                    distance: distance,
+                    alreadyChecked: checkedLocations.Contains(curr)))
             {
-                Location = appendFrom.Current,
-                Source = receivedAura,
-            });
-        }
-
-        resolvedLocations = [.. locationsToAppend];
-        return this with { PriorityLocations = PriorityLocations.AddRange(locationsToAppend) };
-        IEnumerable<LocationDefinitionModel> Targets(ArchipelagoItemFlags flags)
-        {
-            // go through all the reachable ones first
-            foreach ((LocationDefinitionModel nxt, _) in CurrentLocation.EnumerateReachableLocationsByDistance(this))
-            {
-                if (!nxt.RewardIsFixed && (spoilerData[nxt] & flags) != ArchipelagoItemFlags.None && locationsToIgnore.Add(nxt))
-                {
-                    yield return nxt;
-                }
+                return;
             }
 
-            // don't let the aura fizzle just because nothing's immediately reachable, though.
-            Queue<LocationDefinitionModel> q = new([CurrentLocation]);
-            HashSet<LocationDefinitionModel> queued = [];
-            while (q.TryDequeue(out LocationDefinitionModel? nxt))
+            foreach (LocationDefinitionModel next in GameDefinitions.Instance.ConnectedLocations[curr])
             {
-                if (!nxt.RewardIsFixed && (spoilerData[nxt] & flags) != ArchipelagoItemFlags.None && locationsToIgnore.Add(nxt))
+                // allow the goal location here: if it's connected to a reachable location, then we
+                // consider it to be reachable itself. this lets us get away with not having to keep
+                // track of the locations with fixed rewards, though a future YAML change could make
+                // that no longer correct, so it feels A LITTLE BIT hacky.
+                if (next == GameDefinitions.Instance.GoalLocation ||
+                    allowedRegionsSet.Contains(next.Key.RegionKey) && !visitedLocations.Contains(next))
                 {
-                    yield return nxt;
-                }
-
-                foreach (LocationDefinitionModel connected in GameDefinitions.Instance.ConnectedLocations[nxt])
-                {
-                    if (queued.Add(connected))
-                    {
-                        q.Enqueue(connected);
-                    }
+                    q.Enqueue((next, curr), distance + 1);
                 }
             }
         }
@@ -220,6 +183,7 @@ public sealed record GameState
             HasConfidence == other.HasConfidence &&
             ReceivedItems.SequenceEqual(other.ReceivedItems) &&
             CheckedLocations.SequenceEqual(other.CheckedLocations) &&
+            PriorityPriorityLocations.SequenceEqual(other.PriorityPriorityLocations) &&
             PriorityLocations.SequenceEqual(other.PriorityLocations);
     }
 
@@ -232,17 +196,19 @@ public sealed record GameState
                 CurrentLocation,
                 TargetLocation,
                 LocationCheckAttemptsThisStep,
-                ActionBalanceAfterPreviousStep,
-                FoodFactor,
-                LuckFactor),
+                ActionBalanceAfterPreviousStep),
             HashCode.Combine(
+                FoodFactor,
+                LuckFactor,
                 EnergyFactor,
                 StyleFactor,
                 DistractionCounter,
-                StartledCounter,
+                StartledCounter),
+            HashCode.Combine(
                 HasConfidence,
                 ReceivedItems.Count,
                 CheckedLocations.Count,
+                PriorityPriorityLocations.Count,
                 PriorityLocations.Count)
         );
     }

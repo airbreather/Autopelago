@@ -450,16 +450,10 @@ public sealed class PlayerTests
         GameState state = GameState.Start(s_lowRolls);
 
         LocationDefinitionModel prawnStars = GameDefinitions.Instance.LocationsByName["Prawn Stars"];
-        PriorityLocationModel prawnStarsPriority = new()
-        {
-            Location = prawnStars,
-            Source = PriorityLocationModel.SourceKind.Player,
-        };
-
         Assert.That(state.TargetLocation.Key, Is.EqualTo(new LocationKey { RegionKey = "Menu", N = 0 }));
 
         // prioritize Prawn Stars
-        state = state with { PriorityLocations = [prawnStarsPriority] };
+        state = state with { PriorityLocations = [prawnStars] };
 
         Player player = new();
         GameState scrubbedState = player.Advance(state);
@@ -482,7 +476,7 @@ public sealed class PlayerTests
         state = player.Advance(state with { CurrentLocation = state.TargetLocation });
 
         // it should still be there, and it should still be our priority location.
-        Assert.That(state.PriorityLocations, Is.EqualTo(new[] { prawnStarsPriority }));
+        Assert.That(state.PriorityLocations, Is.EqualTo(new[] { prawnStars }));
 
         // now roll natural 20s.
         state = player.Advance(state with { PrngState = s_highRolls });
@@ -499,11 +493,7 @@ public sealed class PlayerTests
         // force the first steps to move it towards the last reachable location in this region
         state = state with
         {
-            PriorityLocations = state.PriorityLocations.Add(new()
-            {
-                Location = GameDefinitions.Instance.StartRegion.Locations[^1],
-                Source = PriorityLocationModel.SourceKind.Player,
-            }),
+            PriorityLocations = [ GameDefinitions.Instance.StartRegion.Locations[^1] ],
         };
 
         state = player.Advance(state);
@@ -565,7 +555,7 @@ public sealed class PlayerTests
     }
 
     [Test]
-    public void SmartShouldResolveToNearestReachableIfPossible([Values(PriorityLocationModel.SourceKind.Smart, PriorityLocationModel.SourceKind.Conspiratorial)] PriorityLocationModel.SourceKind smartOrConspiratorial)
+    public void SmartShouldResolveToNearestReachableIfPossible([Values("smart", "conspiratorial")] string aura)
     {
         GameState state = GameState.Start() with
         {
@@ -573,10 +563,10 @@ public sealed class PlayerTests
             TargetLocation = GameDefinitions.Instance.StartRegion.Locations[^1],
         };
 
-        ArchipelagoItemFlags targetFlags = smartOrConspiratorial switch
+        ArchipelagoItemFlags targetFlags = aura switch
         {
-            PriorityLocationModel.SourceKind.Smart => ArchipelagoItemFlags.LogicalAdvancement,
-            PriorityLocationModel.SourceKind.Conspiratorial => ArchipelagoItemFlags.Trap,
+            "smart" => ArchipelagoItemFlags.LogicalAdvancement,
+            "conspiratorial" => ArchipelagoItemFlags.Trap,
             _ => throw null!,
         };
         FrozenDictionary<LocationDefinitionModel, ArchipelagoItemFlags> spoilerData = CreateSpoiler(
@@ -586,55 +576,23 @@ public sealed class PlayerTests
             (s_beforePrawnStars.Locations[^1], targetFlags),
         ]);
 
+        ItemDefinitionModel auraItem = GameDefinitions.Instance.AllItems.First(i => i.AurasGranted.Length == 1 && i.AurasGranted[0] == aura);
+
         // even though there's a target RIGHT on the other side, we still favor the nearest one that
         // we can already reach with what we currently have.
-        state = state.ResolveSmartAndConspiratorialAuras([smartOrConspiratorial], spoilerData, out _);
-        Assert.That(state.PriorityLocations, Is.EqualTo(new[]
+        Player player = new();
+        state = player.ReceiveItems(state, [auraItem], spoilerData);
+        Assert.That(state.PriorityPriorityLocations, Is.EqualTo(new[]
         {
-            new PriorityLocationModel
-            {
-                Source = smartOrConspiratorial,
-                Location = GameDefinitions.Instance.StartLocation,
-            },
+            GameDefinitions.Instance.StartLocation,
         }));
 
-        // but if there's nothing else that we can reach, then we should still be able to get the
-        // nearest thing that we can't.
-        state = state.ResolveSmartAndConspiratorialAuras([smartOrConspiratorial], spoilerData, out _);
-        Assert.That(state.PriorityLocations, Is.EqualTo(new[]
+        // if there's nothing else that we can reach, then we should NOT target the unreachable one
+        // that's just out of reach. it should just fizzle.
+        state = player.ReceiveItems(state, [auraItem], spoilerData);
+        Assert.That(state.PriorityPriorityLocations, Is.EqualTo(new[]
         {
-            new PriorityLocationModel
-            {
-                Source = smartOrConspiratorial,
-                Location = GameDefinitions.Instance.StartLocation,
-            },
-            new PriorityLocationModel
-            {
-                Source = smartOrConspiratorial,
-                Location = s_beforePrawnStars.Locations[0],
-            },
-        }));
-
-        // finally, if we get another call without there being ANY other targets in the spoiler data
-        // that we can go to, it shouldn't *fail*, per se. it should just fizzle out.
-        state = state.ResolveSmartAndConspiratorialAuras([smartOrConspiratorial, smartOrConspiratorial], spoilerData, out _);
-        Assert.That(state.PriorityLocations, Is.EqualTo(new[]
-        {
-            new PriorityLocationModel
-            {
-                Source = smartOrConspiratorial,
-                Location = GameDefinitions.Instance.StartLocation,
-            },
-            new PriorityLocationModel
-            {
-                Source = smartOrConspiratorial,
-                Location = s_beforePrawnStars.Locations[0],
-            },
-            new PriorityLocationModel
-            {
-                Source = smartOrConspiratorial,
-                Location = s_beforePrawnStars.Locations[^1],
-            },
+            GameDefinitions.Instance.StartLocation,
         }));
     }
 
@@ -652,11 +610,7 @@ public sealed class PlayerTests
             ],
             PriorityLocations =
             [
-                new()
-                {
-                    Location = s_beforePrawnStars.Locations[1],
-                    Source = PriorityLocationModel.SourceKind.Player,
-                },
+                s_beforePrawnStars.Locations[1]
             ],
             PrngState = s_lowRolls,
         };
@@ -765,16 +719,8 @@ public sealed class PlayerTests
             TargetLocation = lastLocationBeforeBasketball,
             PriorityLocations =
             [
-                new()
-                {
-                    Location = s_basketball,
-                    Source = PriorityLocationModel.SourceKind.Smart,
-                },
-                new()
-                {
-                    Location = lastLocationBeforeBasketball,
-                    Source = PriorityLocationModel.SourceKind.Conspiratorial,
-                },
+                s_basketball,
+                lastLocationBeforeBasketball,
             ],
             CheckedLocations =
             [
@@ -829,6 +775,40 @@ public sealed class PlayerTests
         }
 
         Assert.That(state.CurrentLocation, Is.EqualTo(s_startLocation));
+    }
+
+    [Test]
+    public void ReceiveItemsShouldApplyAuras()
+    {
+        GameState state = GameState.Start();
+        Player player = new();
+        state = player.ReceiveItems(state, [
+            // upset_tummy, upset_tummy, upset_tummy, unlucky, startled, startled, startled, sluggish
+            GameDefinitions.Instance.ItemsByName["Rat Poison"],
+
+            // well_fed, energized, energized, energized
+            GameDefinitions.Instance.ItemsByName["Bag of Powdered Sugar"],
+
+            // confidence
+            GameDefinitions.Instance.ItemsByName["Weapons-grade Folding Chair"],
+
+            // stylish, distracted, sluggish
+            GameDefinitions.Instance.ItemsByName["Itchy Iron Wool Sweater"],
+
+            // confidence
+            GameDefinitions.Instance.ItemsByName["Weapons-grade Folding Chair"],
+        ]);
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(state.FoodFactor, Is.EqualTo(-10));
+            Assert.That(state.LuckFactor, Is.EqualTo(-1));
+            Assert.That(state.StartledCounter, Is.EqualTo(3));
+            Assert.That(state.EnergyFactor, Is.EqualTo(10)); // 5 canceled by the first confidence!
+            Assert.That(state.StyleFactor, Is.EqualTo(2));
+            Assert.That(state.DistractionCounter, Is.Zero); // canceled by the first confidence!
+            Assert.That(state.HasConfidence);
+        });
     }
 
     private static FrozenDictionary<LocationDefinitionModel, ArchipelagoItemFlags> CreateSpoiler(ReadOnlySpan<(LocationDefinitionModel Location, ArchipelagoItemFlags Flags)> defined)

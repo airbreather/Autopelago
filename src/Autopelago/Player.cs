@@ -1,3 +1,4 @@
+using System.Collections.Frozen;
 using System.Collections.Immutable;
 
 namespace Autopelago;
@@ -22,6 +23,133 @@ public sealed class Player
     private static readonly ImmutableArray<ImmutableArray<LandmarkRegionDefinitionModel>> s_allGoModePaths = ComputeAllGoModePaths();
 
     private HashSet<LocationKey> _checkedLocations = [];
+
+    public GameState ReceiveItems(GameState state, ImmutableArray<ItemDefinitionModel> newItems, FrozenDictionary<LocationDefinitionModel, ArchipelagoItemFlags>? spoilerData = null)
+    {
+        if (newItems.IsEmpty)
+        {
+            return state;
+        }
+
+        spoilerData ??= GameDefinitions.Instance.LocationsByName.Values.ToFrozenDictionary(loc => loc, _ => ArchipelagoItemFlags.None);
+        int foodMod = 0;
+        int energyFactorMod = 0;
+        int luckFactorMod = 0;
+        int distractedMod = 0;
+        int stylishMod = 0;
+        int startledMod = 0;
+        List<LocationDefinitionModel> priorityPriorityLocations = [];
+        HashSet<LocationDefinitionModel> uncheckedLocationsToIgnore = [.. state.PriorityPriorityLocations];
+
+        bool VisitLocation(LocationDefinitionModel curr, ArchipelagoItemFlags flags)
+        {
+            if (uncheckedLocationsToIgnore.Contains(curr) || spoilerData[curr] != flags)
+            {
+                return true;
+            }
+
+            priorityPriorityLocations.Add(curr);
+            uncheckedLocationsToIgnore.Add(curr);
+            return false;
+        }
+
+        LocationVisitor smartVisitor = LocationVisitor.Create((curr, _, _, alreadyChecked) =>
+            alreadyChecked || VisitLocation(curr, ArchipelagoItemFlags.LogicalAdvancement));
+        LocationVisitor conspiratorialVisitor = LocationVisitor.Create((curr, _, _, alreadyChecked) =>
+            alreadyChecked || VisitLocation(curr, ArchipelagoItemFlags.Trap));
+
+        foreach (ItemDefinitionModel newItem in newItems)
+        {
+            // "confidence" takes place right away: it could apply to another item in the batch.
+            bool addConfidence = false;
+            bool subtractConfidence = false;
+            foreach (string aura in newItem.AurasGranted)
+            {
+                switch (aura)
+                {
+                    case "upset_tummy" when state.HasConfidence:
+                    case "unlucky" when state.HasConfidence:
+                    case "sluggish" when state.HasConfidence:
+                    case "distracted" when state.HasConfidence:
+                    case "startled" when state.HasConfidence:
+                    case "conspiratorial" when state.HasConfidence:
+                        subtractConfidence = true;
+                        break;
+
+                    case "well_fed":
+                        ++foodMod;
+                        break;
+
+                    case "upset_tummy":
+                        --foodMod;
+                        break;
+
+                    case "lucky":
+                        ++luckFactorMod;
+                        break;
+
+                    case "unlucky":
+                        --luckFactorMod;
+                        break;
+
+                    case "energized":
+                        ++energyFactorMod;
+                        break;
+
+                    case "sluggish":
+                        --energyFactorMod;
+                        break;
+
+                    case "distracted":
+                        ++distractedMod;
+                        break;
+
+                    case "stylish":
+                        ++stylishMod;
+                        break;
+
+                    case "startled":
+                        ++startledMod;
+                        break;
+
+                    case "smart":
+                        state.VisitLocationsByDistanceFromCurrentLocation(smartVisitor, UncheckedLandmarkBehavior.PassThroughIfRequirementsSatisfied);
+                        break;
+
+                    case "conspiratorial":
+                        state.VisitLocationsByDistanceFromCurrentLocation(conspiratorialVisitor, UncheckedLandmarkBehavior.PassThroughIfRequirementsSatisfied);
+                        break;
+
+                    case "confident":
+                        addConfidence = true;
+                        break;
+                }
+            }
+
+            // subtract first
+            if (subtractConfidence)
+            {
+                state = state with { HasConfidence = false };
+            }
+
+            if (addConfidence)
+            {
+                state = state with { HasConfidence = true };
+            }
+        }
+
+        return state with
+        {
+            ReceivedItems = state.ReceivedItems.AddRange(newItems),
+            FoodFactor = state.FoodFactor + (foodMod * 5),
+            EnergyFactor = state.EnergyFactor + (energyFactorMod * 5),
+            LuckFactor = state.LuckFactor + luckFactorMod,
+            StyleFactor = state.StyleFactor + (stylishMod * 2),
+            DistractionCounter = state.DistractionCounter + distractedMod,
+            StartledCounter = state.StartledCounter + startledMod,
+            PriorityPriorityLocations = state.PriorityPriorityLocations.AddRange(priorityPriorityLocations),
+        };
+    }
 
     public GameState Advance(GameState state)
     {
@@ -126,7 +254,7 @@ public sealed class Player
             {
                 // we've reached our next priority location. remove it from the queue.
                 LocationDefinitionModel targetLocation = state.TargetLocation;
-                state = state with { PriorityLocations = state.PriorityLocations.RemoveAll(l => l.Location == targetLocation) };
+                state = state with { PriorityLocations = state.PriorityLocations.RemoveAll(l => l == targetLocation) };
             }
 
             // figure out if anything above changed our best target location. if not, then don't
@@ -284,11 +412,11 @@ public sealed class Player
             return null;
         }
 
-        foreach (PriorityLocationModel priorityLocation in state.PriorityLocations)
+        foreach (LocationDefinitionModel priorityLocation in state.PriorityLocations)
         {
             foreach ((LocationDefinitionModel reachableLocation, ImmutableList<LocationDefinitionModel> path) in state.CurrentLocation.EnumerateReachableLocationsByDistance(state))
             {
-                if (reachableLocation.Key != priorityLocation.Location.Key)
+                if (reachableLocation.Key != priorityLocation.Key)
                 {
                     continue;
                 }

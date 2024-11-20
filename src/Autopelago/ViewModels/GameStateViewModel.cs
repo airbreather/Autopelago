@@ -9,7 +9,6 @@ using System.Reactive;
 using System.Reactive.Disposables;
 using System.Reactive.Linq;
 using System.Reactive.Subjects;
-using System.Runtime.InteropServices;
 using System.Text;
 using System.Text.Json;
 using System.Text.Json.Serialization;
@@ -793,14 +792,7 @@ public sealed partial class GameStateViewModel : ViewModelBase, IDisposable
                 await _gameStateMutex.WaitAsync();
                 try
                 {
-                    _state = _state with
-                    {
-                        PriorityLocations = _state.PriorityLocations.Add(new()
-                        {
-                            Location = toPrioritize,
-                            Source = PriorityLocationModel.SourceKind.Player,
-                        }),
-                    };
+                    _state = _state with { PriorityLocations = _state.PriorityLocations.Add(toPrioritize) };
                 }
                 finally
                 {
@@ -825,13 +817,12 @@ public sealed partial class GameStateViewModel : ViewModelBase, IDisposable
         else if (cmd.StartsWith("stop ", StringComparison.OrdinalIgnoreCase))
         {
             string loc = cmd["stop ".Length..].Trim('"');
-            PriorityLocationModel? toRemove;
+            LocationDefinitionModel? toRemove;
             await _gameStateMutex.WaitAsync();
             try
             {
                 toRemove = _state.PriorityLocations.FirstOrDefault(l =>
-                    l.Source == PriorityLocationModel.SourceKind.Player &&
-                    l.Location.Name.Equals(loc, StringComparison.InvariantCultureIgnoreCase)
+                    l.Name.Equals(loc, StringComparison.InvariantCultureIgnoreCase)
                 );
 
                 if (toRemove is not null)
@@ -848,7 +839,7 @@ public sealed partial class GameStateViewModel : ViewModelBase, IDisposable
             {
                 Text = toRemove is null
                     ? $"Um... excuse me, but... I don't see a '{loc}' to remove..."
-                    : $"Oh, OK. I'll stop trying to get to '{toRemove.Location.Name}', {probablyPlayerAlias}.",
+                    : $"Oh, OK. I'll stop trying to get to '{toRemove.Name}', {probablyPlayerAlias}.",
             };
             await SendPacketsAsync([say]);
         }
@@ -1003,7 +994,7 @@ public sealed partial class GameStateViewModel : ViewModelBase, IDisposable
 
     private async Task RunPlayLoopAsync()
     {
-        _nextFullInterval = NextInterval(_state);
+        _nextFullInterval = NextInterval();
         await _dataAvailableSignal.WaitAsync();
         while (!_state.IsCompleted)
         {
@@ -1060,7 +1051,7 @@ public sealed partial class GameStateViewModel : ViewModelBase, IDisposable
             try
             {
                 prevState = _state;
-                _nextFullInterval = NextInterval(_state);
+                _nextFullInterval = NextInterval();
                 await CheckGoMode();
                 _state = nextState = _player.Advance(prevState);
                 await CheckGoMode();
@@ -1187,135 +1178,34 @@ public sealed partial class GameStateViewModel : ViewModelBase, IDisposable
         }
 
         ImmutableArray<ItemDefinitionModel> newItems = convertedItems[(state.ReceivedItems.Count - receivedItems.Index)..];
-        if (newItems.IsEmpty)
-        {
-            return [];
-        }
+        int priorityPriorityLocationCountBefore = state.PriorityPriorityLocations.Count;
+        _state = _player.ReceiveItems(_state, newItems, _spoilerData);
 
-        int foodMod = 0;
-        int energyFactorMod = 0;
-        int luckFactorMod = 0;
-        int distractedMod = 0;
-        int stylishMod = 0;
-        int startledMod = 0;
-        List<PriorityLocationModel.SourceKind> smartAndConspiratorial = [];
-        foreach (ItemDefinitionModel newItem in newItems)
-        {
-            // "confidence" takes place right away: it could apply to another item in the batch.
-            bool addConfidence = false;
-            bool subtractConfidence = false;
-            foreach (string aura in newItem.AurasGranted)
-            {
-                switch (aura)
-                {
-                    case "upset_tummy" when state.HasConfidence:
-                    case "unlucky" when state.HasConfidence:
-                    case "sluggish" when state.HasConfidence:
-                    case "distracted" when state.HasConfidence:
-                    case "startled" when state.HasConfidence:
-                    case "conspiratorial" when state.HasConfidence:
-                        subtractConfidence = true;
-                        break;
-
-                    case "well_fed":
-                        ++foodMod;
-                        break;
-
-                    case "upset_tummy":
-                        --foodMod;
-                        break;
-
-                    case "lucky":
-                        ++luckFactorMod;
-                        break;
-
-                    case "unlucky":
-                        --luckFactorMod;
-                        break;
-
-                    case "energized":
-                        ++energyFactorMod;
-                        break;
-
-                    case "sluggish":
-                        --energyFactorMod;
-                        break;
-
-                    case "distracted":
-                        ++distractedMod;
-                        break;
-
-                    case "stylish":
-                        ++stylishMod;
-                        break;
-
-                    case "startled":
-                        ++startledMod;
-                        break;
-
-                    case "smart":
-                        smartAndConspiratorial.Add(PriorityLocationModel.SourceKind.Smart);
-                        break;
-
-                    case "conspiratorial":
-                        smartAndConspiratorial.Add(PriorityLocationModel.SourceKind.Conspiratorial);
-                        break;
-
-                    case "confident":
-                        addConfidence = true;
-                        break;
-                }
-            }
-
-            // subtract first
-            if (subtractConfidence)
-            {
-                state = state with { HasConfidence = false };
-            }
-
-            if (addConfidence)
-            {
-                state = state with { HasConfidence = true };
-            }
-        }
-
-        state = state
-            .ResolveSmartAndConspiratorialAuras(CollectionsMarshal.AsSpan(smartAndConspiratorial), _spoilerData, out ImmutableArray<PriorityLocationModel> newPriorityLocations) with
-        {
-            ReceivedItems = state.ReceivedItems.AddRange(newItems),
-            FoodFactor = state.FoodFactor + (foodMod * 5),
-            EnergyFactor = state.EnergyFactor + (energyFactorMod * 5),
-            LuckFactor = state.LuckFactor + luckFactorMod,
-            StyleFactor = state.StyleFactor + (stylishMod * 2),
-            DistractionCounter = state.DistractionCounter + distractedMod,
-            StartledCounter = state.StartledCounter + startledMod,
-        };
-
-        if (newPriorityLocations.IsEmpty)
+        if (priorityPriorityLocationCountBefore == state.PriorityPriorityLocations.Count)
         {
             return [];
         }
 
         Prng.State prngState = state.PrngState;
-        SayPacketModel[] newPackets = new SayPacketModel[newPriorityLocations.Length];
-        for (int i = 0; i < newPackets.Length; i++)
+        List<SayPacketModel> newPackets = [];
+        foreach (LocationDefinitionModel newPriorityLocation in state.PriorityPriorityLocations.Skip(priorityPriorityLocationCountBefore))
         {
             double num = Prng.NextDouble(ref prngState);
-            newPackets[i] = new()
+            newPackets.Add(new()
             {
-                Text = s_newTargetPhrases[(int)(s_newTargetPhrases.Length * num)].Replace("{LOCATION}", newPriorityLocations[i].Location.Name),
-            };
+                Text = s_newTargetPhrases[(int)(s_newTargetPhrases.Length * num)].Replace("{LOCATION}", newPriorityLocation.Name),
+            });
         }
 
         state = state with { PrngState = prngState };
-        return ImmutableCollectionsMarshal.AsImmutableArray(newPackets);
+        return [.. newPackets];
     }
 
-    private TimeSpan NextInterval(GameState state)
+    private TimeSpan NextInterval()
     {
         double rangeSeconds = (double)(_settings.MaxStepSeconds - _settings.MinStepSeconds);
         double baseInterval = (double)_settings.MinStepSeconds + (rangeSeconds * Prng.NextDouble(ref _intervalPrngState));
-        return TimeSpan.FromSeconds(baseInterval * state.IntervalDurationMultiplier);
+        return TimeSpan.FromSeconds(baseInterval);
     }
 
     private void UpdateMeters()
@@ -1349,7 +1239,7 @@ public sealed partial class GameStateViewModel : ViewModelBase, IDisposable
             LuckFactor = state.LuckFactor,
             StyleFactor = state.StyleFactor,
             EnergyFactor = state.EnergyFactor,
-            PriorityLocations = [.. state.PriorityLocations.Select(l => l.ToProxy())],
+            PriorityLocations = [.. state.PriorityLocations.Select(l => l.Name)],
         };
     }
 
@@ -1364,7 +1254,7 @@ public sealed partial class GameStateViewModel : ViewModelBase, IDisposable
             LuckFactor = auraData.LuckFactor,
             StyleFactor = auraData.StyleFactor,
             EnergyFactor = auraData.EnergyFactor,
-            PriorityLocations = [.. auraData.PriorityLocations.Select(p => p.ToPriorityLocation())],
+            PriorityLocations = [.. auraData.PriorityLocations.Select(p => GameDefinitions.Instance.LocationsByName[p])],
         };
     }
 
@@ -1439,7 +1329,7 @@ public sealed partial class GameStateViewModel : ViewModelBase, IDisposable
 
         public required bool HasConfidence { get; init; }
 
-        public required ImmutableArray<PriorityLocationModel.PriorityLocationModelProxy> PriorityLocations { get; init; }
+        public required ImmutableArray<string> PriorityLocations { get; init; }
     }
 
     [JsonSerializable(typeof(AuraData))]
