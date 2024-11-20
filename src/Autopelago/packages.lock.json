@@ -1,7 +1,7 @@
 {
   "version": 1,
   "dependencies": {
-    "net8.0": {
+    "net9.0": {
       "Avalonia": {
         "type": "Direct",
         "requested": "[11.2.0, )",
@@ -100,9 +100,9 @@
       },
       "Microsoft.NET.ILLink.Tasks": {
         "type": "Direct",
-        "requested": "[8.0.10, )",
-        "resolved": "8.0.10",
-        "contentHash": "xT8jYjlroY7SLbGtoV9vUTVW/TPgodL4Egc31a444Xe0TMytLZ3UlKQ0kxMZsy/CrWsFB6wtKnSG1SsXcWreew=="
+        "requested": "[9.0.0, )",
+        "resolved": "9.0.0",
+        "contentHash": "zAwp213evC3UkimtVXRb+Dlgc/40QG145nmZDtp2LO9zJJMfrp+i/87BnXN7tRXEA4liyzdFkjqG1HE8/RPb4A=="
       },
       "ReactiveUI.Fody": {
         "type": "Direct",
@@ -410,7 +410,7 @@
         }
       }
     },
-    "net8.0/linux-x64": {
+    "net9.0/linux-x64": {
       "Libuv": {
         "type": "Direct",
         "requested": "[1.10.0, )",
@@ -470,7 +470,7 @@
         "contentHash": "O9QXoWEXA+6cweR4h3BOnwMz+pO9vL9mXdjLrpDd0w1QzCgWmLQBxa1VgySDITiH7nQndrDG1h6937zm9pLj1Q=="
       }
     },
-    "net8.0/osx-x64": {
+    "net9.0/osx-x64": {
       "Libuv": {
         "type": "Direct",
         "requested": "[1.10.0, )",
@@ -530,7 +530,7 @@
         "contentHash": "O9QXoWEXA+6cweR4h3BOnwMz+pO9vL9mXdjLrpDd0w1QzCgWmLQBxa1VgySDITiH7nQndrDG1h6937zm9pLj1Q=="
       }
     },
-    "net8.0/win-x64": {
+    "net9.0/win-x64": {
       "Libuv": {
         "type": "Direct",
         "requested": "[1.10.0, )",
