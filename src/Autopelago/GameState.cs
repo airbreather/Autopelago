@@ -22,7 +22,7 @@ public sealed record GameState
 
     public required LocationDefinitionModel TargetLocation { get; init; }
 
-    public required ImmutableList<ItemDefinitionModel> ReceivedItems { get; init; }
+    public required ReceivedItems ReceivedItems { get; init; }
 
     public required ImmutableList<LocationDefinitionModel> CheckedLocations { get; init; }
 
@@ -52,9 +52,7 @@ public sealed record GameState
 
     public bool IsCompleted => CurrentLocation == GameDefinitions.Instance.GoalLocation;
 
-    public int DiceModifier => (RatCount / 3) - (LocationCheckAttemptsThisStep * 5);
-
-    public int RatCount => ReceivedItems.Sum(i => i.RatCount).GetValueOrDefault();
+    public int DiceModifier => (ReceivedItems.RatCount / 3) - (LocationCheckAttemptsThisStep * 5);
 
     public static GameState Start(Random? random = null)
     {
@@ -73,7 +71,7 @@ public sealed record GameState
             PreviousStepMovementLog = [],
             CurrentLocation = GameDefinitions.Instance.StartLocation,
             TargetLocation = GameDefinitions.Instance.StartLocation,
-            ReceivedItems = [],
+            ReceivedItems = new() { InReceivedOrder = [] },
             CheckedLocations = [],
             PriorityPriorityLocations = [],
             PriorityLocations = [],
@@ -105,7 +103,7 @@ public sealed record GameState
         {
             case UncheckedLandmarkBehavior.PassThroughIfRequirementsSatisfied:
                 allowedRegions = allowedRegions.Concat(GameDefinitions.Instance.LandmarkRegions.Values
-                    .Where(r => r.Requirement.Satisfied(this))
+                    .Where(r => r.Requirement.Satisfied(ReceivedItems))
                     .Select(r => r.Key));
                 goto case UncheckedLandmarkBehavior.DoNotPassThrough;
 
@@ -181,7 +179,7 @@ public sealed record GameState
             DistractionCounter == other.DistractionCounter &&
             StartledCounter == other.StartledCounter &&
             HasConfidence == other.HasConfidence &&
-            ReceivedItems.SequenceEqual(other.ReceivedItems) &&
+            ReceivedItems == other.ReceivedItems &&
             CheckedLocations.SequenceEqual(other.CheckedLocations) &&
             PriorityPriorityLocations.SequenceEqual(other.PriorityPriorityLocations) &&
             PriorityLocations.SequenceEqual(other.PriorityLocations);
@@ -206,7 +204,7 @@ public sealed record GameState
                 StartledCounter),
             HashCode.Combine(
                 HasConfidence,
-                ReceivedItems.Count,
+                ReceivedItems,
                 CheckedLocations.Count,
                 PriorityPriorityLocations.Count,
                 PriorityLocations.Count)

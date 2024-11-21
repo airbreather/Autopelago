@@ -671,10 +671,10 @@ public sealed partial class GameStateViewModel : ViewModelBase, IDisposable
                     {
                         _state = _state with
                         {
-                            ReceivedItems = [
+                            ReceivedItems = new() { InReceivedOrder = [
                                 .. receivedItems.Items
                                     .Select(i => _lastFullData.ItemsById[i.Item]),
-                            ],
+                            ] },
                         };
                     }
 
@@ -1171,7 +1171,7 @@ public sealed partial class GameStateViewModel : ViewModelBase, IDisposable
         var convertedItems = ImmutableArray.CreateRange(receivedItems.Items, (item, itemsReverseMapping) => itemsReverseMapping[item.Item], _lastFullData.ItemsById);
         for (int i = receivedItems.Index; i < state.ReceivedItems.Count; i++)
         {
-            if (convertedItems[i - receivedItems.Index] != state.ReceivedItems[i])
+            if (convertedItems[i - receivedItems.Index] != state.ReceivedItems.InReceivedOrder[i])
             {
                 throw new InvalidOperationException("Need to resync. Try connecting again.");
             }
@@ -1210,7 +1210,7 @@ public sealed partial class GameStateViewModel : ViewModelBase, IDisposable
 
     private void UpdateMeters()
     {
-        foreach (ItemDefinitionModel item in _state.ReceivedItems)
+        foreach (ItemDefinitionModel item in _state.ReceivedItems.InReceivedOrder)
         {
             if (_collectableItemsByModel.TryGetValue(item, out CollectableItemViewModel? viewModel))
             {
@@ -1218,7 +1218,7 @@ public sealed partial class GameStateViewModel : ViewModelBase, IDisposable
             }
         }
 
-        RatCount = _state.RatCount;
+        RatCount = _state.ReceivedItems.RatCount;
         FoodFactor = _state.FoodFactor;
         EnergyFactor = _state.EnergyFactor;
         LuckFactor = _state.LuckFactor;

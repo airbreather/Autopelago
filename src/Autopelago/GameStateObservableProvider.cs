@@ -16,7 +16,7 @@ public sealed class GameStateObservableProvider : IAsyncDisposable
 
     private readonly MultiworldInfoEarly _multiworldInfoEarly = new();
 
-    private MultiworldInfo _multiworldInfo = new()
+    private readonly MultiworldInfo _multiworldInfo = new()
     {
         GeneralItemNameMapping = FrozenDictionary<string, FrozenDictionary<long, string>>.Empty,
         GeneralLocationNameMapping = FrozenDictionary<string, FrozenDictionary<long, string>>.Empty,

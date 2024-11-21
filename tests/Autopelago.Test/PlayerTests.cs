@@ -82,7 +82,7 @@ public sealed class PlayerTests
             CurrentLocation = s_startRegion.Locations[^1],
             TargetLocation = s_startRegion.Locations[^1],
             CheckedLocations = [.. s_startRegion.Locations],
-            ReceivedItems = [.. Enumerable.Repeat(s_normalRat, ratCount)],
+            ReceivedItems = new() { InReceivedOrder = [.. Enumerable.Repeat(s_normalRat, ratCount)] },
         };
 
         Player player = new();
@@ -96,7 +96,7 @@ public sealed class PlayerTests
         GameState state = GameState.Start(s_highRolls);
         state = state with
         {
-            ReceivedItems = [.. Enumerable.Repeat(s_normalRat, 5), unblockAngryTurtlesFirst ? s_pizzaRat : s_premiumCanOfPrawnFood],
+            ReceivedItems = new() { InReceivedOrder = [.. Enumerable.Repeat(s_normalRat, 5), unblockAngryTurtlesFirst ? s_pizzaRat : s_premiumCanOfPrawnFood] },
             CheckedLocations = [.. s_startRegion.Locations],
             CurrentLocation = s_basketball,
             TargetLocation = s_basketball,
@@ -145,7 +145,7 @@ public sealed class PlayerTests
 
             if (newReceivedItems.Count > 0)
             {
-                state = state with { ReceivedItems = [.. state.ReceivedItems, .. newReceivedItems] };
+                state = state with { ReceivedItems = new() { InReceivedOrder = state.ReceivedItems.InReceivedOrder.AddRange(newReceivedItems) } };
                 newReceivedItems.Clear();
             }
 
@@ -405,12 +405,15 @@ public sealed class PlayerTests
         ItemDefinitionModel finalRandomizedItem = GameDefinitions.Instance.ProgressionItems["mongoose_in_a_combat_spacecraft"];
         state = state with
         {
-            ReceivedItems = [..
-                GameDefinitions.Instance.LocationsByKey.Values
-                    .Where(l => l is { RewardIsFixed: false, UnrandomizedItem: not null })
-                    .Select(l => l.UnrandomizedItem!)
-                    .Where(i => i != finalRandomizedItem),
-            ],
+            ReceivedItems = new()
+            {
+                InReceivedOrder = [..
+                    GameDefinitions.Instance.LocationsByKey.Values
+                        .Where(l => l is { RewardIsFixed: false, UnrandomizedItem: not null })
+                        .Select(l => l.UnrandomizedItem!)
+                        .Where(i => i != finalRandomizedItem),
+                ],
+            },
         };
         Player player = new();
 
@@ -424,7 +427,7 @@ public sealed class PlayerTests
         }
 
         // now give it that last randomized item and see it shoot for the moon all the way through.
-        state = state with { ReceivedItems = state.ReceivedItems.Add(finalRandomizedItem) };
+        state = state with { ReceivedItems = new() { InReceivedOrder = state.ReceivedItems.InReceivedOrder.Add(finalRandomizedItem) } };
         HashSet<LocationKey> fixedRewardsGranted = [];
         int advancesSoFar = 0;
         while (!state.IsCompleted)
@@ -435,7 +438,7 @@ public sealed class PlayerTests
             {
                 if (fixedRewardsGranted.Add(checkedLocation.Key) && checkedLocation is { RewardIsFixed: true, UnrandomizedItem: { } unrandomizedItem })
                 {
-                    state = state with { ReceivedItems = state.ReceivedItems.Add(unrandomizedItem) };
+                    state = state with { ReceivedItems = new() { InReceivedOrder = state.ReceivedItems.InReceivedOrder.Add(unrandomizedItem) } };
                 }
             }
 
@@ -465,7 +468,7 @@ public sealed class PlayerTests
         state = player.Advance(state with
         {
             CheckedLocations = [s_basketball],
-            ReceivedItems = [.. Enumerable.Range(0, 5).Select(_ => s_normalRat), s_premiumCanOfPrawnFood],
+            ReceivedItems = new() { InReceivedOrder = [.. Enumerable.Range(0, 5).Select(_ => s_normalRat), s_premiumCanOfPrawnFood] },
         });
 
         // NOW that's what we should be targeting
@@ -493,7 +496,7 @@ public sealed class PlayerTests
         // force the first steps to move it towards the last reachable location in this region
         state = state with
         {
-            PriorityLocations = [ GameDefinitions.Instance.StartRegion.Locations[^1] ],
+            PriorityLocations = [GameDefinitions.Instance.StartRegion.Locations[^1]],
         };
 
         state = player.Advance(state);
@@ -604,13 +607,13 @@ public sealed class PlayerTests
         {
             CurrentLocation = GameDefinitions.Instance.StartRegion.Locations[^1],
             TargetLocation = GameDefinitions.Instance.StartRegion.Locations[^1],
-            ReceivedItems =
-            [
-                .. Enumerable.Repeat(s_normalRat, 5),
-            ],
+            ReceivedItems = new()
+            {
+                InReceivedOrder = [.. Enumerable.Repeat(s_normalRat, 5)],
+            },
             PriorityLocations =
             [
-                s_beforePrawnStars.Locations[1]
+                s_beforePrawnStars.Locations[1],
             ],
             PrngState = s_lowRolls,
         };
@@ -630,10 +633,10 @@ public sealed class PlayerTests
         {
             CurrentLocation = GameDefinitions.Instance.StartLocation,
             TargetLocation = s_basketball,
-            ReceivedItems =
-            [
-                .. Enumerable.Repeat(s_normalRat, 5),
-            ],
+            ReceivedItems = new()
+            {
+                InReceivedOrder = [.. Enumerable.Repeat(s_normalRat, 5)],
+            },
             CheckedLocations =
             [
                 .. s_startRegion.Locations,
@@ -742,14 +745,17 @@ public sealed class PlayerTests
         {
             CurrentLocation = GameDefinitions.Instance.LocationsByName["After Pirate Bake Sale #1"],
             TargetLocation = GameDefinitions.Instance.LocationsByName["Bowling Ball Door"],
-            ReceivedItems =
-            [
-                .. Enumerable.Repeat(s_normalRat, 40),
-                GameDefinitions.Instance.ItemsByName["Priceless Antique"],
-                GameDefinitions.Instance.ItemsByName["Pie Rat"],
-                GameDefinitions.Instance.ItemsByName["Pizza Rat"],
-                GameDefinitions.Instance.ItemsByName["Chef Rat"],
-            ],
+            ReceivedItems = new()
+            {
+                InReceivedOrder =
+                [
+                    .. Enumerable.Repeat(s_normalRat, 40),
+                    GameDefinitions.Instance.ItemsByName["Priceless Antique"],
+                    GameDefinitions.Instance.ItemsByName["Pie Rat"],
+                    GameDefinitions.Instance.ItemsByName["Pizza Rat"],
+                    GameDefinitions.Instance.ItemsByName["Chef Rat"],
+                ],
+            },
             CheckedLocations =
             [
                 s_basketball,

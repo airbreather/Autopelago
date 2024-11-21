@@ -140,7 +140,7 @@ public sealed class Player
 
         return state with
         {
-            ReceivedItems = state.ReceivedItems.AddRange(newItems),
+            ReceivedItems = new() { InReceivedOrder = state.ReceivedItems.InReceivedOrder.AddRange(newItems) },
             FoodFactor = state.FoodFactor + (foodMod * 5),
             EnergyFactor = state.EnergyFactor + (energyFactorMod * 5),
             LuckFactor = state.LuckFactor + luckFactorMod,
@@ -319,7 +319,7 @@ public sealed class Player
         HashSet<string> unsatisfiedLandmarks = [];
         foreach (ImmutableArray<LandmarkRegionDefinitionModel> goModePath in s_allGoModePaths)
         {
-            ImmutableList<ItemDefinitionModel> receivedItems = state.ReceivedItems;
+            ImmutableList<ItemDefinitionModel> receivedItems = state.ReceivedItems.InReceivedOrder;
             foreach (LandmarkRegionDefinitionModel region in goModePath)
             {
                 if (unsatisfiedLandmarks.Contains(region.Key))
@@ -337,7 +337,7 @@ public sealed class Player
                     continue;
                 }
 
-                if (!(region.Requirement.Satisfied(state with { ReceivedItems = receivedItems })))
+                if (!(region.Requirement.Satisfied(receivedItems)))
                 {
                     unsatisfiedLandmarks.Add(region.Key);
                     goto nextGoModePath;

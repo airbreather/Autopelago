@@ -670,7 +670,7 @@ public sealed record LocationDefinitionModel
                 .ToFrozenSet();
         }
 
-        Queue<(LocationDefinitionModel Location, ImmutableList<LocationDefinitionModel> Path, ImmutableList<ItemDefinitionModel> ReceivedItems)> q = new([(this, [], state.ReceivedItems)]);
+        Queue<(LocationDefinitionModel Location, ImmutableList<LocationDefinitionModel> Path, ImmutableList<ItemDefinitionModel> ReceivedItems)> q = new([(this, [], state.ReceivedItems.InReceivedOrder)]);
         while (q.TryDequeue(out (LocationDefinitionModel Location, ImmutableList<LocationDefinitionModel> Path, ImmutableList<ItemDefinitionModel> ReceivedItems) curr))
         {
             yield return (curr.Location, curr.Path);
@@ -698,7 +698,7 @@ public sealed record LocationDefinitionModel
             {
                 result = (!GameDefinitions.Instance.LandmarkRegions.TryGetValue(regionKey, out LandmarkRegionDefinitionModel? landmark)) ||
                          (allowedLandmarks?.Contains(landmark.Key) != false &&
-                          landmark.Requirement.Satisfied(state with { ReceivedItems = receivedItems }));
+                          landmark.Requirement.Satisfied(receivedItems));
             }
 
             return result;
@@ -740,9 +740,50 @@ public sealed record LocationDefinitionModel
     }
 }
 
+public sealed record ReceivedItems
+{
+    public GameDefinitions GameDefinitions => GameDefinitions.Instance;
+
+    public required ImmutableList<ItemDefinitionModel> InReceivedOrder
+    {
+        get;
+        init
+        {
+            field = value;
+            AsFrozenSet = [.. value];
+            RatCount = value.Sum(v => v.RatCount.GetValueOrDefault());
+        }
+    }
+
+    public int Count => InReceivedOrder.Count;
+
+    public FrozenSet<ItemDefinitionModel> AsFrozenSet { get; private init; } = [];
+
+    public int RatCount { get; private init; }
+
+    public bool Equals(ReceivedItems? other)
+    {
+        return
+            other is not null &&
+            InReceivedOrder.SequenceEqual(other.InReceivedOrder);
+    }
+
+    public override int GetHashCode()
+    {
+        return HashCode.Combine(
+            InReceivedOrder.Count
+        );
+    }
+}
+
 public abstract record GameRequirement
 {
-    public virtual bool Satisfied(GameState state)
+    public virtual bool Satisfied(ReceivedItems receivedItems)
+    {
+        return true;
+    }
+
+    public virtual bool Satisfied(ImmutableList<ItemDefinitionModel> receivedItems)
     {
         return true;
     }
@@ -779,11 +820,24 @@ public sealed record AllChildrenGameRequirement : GameRequirement
         return new() { Children = [.. ((YamlSequenceNode)node).Select(GameRequirement.DeserializeFrom)] };
     }
 
-    public override bool Satisfied(GameState state)
+    public override bool Satisfied(ReceivedItems receivedItems)
     {
         foreach (GameRequirement child in Children)
         {
-            if (!child.Satisfied(state))
+            if (!child.Satisfied(receivedItems))
+            {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    public override bool Satisfied(ImmutableList<ItemDefinitionModel> receivedItems)
+    {
+        foreach (GameRequirement child in Children)
+        {
+            if (!child.Satisfied(receivedItems))
             {
                 return false;
             }
@@ -822,11 +876,24 @@ public sealed record AnyChildGameRequirement : GameRequirement
         return new() { Children = [.. ((YamlSequenceNode)node).Select(GameRequirement.DeserializeFrom)] };
     }
 
-    public override bool Satisfied(GameState state)
+    public override bool Satisfied(ReceivedItems receivedItems)
     {
         foreach (GameRequirement child in Children)
         {
-            if (child.Satisfied(state))
+            if (child.Satisfied(receivedItems))
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    public override bool Satisfied(ImmutableList<ItemDefinitionModel> receivedItems)
+    {
+        foreach (GameRequirement child in Children)
+        {
+            if (child.Satisfied(receivedItems))
             {
                 return true;
             }
@@ -865,12 +932,33 @@ public sealed record AnyTwoChildrenGameRequirement : GameRequirement
         return new() { Children = [.. ((YamlSequenceNode)node).Select(GameRequirement.DeserializeFrom)] };
     }
 
-    public override bool Satisfied(GameState state)
+    public override bool Satisfied(ReceivedItems receivedItems)
     {
         bool one = false;
         foreach (GameRequirement child in Children)
         {
-            if (!child.Satisfied(state))
+            if (!child.Satisfied(receivedItems))
+            {
+                continue;
+            }
+
+            if (one)
+            {
+                return true;
+            }
+
+            one = true;
+        }
+
+        return false;
+    }
+
+    public override bool Satisfied(ImmutableList<ItemDefinitionModel> receivedItems)
+    {
+        bool one = false;
+        foreach (GameRequirement child in Children)
+        {
+            if (!child.Satisfied(receivedItems))
             {
                 continue;
             }
@@ -894,7 +982,7 @@ public sealed record AnyTwoChildrenGameRequirement : GameRequirement
         }
     }
 
-    public bool Equals(AnyChildGameRequirement? other)
+    public bool Equals(AnyTwoChildrenGameRequirement? other)
     {
         return
             base.Equals(other) &&
@@ -916,9 +1004,14 @@ public sealed record RatCountRequirement : GameRequirement
         return new() { RatCount = node.To<int>() };
     }
 
-    public override bool Satisfied(GameState state)
+    public override bool Satisfied(ReceivedItems receivedItems)
     {
-        return state.RatCount >= RatCount;
+        return receivedItems.RatCount >= RatCount;
+    }
+
+    public override bool Satisfied(ImmutableList<ItemDefinitionModel> receivedItems)
+    {
+        return receivedItems.Sum(i => i.RatCount.GetValueOrDefault()) >= RatCount;
     }
 }
 
@@ -931,9 +1024,14 @@ public sealed record ReceivedItemRequirement : GameRequirement
         return new() { ItemKey = node.To<string>() };
     }
 
-    public override bool Satisfied(GameState state)
+    public override bool Satisfied(ReceivedItems receivedItems)
     {
-        return state.ReceivedItems.Contains(GameDefinitions.Instance.ProgressionItems[ItemKey]);
+        return receivedItems.AsFrozenSet.Contains(receivedItems.GameDefinitions.ProgressionItems[ItemKey]);
+    }
+
+    public override bool Satisfied(ImmutableList<ItemDefinitionModel> receivedItems)
+    {
+        return receivedItems.Contains(GameDefinitions.Instance.ProgressionItems[ItemKey]);
     }
 
     public override void VisitItemKeys(Action<string> onItemKey)
