@@ -659,7 +659,6 @@ public sealed record LocationDefinitionModel
     {
         Dictionary<string, bool> testedRegions = new() { [this.Key.RegionKey] = true };
         HashSet<LocationKey> testedLocations = [this.Key];
-        FrozenSet<LocationDefinitionModel>? allowedLandmarks = onlyOpen ? state.CheckedLocations.AsFrozenSet : null;
 
         Queue<(LocationDefinitionModel Location, ImmutableList<LocationDefinitionModel> Path, ImmutableList<ItemDefinitionModel> ReceivedItems)> q = new([(this, [], state.ReceivedItems.InReceivedOrder)]);
         while (q.TryDequeue(out (LocationDefinitionModel Location, ImmutableList<LocationDefinitionModel> Path, ImmutableList<ItemDefinitionModel> ReceivedItems) curr))
@@ -688,7 +687,7 @@ public sealed record LocationDefinitionModel
             if (!existed)
             {
                 result = (!GameDefinitions.Instance.LandmarkRegions.TryGetValue(regionKey, out LandmarkRegionDefinitionModel? landmark)) ||
-                         (allowedLandmarks?.Contains(landmark.Locations[0]) != false &&
+                         ((!onlyOpen || state.CheckedLocations.Contains(landmark))  &&
                           landmark.Requirement.Satisfied(receivedItems));
             }
 
@@ -978,7 +977,7 @@ public sealed record ReceivedItemRequirement : GameRequirement
 
     public override bool Satisfied(ReceivedItems receivedItems)
     {
-        return receivedItems.AsFrozenSet.Contains(receivedItems.GameDefinitions.ProgressionItems[ItemKey]);
+        return receivedItems.Contains(GameDefinitions.Instance.ProgressionItems[ItemKey]);
     }
 
     public override bool Satisfied(ImmutableList<ItemDefinitionModel> receivedItems)

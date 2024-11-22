@@ -17,12 +17,12 @@ public sealed record ShortestPaths
 
     private readonly ImmutableArray<int> _prev;
 
-    private ShortestPaths(GameDefinitions defs, ReceivedItems receivedItems)
+    public ShortestPaths(GameDefinitions defs, ReceivedItems receivedItems)
         : this(defs, CanExitThrough(defs, receivedItems))
     {
     }
 
-    private ShortestPaths(GameDefinitions defs, FrozenSet<LocationDefinitionModel> checkedLocations)
+    public ShortestPaths(GameDefinitions defs, CheckedLocations checkedLocations)
         : this(defs, CanExitThrough(defs, checkedLocations))
     {
     }
@@ -32,9 +32,9 @@ public sealed record ShortestPaths
         return exit => !(defs.AllRegions[exit.RegionKey] is LandmarkRegionDefinitionModel landmark && !landmark.Requirement.Satisfied(receivedItems));
     }
 
-    private static Func<RegionExitDefinitionModel, bool> CanExitThrough(GameDefinitions defs, FrozenSet<LocationDefinitionModel> checkedLocations)
+    private static Func<RegionExitDefinitionModel, bool> CanExitThrough(GameDefinitions defs, CheckedLocations checkedLocations)
     {
-        FrozenSet<string> openRegions = [.. defs.FillerRegions.Keys, .. checkedLocations.Select(l => l.Key.RegionKey)];
+        FrozenSet<string> openRegions = [.. defs.FillerRegions.Keys, .. checkedLocations.InCheckedOrder.Select(l => l.Key.RegionKey)];
         return exit => openRegions.Contains(exit.RegionKey);
     }
 

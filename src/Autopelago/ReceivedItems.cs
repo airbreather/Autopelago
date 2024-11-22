@@ -5,24 +5,26 @@ namespace Autopelago;
 
 public sealed record ReceivedItems
 {
-    public GameDefinitions GameDefinitions => GameDefinitions.Instance;
+    private readonly Lazy<FrozenSet<ItemDefinitionModel>> _lookup;
 
-    public required ImmutableList<ItemDefinitionModel> InReceivedOrder
+    private readonly Lazy<int> _ratCount;
+
+    private readonly Lazy<ShortestPaths> _shortestPaths;
+
+    public ReceivedItems()
     {
-        get;
-        init
-        {
-            field = value;
-            AsFrozenSet = [.. value];
-            RatCount = value.Sum(v => v.RatCount.GetValueOrDefault());
-        }
+        _lookup = new(() => [.. InReceivedOrder!]);
+        _ratCount = new(() => InReceivedOrder!.Sum(i => i.RatCount.GetValueOrDefault()));
+        _shortestPaths = new(() => new(GameDefinitions.Instance, this));
     }
+
+    public required ImmutableList<ItemDefinitionModel> InReceivedOrder { get; init; }
 
     public int Count => InReceivedOrder.Count;
 
-    public FrozenSet<ItemDefinitionModel> AsFrozenSet { get; private init; } = [];
+    public bool Contains(ItemDefinitionModel item) => _lookup.Value.Contains(item);
 
-    public int RatCount { get; private init; }
+    public int RatCount => _ratCount.Value;
 
     public bool Equals(ReceivedItems? other)
     {

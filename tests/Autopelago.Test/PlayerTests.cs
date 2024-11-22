@@ -87,7 +87,7 @@ public sealed class PlayerTests
 
         Player player = new();
         state = player.Advance(state);
-        Assert.That(state.CheckedLocations.AsFrozenSet, ratCount < 5 ? Does.Not.Contain(s_basketball) : Contains.Item(s_basketball));
+        Assert.That(state.CheckedLocations.InCheckedOrder, ratCount < 5 ? Does.Not.Contain(s_basketball) : Contains.Item(s_basketball));
     }
 
     [Test]
@@ -703,7 +703,7 @@ public sealed class PlayerTests
             Assert.That(
                 state.CurrentLocation,
                 Is.EqualTo(state.PreviousStepMovementLog[^1].CurrentLocation));
-            Assert.That(state.CheckedLocations.AsFrozenSet, Contains.Item(s_basketball));
+            Assert.That(state.CheckedLocations.InCheckedOrder, Contains.Item(s_basketball));
         });
     }
 

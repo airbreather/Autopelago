@@ -120,7 +120,6 @@ public sealed record GameState
 
         // we skip visiting CurrentLocation so that previousLocation can be non-nullable
         HashSet<LocationDefinitionModel> visitedLocations = [CurrentLocation];
-        FrozenSet<LocationDefinitionModel> checkedLocations = CheckedLocations.AsFrozenSet;
         PriorityQueue<(LocationDefinitionModel CurrentLocation, LocationDefinitionModel PreviousLocation), int> q = new();
         foreach (LocationDefinitionModel connectedLocation in GameDefinitions.Instance.ConnectedLocations[CurrentLocation])
         {
@@ -142,7 +141,7 @@ public sealed record GameState
                     currentLocation: curr,
                     previousLocation: prev,
                     distance: distance,
-                    alreadyChecked: checkedLocations.Contains(curr)))
+                    alreadyChecked: CheckedLocations.Contains(curr)))
             {
                 return;
             }

@@ -234,7 +234,7 @@ public sealed class Player
                 }
             }
 
-            if (!moved && state.StartledCounter == 0 && !state.CheckedLocations.AsFrozenSet.Contains(state.CurrentLocation))
+            if (!moved && state.StartledCounter == 0 && !state.CheckedLocations.Contains(state.CurrentLocation))
             {
                 bool success = state.CurrentLocation.TryCheck(ref state);
                 state = state with { LocationCheckAttemptsThisStep = state.LocationCheckAttemptsThisStep + 1 };
@@ -346,10 +346,9 @@ public sealed class Player
 
             for (int i = 0; i < goModePath.Length; i++)
             {
-                LocationDefinitionModel goModeTarget = goModePath[i].Locations[0];
-                if (!state.CheckedLocations.AsFrozenSet.Contains(goModeTarget))
+                if (!state.CheckedLocations.Contains(goModePath[i]))
                 {
-                    goModeTargets.Add((goModeTarget, i));
+                    goModeTargets.Add((goModePath[i].Locations[0], i));
                     goto nextGoModePath;
                 }
             }
@@ -388,7 +387,7 @@ public sealed class Player
 
         LocationDefinitionModel? closestUncheckedLocation = state.CurrentLocation
             .EnumerateReachableLocationsByDistance(state)
-            .FirstOrDefault(l => !state.CheckedLocations.AsFrozenSet.Contains(l.Location))
+            .FirstOrDefault(l => !state.CheckedLocations.Contains(l.Location))
             .Location;
         if (closestUncheckedLocation is null)
         {
@@ -419,7 +418,7 @@ public sealed class Player
                 // to it may include one or more clearABLE landmarks that haven't been clearED yet.
                 foreach (LocationDefinitionModel nextLocation in path.Prepend(state.CurrentLocation))
                 {
-                    if (nextLocation.Region is LandmarkRegionDefinitionModel && !state.CheckedLocations.AsFrozenSet.Contains(nextLocation))
+                    if (nextLocation.Region is LandmarkRegionDefinitionModel && !state.CheckedLocations.Contains(nextLocation))
                     {
                         return nextLocation;
                     }
