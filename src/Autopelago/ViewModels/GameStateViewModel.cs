@@ -604,14 +604,14 @@ public sealed partial class GameStateViewModel : ViewModelBase, IDisposable
                 {
                     _state = _state with
                     {
-                        CheckedLocations =
+                        CheckedLocations = new() { InCheckedOrder =
                         [
                             .. _connected.CheckedLocations
                                 .Select(locationId => _lastFullData.LocationsById[locationId]),
-                        ]
+                        ] },
                     };
 
-                    foreach (LocationDefinitionModel location in _state.CheckedLocations)
+                    foreach (LocationDefinitionModel location in _state.CheckedLocations.InCheckedOrder)
                     {
                         if (_landmarkRegionsByLocation.TryGetValue(location, out var viewModel))
                         {
@@ -1062,7 +1062,7 @@ public sealed partial class GameStateViewModel : ViewModelBase, IDisposable
             }
 
             List<long> locationIds = [];
-            foreach (LocationDefinitionModel location in nextState.CheckedLocations.Except(prevState.CheckedLocations))
+            foreach (LocationDefinitionModel location in nextState.CheckedLocations.InCheckedOrder.Skip(prevState.CheckedLocations.Count))
             {
                 locationIds.Add(_lastFullData.LocationIds[location]);
                 if (_landmarkRegionsByLocation.TryGetValue(location, out LandmarkRegionViewModel? viewModel))

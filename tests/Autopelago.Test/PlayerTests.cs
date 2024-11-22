@@ -62,7 +62,7 @@ public sealed class PlayerTests
         state = player.Advance(state);
         Assert.Multiple(() =>
         {
-            Assert.That(state.CheckedLocations.FirstOrDefault(), Is.EqualTo(s_startLocation));
+            Assert.That(state.CheckedLocations.InCheckedOrder.FirstOrDefault(), Is.EqualTo(s_startLocation));
             Assert.That(state.TargetLocation, Is.EqualTo(s_startRegion.Locations[1]));
 
             // because they succeeded on their first attempt, they have just enough actions to reach and
@@ -81,13 +81,13 @@ public sealed class PlayerTests
         {
             CurrentLocation = s_startRegion.Locations[^1],
             TargetLocation = s_startRegion.Locations[^1],
-            CheckedLocations = [.. s_startRegion.Locations],
+            CheckedLocations = new() { InCheckedOrder = [.. s_startRegion.Locations] },
             ReceivedItems = new() { InReceivedOrder = [.. Enumerable.Repeat(s_normalRat, ratCount)] },
         };
 
         Player player = new();
         state = player.Advance(state);
-        Assert.That(state.CheckedLocations, ratCount < 5 ? Does.Not.Contain(s_basketball) : Contains.Item(s_basketball));
+        Assert.That(state.CheckedLocations.AsFrozenSet, ratCount < 5 ? Does.Not.Contain(s_basketball) : Contains.Item(s_basketball));
     }
 
     [Test]
@@ -97,7 +97,7 @@ public sealed class PlayerTests
         state = state with
         {
             ReceivedItems = new() { InReceivedOrder = [.. Enumerable.Repeat(s_normalRat, 5), unblockAngryTurtlesFirst ? s_pizzaRat : s_premiumCanOfPrawnFood] },
-            CheckedLocations = [.. s_startRegion.Locations],
+            CheckedLocations = new() { InCheckedOrder = [.. s_startRegion.Locations] },
             CurrentLocation = s_basketball,
             TargetLocation = s_basketball,
         };
@@ -122,7 +122,6 @@ public sealed class PlayerTests
         GameState state = GameState.Start(seed);
         Player player = new();
         int advancesSoFar = 0;
-        HashSet<LocationKey> prevCheckedLocations = [];
         List<ItemDefinitionModel> newReceivedItems = [];
         while (true)
         {
@@ -135,12 +134,9 @@ public sealed class PlayerTests
                 break;
             }
 
-            foreach (LocationDefinitionModel newCheckedLocation in state.CheckedLocations)
+            foreach (LocationDefinitionModel newCheckedLocation in state.CheckedLocations.InCheckedOrder.Skip(prev.CheckedLocations.Count))
             {
-                if (prevCheckedLocations.Add(newCheckedLocation.Key))
-                {
-                    newReceivedItems.Add(newCheckedLocation.UnrandomizedItem!);
-                }
+                newReceivedItems.Add(newCheckedLocation.UnrandomizedItem!);
             }
 
             if (newReceivedItems.Count > 0)
@@ -434,7 +430,7 @@ public sealed class PlayerTests
         {
             state = player.Advance(state with { PrngState = s_highRolls });
             Assert.That(state.TargetLocation.Region, Is.InstanceOf<LandmarkRegionDefinitionModel>());
-            foreach (LocationDefinitionModel checkedLocation in state.CheckedLocations)
+            foreach (LocationDefinitionModel checkedLocation in state.CheckedLocations.InCheckedOrder)
             {
                 if (fixedRewardsGranted.Add(checkedLocation.Key) && checkedLocation is { RewardIsFixed: true, UnrandomizedItem: { } unrandomizedItem })
                 {
@@ -467,7 +463,7 @@ public sealed class PlayerTests
         // give what's needed to reach Prawn Stars
         state = player.Advance(state with
         {
-            CheckedLocations = [s_basketball],
+            CheckedLocations = new() { InCheckedOrder = [s_basketball] },
             ReceivedItems = new() { InReceivedOrder = [.. Enumerable.Range(0, 5).Select(_ => s_normalRat), s_premiumCanOfPrawnFood] },
         });
 
@@ -637,10 +633,10 @@ public sealed class PlayerTests
             {
                 InReceivedOrder = [.. Enumerable.Repeat(s_normalRat, 5)],
             },
-            CheckedLocations =
-            [
-                .. s_startRegion.Locations,
-            ],
+            CheckedLocations = new()
+            {
+                InCheckedOrder = [.. s_startRegion.Locations],
+            },
             PrngState = s_highRolls,
             EnergyFactor = -100,
         };
@@ -707,7 +703,7 @@ public sealed class PlayerTests
             Assert.That(
                 state.CurrentLocation,
                 Is.EqualTo(state.PreviousStepMovementLog[^1].CurrentLocation));
-            Assert.That(state.CheckedLocations, Contains.Item(s_basketball));
+            Assert.That(state.CheckedLocations.AsFrozenSet, Contains.Item(s_basketball));
         });
     }
 
@@ -725,10 +721,10 @@ public sealed class PlayerTests
                 s_basketball,
                 lastLocationBeforeBasketball,
             ],
-            CheckedLocations =
-            [
-                lastLocationBeforeBasketball,
-            ],
+            CheckedLocations = new()
+            {
+                InCheckedOrder = [lastLocationBeforeBasketball],
+            },
             PrngState = s_lowRolls,
         };
 
@@ -756,13 +752,16 @@ public sealed class PlayerTests
                     GameDefinitions.Instance.ItemsByName["Chef Rat"],
                 ],
             },
-            CheckedLocations =
-            [
-                s_basketball,
-                GameDefinitions.Instance.LocationsByName["Angry Turtles"],
-                GameDefinitions.Instance.LocationsByName["Restaurant"],
-                GameDefinitions.Instance.LocationsByName["Bowling Ball Door"],
-            ],
+            CheckedLocations = new()
+            {
+                InCheckedOrder =
+                [
+                    s_basketball,
+                    GameDefinitions.Instance.LocationsByName["Angry Turtles"],
+                    GameDefinitions.Instance.LocationsByName["Restaurant"],
+                    GameDefinitions.Instance.LocationsByName["Bowling Ball Door"],
+                ],
+            },
         };
 
         Player player = new();

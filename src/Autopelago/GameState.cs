@@ -24,7 +24,7 @@ public sealed record GameState
 
     public required ReceivedItems ReceivedItems { get; init; }
 
-    public required ImmutableList<LocationDefinitionModel> CheckedLocations { get; init; }
+    public required CheckedLocations CheckedLocations { get; init; }
 
     public required ImmutableList<LocationDefinitionModel> PriorityPriorityLocations { get; init; }
 
@@ -72,7 +72,7 @@ public sealed record GameState
             CurrentLocation = GameDefinitions.Instance.StartLocation,
             TargetLocation = GameDefinitions.Instance.StartLocation,
             ReceivedItems = new() { InReceivedOrder = [] },
-            CheckedLocations = [],
+            CheckedLocations = new() { InCheckedOrder = [] },
             PriorityPriorityLocations = [],
             PriorityLocations = [],
             FoodFactor = 0,
@@ -108,7 +108,7 @@ public sealed record GameState
                 goto case UncheckedLandmarkBehavior.DoNotPassThrough;
 
             case UncheckedLandmarkBehavior.DoNotPassThrough:
-                allowedRegions = allowedRegions.Concat(CheckedLocations.Select(l => l.Key.RegionKey));
+                allowedRegions = allowedRegions.Concat(CheckedLocations.InCheckedOrder.Select(l => l.Key.RegionKey));
                 break;
 
             case UncheckedLandmarkBehavior.AlwaysPassThrough:
@@ -120,7 +120,7 @@ public sealed record GameState
 
         // we skip visiting CurrentLocation so that previousLocation can be non-nullable
         HashSet<LocationDefinitionModel> visitedLocations = [CurrentLocation];
-        FrozenSet<LocationDefinitionModel> checkedLocations = [.. CheckedLocations];
+        FrozenSet<LocationDefinitionModel> checkedLocations = CheckedLocations.AsFrozenSet;
         PriorityQueue<(LocationDefinitionModel CurrentLocation, LocationDefinitionModel PreviousLocation), int> q = new();
         foreach (LocationDefinitionModel connectedLocation in GameDefinitions.Instance.ConnectedLocations[CurrentLocation])
         {
@@ -180,7 +180,7 @@ public sealed record GameState
             StartledCounter == other.StartledCounter &&
             HasConfidence == other.HasConfidence &&
             ReceivedItems == other.ReceivedItems &&
-            CheckedLocations.SequenceEqual(other.CheckedLocations) &&
+            CheckedLocations.InCheckedOrder.SequenceEqual(other.CheckedLocations.InCheckedOrder) &&
             PriorityPriorityLocations.SequenceEqual(other.PriorityPriorityLocations) &&
             PriorityLocations.SequenceEqual(other.PriorityLocations);
     }

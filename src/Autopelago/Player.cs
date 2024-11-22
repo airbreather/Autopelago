@@ -22,8 +22,6 @@ public sealed class Player
 {
     private static readonly ImmutableArray<ImmutableArray<LandmarkRegionDefinitionModel>> s_allGoModePaths = ComputeAllGoModePaths();
 
-    private HashSet<LocationKey> _checkedLocations = [];
-
     public GameState ReceiveItems(GameState state, ImmutableArray<ItemDefinitionModel> newItems, FrozenDictionary<LocationDefinitionModel, ArchipelagoItemFlags>? spoilerData = null)
     {
         if (newItems.IsEmpty)
@@ -158,8 +156,6 @@ public sealed class Player
             return state;
         }
 
-        _checkedLocations = [.. state.CheckedLocations.Select(l => l.Key)];
-
         int actionBalance = 3 + state.ActionBalanceAfterPreviousStep;
         switch (state.FoodFactor)
         {
@@ -238,7 +234,7 @@ public sealed class Player
                 }
             }
 
-            if (!moved && state.StartledCounter == 0 && !_checkedLocations.Contains(state.CurrentLocation.Key))
+            if (!moved && state.StartledCounter == 0 && !state.CheckedLocations.AsFrozenSet.Contains(state.CurrentLocation))
             {
                 bool success = state.CurrentLocation.TryCheck(ref state);
                 state = state with { LocationCheckAttemptsThisStep = state.LocationCheckAttemptsThisStep + 1 };
@@ -246,8 +242,6 @@ public sealed class Player
                 {
                     continue;
                 }
-
-                _checkedLocations.Add(state.CurrentLocation.Key);
             }
 
             if (bestTargetLocationReason == BestTargetLocationReason.Priority && state.CurrentLocation == state.TargetLocation)
@@ -353,7 +347,7 @@ public sealed class Player
             for (int i = 0; i < goModePath.Length; i++)
             {
                 LocationDefinitionModel goModeTarget = goModePath[i].Locations[0];
-                if (!_checkedLocations.Contains(goModeTarget.Key))
+                if (!state.CheckedLocations.AsFrozenSet.Contains(goModeTarget))
                 {
                     goModeTargets.Add((goModeTarget, i));
                     goto nextGoModePath;
@@ -394,7 +388,7 @@ public sealed class Player
 
         LocationDefinitionModel? closestUncheckedLocation = state.CurrentLocation
             .EnumerateReachableLocationsByDistance(state)
-            .FirstOrDefault(l => !_checkedLocations.Contains(l.Location.Key))
+            .FirstOrDefault(l => !state.CheckedLocations.AsFrozenSet.Contains(l.Location))
             .Location;
         if (closestUncheckedLocation is null)
         {
@@ -425,7 +419,7 @@ public sealed class Player
                 // to it may include one or more clearABLE landmarks that haven't been clearED yet.
                 foreach (LocationDefinitionModel nextLocation in path.Prepend(state.CurrentLocation))
                 {
-                    if (nextLocation.Region is LandmarkRegionDefinitionModel && !_checkedLocations.Contains(nextLocation.Key))
+                    if (nextLocation.Region is LandmarkRegionDefinitionModel && !state.CheckedLocations.AsFrozenSet.Contains(nextLocation))
                     {
                         return nextLocation;
                     }

@@ -659,16 +659,7 @@ public sealed record LocationDefinitionModel
     {
         Dictionary<string, bool> testedRegions = new() { [this.Key.RegionKey] = true };
         HashSet<LocationKey> testedLocations = [this.Key];
-        FrozenSet<string>? allowedLandmarks = null;
-        if (onlyOpen)
-        {
-            allowedLandmarks = state.CheckedLocations
-                .DistinctBy(l => l.Key.RegionKey)
-                .Select(l => l.Region)
-                .OfType<LandmarkRegionDefinitionModel>()
-                .Select(r => r.Key)
-                .ToFrozenSet();
-        }
+        FrozenSet<LocationDefinitionModel>? allowedLandmarks = onlyOpen ? state.CheckedLocations.AsFrozenSet : null;
 
         Queue<(LocationDefinitionModel Location, ImmutableList<LocationDefinitionModel> Path, ImmutableList<ItemDefinitionModel> ReceivedItems)> q = new([(this, [], state.ReceivedItems.InReceivedOrder)]);
         while (q.TryDequeue(out (LocationDefinitionModel Location, ImmutableList<LocationDefinitionModel> Path, ImmutableList<ItemDefinitionModel> ReceivedItems) curr))
@@ -697,7 +688,7 @@ public sealed record LocationDefinitionModel
             if (!existed)
             {
                 result = (!GameDefinitions.Instance.LandmarkRegions.TryGetValue(regionKey, out LandmarkRegionDefinitionModel? landmark)) ||
-                         (allowedLandmarks?.Contains(landmark.Key) != false &&
+                         (allowedLandmarks?.Contains(landmark.Locations[0]) != false &&
                           landmark.Requirement.Satisfied(receivedItems));
             }
 
@@ -716,12 +707,8 @@ public sealed record LocationDefinitionModel
                 break;
 
             case > 0:
-                state = state with
-                {
-                    LuckFactor = state.LuckFactor - 1,
-                    CheckedLocations = state.CheckedLocations.Add(this),
-                };
-                return true;
+                state = state with { LuckFactor = state.LuckFactor - 1 };
+                goto success;
         }
 
         if (state.StyleFactor > 0)
@@ -735,7 +722,8 @@ public sealed record LocationDefinitionModel
             return false;
         }
 
-        state = state with { CheckedLocations = state.CheckedLocations.Add(this) };
+        success:
+        state = state with { CheckedLocations = new() { InCheckedOrder = state.CheckedLocations.InCheckedOrder.Add(this) } };
         return true;
     }
 }
