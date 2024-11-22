@@ -47,6 +47,8 @@ public sealed record GameDefinitions
 
     public required FrozenDictionary<LocationDefinitionModel, ImmutableArray<LocationDefinitionModel>> ConnectedLocations { get; init; }
 
+    public required FrozenDictionary<RegionDefinitionModel, ImmutableArray<RegionDefinitionModel>> ConnectedRegions { get; init; }
+
     public required FrozenDictionary<ArchipelagoItemFlags, ImmutableArray<ItemDefinitionModel>> NonGameSpecificItemsByFlags { get; init; }
 
     public required FrozenDictionary<ArchipelagoItemFlags, ImmutableArray<LocationDefinitionModel>> LocationsByUnrandomizedItemFlags { get; init; }
@@ -86,6 +88,7 @@ public sealed record GameDefinitions
             LocationsByName = locationsByKey.Values.ToFrozenDictionary(location => location.Name),
             LocationsByNameCaseInsensitive = locationsByKey.Values.ToFrozenDictionary(location => location.Name, StringComparer.InvariantCultureIgnoreCase),
             ConnectedLocations = regions.ConnectedLocations,
+            ConnectedRegions = regions.ConnectedRegions,
 
             // things that should only be needed in the debugger to help populate the filler regions
             NonGameSpecificItemsByFlags = items.AllItems
@@ -378,6 +381,8 @@ public sealed record RegionDefinitionsModel
 
     public required FrozenDictionary<LocationDefinitionModel, ImmutableArray<LocationDefinitionModel>> ConnectedLocations { get; init; }
 
+    public required FrozenDictionary<RegionDefinitionModel, ImmutableArray<RegionDefinitionModel>> ConnectedRegions { get; init; }
+
     public static RegionDefinitionsModel DeserializeFrom(YamlMappingNode map, ItemDefinitionsModel items)
     {
         Dictionary<string, RegionDefinitionModel> allRegions = new();
@@ -401,6 +406,7 @@ public sealed record RegionDefinitionsModel
         }
 
         Dictionary<LocationDefinitionModel, List<LocationDefinitionModel>> connectedLocations = [];
+        Dictionary<RegionDefinitionModel, HashSet<RegionDefinitionModel>> connectedRegions = [];
         Queue<(LocationDefinitionModel? Prev, RegionDefinitionModel Curr)> regionsQueue = [];
         regionsQueue.Enqueue((null, allRegions["Menu"]));
         while (regionsQueue.TryDequeue(out (LocationDefinitionModel? Prev, RegionDefinitionModel Curr) tup))
@@ -420,6 +426,8 @@ public sealed record RegionDefinitionsModel
             foreach (RegionExitDefinitionModel exit in curr.Exits)
             {
                 regionsQueue.Enqueue((prev, allRegions[exit.RegionKey]));
+                (CollectionsMarshal.GetValueRefOrAddDefault(connectedRegions, curr, out _) ??= []).Add(allRegions[exit.RegionKey]);
+                (CollectionsMarshal.GetValueRefOrAddDefault(connectedRegions, allRegions[exit.RegionKey], out _) ??= []).Add(curr);
             }
         }
 
@@ -429,6 +437,7 @@ public sealed record RegionDefinitionsModel
             LandmarkRegions = landmarkRegions.ToFrozenDictionary(),
             FillerRegions = fillerRegions.ToFrozenDictionary(),
             ConnectedLocations = connectedLocations.ToFrozenDictionary(kvp => kvp.Key, kvp => kvp.Value.ToImmutableArray()),
+            ConnectedRegions = connectedRegions.ToFrozenDictionary(kvp => kvp.Key, kvp => kvp.Value.ToImmutableArray()),
         };
     }
 }
@@ -635,65 +644,6 @@ public sealed record LocationDefinitionModel
     public required bool RewardIsFixed { get; init; }
 
     public RegionDefinitionModel Region => GameDefinitions.Instance.AllRegions[Key.RegionKey];
-
-    public LocationDefinitionModel NextLocationTowards(LocationDefinitionModel target, GameState state) =>
-        this.EnumerateReachableLocationsByDistance(state, true, false)
-            .FirstOrDefault(tup => tup.Location == target)
-            .Path
-            ?.FirstOrDefault()
-        ?? this;
-
-    public LocationDefinitionModel NextOpenLocationTowards(LocationDefinitionModel target, GameState state) =>
-        this.EnumerateReachableLocationsByDistance(state, false, true)
-            .FirstOrDefault(tup => tup.Location == target)
-            .Path
-            ?.FirstOrDefault()
-        ?? this;
-
-    public IEnumerable<(LocationDefinitionModel Location, ImmutableList<LocationDefinitionModel> Path)> EnumerateReachableLocationsByDistance(GameState state)
-    {
-        return this.EnumerateReachableLocationsByDistance(state, false, false);
-    }
-
-    private IEnumerable<(LocationDefinitionModel Location, ImmutableList<LocationDefinitionModel> Path)> EnumerateReachableLocationsByDistance(GameState state, bool collect, bool onlyOpen)
-    {
-        Dictionary<string, bool> testedRegions = new() { [this.Key.RegionKey] = true };
-        HashSet<LocationKey> testedLocations = [this.Key];
-
-        Queue<(LocationDefinitionModel Location, ImmutableList<LocationDefinitionModel> Path, ImmutableList<ItemDefinitionModel> ReceivedItems)> q = new([(this, [], state.ReceivedItems.InReceivedOrder)]);
-        while (q.TryDequeue(out (LocationDefinitionModel Location, ImmutableList<LocationDefinitionModel> Path, ImmutableList<ItemDefinitionModel> ReceivedItems) curr))
-        {
-            yield return (curr.Location, curr.Path);
-            foreach (LocationDefinitionModel nxt in GameDefinitions.Instance.ConnectedLocations[curr.Location])
-            {
-                if (!testedLocations.Add(nxt.Key) || !RegionIsOpen(nxt.Key.RegionKey, curr.ReceivedItems))
-                {
-                    continue;
-                }
-
-                ImmutableList<ItemDefinitionModel> receivedItems = curr.ReceivedItems;
-                if (nxt.RewardIsFixed && collect)
-                {
-                    receivedItems = receivedItems.Add(nxt.UnrandomizedItem!);
-                }
-
-                q.Enqueue((nxt, curr.Path.Add(nxt), receivedItems));
-            }
-        }
-
-        bool RegionIsOpen(string regionKey, ImmutableList<ItemDefinitionModel> receivedItems)
-        {
-            ref bool result = ref CollectionsMarshal.GetValueRefOrAddDefault(testedRegions, regionKey, out bool existed);
-            if (!existed)
-            {
-                result = (!GameDefinitions.Instance.LandmarkRegions.TryGetValue(regionKey, out LandmarkRegionDefinitionModel? landmark)) ||
-                         ((!onlyOpen || state.CheckedLocations.Contains(landmark))  &&
-                          landmark.Requirement.Satisfied(receivedItems));
-            }
-
-            return result;
-        }
-    }
 
     public bool TryCheck(ref GameState state)
     {

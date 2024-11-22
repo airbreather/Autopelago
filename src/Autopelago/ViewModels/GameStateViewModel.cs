@@ -1035,7 +1035,7 @@ public sealed partial class GameStateViewModel : ViewModelBase, IDisposable
             GameState prevState, nextState;
             async ValueTask CheckGoMode()
             {
-                if (!_wasGoMode && _player.NextGoModeLocation(_state) is not null)
+                if (!_wasGoMode && _state.TargetLocationReason == TargetLocationReason.GoMode)
                 {
                     SayPacketModel say = new()
                     {
@@ -1104,7 +1104,7 @@ public sealed partial class GameStateViewModel : ViewModelBase, IDisposable
 
             UpdateMeters();
 
-            if (_state.CurrentLocation.EnumerateReachableLocationsByDistance(_state).Count() == _state.CheckedLocations.Count)
+            if (_state.TargetLocationReason == TargetLocationReason.NowhereUsefulToMove)
             {
                 if (_prevBlockedReportTimestamp is long prevBlockedReportTimestamp)
                 {

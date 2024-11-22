@@ -10,6 +10,17 @@ public enum UncheckedLandmarkBehavior
     AlwaysPassThrough,
 }
 
+public enum TargetLocationReason
+{
+    GameNotStarted,
+    NowhereUsefulToMove,
+    ClosestReachable,
+    Priority,
+    PriorityPriority,
+    GoMode,
+    Startled,
+}
+
 public sealed record GameState
 {
     private GameState()
@@ -21,6 +32,8 @@ public sealed record GameState
     public required LocationDefinitionModel CurrentLocation { get; init; }
 
     public required LocationDefinitionModel TargetLocation { get; init; }
+
+    public required TargetLocationReason TargetLocationReason { get; init; }
 
     public required ReceivedItems ReceivedItems { get; init; }
 
@@ -71,9 +84,10 @@ public sealed record GameState
             PreviousStepMovementLog = [],
             CurrentLocation = GameDefinitions.Instance.StartLocation,
             TargetLocation = GameDefinitions.Instance.StartLocation,
+            TargetLocationReason = TargetLocationReason.GameNotStarted,
             ReceivedItems = new() { InReceivedOrder = [] },
             CheckedLocations = new() { InCheckedOrder = [] },
-            PriorityPriorityLocations = [],
+            PriorityPriorityLocations = [GameDefinitions.Instance.GoalLocation],
             PriorityLocations = [],
             FoodFactor = 0,
             LuckFactor = 0,
@@ -169,6 +183,7 @@ public sealed record GameState
             PreviousStepMovementLog.SequenceEqual(other.PreviousStepMovementLog) &&
             CurrentLocation == other.CurrentLocation &&
             TargetLocation == other.TargetLocation &&
+            TargetLocationReason == other.TargetLocationReason &&
             LocationCheckAttemptsThisStep == other.LocationCheckAttemptsThisStep &&
             ActionBalanceAfterPreviousStep == other.ActionBalanceAfterPreviousStep &&
             FoodFactor == other.FoodFactor &&
@@ -192,16 +207,17 @@ public sealed record GameState
                 PreviousStepMovementLog.Length,
                 CurrentLocation,
                 TargetLocation,
-                LocationCheckAttemptsThisStep,
-                ActionBalanceAfterPreviousStep),
+                TargetLocationReason,
+                LocationCheckAttemptsThisStep),
             HashCode.Combine(
+                ActionBalanceAfterPreviousStep,
                 FoodFactor,
                 LuckFactor,
                 EnergyFactor,
                 StyleFactor,
-                DistractionCounter,
-                StartledCounter),
+                DistractionCounter),
             HashCode.Combine(
+                StartledCounter,
                 HasConfidence,
                 ReceivedItems,
                 CheckedLocations.Count,

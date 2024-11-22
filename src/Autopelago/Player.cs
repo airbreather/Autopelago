@@ -3,14 +3,6 @@ using System.Collections.Immutable;
 
 namespace Autopelago;
 
-public enum BestTargetLocationReason
-{
-    ClosestReachable,
-    Priority,
-    Startled,
-    GoMode,
-}
-
 public sealed record LocationVector
 {
     public required LocationDefinitionModel PreviousLocation { get; init; }
@@ -181,18 +173,19 @@ public sealed class Player
         }
 
         List<LocationVector> movementLog = [];
+        TargetLocationReason bestTargetLocationReason = state.TargetLocationReason;
         while (actionBalance > 0 && !state.IsCompleted)
         {
             --actionBalance;
 
-            LocationDefinitionModel bestTargetLocation = BestTargetLocation(state, out BestTargetLocationReason bestTargetLocationReason);
+            LocationDefinitionModel bestTargetLocation = BestTargetLocation(state, out bestTargetLocationReason, out ShortestPaths.Path bestPathToTargetLocation);
             if (state.TargetLocation != bestTargetLocation)
             {
                 // changing your route takes an action...
                 state = state with { TargetLocation = bestTargetLocation };
 
                 // ...unless you're startled, in which case it was instinct.
-                if (bestTargetLocationReason != BestTargetLocationReason.Startled)
+                if (bestTargetLocationReason != TargetLocationReason.Startled)
                 {
                     continue;
                 }
@@ -223,11 +216,10 @@ public sealed class Player
                 {
                     movementLog.Add(new()
                     {
-                        PreviousLocation = state.CurrentLocation,
-                        CurrentLocation = state.CurrentLocation.NextLocationTowards(state.TargetLocation, state),
+                        PreviousLocation = bestPathToTargetLocation.Locations[i],
+                        CurrentLocation = bestPathToTargetLocation.Locations[i + 1],
                     });
                     state = state with { CurrentLocation = movementLog[^1].CurrentLocation };
-                    state = state with { TargetLocation = BestTargetLocation(state, out bestTargetLocationReason) };
                     moved = true;
                 }
             }
@@ -242,7 +234,7 @@ public sealed class Player
                 }
             }
 
-            if (bestTargetLocationReason == BestTargetLocationReason.Priority && state.CurrentLocation == state.TargetLocation)
+            if (bestTargetLocationReason == TargetLocationReason.Priority && state.CurrentLocation == state.TargetLocation)
             {
                 // we've reached our next priority location. remove it from the queue.
                 LocationDefinitionModel targetLocation = state.TargetLocation;
@@ -251,7 +243,7 @@ public sealed class Player
 
             // figure out if anything above changed our best target location. if not, then don't
             // update anything so that the Epoch will stay the same!
-            bestTargetLocation = BestTargetLocation(state, out bestTargetLocationReason);
+            bestTargetLocation = BestTargetLocation(state, out bestTargetLocationReason, out bestPathToTargetLocation);
             if (bestTargetLocation != state.TargetLocation)
             {
                 state = state with { TargetLocation = bestTargetLocation };
@@ -281,7 +273,7 @@ public sealed class Player
             state = state with { StartledCounter = state.StartledCounter - 1 };
             if (state.StartledCounter == 0)
             {
-                LocationDefinitionModel bestTargetLocation = BestTargetLocation(state, out _);
+                LocationDefinitionModel bestTargetLocation = BestTargetLocation(state, out _, out _);
                 if (bestTargetLocation != state.TargetLocation)
                 {
                     state = state with { TargetLocation = bestTargetLocation };
@@ -301,83 +293,93 @@ public sealed class Player
             state = state with { PreviousStepMovementLog = [.. movementLog] };
         }
 
+        if (state.TargetLocationReason != bestTargetLocationReason)
+        {
+            state = state with { TargetLocationReason = bestTargetLocationReason };
+        }
+
         return state;
     }
 
-    public LocationDefinitionModel? NextGoModeLocation(GameState state)
-    {
-        return state.ReceivedItems.ShortestPaths.TryGetPath(state.CurrentLocation, GameDefinitions.Instance.GoalLocation, out ShortestPaths.Path? pathByCheckable)
-            ? state.CheckedLocations.ShortestPaths.TryGetPath(state.CurrentLocation, GameDefinitions.Instance.GoalLocation, out ShortestPaths.Path? pathByChecked)
-                ? GameDefinitions.Instance.GoalLocation
-                : pathByCheckable.Value.Locations.First(l => l.Region is LandmarkRegionDefinitionModel && !state.CheckedLocations.Contains(l))
-            : null;
-    }
-
-    public LocationDefinitionModel BestTargetLocation(GameState state, out BestTargetLocationReason reason)
+    private LocationDefinitionModel BestTargetLocation(GameState state, out TargetLocationReason reason, out ShortestPaths.Path bestPath)
     {
         if (state.StartledCounter > 0)
         {
-            reason = BestTargetLocationReason.Startled;
-            return state.CurrentLocation.NextOpenLocationTowards(GameDefinitions.Instance.StartLocation, state);
+            reason = TargetLocationReason.Startled;
+            bestPath = state.CheckedLocations.ShortestPaths.GetPathOrNull(state.CurrentLocation, GameDefinitions.Instance.StartLocation)!.Value;
+            return GameDefinitions.Instance.StartLocation;
         }
 
-        if (NextGoModeLocation(state) is { } nextGoModeLocation)
+        foreach (LocationDefinitionModel priorityPriorityLocation in state.PriorityPriorityLocations)
         {
-            reason = BestTargetLocationReason.GoMode;
-            return nextGoModeLocation;
-        }
-
-        if (BestPriorityLocation(state) is { } bestPriorityLocation)
-        {
-            reason = BestTargetLocationReason.Priority;
-            return bestPriorityLocation;
-        }
-
-        LocationDefinitionModel? closestUncheckedLocation = state.CurrentLocation
-            .EnumerateReachableLocationsByDistance(state)
-            .FirstOrDefault(l => !state.CheckedLocations.Contains(l.Location))
-            .Location;
-        if (closestUncheckedLocation is null)
-        {
-            closestUncheckedLocation = state.CurrentLocation;
-        }
-
-        reason = BestTargetLocationReason.ClosestReachable;
-        return closestUncheckedLocation;
-    }
-
-    private LocationDefinitionModel? BestPriorityLocation(GameState state)
-    {
-        if (state.PriorityLocations.IsEmpty)
-        {
-            return null;
+            if (state.ReceivedItems.ShortestPaths.GetPathOrNull(state.CurrentLocation, priorityPriorityLocation) is ShortestPaths.Path priorityPath)
+            {
+                reason = priorityPriorityLocation == GameDefinitions.Instance.GoalLocation
+                    ? TargetLocationReason.GoMode
+                    : TargetLocationReason.PriorityPriority;
+                bestPath = state.CheckedLocations.ShortestPaths.GetPathOrNull(state.CurrentLocation, priorityPriorityLocation) ?? priorityPath;
+                return
+                    bestPath.Locations.FirstOrDefault(l => l.Region is LandmarkRegionDefinitionModel landmark && !state.CheckedLocations.Contains(landmark)) ??
+                    bestPath.Locations[^1];
+            }
         }
 
         foreach (LocationDefinitionModel priorityLocation in state.PriorityLocations)
         {
-            foreach ((LocationDefinitionModel reachableLocation, ImmutableList<LocationDefinitionModel> path) in state.CurrentLocation.EnumerateReachableLocationsByDistance(state))
+            if (state.ReceivedItems.ShortestPaths.GetPathOrNull(state.CurrentLocation, priorityLocation) is ShortestPaths.Path priorityPath)
             {
-                if (reachableLocation.Key != priorityLocation.Key)
-                {
-                    continue;
-                }
-
-                // #45: the current priority location may be "reachable" in some sense, but the path
-                // to it may include one or more clearABLE landmarks that haven't been clearED yet.
-                foreach (LocationDefinitionModel nextLocation in path.Prepend(state.CurrentLocation))
-                {
-                    if (nextLocation.Region is LandmarkRegionDefinitionModel && !state.CheckedLocations.Contains(nextLocation))
-                    {
-                        return nextLocation;
-                    }
-                }
-
-                // if we've made it here, then the whole path is open. you're all clear, kid, now
-                // let's check this thing and go home!
-                return reachableLocation;
+                reason = TargetLocationReason.Priority;
+                bestPath = state.CheckedLocations.ShortestPaths.GetPathOrNull(state.CurrentLocation, priorityLocation) ?? priorityPath;
+                return
+                    bestPath.Locations.FirstOrDefault(l => l.Region is LandmarkRegionDefinitionModel landmark && !state.CheckedLocations.Contains(landmark)) ??
+                    bestPath.Locations[^1];
             }
         }
 
-        return null;
+        if (!state.CheckedLocations.Contains(state.CurrentLocation))
+        {
+            reason = TargetLocationReason.ClosestReachable;
+            bestPath = state.ReceivedItems.ShortestPaths.GetPathOrNull(state.CurrentLocation, state.CurrentLocation)!.Value;
+            return state.CurrentLocation;
+        }
+
+        PriorityQueue<LocationDefinitionModel, int> q = new();
+        q.Enqueue(state.CurrentLocation, 0);
+        HashSet<LocationDefinitionModel> settled = [];
+        while (q.TryDequeue(out LocationDefinitionModel? nextLocation, out int distance))
+        {
+            if (!settled.Add(nextLocation))
+            {
+                continue;
+            }
+
+            if (!state.CheckedLocations.Contains(nextLocation))
+            {
+                reason = TargetLocationReason.ClosestReachable;
+                bestPath = state.ReceivedItems.ShortestPaths.GetPathOrNull(state.CurrentLocation, nextLocation)!.Value;
+                return nextLocation;
+            }
+
+            foreach (LocationDefinitionModel connected in GameDefinitions.Instance.ConnectedLocations[nextLocation])
+            {
+                if (settled.Contains(connected))
+                {
+                    // already fully handled this one.
+                    continue;
+                }
+
+                if (connected.Region is LandmarkRegionDefinitionModel landmark && !landmark.Requirement.Satisfied(state.ReceivedItems))
+                {
+                    // can't actually reach it to check it.
+                    continue;
+                }
+
+                q.Enqueue(connected, distance + 1);
+            }
+        }
+
+        reason = TargetLocationReason.NowhereUsefulToMove;
+        bestPath = state.ReceivedItems.ShortestPaths.GetPathOrNull(state.CurrentLocation, state.CurrentLocation)!.Value;
+        return state.CurrentLocation;
     }
 }

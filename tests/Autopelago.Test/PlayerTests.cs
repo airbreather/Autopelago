@@ -583,6 +583,7 @@ public sealed class PlayerTests
         state = player.ReceiveItems(state, [auraItem], spoilerData);
         Assert.That(state.PriorityPriorityLocations, Is.EqualTo(new[]
         {
+            GameDefinitions.Instance.GoalLocation,
             GameDefinitions.Instance.StartLocation,
         }));
 
@@ -591,6 +592,7 @@ public sealed class PlayerTests
         state = player.ReceiveItems(state, [auraItem], spoilerData);
         Assert.That(state.PriorityPriorityLocations, Is.EqualTo(new[]
         {
+            GameDefinitions.Instance.GoalLocation,
             GameDefinitions.Instance.StartLocation,
         }));
     }

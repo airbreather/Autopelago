@@ -1,6 +1,5 @@
 using System.Collections.Frozen;
 using System.Collections.Immutable;
-using System.Diagnostics.CodeAnalysis;
 using System.Runtime.InteropServices;
 
 using CommunityToolkit.HighPerformance;
@@ -20,20 +19,20 @@ public sealed record ShortestPaths
     private readonly ImmutableArray<int> _prev;
 
     public ShortestPaths(GameDefinitions defs, ReceivedItems receivedItems)
-        : this(defs, CanExitThrough(defs, receivedItems))
+        : this(defs, CanEnter(defs, receivedItems))
     {
     }
 
     public ShortestPaths(GameDefinitions defs, CheckedLocations checkedLocations)
-        : this(defs, CanExitThrough(defs, checkedLocations))
+        : this(defs, CanEnter(defs, checkedLocations))
     {
     }
 
-    private static Func<RegionExitDefinitionModel, bool> CanExitThrough(GameDefinitions defs, ReceivedItems receivedItems)
+    private static Func<RegionDefinitionModel, bool> CanEnter(GameDefinitions defs, ReceivedItems receivedItems)
     {
-        return exit =>
+        return region =>
         {
-            if (!defs.LandmarkRegions.TryGetValue(exit.RegionKey, out LandmarkRegionDefinitionModel? landmark))
+            if (region is not LandmarkRegionDefinitionModel landmark)
             {
                 return true;
             }
@@ -47,13 +46,13 @@ public sealed record ShortestPaths
         };
     }
 
-    private static Func<RegionExitDefinitionModel, bool> CanExitThrough(GameDefinitions defs, CheckedLocations checkedLocations)
+    private static Func<RegionDefinitionModel, bool> CanEnter(GameDefinitions defs, CheckedLocations checkedLocations)
     {
         FrozenSet<string> openRegions = [.. defs.FillerRegions.Keys, .. checkedLocations.InCheckedOrder.Select(l => l.Key.RegionKey)];
-        return exit => openRegions.Contains(exit.RegionKey);
+        return region => openRegions.Contains(region.Key);
     }
 
-    private ShortestPaths(GameDefinitions defs, Func<RegionExitDefinitionModel, bool> canExitThrough)
+    private ShortestPaths(GameDefinitions defs, Func<RegionDefinitionModel, bool> canEnter)
     {
         _defs = defs;
 
@@ -73,16 +72,16 @@ public sealed record ShortestPaths
             locLookup.Add(region.Key, locList.Count);
             locList.Add(region.Key);
 
-            foreach (RegionExitDefinitionModel exit in region.Exits)
+            foreach (RegionDefinitionModel next in defs.ConnectedRegions[region])
             {
-                if (regionsSoFar.Contains(exit.RegionKey))
+                if (regionsSoFar.Contains(next.Key))
                 {
                     continue;
                 }
 
-                if (canExitThrough(exit))
+                if (canEnter(next))
                 {
-                    regions.Enqueue(defs.AllRegions[exit.RegionKey]);
+                    regions.Enqueue(next);
                 }
             }
         }
@@ -139,12 +138,6 @@ public sealed record ShortestPaths
         return _locLookup.TryGetValue(from.Key.RegionKey, out int i) && _locLookup.TryGetValue(to.Key.RegionKey, out int j) && PathExists(i, j)
             ? new(this, from, to, i, j)
             : null;
-    }
-
-    public bool TryGetPath(LocationDefinitionModel from, LocationDefinitionModel to, [NotNullWhen(true)] out Path? path)
-    {
-        path = GetPathOrNull(from, to);
-        return path is not null;
     }
 
     private bool PathExists(int i, int j)
