@@ -8,7 +8,7 @@ namespace Autopelago;
 
 public sealed class GameStateObservableProvider : IAsyncDisposable
 {
-    private readonly Player _player = new();
+    private readonly Player _player = new(GameState.Start(), FrozenDictionary<LocationDefinitionModel, ArchipelagoItemFlags>.Empty);
 
     private readonly CompositeDisposable _disposables = [];
 

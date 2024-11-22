@@ -1,5 +1,7 @@
 using System.Collections.Frozen;
 using System.Collections.Immutable;
+using System.Runtime.CompilerServices;
+using System.Text.RegularExpressions;
 
 namespace Autopelago;
 
@@ -10,16 +12,66 @@ public sealed record LocationVector
     public required LocationDefinitionModel CurrentLocation { get; init; }
 }
 
-public sealed class Player
+public sealed partial class Player
 {
-    public GameState ReceiveItems(GameState state, ImmutableArray<ItemDefinitionModel> newItems, FrozenDictionary<LocationDefinitionModel, ArchipelagoItemFlags>? spoilerData = null)
+    private readonly FrozenDictionary<LocationDefinitionModel, ArchipelagoItemFlags> _spoilerData;
+
+    private GameState _state;
+
+    public Player(GameState initialState, [CallerFilePath] string? testFilePath = null)
+        : this(initialState, GameDefinitions.Instance.LocationsByName.Values.ToFrozenDictionary(l => l, l => l.UnrandomizedItem?.ArchipelagoFlags ?? ArchipelagoItemFlags.None))
+    {
+        // this isn't bulletproof. I need only avoid accidents, not malice.
+        AllowFromTestsOnly(testFilePath);
+    }
+
+    public Player(GameState initialState, FrozenDictionary<LocationDefinitionModel, ArchipelagoItemFlags> spoilerData)
+    {
+        _state = initialState;
+        _spoilerData = spoilerData;
+    }
+
+    public GameState State => _state;
+
+    public void ArbitrarilyModifyState(Func<GameState, GameState> modify, [CallerFilePath] string? testFilePath = null)
+    {
+        // this isn't bulletproof. I need only avoid accidents, not malice.
+        AllowFromTestsOnly(testFilePath);
+        _state = modify(_state);
+    }
+
+    public bool AddPriorityLocation(LocationDefinitionModel toPrioritize)
+    {
+        if (_state.PriorityLocations.Contains(toPrioritize))
+        {
+            return false;
+        }
+
+        _state = _state with { PriorityLocations = _state.PriorityLocations.Add(toPrioritize) };
+        return true;
+    }
+
+    public LocationDefinitionModel? RemovePriorityLocation(string locationName)
+    {
+        int index = _state.PriorityLocations.FindIndex(
+            l => l.Name.Equals(locationName, StringComparison.InvariantCultureIgnoreCase));
+        if (index < 0)
+        {
+            return null;
+        }
+
+        LocationDefinitionModel removed = _state.PriorityLocations[index];
+        _state = _state with { PriorityLocations = _state.PriorityLocations.RemoveAt(index) };
+        return removed;
+    }
+
+    public void ReceiveItems(ImmutableArray<ItemDefinitionModel> newItems)
     {
         if (newItems.IsEmpty)
         {
-            return state;
+            return;
         }
 
-        spoilerData ??= GameDefinitions.Instance.LocationsByName.Values.ToFrozenDictionary(loc => loc, _ => ArchipelagoItemFlags.None);
         int foodMod = 0;
         int energyFactorMod = 0;
         int luckFactorMod = 0;
@@ -27,11 +79,11 @@ public sealed class Player
         int stylishMod = 0;
         int startledMod = 0;
         List<LocationDefinitionModel> priorityPriorityLocations = [];
-        HashSet<LocationDefinitionModel> uncheckedLocationsToIgnore = [.. state.PriorityPriorityLocations];
+        HashSet<LocationDefinitionModel> uncheckedLocationsToIgnore = [.. _state.PriorityPriorityLocations];
 
         bool VisitLocation(LocationDefinitionModel curr, ArchipelagoItemFlags flags)
         {
-            if (uncheckedLocationsToIgnore.Contains(curr) || spoilerData[curr] != flags)
+            if (uncheckedLocationsToIgnore.Contains(curr) || _spoilerData[curr] != flags)
             {
                 return true;
             }
@@ -55,12 +107,12 @@ public sealed class Player
             {
                 switch (aura)
                 {
-                    case "upset_tummy" when state.HasConfidence:
-                    case "unlucky" when state.HasConfidence:
-                    case "sluggish" when state.HasConfidence:
-                    case "distracted" when state.HasConfidence:
-                    case "startled" when state.HasConfidence:
-                    case "conspiratorial" when state.HasConfidence:
+                    case "upset_tummy" when _state.HasConfidence:
+                    case "unlucky" when _state.HasConfidence:
+                    case "sluggish" when _state.HasConfidence:
+                    case "distracted" when _state.HasConfidence:
+                    case "startled" when _state.HasConfidence:
+                    case "conspiratorial" when _state.HasConfidence:
                         subtractConfidence = true;
                         break;
 
@@ -101,11 +153,11 @@ public sealed class Player
                         break;
 
                     case "smart":
-                        state.VisitLocationsByDistanceFromCurrentLocation(smartVisitor, UncheckedLandmarkBehavior.PassThroughIfRequirementsSatisfied);
+                        _state.VisitLocationsByDistanceFromCurrentLocation(smartVisitor, UncheckedLandmarkBehavior.PassThroughIfRequirementsSatisfied);
                         break;
 
                     case "conspiratorial":
-                        state.VisitLocationsByDistanceFromCurrentLocation(conspiratorialVisitor, UncheckedLandmarkBehavior.PassThroughIfRequirementsSatisfied);
+                        _state.VisitLocationsByDistanceFromCurrentLocation(conspiratorialVisitor, UncheckedLandmarkBehavior.PassThroughIfRequirementsSatisfied);
                         break;
 
                     case "confident":
@@ -117,72 +169,72 @@ public sealed class Player
             // subtract first
             if (subtractConfidence)
             {
-                state = state with { HasConfidence = false };
+                _state = _state with { HasConfidence = false };
             }
 
             if (addConfidence)
             {
-                state = state with { HasConfidence = true };
+                _state = _state with { HasConfidence = true };
             }
         }
 
-        return state with
+        _state = _state with
         {
-            ReceivedItems = new() { InReceivedOrder = state.ReceivedItems.InReceivedOrder.AddRange(newItems) },
-            FoodFactor = state.FoodFactor + (foodMod * 5),
-            EnergyFactor = state.EnergyFactor + (energyFactorMod * 5),
-            LuckFactor = state.LuckFactor + luckFactorMod,
-            StyleFactor = state.StyleFactor + (stylishMod * 2),
-            DistractionCounter = state.DistractionCounter + distractedMod,
-            StartledCounter = state.StartledCounter + startledMod,
-            PriorityPriorityLocations = state.PriorityPriorityLocations.AddRange(priorityPriorityLocations),
+            ReceivedItems = new() { InReceivedOrder = _state.ReceivedItems.InReceivedOrder.AddRange(newItems) },
+            FoodFactor = _state.FoodFactor + (foodMod * 5),
+            EnergyFactor = _state.EnergyFactor + (energyFactorMod * 5),
+            LuckFactor = _state.LuckFactor + luckFactorMod,
+            StyleFactor = _state.StyleFactor + (stylishMod * 2),
+            DistractionCounter = _state.DistractionCounter + distractedMod,
+            StartledCounter = _state.StartledCounter + startledMod,
+            PriorityPriorityLocations = _state.PriorityPriorityLocations.AddRange(priorityPriorityLocations),
         };
     }
 
-    public GameState Advance(GameState state)
+    public void Advance()
     {
-        if (state.IsCompleted)
+        if (_state.IsCompleted)
         {
-            return state;
+            return;
         }
 
-        int actionBalance = 3 + state.ActionBalanceAfterPreviousStep;
-        switch (state.FoodFactor)
+        int actionBalance = 3 + _state.ActionBalanceAfterPreviousStep;
+        switch (_state.FoodFactor)
         {
             case < 0:
                 --actionBalance;
-                state = state with { FoodFactor = state.FoodFactor + 1 };
+                _state = _state with { FoodFactor = _state.FoodFactor + 1 };
                 break;
 
             case > 0:
                 ++actionBalance;
-                state = state with { FoodFactor = state.FoodFactor - 1 };
+                _state = _state with { FoodFactor = _state.FoodFactor - 1 };
                 break;
         }
 
-        if (state.DistractionCounter > 0)
+        if (_state.DistractionCounter > 0)
         {
             // being startled takes priority over a distraction. you just saw a ghost, you're not
             // thinking about the Rubik's Cube that you got at about the same time!
-            if (state.StartledCounter == 0)
+            if (_state.StartledCounter == 0)
             {
                 actionBalance = 0;
             }
 
-            state = state with { DistractionCounter = state.DistractionCounter - 1 };
+            _state = _state with { DistractionCounter = _state.DistractionCounter - 1 };
         }
 
         List<LocationVector> movementLog = [];
-        TargetLocationReason bestTargetLocationReason = state.TargetLocationReason;
-        while (actionBalance > 0 && !state.IsCompleted)
+        TargetLocationReason bestTargetLocationReason = _state.TargetLocationReason;
+        while (actionBalance > 0 && !_state.IsCompleted)
         {
             --actionBalance;
 
-            LocationDefinitionModel bestTargetLocation = BestTargetLocation(state, out bestTargetLocationReason, out ShortestPaths.Path bestPathToTargetLocation);
-            if (state.TargetLocation != bestTargetLocation)
+            LocationDefinitionModel bestTargetLocation = BestTargetLocation(out bestTargetLocationReason, out ShortestPaths.Path bestPathToTargetLocation);
+            if (_state.TargetLocation != bestTargetLocation)
             {
                 // changing your route takes an action...
-                state = state with { TargetLocation = bestTargetLocation };
+                _state = _state with { TargetLocation = bestTargetLocation };
 
                 // ...unless you're startled, in which case it was instinct.
                 if (bestTargetLocationReason != TargetLocationReason.Startled)
@@ -192,18 +244,18 @@ public sealed class Player
             }
 
             bool moved = false;
-            if (state.CurrentLocation != bestTargetLocation)
+            if (_state.CurrentLocation != bestTargetLocation)
             {
-                switch (state.EnergyFactor)
+                switch (_state.EnergyFactor)
                 {
                     case < 0:
                         --actionBalance;
-                        state = state with { EnergyFactor = state.EnergyFactor + 1 };
+                        _state = _state with { EnergyFactor = _state.EnergyFactor + 1 };
                         break;
 
                     case > 0:
                         ++actionBalance;
-                        state = state with { EnergyFactor = state.EnergyFactor - 1 };
+                        _state = _state with { EnergyFactor = _state.EnergyFactor - 1 };
                         break;
                 }
 
@@ -212,41 +264,41 @@ public sealed class Player
                 // combat this, every time the player decides to move, they can advance up to three
                 // whole spaces towards their target. this keeps the overall progression speed the
                 // same in dense areas.
-                for (int i = 0; i < 3 && state.CurrentLocation != state.TargetLocation; i++)
+                for (int i = 0; i < 3 && _state.CurrentLocation != _state.TargetLocation; i++)
                 {
                     movementLog.Add(new()
                     {
                         PreviousLocation = bestPathToTargetLocation.Locations[i],
                         CurrentLocation = bestPathToTargetLocation.Locations[i + 1],
                     });
-                    state = state with { CurrentLocation = movementLog[^1].CurrentLocation };
+                    _state = _state with { CurrentLocation = movementLog[^1].CurrentLocation };
                     moved = true;
                 }
             }
 
-            if (!moved && state.StartledCounter == 0 && !state.CheckedLocations.Contains(state.CurrentLocation))
+            if (!moved && _state.StartledCounter == 0 && !_state.CheckedLocations.Contains(_state.CurrentLocation))
             {
-                bool success = state.CurrentLocation.TryCheck(ref state);
-                state = state with { LocationCheckAttemptsThisStep = state.LocationCheckAttemptsThisStep + 1 };
+                bool success = _state.CurrentLocation.TryCheck(ref _state);
+                _state = _state with { LocationCheckAttemptsThisStep = _state.LocationCheckAttemptsThisStep + 1 };
                 if (!success)
                 {
                     continue;
                 }
             }
 
-            if (bestTargetLocationReason == TargetLocationReason.Priority && state.CurrentLocation == state.TargetLocation)
+            if (bestTargetLocationReason == TargetLocationReason.Priority && _state.CurrentLocation == _state.TargetLocation)
             {
                 // we've reached our next priority location. remove it from the queue.
-                LocationDefinitionModel targetLocation = state.TargetLocation;
-                state = state with { PriorityLocations = state.PriorityLocations.RemoveAll(l => l == targetLocation) };
+                LocationDefinitionModel targetLocation = _state.TargetLocation;
+                _state = _state with { PriorityLocations = _state.PriorityLocations.RemoveAll(l => l == targetLocation) };
             }
 
             // figure out if anything above changed our best target location. if not, then don't
             // update anything so that the Epoch will stay the same!
-            bestTargetLocation = BestTargetLocation(state, out bestTargetLocationReason, out bestPathToTargetLocation);
-            if (bestTargetLocation != state.TargetLocation)
+            bestTargetLocation = BestTargetLocation(out bestTargetLocationReason, out bestPathToTargetLocation);
+            if (bestTargetLocation != _state.TargetLocation)
             {
-                state = state with { TargetLocation = bestTargetLocation };
+                _state = _state with { TargetLocation = bestTargetLocation };
             }
         }
 
@@ -258,93 +310,91 @@ public sealed class Player
             actionBalance = 0;
         }
 
-        if (state.LocationCheckAttemptsThisStep != 0)
+        if (_state.LocationCheckAttemptsThisStep != 0)
         {
-            state = state with { LocationCheckAttemptsThisStep = 0 };
+            _state = _state with { LocationCheckAttemptsThisStep = 0 };
         }
 
-        if (state.ActionBalanceAfterPreviousStep != actionBalance)
+        if (_state.ActionBalanceAfterPreviousStep != actionBalance)
         {
-            state = state with { ActionBalanceAfterPreviousStep = actionBalance };
+            _state = _state with { ActionBalanceAfterPreviousStep = actionBalance };
         }
 
-        if (state.StartledCounter > 0)
+        if (_state.StartledCounter > 0)
         {
-            state = state with { StartledCounter = state.StartledCounter - 1 };
-            if (state.StartledCounter == 0)
+            _state = _state with { StartledCounter = _state.StartledCounter - 1 };
+            if (_state.StartledCounter == 0)
             {
-                LocationDefinitionModel bestTargetLocation = BestTargetLocation(state, out _, out _);
-                if (bestTargetLocation != state.TargetLocation)
+                LocationDefinitionModel bestTargetLocation = BestTargetLocation(out _, out _);
+                if (bestTargetLocation != _state.TargetLocation)
                 {
-                    state = state with { TargetLocation = bestTargetLocation };
+                    _state = _state with { TargetLocation = bestTargetLocation };
                 }
             }
         }
 
         if (movementLog.Count == 0)
         {
-            if (state.PreviousStepMovementLog.Length > 1)
+            if (_state.PreviousStepMovementLog.Length > 1)
             {
-                state = state with { PreviousStepMovementLog = [state.PreviousStepMovementLog[^1]] };
+                _state = _state with { PreviousStepMovementLog = [_state.PreviousStepMovementLog[^1]] };
             }
         }
         else
         {
-            state = state with { PreviousStepMovementLog = [.. movementLog] };
+            _state = _state with { PreviousStepMovementLog = [.. movementLog] };
         }
 
-        if (state.TargetLocationReason != bestTargetLocationReason)
+        if (_state.TargetLocationReason != bestTargetLocationReason)
         {
-            state = state with { TargetLocationReason = bestTargetLocationReason };
+            _state = _state with { TargetLocationReason = bestTargetLocationReason };
         }
-
-        return state;
     }
 
-    private LocationDefinitionModel BestTargetLocation(GameState state, out TargetLocationReason reason, out ShortestPaths.Path bestPath)
+    private LocationDefinitionModel BestTargetLocation(out TargetLocationReason reason, out ShortestPaths.Path bestPath)
     {
-        if (state.StartledCounter > 0)
+        if (_state.StartledCounter > 0)
         {
             reason = TargetLocationReason.Startled;
-            bestPath = state.CheckedLocations.ShortestPaths.GetPathOrNull(state.CurrentLocation, GameDefinitions.Instance.StartLocation)!.Value;
+            bestPath = _state.CheckedLocations.ShortestPaths.GetPathOrNull(_state.CurrentLocation, GameDefinitions.Instance.StartLocation)!.Value;
             return GameDefinitions.Instance.StartLocation;
         }
 
-        foreach (LocationDefinitionModel priorityPriorityLocation in state.PriorityPriorityLocations)
+        foreach (LocationDefinitionModel priorityPriorityLocation in _state.PriorityPriorityLocations)
         {
-            if (state.ReceivedItems.ShortestPaths.GetPathOrNull(state.CurrentLocation, priorityPriorityLocation) is ShortestPaths.Path priorityPath)
+            if (_state.ReceivedItems.ShortestPaths.GetPathOrNull(_state.CurrentLocation, priorityPriorityLocation) is ShortestPaths.Path priorityPath)
             {
                 reason = priorityPriorityLocation == GameDefinitions.Instance.GoalLocation
                     ? TargetLocationReason.GoMode
                     : TargetLocationReason.PriorityPriority;
-                bestPath = state.CheckedLocations.ShortestPaths.GetPathOrNull(state.CurrentLocation, priorityPriorityLocation) ?? priorityPath;
+                bestPath = _state.CheckedLocations.ShortestPaths.GetPathOrNull(_state.CurrentLocation, priorityPriorityLocation) ?? priorityPath;
                 return
-                    bestPath.Locations.FirstOrDefault(l => l.Region is LandmarkRegionDefinitionModel landmark && !state.CheckedLocations.Contains(landmark)) ??
+                    bestPath.Locations.FirstOrDefault(l => l.Region is LandmarkRegionDefinitionModel landmark && !_state.CheckedLocations.Contains(landmark)) ??
                     bestPath.Locations[^1];
             }
         }
 
-        foreach (LocationDefinitionModel priorityLocation in state.PriorityLocations)
+        foreach (LocationDefinitionModel priorityLocation in _state.PriorityLocations)
         {
-            if (state.ReceivedItems.ShortestPaths.GetPathOrNull(state.CurrentLocation, priorityLocation) is ShortestPaths.Path priorityPath)
+            if (_state.ReceivedItems.ShortestPaths.GetPathOrNull(_state.CurrentLocation, priorityLocation) is ShortestPaths.Path priorityPath)
             {
                 reason = TargetLocationReason.Priority;
-                bestPath = state.CheckedLocations.ShortestPaths.GetPathOrNull(state.CurrentLocation, priorityLocation) ?? priorityPath;
+                bestPath = _state.CheckedLocations.ShortestPaths.GetPathOrNull(_state.CurrentLocation, priorityLocation) ?? priorityPath;
                 return
-                    bestPath.Locations.FirstOrDefault(l => l.Region is LandmarkRegionDefinitionModel landmark && !state.CheckedLocations.Contains(landmark)) ??
+                    bestPath.Locations.FirstOrDefault(l => l.Region is LandmarkRegionDefinitionModel landmark && !_state.CheckedLocations.Contains(landmark)) ??
                     bestPath.Locations[^1];
             }
         }
 
-        if (!state.CheckedLocations.Contains(state.CurrentLocation))
+        if (!_state.CheckedLocations.Contains(_state.CurrentLocation))
         {
             reason = TargetLocationReason.ClosestReachable;
-            bestPath = state.ReceivedItems.ShortestPaths.GetPathOrNull(state.CurrentLocation, state.CurrentLocation)!.Value;
-            return state.CurrentLocation;
+            bestPath = _state.ReceivedItems.ShortestPaths.GetPathOrNull(_state.CurrentLocation, _state.CurrentLocation)!.Value;
+            return _state.CurrentLocation;
         }
 
         PriorityQueue<LocationDefinitionModel, int> q = new();
-        q.Enqueue(state.CurrentLocation, 0);
+        q.Enqueue(_state.CurrentLocation, 0);
         HashSet<LocationDefinitionModel> settled = [];
         while (q.TryDequeue(out LocationDefinitionModel? nextLocation, out int distance))
         {
@@ -353,10 +403,10 @@ public sealed class Player
                 continue;
             }
 
-            if (!state.CheckedLocations.Contains(nextLocation))
+            if (!_state.CheckedLocations.Contains(nextLocation))
             {
                 reason = TargetLocationReason.ClosestReachable;
-                bestPath = state.ReceivedItems.ShortestPaths.GetPathOrNull(state.CurrentLocation, nextLocation)!.Value;
+                bestPath = _state.ReceivedItems.ShortestPaths.GetPathOrNull(_state.CurrentLocation, nextLocation)!.Value;
                 return nextLocation;
             }
 
@@ -368,7 +418,7 @@ public sealed class Player
                     continue;
                 }
 
-                if (connected.Region is LandmarkRegionDefinitionModel landmark && !landmark.Requirement.Satisfied(state.ReceivedItems))
+                if (connected.Region is LandmarkRegionDefinitionModel landmark && !landmark.Requirement.Satisfied(_state.ReceivedItems))
                 {
                     // can't actually reach it to check it.
                     continue;
@@ -379,7 +429,18 @@ public sealed class Player
         }
 
         reason = TargetLocationReason.NowhereUsefulToMove;
-        bestPath = state.ReceivedItems.ShortestPaths.GetPathOrNull(state.CurrentLocation, state.CurrentLocation)!.Value;
-        return state.CurrentLocation;
+        bestPath = _state.ReceivedItems.ShortestPaths.GetPathOrNull(_state.CurrentLocation, _state.CurrentLocation)!.Value;
+        return _state.CurrentLocation;
     }
+
+    private static void AllowFromTestsOnly(ReadOnlySpan<char> filePath, [CallerArgumentExpression(nameof(filePath))] string? paramName = null)
+    {
+        if (!MyRegex().IsMatch(filePath))
+        {
+            throw new ArgumentException("Spoiler data is required for all real callers.", paramName);
+        }
+    }
+
+    [GeneratedRegex(@"Autopelago\.Test[/\\][^/\\]*\.cs", RegexOptions.Compiled | RegexOptions.CultureInvariant)]
+    private static partial Regex MyRegex();
 }
