@@ -22,6 +22,8 @@ public sealed record ReceivedItems
 
     public int Count => InReceivedOrder.Count;
 
+    public ShortestPaths ShortestPaths => _shortestPaths.Value;
+
     public bool Contains(ItemDefinitionModel item) => _lookup.Value.Contains(item);
 
     public int RatCount => _ratCount.Value;

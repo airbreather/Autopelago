@@ -308,61 +308,11 @@ public sealed class Player
 
     public LocationDefinitionModel? NextGoModeLocation(GameState state)
     {
-        List<(LocationDefinitionModel Location, int Depth)> goModeTargets = [];
-        HashSet<string> satisfiedLandmarks = [];
-        HashSet<string> unsatisfiedLandmarks = [];
-        foreach (ImmutableArray<LandmarkRegionDefinitionModel> goModePath in s_allGoModePaths)
-        {
-            ImmutableList<ItemDefinitionModel> receivedItems = state.ReceivedItems.InReceivedOrder;
-            foreach (LandmarkRegionDefinitionModel region in goModePath)
-            {
-                if (unsatisfiedLandmarks.Contains(region.Key))
-                {
-                    goto nextGoModePath;
-                }
-
-                if (satisfiedLandmarks.Contains(region.Key))
-                {
-                    if (region.Locations[0].RewardIsFixed)
-                    {
-                        receivedItems = receivedItems.Add(region.Locations[0].UnrandomizedItem!);
-                    }
-
-                    continue;
-                }
-
-                if (!(region.Requirement.Satisfied(receivedItems)))
-                {
-                    unsatisfiedLandmarks.Add(region.Key);
-                    goto nextGoModePath;
-                }
-
-                satisfiedLandmarks.Add(region.Key);
-                if (region.Locations[0].RewardIsFixed)
-                {
-                    receivedItems = receivedItems.Add(region.Locations[0].UnrandomizedItem!);
-                }
-            }
-
-            for (int i = 0; i < goModePath.Length; i++)
-            {
-                if (!state.CheckedLocations.Contains(goModePath[i]))
-                {
-                    goModeTargets.Add((goModePath[i].Locations[0], i));
-                    goto nextGoModePath;
-                }
-            }
-
-            return GameDefinitions.Instance.GoalLocation;
-        nextGoModePath:;
-        }
-
-        if (goModeTargets.Count > 0)
-        {
-            return goModeTargets.MaxBy(tgt => tgt.Depth).Location;
-        }
-
-        return null;
+        return state.CheckedLocations.ShortestPaths.TryGetPath(state.CurrentLocation, GameDefinitions.Instance.GoalLocation, out ShortestPaths.Path? pathByChecked)
+            ? GameDefinitions.Instance.GoalLocation
+            : state.ReceivedItems.ShortestPaths.TryGetPath(state.CurrentLocation, GameDefinitions.Instance.GoalLocation, out ShortestPaths.Path? pathByCheckable)
+                ? pathByCheckable.Value.Locations.First(l => l.Region is LandmarkRegionDefinitionModel && !state.CheckedLocations.Contains(l))
+                : null;
     }
 
     public LocationDefinitionModel BestTargetLocation(GameState state, out BestTargetLocationReason reason)

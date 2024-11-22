@@ -29,7 +29,20 @@ public sealed record ShortestPaths
 
     private static Func<RegionExitDefinitionModel, bool> CanExitThrough(GameDefinitions defs, ReceivedItems receivedItems)
     {
-        return exit => !(defs.AllRegions[exit.RegionKey] is LandmarkRegionDefinitionModel landmark && !landmark.Requirement.Satisfied(receivedItems));
+        return exit =>
+        {
+            if (!defs.LandmarkRegions.TryGetValue(exit.RegionKey, out LandmarkRegionDefinitionModel? landmark))
+            {
+                return true;
+            }
+
+            if (landmark.Requirement.Satisfied(receivedItems) || landmark == defs.GoalRegion)
+            {
+                return true;
+            }
+
+            return false;
+        };
     }
 
     private static Func<RegionExitDefinitionModel, bool> CanExitThrough(GameDefinitions defs, CheckedLocations checkedLocations)
@@ -45,7 +58,7 @@ public sealed record ShortestPaths
 
         Queue<RegionDefinitionModel> regions = [];
         regions.Enqueue(defs.StartRegion);
-        HashSet<string> regionsSoFar = [defs.StartRegion.Key];
+        HashSet<string> regionsSoFar = [];
         while (regions.TryDequeue(out RegionDefinitionModel? region))
         {
             if (!regionsSoFar.Add(region.Key))
