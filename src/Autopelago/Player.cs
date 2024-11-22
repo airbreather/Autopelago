@@ -20,8 +20,6 @@ public sealed record LocationVector
 
 public sealed class Player
 {
-    private static readonly ImmutableArray<ImmutableArray<LandmarkRegionDefinitionModel>> s_allGoModePaths = ComputeAllGoModePaths();
-
     public GameState ReceiveItems(GameState state, ImmutableArray<ItemDefinitionModel> newItems, FrozenDictionary<LocationDefinitionModel, ArchipelagoItemFlags>? spoilerData = null)
     {
         if (newItems.IsEmpty)
@@ -308,11 +306,11 @@ public sealed class Player
 
     public LocationDefinitionModel? NextGoModeLocation(GameState state)
     {
-        return state.CheckedLocations.ShortestPaths.TryGetPath(state.CurrentLocation, GameDefinitions.Instance.GoalLocation, out ShortestPaths.Path? pathByChecked)
-            ? GameDefinitions.Instance.GoalLocation
-            : state.ReceivedItems.ShortestPaths.TryGetPath(state.CurrentLocation, GameDefinitions.Instance.GoalLocation, out ShortestPaths.Path? pathByCheckable)
-                ? pathByCheckable.Value.Locations.First(l => l.Region is LandmarkRegionDefinitionModel && !state.CheckedLocations.Contains(l))
-                : null;
+        return state.ReceivedItems.ShortestPaths.TryGetPath(state.CurrentLocation, GameDefinitions.Instance.GoalLocation, out ShortestPaths.Path? pathByCheckable)
+            ? state.CheckedLocations.ShortestPaths.TryGetPath(state.CurrentLocation, GameDefinitions.Instance.GoalLocation, out ShortestPaths.Path? pathByChecked)
+                ? GameDefinitions.Instance.GoalLocation
+                : pathByCheckable.Value.Locations.First(l => l.Region is LandmarkRegionDefinitionModel && !state.CheckedLocations.Contains(l))
+            : null;
     }
 
     public LocationDefinitionModel BestTargetLocation(GameState state, out BestTargetLocationReason reason)
@@ -381,33 +379,5 @@ public sealed class Player
         }
 
         return null;
-    }
-
-    private static ImmutableArray<ImmutableArray<LandmarkRegionDefinitionModel>> ComputeAllGoModePaths()
-    {
-        Queue<(RegionDefinitionModel Region, ImmutableList<LandmarkRegionDefinitionModel> Landmarks)> regionsQueue = new();
-        regionsQueue.Enqueue((GameDefinitions.Instance.StartRegion, []));
-        List<ImmutableArray<LandmarkRegionDefinitionModel>> paths = [];
-        while (regionsQueue.TryDequeue(out (RegionDefinitionModel Region, ImmutableList<LandmarkRegionDefinitionModel> Landmarks) next))
-        {
-            (RegionDefinitionModel nextRegion, ImmutableList<LandmarkRegionDefinitionModel> incomingLandmarks) = next;
-            if (nextRegion == GameDefinitions.Instance.GoalRegion)
-            {
-                paths.Add([.. incomingLandmarks]);
-                continue;
-            }
-
-            if (nextRegion is LandmarkRegionDefinitionModel landmark)
-            {
-                incomingLandmarks = incomingLandmarks.Add(landmark);
-            }
-
-            foreach (RegionExitDefinitionModel exit in nextRegion.Exits)
-            {
-                regionsQueue.Enqueue((exit.Region, incomingLandmarks));
-            }
-        }
-
-        return [.. paths];
     }
 }

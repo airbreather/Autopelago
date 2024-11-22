@@ -9,9 +9,11 @@ namespace Autopelago;
 
 public sealed record ShortestPaths
 {
-    private readonly ImmutableArray<LocationDefinitionModel> _loc;
+    private readonly GameDefinitions _defs;
 
-    private readonly FrozenDictionary<LocationDefinitionModel, int> _locLookup;
+    private readonly ImmutableArray<string> _loc;
+
+    private readonly FrozenDictionary<string, int> _locLookup;
 
     private readonly ImmutableArray<uint> _dist;
 
@@ -53,8 +55,10 @@ public sealed record ShortestPaths
 
     private ShortestPaths(GameDefinitions defs, Func<RegionExitDefinitionModel, bool> canExitThrough)
     {
-        List<LocationDefinitionModel> locList = [];
-        Dictionary<LocationDefinitionModel, int> locLookup = [];
+        _defs = defs;
+
+        List<string> locList = [];
+        Dictionary<string, int> locLookup = [];
 
         Queue<RegionDefinitionModel> regions = [];
         regions.Enqueue(defs.StartRegion);
@@ -66,12 +70,8 @@ public sealed record ShortestPaths
                 continue;
             }
 
-            locList.EnsureCapacity(locList.Count + region.Locations.Length);
-            foreach (LocationDefinitionModel location in region.Locations)
-            {
-                locLookup.Add(location, locList.Count);
-                locList.Add(location);
-            }
+            locLookup.Add(region.Key, locList.Count);
+            locList.Add(region.Key);
 
             foreach (RegionExitDefinitionModel exit in region.Exits)
             {
@@ -87,7 +87,7 @@ public sealed record ShortestPaths
             }
         }
 
-        ImmutableArray<LocationDefinitionModel> loc = _loc = [.. locList];
+        ImmutableArray<string> loc = _loc = [.. locList];
         _locLookup = locLookup.ToFrozenDictionary();
 
         uint[] dist = new uint[loc.Length * loc.Length];
@@ -101,9 +101,9 @@ public sealed record ShortestPaths
         {
             dist2D[i, i] = 0;
             prev2D[i, i] = i;
-            foreach (LocationDefinitionModel connected in defs.ConnectedLocations[loc[i]])
+            foreach (RegionExitDefinitionModel connected in defs.AllRegions[loc[i]].Exits)
             {
-                if (!locLookup.TryGetValue(connected, out int j))
+                if (!locLookup.TryGetValue(connected.RegionKey, out int j))
                 {
                     continue;
                 }
@@ -136,8 +136,8 @@ public sealed record ShortestPaths
 
     public Path? GetPathOrNull(LocationDefinitionModel from, LocationDefinitionModel to)
     {
-        return _locLookup.TryGetValue(from, out int i) && _locLookup.TryGetValue(to, out int j) && PathExists(i, j)
-            ? new(this, i, j)
+        return _locLookup.TryGetValue(from.Key.RegionKey, out int i) && _locLookup.TryGetValue(to.Key.RegionKey, out int j) && PathExists(i, j)
+            ? new(this, from, to, i, j)
             : null;
     }
 
@@ -161,38 +161,100 @@ public sealed record ShortestPaths
     {
         private readonly ShortestPaths _parent;
 
+        private readonly LocationDefinitionModel _from;
+
+        private readonly LocationDefinitionModel _to;
+
         private readonly int _i;
 
         private readonly int _j;
 
-        internal Path(ShortestPaths parent, int i, int j)
+        private readonly Lazy<ImmutableArray<LocationDefinitionModel>> _locations;
+
+        internal Path(ShortestPaths parent, LocationDefinitionModel from, LocationDefinitionModel to, int i, int j)
         {
             _parent = parent;
+            _from = from;
+            _to = to;
             _i = i;
             _j = j;
+            Path self = this;
+            _locations = new(() => self.GetLocations());
         }
 
-        public ImmutableArray<LocationDefinitionModel> Locations
+        public ImmutableArray<LocationDefinitionModel> Locations => _locations.Value;
+
+        private static bool IsForward(GameDefinitions defs, RegionDefinitionModel from, RegionDefinitionModel to)
         {
-            get
+            if (defs.ConnectedLocations[from.Locations[^1]].Contains(to.Locations[0]))
             {
-                Stack<int> stack = [];
-                stack.Push(_j);
-                int j = _j;
-                ReadOnlySpan2D<int> prev = _parent.Prev;
-                while (j != _i)
-                {
-                    stack.Push(j = prev[_i, j]);
-                }
-
-                LocationDefinitionModel[] result = new LocationDefinitionModel[stack.Count];
-                foreach (ref LocationDefinitionModel slot in result.AsSpan())
-                {
-                    slot = _parent._loc[stack.Pop()];
-                }
-
-                return ImmutableCollectionsMarshal.AsImmutableArray(result);
+                return true;
             }
+
+            if (defs.ConnectedLocations[from.Locations[0]].Contains(to.Locations[^1]))
+            {
+                return false;
+            }
+
+            // the regions are not connected.
+            throw new InvalidOperationException("Floyd-Warshall not correct (this is a programming error).");
+        }
+
+        private ImmutableArray<LocationDefinitionModel> GetLocations()
+        {
+            RegionDefinitionModel fromRegion = _parent._defs.AllRegions[_from.Key.RegionKey];
+            RegionDefinitionModel toRegion = _parent._defs.AllRegions[_to.Key.RegionKey];
+            if (fromRegion == toRegion)
+            {
+                ReadOnlySpan<LocationDefinitionModel> sameRegionLocs = _from.Key.N > _to.Key.N
+                    ? fromRegion.Locations.AsSpan((_to.Key.N)..(_from.Key.N + 1))
+                    : fromRegion.Locations.AsSpan((_from.Key.N)..(_to.Key.N + 1));
+                LocationDefinitionModel[] sameRegionResult = [..sameRegionLocs];
+                if (_from.Key.N > _to.Key.N)
+                {
+                    Array.Reverse(sameRegionResult);
+                }
+
+                return ImmutableCollectionsMarshal.AsImmutableArray(sameRegionResult);
+            }
+
+            Stack<int> stack = [];
+            stack.Push(_j);
+            int j = _j;
+            ReadOnlySpan2D<int> prev = _parent.Prev;
+            while (j != _i)
+            {
+                stack.Push(j = prev[_i, j]);
+            }
+
+            RegionDefinitionModel[] regions = new RegionDefinitionModel[stack.Count];
+            for (int i = 0; i < regions.Length; i++)
+            {
+                regions[i] = _parent._defs.AllRegions[_parent._loc[stack.Pop()]];
+            }
+
+            // this will initially contain all the locations in the "from" region leading up to
+            // the "from" location, and all the locations in the "to" region coming after the
+            // "to" location. we'll trim at the end: we need to do an array copy anyway.
+            List<LocationDefinitionModel> fullResult = [];
+            bool forward = IsForward(_parent._defs, fromRegion, regions[1]);
+            for (int i = 0; i < regions.Length; i++)
+            {
+                RegionDefinitionModel region = regions[i];
+                ImmutableArray<LocationDefinitionModel> locations = region.Locations;
+                fullResult.AddRange(locations);
+                if (!forward)
+                {
+                    fullResult.Reverse(fullResult.Count - locations.Length, locations.Length);
+                }
+
+                if (i < regions.Length - 1)
+                {
+                    forward = IsForward(_parent._defs, region, regions[i + 1]);
+                }
+            }
+
+            return [.. fullResult[fullResult.IndexOf(_from)..(fullResult.LastIndexOf(_to) + 1)]];
         }
     }
 }
