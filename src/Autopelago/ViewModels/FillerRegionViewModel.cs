@@ -7,7 +7,7 @@ namespace Autopelago.ViewModels;
 
 public sealed class FillerRegionViewModel : ViewModelBase
 {
-    internal static readonly Vector s_toCenter = new Point(16, 16) / 2;
+    internal static readonly Vector ToCenter = new Point(16, 16) / 2;
 
 #pragma warning disable format
     private static readonly FrozenDictionary<string, ImmutableArray<Point>> s_definingPoints = new Dictionary<string, ImmutableArray<Point>>
@@ -54,7 +54,7 @@ public sealed class FillerRegionViewModel : ViewModelBase
         ["after_space_opera"] = [new(184, 346), new(242, 354)],
         ["before_asteroid_with_pants"] = [new(195, 400), new(231, 406)],
         ["after_minotaur_labyrinth"] = [new(195, 398), new(207, 386), new(209, 385), new(216, 378), new(218, 377), new(226, 369), new(228, 368), new(236, 360), new(238, 359), new(242, 355)],
-    }.ToFrozenDictionary(kvp => kvp.Key, kvp => ImmutableArray.CreateRange(kvp.Value, p => p - s_toCenter));
+    }.ToFrozenDictionary(kvp => kvp.Key, kvp => ImmutableArray.CreateRange(kvp.Value, p => p - ToCenter));
 #pragma warning restore format
 
     public FillerRegionViewModel(FillerRegionDefinitionModel model)

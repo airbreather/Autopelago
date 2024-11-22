@@ -212,7 +212,7 @@ public sealed partial class GameStateViewModel : ViewModelBase, IDisposable
 
         FrozenDictionary<string, FillerRegionViewModel> fillerRegionLookup = GameDefinitions.Instance.FillerRegions
             .ToFrozenDictionary(kvp => kvp.Key, kvp => new FillerRegionViewModel(kvp.Value));
-        FillerLocationPoints = [.. fillerRegionLookup.Values.SelectMany(r => r.LocationPoints).Select(p => p + FillerRegionViewModel.s_toCenter)];
+        FillerLocationPoints = [.. fillerRegionLookup.Values.SelectMany(r => r.LocationPoints).Select(p => p + FillerRegionViewModel.ToCenter)];
 
         _subscriptions.Add(this
             .WhenAnyValue(x => x.CurrentLocation)
