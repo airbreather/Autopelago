@@ -30,7 +30,7 @@ EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "runner-dockerfiles", "runner-dockerfiles", "{04F180EB-D343-496E-8790-A52885A902D4}"
 	ProjectSection(SolutionItems) = preProject
 		.forgejo\runner-dockerfiles\Dockerfile.forgejo-runner = .forgejo\runner-dockerfiles\Dockerfile.forgejo-runner
-		.forgejo\runner-dockerfiles\Dockerfile.dotnet-sdk-8.0-forgejo-runner = .forgejo\runner-dockerfiles\Dockerfile.dotnet-sdk-8.0-forgejo-runner
+		.forgejo\runner-dockerfiles\Dockerfile.dotnet-sdk-9.0-forgejo-runner = .forgejo\runner-dockerfiles\Dockerfile.dotnet-sdk-9.0-forgejo-runner
 	EndProjectSection
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "workflows", "workflows", "{64CFBC04-8ABD-4104-94BB-9B2CBD09B836}"
