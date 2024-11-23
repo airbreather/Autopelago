@@ -12,40 +12,44 @@ public sealed record LocationVector
     public required LocationDefinitionModel CurrentLocation { get; init; }
 }
 
-public sealed partial class Player
+public sealed partial class Game
 {
     private readonly FrozenDictionary<LocationDefinitionModel, ArchipelagoItemFlags> _spoilerData;
 
     private GameState _state;
 
-    public Player(GameState initialState, [CallerFilePath] string? testFilePath = null)
+    private ShortestPaths.Path _pathToTargetLocation = ShortestPaths.Path.Only(GameDefinitions.Instance.StartLocation);
+
+    private int _locationCheckAttemptsThisStep;
+
+    private int _actionBalanceAfterPreviousStep;
+
+    public Game(GameState initialState, [CallerFilePath] string? testFilePath = null)
         : this(initialState, GameDefinitions.Instance.LocationsByName.Values.ToFrozenDictionary(l => l, l => l.UnrandomizedItem?.ArchipelagoFlags ?? ArchipelagoItemFlags.None))
     {
         // this isn't bulletproof. I need only avoid accidents, not malice.
         AllowFromTestsOnly(testFilePath);
     }
 
-    public Player(GameState initialState, FrozenDictionary<LocationDefinitionModel, ArchipelagoItemFlags> spoilerData)
+    public Game(GameState initialState, FrozenDictionary<LocationDefinitionModel, ArchipelagoItemFlags> spoilerData)
     {
         _state = initialState;
         _spoilerData = spoilerData;
     }
 
-    public ImmutableArray<LocationVector> PreviousStepMovementLog => _state.PreviousStepMovementLog;
+    public ImmutableArray<LocationVector> PreviousStepMovementLog { get; private set; } = [];
 
     public LocationDefinitionModel CurrentLocation => _state.CurrentLocation;
 
     public LocationDefinitionModel TargetLocation => _state.TargetLocation;
 
-    public TargetLocationReason TargetLocationReason => _state.TargetLocationReason;
-
-    private ShortestPaths.Path PathToTargetLocation => _state.PathToTargetLocation;
+    public TargetLocationReason TargetLocationReason { get; private set; } = TargetLocationReason.GameNotStarted;
 
     public ReceivedItems ReceivedItems => _state.ReceivedItems;
 
     public CheckedLocations CheckedLocations => _state.CheckedLocations;
 
-    public ImmutableList<LocationDefinitionModel> PriorityPriorityLocations => _state.PriorityPriorityLocations;
+    public ImmutableList<LocationDefinitionModel> PriorityPriorityLocations { get; private set; } = [GameDefinitions.Instance.GoalLocation];
 
     public ImmutableList<LocationDefinitionModel> PriorityLocations => _state.PriorityLocations;
 
@@ -63,13 +67,11 @@ public sealed partial class Player
 
     public bool HasConfidence => _state.HasConfidence;
 
-    private int LocationCheckAttemptsThisStep => _state.LocationCheckAttemptsThisStep;
-
-    private int ActionBalanceAfterPreviousStep => _state.ActionBalanceAfterPreviousStep;
-
     public Prng.State PrngState => _state.PrngState;
 
-    public bool IsCompleted => _state.IsCompleted;
+    public bool IsCompleted => CurrentLocation == GameDefinitions.Instance.GoalLocation;
+
+    private int DiceModifier => (ReceivedItems.RatCount / 3) - (_locationCheckAttemptsThisStep * 5);
 
     public void ArbitrarilyModifyState(Func<GameState, GameState> modify, [CallerFilePath] string? testFilePath = null)
     {
@@ -191,11 +193,11 @@ public sealed partial class Player
                         break;
 
                     case "smart":
-                        _state.VisitLocationsByDistanceFromCurrentLocation(smartVisitor, UncheckedLandmarkBehavior.PassThroughIfRequirementsSatisfied);
+                        VisitLocationsByDistanceFromCurrentLocation(smartVisitor, UncheckedLandmarkBehavior.PassThroughIfRequirementsSatisfied);
                         break;
 
                     case "conspiratorial":
-                        _state.VisitLocationsByDistanceFromCurrentLocation(conspiratorialVisitor, UncheckedLandmarkBehavior.PassThroughIfRequirementsSatisfied);
+                        VisitLocationsByDistanceFromCurrentLocation(conspiratorialVisitor, UncheckedLandmarkBehavior.PassThroughIfRequirementsSatisfied);
                         break;
 
                     case "confident":
@@ -225,8 +227,8 @@ public sealed partial class Player
             StyleFactor = StyleFactor + (stylishMod * 2),
             DistractionCounter = DistractionCounter + distractedMod,
             StartledCounter = StartledCounter + startledMod,
-            PriorityPriorityLocations = PriorityPriorityLocations.AddRange(priorityPriorityLocations),
         };
+        PriorityPriorityLocations = PriorityPriorityLocations.AddRange(priorityPriorityLocations);
     }
 
     public void Advance()
@@ -236,7 +238,7 @@ public sealed partial class Player
             return;
         }
 
-        int actionBalance = 3 + ActionBalanceAfterPreviousStep;
+        int actionBalance = 3 + _actionBalanceAfterPreviousStep;
         switch (FoodFactor)
         {
             case < 0:
@@ -298,8 +300,8 @@ public sealed partial class Player
                 {
                     movementLog.Add(new()
                     {
-                        PreviousLocation = PathToTargetLocation.Locations[i],
-                        CurrentLocation = PathToTargetLocation.Locations[i + 1],
+                        PreviousLocation = _pathToTargetLocation.Locations[i],
+                        CurrentLocation = _pathToTargetLocation.Locations[i + 1],
                     });
                     _state = _state with { CurrentLocation = movementLog[^1].CurrentLocation };
                     moved = true;
@@ -309,7 +311,7 @@ public sealed partial class Player
             if (!moved && StartledCounter == 0 && !CheckedLocations.Contains(CurrentLocation))
             {
                 bool success = TryCheck(CurrentLocation);
-                _state = _state with { LocationCheckAttemptsThisStep = LocationCheckAttemptsThisStep + 1 };
+                _locationCheckAttemptsThisStep += 1;
                 if (!success)
                 {
                     continue;
@@ -321,10 +323,10 @@ public sealed partial class Player
                 LocationDefinitionModel targetLocation = TargetLocation;
                 _state = TargetLocationReason switch
                 {
-                    TargetLocationReason.PriorityPriority => _state with { PriorityPriorityLocations = PriorityPriorityLocations.RemoveAll(l => l == targetLocation) },
                     TargetLocationReason.Priority => _state with { PriorityLocations = PriorityLocations.RemoveAll(l => l == targetLocation) },
                     _ => _state,
                 };
+                PriorityPriorityLocations = PriorityPriorityLocations.RemoveAll(l => l == targetLocation);
             }
 
             // don't burn more than one action per round on changing the target location. we only do
@@ -349,18 +351,15 @@ public sealed partial class Player
 
         if (movementLog.Count == 0 && PreviousStepMovementLog.Length > 1)
         {
-            _state = _state with { PreviousStepMovementLog = [PreviousStepMovementLog[^1]] };
+            PreviousStepMovementLog = [PreviousStepMovementLog[^1]];
         }
         else
         {
-            _state = _state with { PreviousStepMovementLog = [.. movementLog] };
+            PreviousStepMovementLog = [.. movementLog];
         }
 
-        _state = _state with
-        {
-            LocationCheckAttemptsThisStep = 0,
-            ActionBalanceAfterPreviousStep = actionBalance,
-        };
+        _actionBalanceAfterPreviousStep = actionBalance;
+        _locationCheckAttemptsThisStep = 0;
     }
 
     private bool UpdateTargetLocation()
@@ -369,9 +368,9 @@ public sealed partial class Player
         _state = _state with
         {
             TargetLocation = BestTargetLocation(out TargetLocationReason bestTargetLocationReason, out ShortestPaths.Path bestPathToTargetLocation),
-            TargetLocationReason = bestTargetLocationReason,
-            PathToTargetLocation = bestPathToTargetLocation,
         };
+        TargetLocationReason = bestTargetLocationReason;
+        _pathToTargetLocation = bestPathToTargetLocation;
         return TargetLocation != prevTargetLocation;
     }
 
@@ -478,7 +477,7 @@ public sealed partial class Player
             _state = _state with { StyleFactor = _state.StyleFactor - 1 };
         }
 
-        if (GameState.NextD20(ref _state) + _state.DiceModifier + extraDiceModifier < location.AbilityCheckDC)
+        if (GameState.NextD20(ref _state) + DiceModifier + extraDiceModifier < location.AbilityCheckDC)
         {
             return false;
         }
@@ -492,6 +491,71 @@ public sealed partial class Player
             },
         };
         return true;
+    }
+
+    private void VisitLocationsByDistanceFromCurrentLocation(LocationVisitor visitor, UncheckedLandmarkBehavior uncheckedLandmarkBehavior)
+    {
+        IEnumerable<string> allowedRegions = GameDefinitions.Instance.FillerRegions.Keys;
+        switch (uncheckedLandmarkBehavior)
+        {
+            case UncheckedLandmarkBehavior.PassThroughIfRequirementsSatisfied:
+                allowedRegions = allowedRegions.Concat(GameDefinitions.Instance.LandmarkRegions.Values
+                    .Where(r => r.Requirement.Satisfied(ReceivedItems))
+                    .Select(r => r.Key));
+                goto case UncheckedLandmarkBehavior.DoNotPassThrough;
+
+            case UncheckedLandmarkBehavior.DoNotPassThrough:
+                allowedRegions = allowedRegions.Concat(CheckedLocations.InCheckedOrder.Select(l => l.Key.RegionKey));
+                break;
+
+            case UncheckedLandmarkBehavior.AlwaysPassThrough:
+                allowedRegions = GameDefinitions.Instance.AllRegions.Keys;
+                break;
+        }
+
+        FrozenSet<string> allowedRegionsSet = [.. allowedRegions];
+
+        // we skip visiting CurrentLocation so that previousLocation can be non-nullable
+        HashSet<LocationDefinitionModel> visitedLocations = [CurrentLocation];
+        PriorityQueue<(LocationDefinitionModel CurrentLocation, LocationDefinitionModel PreviousLocation), int> q = new();
+        foreach (LocationDefinitionModel connectedLocation in GameDefinitions.Instance.ConnectedLocations[CurrentLocation])
+        {
+            if (allowedRegionsSet.Contains(connectedLocation.Key.RegionKey))
+            {
+                q.Enqueue((connectedLocation, CurrentLocation), 1);
+            }
+        }
+
+        while (q.TryDequeue(out var tup, out int distance))
+        {
+            (LocationDefinitionModel curr, LocationDefinitionModel prev) = tup;
+            if (!visitedLocations.Add(curr))
+            {
+                continue;
+            }
+
+            if (!visitor.VisitLocation(
+                    currentLocation: curr,
+                    previousLocation: prev,
+                    distance: distance,
+                    alreadyChecked: CheckedLocations.Contains(curr)))
+            {
+                return;
+            }
+
+            foreach (LocationDefinitionModel next in GameDefinitions.Instance.ConnectedLocations[curr])
+            {
+                // allow the goal location here: if it's connected to a reachable location, then we
+                // consider it to be reachable itself. this lets us get away with not having to keep
+                // track of the locations with fixed rewards, though a future YAML change could make
+                // that no longer correct, so it feels A LITTLE BIT hacky.
+                if (next == GameDefinitions.Instance.GoalLocation ||
+                    allowedRegionsSet.Contains(next.Key.RegionKey) && !visitedLocations.Contains(next))
+                {
+                    q.Enqueue((next, curr), distance + 1);
+                }
+            }
+        }
     }
 
     private static void AllowFromTestsOnly(ReadOnlySpan<char> filePath, [CallerArgumentExpression(nameof(filePath))] string? paramName = null)
