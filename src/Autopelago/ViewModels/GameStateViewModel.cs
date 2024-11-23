@@ -697,7 +697,7 @@ public sealed partial class GameStateViewModel : ViewModelBase, IDisposable
                     ApplyAuraData(auraData);
                 }
 
-                _game = new(Prng.State.Start(8675309), _spoilerData);
+                _game.ArbitrarilyModifyState(g => g.SpoilerData, _spoilerData);
                 _started = true;
                 UpdateMeters();
                 _dataAvailableSignal.Release();
