@@ -220,7 +220,7 @@ public sealed record GameState
                 StartledCounter,
                 HasConfidence,
                 ReceivedItems,
-                CheckedLocations.Count,
+                CheckedLocations,
                 PriorityPriorityLocations.Count,
                 PriorityLocations.Count)
         );
