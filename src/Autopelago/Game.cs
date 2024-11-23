@@ -34,8 +34,6 @@ public sealed class Game
 {
     private ShortestPaths.Path _pathToTargetLocation = ShortestPaths.Path.Only(GameDefinitions.Instance.StartLocation);
 
-    private int _locationCheckAttemptsThisStep;
-
     private int _actionBalanceAfterPreviousStep;
 
     public Game(Prng.State prngState)
@@ -84,8 +82,6 @@ public sealed class Game
     public Prng.State PrngState { get; private set; }
 
     public bool IsCompleted => CurrentLocation == GameDefinitions.Instance.GoalLocation;
-
-    private int DiceModifier => (ReceivedItems.RatCount / 3) - (_locationCheckAttemptsThisStep * 5);
 
     public void ArbitrarilyModifyState<T>(Expression<Func<Game, T>> prop, T value)
     {
@@ -273,6 +269,7 @@ public sealed class Game
             DistractionCounter -= 1;
         }
 
+        int diceModifier = ReceivedItems.RatCount / 3;
         List<LocationVector> movementLog = [];
         while (actionBalance > 0 && !IsCompleted)
         {
@@ -319,9 +316,34 @@ public sealed class Game
 
             if (!moved && StartledCounter == 0 && !CheckedLocations.Contains(CurrentLocation))
             {
-                bool success = TryCheck(CurrentLocation);
-                _locationCheckAttemptsThisStep += 1;
-                if (!success)
+                int immediateDiceModifier = diceModifier;
+                bool forceSuccess = false;
+                diceModifier -= 5;
+
+                switch (LuckFactor)
+                {
+                    case < 0:
+                        immediateDiceModifier -= 5;
+                        LuckFactor += 1;
+                        break;
+
+                    case > 0:
+                        LuckFactor -= 1;
+                        forceSuccess = true;
+                        break;
+                }
+
+                if (StyleFactor > 0 && !forceSuccess)
+                {
+                    immediateDiceModifier += 5;
+                    StyleFactor -= 1;
+                }
+
+                if (forceSuccess || (NextD20() + immediateDiceModifier >= CurrentLocation.AbilityCheckDC))
+                {
+                    CheckedLocations = new() { InCheckedOrder = CheckedLocations.InCheckedOrder.Add(CurrentLocation) };
+                }
+                else
                 {
                     continue;
                 }
@@ -372,7 +394,6 @@ public sealed class Game
         }
 
         _actionBalanceAfterPreviousStep = actionBalance;
-        _locationCheckAttemptsThisStep = 0;
     }
 
     private bool UpdateTargetLocation()
@@ -464,37 +485,6 @@ public sealed class Game
         reason = TargetLocationReason.NowhereUsefulToMove;
         bestPath = ReceivedItems.ShortestPaths.GetPathOrNull(CurrentLocation, CurrentLocation)!.Value;
         return CurrentLocation;
-    }
-
-    private bool TryCheck(LocationDefinitionModel location)
-    {
-        int extraDiceModifier = 0;
-        switch (LuckFactor)
-        {
-            case < 0:
-                extraDiceModifier -= 5;
-                LuckFactor += 1;
-                break;
-
-            case > 0:
-                LuckFactor -= 1;
-                goto success;
-        }
-
-        if (StyleFactor > 0)
-        {
-            extraDiceModifier += 5;
-            StyleFactor -= 1;
-        }
-
-        if (NextD20() + DiceModifier + extraDiceModifier < location.AbilityCheckDC)
-        {
-            return false;
-        }
-
-        success:
-        CheckedLocations = new() { InCheckedOrder = CheckedLocations.InCheckedOrder.Add(location) };
-        return true;
     }
 
     private void VisitLocationsByDistanceFromCurrentLocation(LocationVisitor visitor, UncheckedLandmarkBehavior uncheckedLandmarkBehavior)
