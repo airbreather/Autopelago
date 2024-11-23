@@ -385,7 +385,7 @@ public sealed class PlayerTests
         while (!player.State.IsCompleted)
         {
             player.ArbitrarilyModifyState(s => s with { PrngState = s_highRolls });
-            player.Advance();;
+            player.Advance();
             Assert.That(player.State.TargetLocation.Region, Is.InstanceOf<LandmarkRegionDefinitionModel>());
             foreach (LocationDefinitionModel checkedLocation in player.State.CheckedLocations.InCheckedOrder)
             {
@@ -442,24 +442,20 @@ public sealed class PlayerTests
         Assert.That(player.State.PriorityLocations, Is.Empty);
     }
 
-    /*
     [Test]
     public void StartledShouldMovePlayerTowardsStart()
     {
-        GameState state = GameState.Start(s_highRolls);
-        Player player = new();
-
         // force the first steps to move it towards the last reachable location in this region
-        state = state with
+        Player player = new(GameState.Start(s_highRolls) with
         {
             PriorityLocations = [GameDefinitions.Instance.StartRegion.Locations[^1]],
-        };
+        });
 
         player.Advance();
-        LocationDefinitionModel middleLocation = state.CurrentLocation;
+        LocationDefinitionModel middleLocation = player.State.CurrentLocation;
 
         player.Advance();
-        if (state.CurrentLocation == state.TargetLocation)
+        if (player.State.CurrentLocation == player.State.TargetLocation)
         {
             Assert.Inconclusive("YAML was changed too much: there aren't enough locations in the starting region for this test.");
         }
@@ -467,7 +463,7 @@ public sealed class PlayerTests
         // even though it's all high rolls, we shouldn't have any checks because the rat is hard-prioritizing.
         Assert.That(player.State.CheckedLocations, Is.Empty);
 
-        state = state with { StartledCounter = state.StartledCounter + 1 };
+        player.ReceiveItems([GameDefinitions.Instance.AllItems.First(i => i.AurasGranted.SequenceEqual(["startled"]))]);
 
         // it used all its movement to get from middleLocation to here previously, so being startled
         // should cause it to use that same movement to get exactly back to middleLocation again.
@@ -482,14 +478,12 @@ public sealed class PlayerTests
     [Test]
     public void StartledShouldTakePriorityOverDistracted()
     {
-        GameState state = GameState.Start(s_highRolls) with
+        Player player = new(GameState.Start(s_highRolls) with
         {
             CurrentLocation = GameDefinitions.Instance.StartRegion.Locations[^1],
             StartledCounter = 1,
             DistractionCounter = 2,
-        };
-
-        Player player = new();
+        });
 
         // first step, we're startled out of our distraction.
         player.Advance();
@@ -516,12 +510,6 @@ public sealed class PlayerTests
     [Test]
     public void SmartShouldResolveToNearestReachableIfPossible([Values("smart", "conspiratorial")] string aura)
     {
-        GameState state = GameState.Start() with
-        {
-            CurrentLocation = GameDefinitions.Instance.StartRegion.Locations[^1],
-            TargetLocation = GameDefinitions.Instance.StartRegion.Locations[^1],
-        };
-
         ArchipelagoItemFlags targetFlags = aura switch
         {
             "smart" => ArchipelagoItemFlags.LogicalAdvancement,
@@ -537,10 +525,15 @@ public sealed class PlayerTests
 
         ItemDefinitionModel auraItem = GameDefinitions.Instance.AllItems.First(i => i.AurasGranted.Length == 1 && i.AurasGranted[0] == aura);
 
+        Player player = new(GameState.Start() with
+        {
+            CurrentLocation = GameDefinitions.Instance.StartRegion.Locations[^1],
+            TargetLocation = GameDefinitions.Instance.StartRegion.Locations[^1],
+        }, spoilerData);
+
         // even though there's a target RIGHT on the other side, we still favor the nearest one that
         // we can already reach with what we currently have.
-        Player player = new();
-        state = player.ReceiveItems(state, [auraItem], spoilerData);
+        player.ReceiveItems([auraItem]);
         Assert.That(player.State.PriorityPriorityLocations, Is.EqualTo(new[]
         {
             GameDefinitions.Instance.GoalLocation,
@@ -549,7 +542,7 @@ public sealed class PlayerTests
 
         // if there's nothing else that we can reach, then we should NOT target the unreachable one
         // that's just out of reach. it should just fizzle.
-        state = player.ReceiveItems(state, [auraItem], spoilerData);
+        player.ReceiveItems([auraItem]);
         Assert.That(player.State.PriorityPriorityLocations, Is.EqualTo(new[]
         {
             GameDefinitions.Instance.GoalLocation,
@@ -561,7 +554,7 @@ public sealed class PlayerTests
     [Property("Regression", 45)]
     public void PriorityLocationsPastClearableLandmarksShouldBlockThePlayer()
     {
-        GameState state = GameState.Start() with
+        Player player = new(GameState.Start() with
         {
             CurrentLocation = GameDefinitions.Instance.StartRegion.Locations[^1],
             TargetLocation = GameDefinitions.Instance.StartRegion.Locations[^1],
@@ -574,12 +567,13 @@ public sealed class PlayerTests
                 s_beforePrawnStars.Locations[1],
             ],
             PrngState = s_lowRolls,
-        };
+        });
 
-        Player player = new();
-        state = player.Advance(state) with { PrngState = s_lowRolls };
-        state = player.Advance(state) with { PrngState = s_lowRolls };
-        state = player.Advance(state) with { PrngState = s_lowRolls };
+        for (int i = 0; i < 3; i++)
+        {
+            player.Advance();
+            player.ArbitrarilyModifyState(state => state with { PrngState = s_lowRolls });
+        }
 
         Assert.That(player.State.CurrentLocation, Is.EqualTo(s_basketball));
     }
@@ -587,7 +581,12 @@ public sealed class PlayerTests
     [Test]
     public void LongMovesShouldBeAccelerated()
     {
-        GameState state = GameState.Start() with
+        if (s_startRegion.Locations.Length != 18)
+        {
+            Assert.Inconclusive("This test is particularly sensitive to changes in the number of locations in the start region. Please re-evaluate.");
+        }
+
+        Player player = new(GameState.Start() with
         {
             CurrentLocation = GameDefinitions.Instance.StartLocation,
             TargetLocation = s_basketball,
@@ -601,54 +600,48 @@ public sealed class PlayerTests
             },
             PrngState = s_highRolls,
             EnergyFactor = -100,
-        };
-
-        if (s_startRegion.Locations.Length != 18)
-        {
-            Assert.Inconclusive("This test is particularly sensitive to changes in the number of locations in the start region. Please re-evaluate.");
-        }
-
-        Player player = new();
+        });
         player.Advance();
         Assert.Multiple(() =>
         {
             Assert.That(
-                state.PreviousStepMovementLog.Select(v => v.PreviousLocation),
+                player.State.PreviousStepMovementLog.Select(v => v.PreviousLocation),
                 Is.EqualTo(s_startRegion.Locations[..6]));
             Assert.That(
-                state.PreviousStepMovementLog.Select(v => v.CurrentLocation),
+                player.State.PreviousStepMovementLog.Select(v => v.CurrentLocation),
                 Is.EqualTo(s_startRegion.Locations[1..7]));
             Assert.That(
-                state.CurrentLocation,
-                Is.EqualTo(state.PreviousStepMovementLog[^1].CurrentLocation));
+                player.State.CurrentLocation,
+                Is.EqualTo(player.State.PreviousStepMovementLog[^1].CurrentLocation));
         });
         player.Advance();
         Assert.Multiple(() =>
         {
             Assert.That(
-                state.PreviousStepMovementLog.Select(v => v.PreviousLocation),
+                player.State.PreviousStepMovementLog.Select(v => v.PreviousLocation),
                 Is.EqualTo(s_startRegion.Locations[6..9]));
             Assert.That(
-                state.PreviousStepMovementLog.Select(v => v.CurrentLocation),
+                player.State.PreviousStepMovementLog.Select(v => v.CurrentLocation),
                 Is.EqualTo(s_startRegion.Locations[7..10]));
             Assert.That(
-                state.CurrentLocation,
-                Is.EqualTo(state.PreviousStepMovementLog[^1].CurrentLocation));
+                player.State.CurrentLocation,
+                Is.EqualTo(player.State.PreviousStepMovementLog[^1].CurrentLocation));
         });
         player.Advance();
         Assert.Multiple(() =>
         {
             Assert.That(
-                state.PreviousStepMovementLog.Select(v => v.PreviousLocation),
+                player.State.PreviousStepMovementLog.Select(v => v.PreviousLocation),
                 Is.EqualTo(s_startRegion.Locations[9..15]));
             Assert.That(
-                state.PreviousStepMovementLog.Select(v => v.CurrentLocation),
+                player.State.PreviousStepMovementLog.Select(v => v.CurrentLocation),
                 Is.EqualTo(s_startRegion.Locations[10..16]));
             Assert.That(
-                state.CurrentLocation,
-                Is.EqualTo(state.PreviousStepMovementLog[^1].CurrentLocation));
+                player.State.CurrentLocation,
+                Is.EqualTo(player.State.PreviousStepMovementLog[^1].CurrentLocation));
         });
-        state = player.Advance(state with { EnergyFactor = 0 });
+        player.ArbitrarilyModifyState(state => state with { EnergyFactor = 0 });
+        player.Advance();
         Assert.Multiple(() =>
         {
             ImmutableArray<LocationDefinitionModel> expectedCurrentLocationSequence =
@@ -657,14 +650,14 @@ public sealed class PlayerTests
                 s_basketball,
             ];
             Assert.That(
-                state.PreviousStepMovementLog.Select(v => v.PreviousLocation),
+                player.State.PreviousStepMovementLog.Select(v => v.PreviousLocation),
                 Is.EqualTo(s_startRegion.Locations[15..]));
             Assert.That(
-                state.PreviousStepMovementLog.Select(v => v.CurrentLocation),
+                player.State.PreviousStepMovementLog.Select(v => v.CurrentLocation),
                 Is.EqualTo(expectedCurrentLocationSequence));
             Assert.That(
-                state.CurrentLocation,
-                Is.EqualTo(state.PreviousStepMovementLog[^1].CurrentLocation));
+                player.State.CurrentLocation,
+                Is.EqualTo(player.State.PreviousStepMovementLog[^1].CurrentLocation));
             Assert.That(player.State.CheckedLocations.InCheckedOrder, Contains.Item(s_basketball));
         });
     }
@@ -674,7 +667,7 @@ public sealed class PlayerTests
     public void PriorityLocationChecksShouldBypassUnreachableLocations()
     {
         LocationDefinitionModel lastLocationBeforeBasketball = GameDefinitions.Instance.StartRegion.Locations[^1];
-        GameState state = GameState.Start() with
+        Player player = new(GameState.Start() with
         {
             CurrentLocation = lastLocationBeforeBasketball,
             TargetLocation = lastLocationBeforeBasketball,
@@ -688,9 +681,7 @@ public sealed class PlayerTests
                 InCheckedOrder = [lastLocationBeforeBasketball],
             },
             PrngState = s_lowRolls,
-        };
-
-        Player player = new();
+        });
         player.Advance();
 
         Assert.That(player.State.TargetLocation, Is.Not.EqualTo(lastLocationBeforeBasketball));
@@ -699,7 +690,7 @@ public sealed class PlayerTests
     [Test]
     public void StartledShouldNotMoveThroughLockedLocations()
     {
-        GameState state = GameState.Start() with
+        Player player = new(GameState.Start() with
         {
             CurrentLocation = GameDefinitions.Instance.LocationsByName["After Pirate Bake Sale #1"],
             TargetLocation = GameDefinitions.Instance.LocationsByName["Bowling Ball Door"],
@@ -724,18 +715,17 @@ public sealed class PlayerTests
                     GameDefinitions.Instance.LocationsByName["Bowling Ball Door"],
                 ],
             },
-        };
-
-        Player player = new();
+        });
         for (int i = 0; i < 100; i++)
         {
-            state = player.Advance(state with { StartledCounter = 1 });
+            player.ArbitrarilyModifyState(state => state with { StartledCounter = 1 });
+            player.Advance();
             Assert.That(
-                state.PreviousStepMovementLog.Select(m => m.CurrentLocation),
+                player.State.PreviousStepMovementLog.Select(m => m.CurrentLocation),
                 Has.None
                     .EqualTo(GameDefinitions.Instance.LocationsByName["Pirate Bake Sale"])
                     .Or.EqualTo(GameDefinitions.Instance.LocationsByName["Prawn Stars"]));
-            if (state.CurrentLocation == s_startLocation)
+            if (player.State.CurrentLocation == s_startLocation)
             {
                 break;
             }
@@ -747,9 +737,8 @@ public sealed class PlayerTests
     [Test]
     public void ReceiveItemsShouldApplyAuras()
     {
-        GameState state = GameState.Start();
-        Player player = new();
-        state = player.ReceiveItems(state, [
+        Player player = new(GameState.Start());
+        player.ReceiveItems([
             // upset_tummy, upset_tummy, upset_tummy, unlucky, startled, startled, startled, sluggish
             GameDefinitions.Instance.ItemsByName["Rat Poison"],
 
@@ -777,8 +766,6 @@ public sealed class PlayerTests
             Assert.That(player.State.HasConfidence);
         });
     }
-
-    */
 
     private static FrozenDictionary<LocationDefinitionModel, ArchipelagoItemFlags> CreateSpoiler(ReadOnlySpan<(LocationDefinitionModel Location, ArchipelagoItemFlags Flags)> defined)
     {
