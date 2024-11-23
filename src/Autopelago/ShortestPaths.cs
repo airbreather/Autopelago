@@ -2,8 +2,6 @@ using System.Collections.Frozen;
 using System.Collections.Immutable;
 using System.Runtime.InteropServices;
 
-using CommunityToolkit.HighPerformance;
-
 namespace Autopelago;
 
 public sealed record ShortestPaths
@@ -93,13 +91,10 @@ public sealed record ShortestPaths
         dist.AsSpan().Fill(uint.MaxValue / 2);
         int[] prev = new int[loc.Length * loc.Length];
         prev.AsSpan().Fill(-1);
-
-        Span2D<uint> dist2D = new(dist, loc.Length, loc.Length);
-        Span2D<int> prev2D = new(prev, loc.Length, loc.Length);
         for (int i = 0; i < loc.Length; i++)
         {
-            dist2D[i, i] = 0;
-            prev2D[i, i] = i;
+            dist[(i * loc.Length) + i] = 0;
+            prev[(i * loc.Length) + i] = i;
             foreach (RegionExitDefinitionModel connected in defs.AllRegions[loc[i]].Exits)
             {
                 if (!locLookup.TryGetValue(connected.RegionKey, out int j))
@@ -107,10 +102,10 @@ public sealed record ShortestPaths
                     continue;
                 }
 
-                dist2D[i, j] = 1;
-                dist2D[j, i] = 1;
-                prev2D[i, j] = i;
-                prev2D[j, i] = j;
+                dist[(i * loc.Length) + j] = 1;
+                dist[(j * loc.Length) + i] = 1;
+                prev[(i * loc.Length) + j] = i;
+                prev[(j * loc.Length) + i] = j;
             }
         }
 
@@ -120,10 +115,10 @@ public sealed record ShortestPaths
             {
                 for (int j = 0; j < loc.Length; j++)
                 {
-                    if (dist2D[i, j] > checked(dist2D[i, k] + dist2D[k, j]))
+                    if (dist[(i * loc.Length) + j] > checked(dist[(i * loc.Length) + k] + dist[(k * loc.Length) + j]))
                     {
-                        dist2D[i, j] = dist2D[i, k] + dist2D[k, j];
-                        prev2D[i, j] = prev2D[k, j];
+                        dist[(i * loc.Length) + j] = dist[(i * loc.Length) + k] + dist[(k * loc.Length) + j];
+                        prev[(i * loc.Length) + j] = prev[(k * loc.Length) + j];
                     }
                 }
             }
@@ -147,8 +142,6 @@ public sealed record ShortestPaths
             (uint)j < (uint)_loc.Length &&
             _dist[(i * _loc.Length) + j] < uint.MaxValue / 2;
     }
-
-    private ReadOnlySpan2D<int> Prev => new(ImmutableCollectionsMarshal.AsArray(_prev)!, _loc.Length, _loc.Length);
 
     public bool Equals(ShortestPaths? other)
     {
@@ -271,10 +264,9 @@ public sealed record ShortestPaths
             Stack<int> stack = [];
             stack.Push(_j);
             int j = _j;
-            ReadOnlySpan2D<int> prev = _parent.Prev;
             while (j != _i)
             {
-                stack.Push(j = prev[_i, j]);
+                stack.Push(j = _parent._prev[(_i * _parent._loc.Length) + j]);
             }
 
             RegionDefinitionModel[] regions = new RegionDefinitionModel[stack.Count];

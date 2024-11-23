@@ -197,11 +197,6 @@
           "Avalonia.Skia": "11.2.0"
         }
       },
-      "CommunityToolkit.HighPerformance": {
-        "type": "Transitive",
-        "resolved": "8.3.2",
-        "contentHash": "1Os81ua0FmIOtiSgOk5C1KBraQ3SDfxs/7BG4qDagm48nGplr//lAVqLH9I2TLDVqRFdhqTUaEITFA5Ho/Ovkw=="
-      },
       "DynamicData": {
         "type": "Transitive",
         "resolved": "8.4.1",
@@ -470,7 +465,6 @@
           "Avalonia.ReactiveUI": "[11.2.0, )",
           "Avalonia.Svg.Skia": "[11.2.0, )",
           "Avalonia.Themes.Fluent": "[11.2.0, )",
-          "CommunityToolkit.HighPerformance": "[8.3.2, )",
           "Libuv": "[1.10.0, )",
           "Material.Icons.Avalonia": "[2.1.10, )",
           "ReactiveUI.Fody": "[19.5.41, )",
