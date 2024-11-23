@@ -50,19 +50,7 @@ public sealed record GameState
 
     public required bool HasConfidence { get; init; }
 
-    public required Prng.State PrngState { get; init; }
-
-    public static GameState Start(Random? random = null)
-    {
-        return Start(Prng.State.Start(random));
-    }
-
-    public static GameState Start(ulong seed)
-    {
-        return Start(Prng.State.Start(seed));
-    }
-
-    public static GameState Start(Prng.State prngState)
+    public static GameState Start()
     {
         return new()
         {
@@ -78,15 +66,6 @@ public sealed record GameState
             DistractionCounter = 0,
             StartledCounter = 0,
             HasConfidence = false,
-            PrngState = prngState,
         };
-    }
-
-    public static int NextD20(ref GameState state)
-    {
-        Prng.State s = state.PrngState;
-        int result = Prng.NextD20(ref s);
-        state = state with { PrngState = s };
-        return result;
     }
 }

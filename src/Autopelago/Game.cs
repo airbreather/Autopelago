@@ -1,5 +1,7 @@
 using System.Collections.Frozen;
 using System.Collections.Immutable;
+using System.Linq.Expressions;
+using System.Reflection;
 using System.Runtime.CompilerServices;
 using System.Text.RegularExpressions;
 
@@ -24,60 +26,109 @@ public sealed partial class Game
 
     private int _actionBalanceAfterPreviousStep;
 
-    public Game(GameState initialState, [CallerFilePath] string? testFilePath = null)
-        : this(initialState, GameDefinitions.Instance.LocationsByName.Values.ToFrozenDictionary(l => l, l => l.UnrandomizedItem?.ArchipelagoFlags ?? ArchipelagoItemFlags.None))
+    public Game(Prng.State prngState, GameState initialState, [CallerFilePath] string? testFilePath = null)
+        : this(prngState, initialState, GameDefinitions.Instance.LocationsByName.Values.ToFrozenDictionary(l => l, l => l.UnrandomizedItem?.ArchipelagoFlags ?? ArchipelagoItemFlags.None))
     {
         // this isn't bulletproof. I need only avoid accidents, not malice.
         AllowFromTestsOnly(testFilePath);
     }
 
-    public Game(GameState initialState, FrozenDictionary<LocationDefinitionModel, ArchipelagoItemFlags> spoilerData)
+    public Game(Prng.State prngState, GameState initialState, FrozenDictionary<LocationDefinitionModel, ArchipelagoItemFlags> spoilerData)
     {
+        PrngState = prngState;
         _state = initialState;
         _spoilerData = spoilerData;
     }
 
     public ImmutableArray<LocationVector> PreviousStepMovementLog { get; private set; } = [];
 
-    public LocationDefinitionModel CurrentLocation => _state.CurrentLocation;
+    public LocationDefinitionModel CurrentLocation
+    {
+        get => _state.CurrentLocation;
+        private set => _state = _state with { CurrentLocation = value };
+    }
 
-    public LocationDefinitionModel TargetLocation => _state.TargetLocation;
+    public LocationDefinitionModel TargetLocation
+    {
+        get => _state.TargetLocation;
+        private set => _state = _state with { TargetLocation = value };
+    }
 
     public TargetLocationReason TargetLocationReason { get; private set; } = TargetLocationReason.GameNotStarted;
 
-    public ReceivedItems ReceivedItems => _state.ReceivedItems;
+    public ReceivedItems ReceivedItems
+    {
+        get => _state.ReceivedItems;
+        private set => _state = _state with { ReceivedItems = value };
+    }
 
-    public CheckedLocations CheckedLocations => _state.CheckedLocations;
+    public CheckedLocations CheckedLocations
+    {
+        get => _state.CheckedLocations;
+        private set => _state = _state with { CheckedLocations = value };
+    }
 
     public ImmutableList<LocationDefinitionModel> PriorityPriorityLocations { get; private set; } = [GameDefinitions.Instance.GoalLocation];
 
-    public ImmutableList<LocationDefinitionModel> PriorityLocations => _state.PriorityLocations;
+    public ImmutableList<LocationDefinitionModel> PriorityLocations
+    {
+        get => _state.PriorityLocations;
+        private set => _state = _state with { PriorityLocations = value };
+    }
 
-    public int FoodFactor => _state.FoodFactor;
+    public int FoodFactor
+    {
+        get => _state.FoodFactor;
+        private set => _state = _state with { FoodFactor = value };
+    }
 
-    public int LuckFactor => _state.LuckFactor;
+    public int LuckFactor
+    {
+        get => _state.LuckFactor;
+        private set => _state = _state with { LuckFactor = value };
+    }
 
-    public int EnergyFactor => _state.EnergyFactor;
+    public int EnergyFactor
+    {
+        get => _state.EnergyFactor;
+        private set => _state = _state with { EnergyFactor = value };
+    }
 
-    public int StyleFactor => _state.StyleFactor;
+    public int StyleFactor
+    {
+        get => _state.StyleFactor;
+        private set => _state = _state with { StyleFactor = value };
+    }
 
-    public int DistractionCounter => _state.DistractionCounter;
+    public int DistractionCounter
+    {
+        get => _state.DistractionCounter;
+        private set => _state = _state with { DistractionCounter = value };
+    }
 
-    public int StartledCounter => _state.StartledCounter;
+    public int StartledCounter
+    {
+        get => _state.StartledCounter;
+        private set => _state = _state with { StartledCounter = value };
+    }
 
-    public bool HasConfidence => _state.HasConfidence;
+    public bool HasConfidence
+    {
+        get => _state.HasConfidence;
+        private set => _state = _state with { HasConfidence = value };
+    }
 
-    public Prng.State PrngState => _state.PrngState;
+    public Prng.State PrngState { get; private set; }
 
     public bool IsCompleted => CurrentLocation == GameDefinitions.Instance.GoalLocation;
 
     private int DiceModifier => (ReceivedItems.RatCount / 3) - (_locationCheckAttemptsThisStep * 5);
 
-    public void ArbitrarilyModifyState(Func<GameState, GameState> modify, [CallerFilePath] string? testFilePath = null)
+    public void ArbitrarilyModifyState<T>(Expression<Func<Game, T>> prop, T value, [CallerFilePath] string? testFilePath = null)
     {
         // this isn't bulletproof. I need only avoid accidents, not malice.
         AllowFromTestsOnly(testFilePath);
-        _state = modify(_state);
+        ((PropertyInfo)(((MemberExpression)prop.Body).Member)).SetValue(this, value);
     }
 
     public bool AddPriorityLocation(LocationDefinitionModel toPrioritize)
@@ -477,7 +528,7 @@ public sealed partial class Game
             _state = _state with { StyleFactor = _state.StyleFactor - 1 };
         }
 
-        if (GameState.NextD20(ref _state) + DiceModifier + extraDiceModifier < location.AbilityCheckDC)
+        if (NextD20() + DiceModifier + extraDiceModifier < location.AbilityCheckDC)
         {
             return false;
         }
@@ -556,6 +607,14 @@ public sealed partial class Game
                 }
             }
         }
+    }
+
+    private int NextD20()
+    {
+        Prng.State s = PrngState;
+        int result = Prng.NextD20(ref s);
+        PrngState = s;
+        return result;
     }
 
     private static void AllowFromTestsOnly(ReadOnlySpan<char> filePath, [CallerArgumentExpression(nameof(filePath))] string? paramName = null)
