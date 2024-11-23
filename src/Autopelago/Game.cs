@@ -23,6 +23,27 @@ public enum TargetLocationReason
     Startled,
 }
 
+public sealed record AuraData
+{
+    public int FoodFactor { get; init; }
+
+    public int LuckFactor { get; init; }
+
+    public int EnergyFactor { get; init; }
+
+    public int StyleFactor { get; init; }
+
+    public int DistractionCounter { get; init; }
+
+    public int StartledCounter { get; init; }
+
+    public bool HasConfidence { get; init; }
+
+    public ImmutableArray<string> PriorityPriorityLocations { get; init; } = [];
+
+    public ImmutableArray<string> PriorityLocations { get; init; } = [];
+}
+
 public sealed record LocationVector
 {
     public required LocationDefinitionModel PreviousLocation { get; init; }
@@ -36,18 +57,16 @@ public sealed class Game
 
     private int _actionBalanceAfterPreviousStep;
 
-    public Game(Prng.State prngState)
-        : this(prngState, GameDefinitions.Instance.LocationsByName.Values.ToFrozenDictionary(l => l, l => l.UnrandomizedItem?.ArchipelagoFlags ?? ArchipelagoItemFlags.None))
-    {
-    }
+    private bool _initializedAuraData;
 
-    public Game(Prng.State prngState, FrozenDictionary<LocationDefinitionModel, ArchipelagoItemFlags> spoilerData)
+    public Game(Prng.State prngState)
     {
         PrngState = prngState;
-        SpoilerData = spoilerData;
     }
 
-    public FrozenDictionary<LocationDefinitionModel, ArchipelagoItemFlags> SpoilerData { get; private set; }
+    private FrozenDictionary<LocationDefinitionModel, ArchipelagoItemFlags>? _spoilerData;
+    public FrozenDictionary<LocationDefinitionModel, ArchipelagoItemFlags> SpoilerData =>
+        _spoilerData ?? throw new InvalidOperationException("Game has not started yet.");
 
     public ImmutableArray<LocationVector> PreviousStepMovementLog { get; private set; } = [];
 
@@ -57,9 +76,27 @@ public sealed class Game
 
     public TargetLocationReason TargetLocationReason { get; private set; } = TargetLocationReason.GameNotStarted;
 
-    public ReceivedItems ReceivedItems { get; private set; } = new() { InReceivedOrder = [] };
+    private ReceivedItems? _receivedItems;
 
-    public CheckedLocations CheckedLocations { get; private set; } = new() { InCheckedOrder = [] };
+    public ReceivedItems ReceivedItems
+    {
+        get
+        {
+            EnsureStarted();
+            return _receivedItems!;
+        }
+    }
+
+    private CheckedLocations? _checkedLocations;
+
+    public CheckedLocations CheckedLocations
+    {
+        get
+        {
+            EnsureStarted();
+            return _checkedLocations!;
+        }
+    }
 
     public ImmutableList<LocationDefinitionModel> PriorityPriorityLocations { get; private set; } = [GameDefinitions.Instance.GoalLocation];
 
@@ -79,13 +116,95 @@ public sealed class Game
 
     public bool HasConfidence { get; private set; }
 
+    public AuraData AuraData
+    {
+        get
+        {
+            if (!_initializedAuraData)
+            {
+                throw new InvalidOperationException("Game has not started yet.");
+            }
+
+            return new()
+            {
+                FoodFactor = FoodFactor,
+                LuckFactor = LuckFactor,
+                EnergyFactor = EnergyFactor,
+                StyleFactor = StyleFactor,
+                DistractionCounter = DistractionCounter,
+                StartledCounter = StartledCounter,
+                HasConfidence = HasConfidence,
+                PriorityPriorityLocations = [.. PriorityPriorityLocations.Select(l => l.Name)],
+                PriorityLocations = [.. PriorityLocations.Select(l => l.Name)],
+            };
+        }
+    }
+
     public Prng.State PrngState { get; private set; }
+
+    public bool HasStarted { get; private set; }
 
     public bool IsCompleted => CurrentLocation == GameDefinitions.Instance.GoalLocation;
 
     public void ArbitrarilyModifyState<T>(Expression<Func<Game, T>> prop, T value)
     {
         ((PropertyInfo)(((MemberExpression)prop.Body).Member)).SetValue(this, value);
+    }
+
+    public void InitializeCheckedLocations(IEnumerable<LocationDefinitionModel> checkedLocations)
+    {
+        if (_checkedLocations is not null)
+        {
+            throw new InvalidOperationException("Checked locations have already been initialized.");
+        }
+
+        _checkedLocations = new() { InCheckedOrder = [.. checkedLocations] };
+    }
+
+    public void InitializeReceivedItems(IEnumerable<ItemDefinitionModel> receivedItems)
+    {
+        if (_spoilerData is not null)
+        {
+            throw new InvalidOperationException("Received items have already been initialized.");
+        }
+
+        _receivedItems = new() { InReceivedOrder = [.. receivedItems] };
+    }
+
+    public void InitializeSpoilerData(FrozenDictionary<LocationDefinitionModel, ArchipelagoItemFlags> spoilerData)
+    {
+        if (_spoilerData is not null)
+        {
+            throw new InvalidOperationException("Spoiler data has already been initialized.");
+        }
+
+        _spoilerData = spoilerData;
+    }
+
+    public void InitializeAuraData(AuraData auraData)
+    {
+        if (_initializedAuraData)
+        {
+            throw new InvalidOperationException("Aura data has already been initialized.");
+        }
+
+        FoodFactor = auraData.FoodFactor;
+        LuckFactor = auraData.LuckFactor;
+        EnergyFactor = auraData.EnergyFactor;
+        StyleFactor = auraData.StyleFactor;
+        DistractionCounter = auraData.DistractionCounter;
+        StartledCounter = auraData.StartledCounter;
+        HasConfidence = auraData.HasConfidence;
+        PriorityPriorityLocations =
+        [
+            .. auraData.PriorityPriorityLocations.Select(l => GameDefinitions.Instance.LocationsByName[l]),
+        ];
+        PriorityLocations =
+        [
+            .. auraData.PriorityLocations.Select(l => GameDefinitions.Instance.LocationsByName[l]),
+        ];
+
+        _initializedAuraData = true;
     }
 
     public bool AddPriorityLocation(LocationDefinitionModel toPrioritize)
@@ -111,6 +230,180 @@ public sealed class Game
         LocationDefinitionModel removed = PriorityLocations[index];
         PriorityLocations = PriorityLocations.RemoveAt(index);
         return removed;
+    }
+
+    public void EnsureStarted()
+    {
+        if (HasStarted)
+        {
+            return;
+        }
+
+        _checkedLocations ??= new() { InCheckedOrder = [] };
+        _receivedItems ??= new() { InReceivedOrder = [] };
+        _initializedAuraData = true;
+        HasStarted = true;
+    }
+
+    public void Advance()
+    {
+        EnsureStarted();
+        if (IsCompleted)
+        {
+            return;
+        }
+
+        int actionBalance = 3 + _actionBalanceAfterPreviousStep;
+        switch (FoodFactor)
+        {
+            case < 0:
+                --actionBalance;
+                FoodFactor += 1;
+                break;
+
+            case > 0:
+                ++actionBalance;
+                FoodFactor -= 1;
+                break;
+        }
+
+        if (DistractionCounter > 0)
+        {
+            // being startled takes priority over a distraction. you just saw a ghost, you're not
+            // thinking about the Rubik's Cube that you got at about the same time!
+            if (StartledCounter == 0)
+            {
+                actionBalance = 0;
+            }
+
+            DistractionCounter -= 1;
+        }
+
+        int diceModifier = ReceivedItems.RatCount / 3;
+        List<LocationVector> movementLog = [];
+        while (actionBalance > 0 && !IsCompleted)
+        {
+            --actionBalance;
+
+            // changing your route takes an action unless you're startled.
+            if (UpdateTargetLocation() && TargetLocationReason != TargetLocationReason.Startled)
+            {
+                continue;
+            }
+
+            bool moved = false;
+            if (CurrentLocation != TargetLocation)
+            {
+                switch (EnergyFactor)
+                {
+                    case < 0:
+                        --actionBalance;
+                        EnergyFactor += 1;
+                        break;
+
+                    case > 0:
+                        ++actionBalance;
+                        EnergyFactor -= 1;
+                        break;
+                }
+
+                // we're not in the right spot, so we're going to move at least a bit. playtesting
+                // has shown that very long moves can be very boring (and a little too frequent). to
+                // combat this, every time the player decides to move, they can advance up to three
+                // whole spaces towards their target. this keeps the overall progression speed the
+                // same in dense areas.
+                for (int i = 0; i < 3 && CurrentLocation != TargetLocation; i++)
+                {
+                    movementLog.Add(new()
+                    {
+                        PreviousLocation = _pathToTargetLocation.Locations[i],
+                        CurrentLocation = _pathToTargetLocation.Locations[i + 1],
+                    });
+                    CurrentLocation = movementLog[^1].CurrentLocation;
+                    moved = true;
+                }
+            }
+
+            if (!moved && StartledCounter == 0 && !CheckedLocations.Contains(CurrentLocation))
+            {
+                int immediateDiceModifier = diceModifier;
+                bool forceSuccess = false;
+                diceModifier -= 5;
+
+                switch (LuckFactor)
+                {
+                    case < 0:
+                        immediateDiceModifier -= 5;
+                        LuckFactor += 1;
+                        break;
+
+                    case > 0:
+                        LuckFactor -= 1;
+                        forceSuccess = true;
+                        break;
+                }
+
+                if (StyleFactor > 0 && !forceSuccess)
+                {
+                    immediateDiceModifier += 5;
+                    StyleFactor -= 1;
+                }
+
+                if (forceSuccess || (NextD20() + immediateDiceModifier >= CurrentLocation.AbilityCheckDC))
+                {
+                    _checkedLocations = new() { InCheckedOrder = CheckedLocations.InCheckedOrder.Add(CurrentLocation) };
+                }
+                else
+                {
+                    continue;
+                }
+            }
+
+            if (CurrentLocation == TargetLocation)
+            {
+                LocationDefinitionModel targetLocation = TargetLocation;
+                switch (TargetLocationReason)
+                {
+                    case TargetLocationReason.Priority:
+                        PriorityLocations = PriorityLocations.RemoveAll(l => l == targetLocation);
+                        break;
+
+                    case TargetLocationReason.PriorityPriority:
+                        PriorityPriorityLocations = PriorityPriorityLocations.RemoveAll(l => l == targetLocation);
+                        break;
+                }
+            }
+
+            // don't burn more than one action per round on changing the target location. we only do
+            // it at all because it represents the rat having to take time to "think" after a change
+            // to its priorities or available actions.
+            UpdateTargetLocation();
+        }
+
+        if (actionBalance > 0)
+        {
+            // it's possible to have a negative action counter due to a negative state.EnergyFactor,
+            // and so we smear that move action across two rounds. but otherwise, this is very much
+            // a "use it or lose it" system.
+            actionBalance = 0;
+        }
+
+        if (StartledCounter > 0)
+        {
+            StartledCounter -= 1;
+            UpdateTargetLocation();
+        }
+
+        if (movementLog.Count == 0 && PreviousStepMovementLog.Length > 1)
+        {
+            PreviousStepMovementLog = [PreviousStepMovementLog[^1]];
+        }
+        else
+        {
+            PreviousStepMovementLog = [.. movementLog];
+        }
+
+        _actionBalanceAfterPreviousStep = actionBalance;
     }
 
     public void ReceiveItems(ImmutableArray<ItemDefinitionModel> newItems)
@@ -226,7 +519,7 @@ public sealed class Game
             }
         }
 
-        ReceivedItems = new() { InReceivedOrder = ReceivedItems.InReceivedOrder.AddRange(newItems) };
+        _receivedItems = new() { InReceivedOrder = ReceivedItems.InReceivedOrder.AddRange(newItems) };
         FoodFactor += (foodMod * 5);
         EnergyFactor += (energyFactorMod * 5);
         LuckFactor += luckFactorMod;
@@ -234,166 +527,6 @@ public sealed class Game
         DistractionCounter += distractedMod;
         StartledCounter += startledMod;
         PriorityPriorityLocations = PriorityPriorityLocations.AddRange(priorityPriorityLocations);
-    }
-
-    public void Advance()
-    {
-        if (IsCompleted)
-        {
-            return;
-        }
-
-        int actionBalance = 3 + _actionBalanceAfterPreviousStep;
-        switch (FoodFactor)
-        {
-            case < 0:
-                --actionBalance;
-                FoodFactor += 1;
-                break;
-
-            case > 0:
-                ++actionBalance;
-                FoodFactor -= 1;
-                break;
-        }
-
-        if (DistractionCounter > 0)
-        {
-            // being startled takes priority over a distraction. you just saw a ghost, you're not
-            // thinking about the Rubik's Cube that you got at about the same time!
-            if (StartledCounter == 0)
-            {
-                actionBalance = 0;
-            }
-
-            DistractionCounter -= 1;
-        }
-
-        int diceModifier = ReceivedItems.RatCount / 3;
-        List<LocationVector> movementLog = [];
-        while (actionBalance > 0 && !IsCompleted)
-        {
-            --actionBalance;
-
-            // changing your route takes an action unless you're startled.
-            if (UpdateTargetLocation() && TargetLocationReason != TargetLocationReason.Startled)
-            {
-                continue;
-            }
-
-            bool moved = false;
-            if (CurrentLocation != TargetLocation)
-            {
-                switch (EnergyFactor)
-                {
-                    case < 0:
-                        --actionBalance;
-                        EnergyFactor += 1;
-                        break;
-
-                    case > 0:
-                        ++actionBalance;
-                        EnergyFactor -= 1;
-                        break;
-                }
-
-                // we're not in the right spot, so we're going to move at least a bit. playtesting
-                // has shown that very long moves can be very boring (and a little too frequent). to
-                // combat this, every time the player decides to move, they can advance up to three
-                // whole spaces towards their target. this keeps the overall progression speed the
-                // same in dense areas.
-                for (int i = 0; i < 3 && CurrentLocation != TargetLocation; i++)
-                {
-                    movementLog.Add(new()
-                    {
-                        PreviousLocation = _pathToTargetLocation.Locations[i],
-                        CurrentLocation = _pathToTargetLocation.Locations[i + 1],
-                    });
-                    CurrentLocation = movementLog[^1].CurrentLocation;
-                    moved = true;
-                }
-            }
-
-            if (!moved && StartledCounter == 0 && !CheckedLocations.Contains(CurrentLocation))
-            {
-                int immediateDiceModifier = diceModifier;
-                bool forceSuccess = false;
-                diceModifier -= 5;
-
-                switch (LuckFactor)
-                {
-                    case < 0:
-                        immediateDiceModifier -= 5;
-                        LuckFactor += 1;
-                        break;
-
-                    case > 0:
-                        LuckFactor -= 1;
-                        forceSuccess = true;
-                        break;
-                }
-
-                if (StyleFactor > 0 && !forceSuccess)
-                {
-                    immediateDiceModifier += 5;
-                    StyleFactor -= 1;
-                }
-
-                if (forceSuccess || (NextD20() + immediateDiceModifier >= CurrentLocation.AbilityCheckDC))
-                {
-                    CheckedLocations = new() { InCheckedOrder = CheckedLocations.InCheckedOrder.Add(CurrentLocation) };
-                }
-                else
-                {
-                    continue;
-                }
-            }
-
-            if (CurrentLocation == TargetLocation)
-            {
-                LocationDefinitionModel targetLocation = TargetLocation;
-                switch (TargetLocationReason)
-                {
-                    case TargetLocationReason.Priority:
-                        PriorityLocations = PriorityLocations.RemoveAll(l => l == targetLocation);
-                        break;
-
-                    case TargetLocationReason.PriorityPriority:
-                        PriorityPriorityLocations = PriorityPriorityLocations.RemoveAll(l => l == targetLocation);
-                        break;
-                }
-            }
-
-            // don't burn more than one action per round on changing the target location. we only do
-            // it at all because it represents the rat having to take time to "think" after a change
-            // to its priorities or available actions.
-            UpdateTargetLocation();
-        }
-
-        if (actionBalance > 0)
-        {
-            // it's possible to have a negative action counter due to a negative state.EnergyFactor,
-            // and so we smear that move action across two rounds. but otherwise, this is very much
-            // a "use it or lose it" system.
-            actionBalance = 0;
-        }
-
-        if (StartledCounter > 0)
-        {
-            StartledCounter -= 1;
-            UpdateTargetLocation();
-        }
-
-        if (movementLog.Count == 0 && PreviousStepMovementLog.Length > 1)
-        {
-            PreviousStepMovementLog = [PreviousStepMovementLog[^1]];
-        }
-        else
-        {
-            PreviousStepMovementLog = [.. movementLog];
-        }
-
-        _actionBalanceAfterPreviousStep = actionBalance;
     }
 
     private bool UpdateTargetLocation()

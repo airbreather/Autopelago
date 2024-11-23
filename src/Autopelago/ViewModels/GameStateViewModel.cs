@@ -73,9 +73,7 @@ public sealed partial class GameStateViewModel : ViewModelBase, IDisposable
 
     private readonly CancellationTokenSource _gameCompleteCts = new();
 
-    private Game _game = new(Prng.State.Start());
-
-    private bool _started;
+    private readonly Game _game = new(Prng.State.Start());
 
     private ClientWebSocketBox _clientWebSocketBox = null!;
 
@@ -86,8 +84,6 @@ public sealed partial class GameStateViewModel : ViewModelBase, IDisposable
     private RoomUpdatePacketModel? _lastRoomUpdate;
 
     private AutopelagoData _lastFullData = null!;
-
-    private FrozenDictionary<LocationDefinitionModel, ArchipelagoItemFlags> _spoilerData = null!;
 
     private Prng.State _intervalPrngState = Prng.State.Start();
 
@@ -600,14 +596,10 @@ public sealed partial class GameStateViewModel : ViewModelBase, IDisposable
                 await _gameStateMutex.WaitAsync();
                 try
                 {
-                    _game.ArbitrarilyModifyState(g => g.CheckedLocations, new()
-                    {
-                        InCheckedOrder =
-                        [
-                            .._connected.CheckedLocations
-                                .Select(locationId => _lastFullData.LocationsById[locationId]),
-                        ],
-                    });
+                    _game.InitializeCheckedLocations(
+                        _connected.CheckedLocations
+                            .Select(locationId => _lastFullData.LocationsById[locationId])
+                    );
 
                     foreach (LocationDefinitionModel location in _game.CheckedLocations.InCheckedOrder)
                     {
@@ -632,7 +624,7 @@ public sealed partial class GameStateViewModel : ViewModelBase, IDisposable
                     spoilerData[_lastFullData.LocationsById[networkItem.Location]] = networkItem.Flags;
                 }
 
-                _spoilerData = spoilerData.ToFrozenDictionary();
+                _game.InitializeSpoilerData(spoilerData.ToFrozenDictionary());
                 break;
 
             case RoomUpdatePacketModel roomUpdate:
@@ -641,16 +633,12 @@ public sealed partial class GameStateViewModel : ViewModelBase, IDisposable
                 break;
 
             case ReceivedItemsPacketModel receivedItems:
-                if (!_started)
+                if (!_game.HasStarted)
                 {
-                    _game.ArbitrarilyModifyState(g => g.ReceivedItems, new()
-                    {
-                        InReceivedOrder =
-                        [
-                            .. receivedItems.Items
-                                .Select(i => _lastFullData.ItemsById[i.Item]),
-                        ],
-                    });
+                    _game.InitializeReceivedItems(
+                        receivedItems.Items
+                            .Select(i => _lastFullData.ItemsById[i.Item])
+                    );
                 }
                 else
                 {
@@ -668,7 +656,7 @@ public sealed partial class GameStateViewModel : ViewModelBase, IDisposable
                                     {
                                         Operation = ArchipelagoDataStorageOperationType.Replace,
                                         Value = JsonSerializer.SerializeToNode(
-                                            GetAuraData(),
+                                            _game.AuraData,
                                             AuraDataSerializationContext.Default.AuraData
                                         )!,
                                     },
@@ -694,11 +682,10 @@ public sealed partial class GameStateViewModel : ViewModelBase, IDisposable
 
                 if (auras.Deserialize(AuraDataSerializationContext.Default.AuraData) is { } auraData)
                 {
-                    ApplyAuraData(auraData);
+                    _game.InitializeAuraData(auraData);
                 }
 
-                _game.ArbitrarilyModifyState(g => g.SpoilerData, _spoilerData);
-                _started = true;
+                _game.EnsureStarted();
                 UpdateMeters();
                 _dataAvailableSignal.Release();
                 break;
@@ -1218,33 +1205,6 @@ public sealed partial class GameStateViewModel : ViewModelBase, IDisposable
         HasConfidence = _game.HasConfidence;
     }
 
-    private AuraData GetAuraData()
-    {
-        return new()
-        {
-            DistractionCounter = _game.DistractionCounter,
-            StartledCounter = _game.StartledCounter,
-            HasConfidence = _game.HasConfidence,
-            FoodFactor = _game.FoodFactor,
-            LuckFactor = _game.LuckFactor,
-            StyleFactor = _game.StyleFactor,
-            EnergyFactor = _game.EnergyFactor,
-            PriorityLocations = [.. _game.PriorityLocations.Select(l => l.Name)],
-        };
-    }
-
-    private void ApplyAuraData(AuraData auraData)
-    {
-        _game.ArbitrarilyModifyState(g => g.DistractionCounter, auraData.DistractionCounter);
-        _game.ArbitrarilyModifyState(g => g.StartledCounter, auraData.StartledCounter);
-        _game.ArbitrarilyModifyState(g => g.HasConfidence, auraData.HasConfidence);
-        _game.ArbitrarilyModifyState(g => g.FoodFactor, auraData.FoodFactor);
-        _game.ArbitrarilyModifyState(g => g.LuckFactor, auraData.LuckFactor);
-        _game.ArbitrarilyModifyState(g => g.StyleFactor, auraData.StyleFactor);
-        _game.ArbitrarilyModifyState(g => g.EnergyFactor, auraData.EnergyFactor);
-        _game.ArbitrarilyModifyState(g => g.PriorityLocations, [.. auraData.PriorityLocations.Select(p => GameDefinitions.Instance.LocationsByName[p])]);
-    }
-
     [Reactive]
     public string RatThought { get; set; } = s_ratThoughts[0];
 
@@ -1298,25 +1258,6 @@ public sealed partial class GameStateViewModel : ViewModelBase, IDisposable
         public required FrozenDictionary<long, LocationDefinitionModel> LocationsById { get; init; }
 
         public required FrozenDictionary<string, int> SlotByPlayerAlias { get; init; }
-    }
-
-    private sealed record AuraData
-    {
-        public required int FoodFactor { get; init; }
-
-        public required int LuckFactor { get; init; }
-
-        public required int EnergyFactor { get; init; }
-
-        public required int StyleFactor { get; init; }
-
-        public required int DistractionCounter { get; init; }
-
-        public required int StartledCounter { get; init; }
-
-        public required bool HasConfidence { get; init; }
-
-        public required ImmutableArray<string> PriorityLocations { get; init; }
     }
 
     [JsonSerializable(typeof(AuraData))]

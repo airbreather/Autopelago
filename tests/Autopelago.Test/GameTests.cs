@@ -76,10 +76,10 @@ public sealed class GameTests
     public void ShouldOnlyTryBasketballWithAtLeastFiveRats([Range(0, 7)] int ratCount)
     {
         Game game = new(s_highRolls);
+        game.InitializeCheckedLocations(s_startRegion.Locations);
+        game.InitializeReceivedItems(Enumerable.Repeat(s_normalRat, ratCount));
         game.ArbitrarilyModifyState(g => g.CurrentLocation, s_startRegion.Locations[^1]);
         game.ArbitrarilyModifyState(g => g.TargetLocation, s_startRegion.Locations[^1]);
-        game.ArbitrarilyModifyState(g => g.CheckedLocations, new() { InCheckedOrder = [.. s_startRegion.Locations] });
-        game.ArbitrarilyModifyState(g => g.ReceivedItems, new() { InReceivedOrder = [.. Enumerable.Repeat(s_normalRat, ratCount)] });
         game.Advance();
         Assert.That(game.CheckedLocations.InCheckedOrder, ratCount < 5 ? Does.Not.Contain(s_basketball) : Contains.Item(s_basketball));
     }
@@ -88,8 +88,8 @@ public sealed class GameTests
     public void ShouldHeadFurtherAfterCompletingBasketball([Values] bool unblockAngryTurtlesFirst)
     {
         Game game = new(s_highRolls);
-        game.ArbitrarilyModifyState(g => g.ReceivedItems, new() { InReceivedOrder = [.. Enumerable.Repeat(s_normalRat, 5), unblockAngryTurtlesFirst ? s_pizzaRat : s_premiumCanOfPrawnFood] });
-        game.ArbitrarilyModifyState(g => g.CheckedLocations, new() { InCheckedOrder = [.. s_startRegion.Locations] });
+        game.InitializeReceivedItems([.. Enumerable.Repeat(s_normalRat, 5), unblockAngryTurtlesFirst ? s_pizzaRat : s_premiumCanOfPrawnFood]);
+        game.InitializeCheckedLocations(s_startRegion.Locations);
         game.ArbitrarilyModifyState(g => g.CurrentLocation, s_basketball);
         game.ArbitrarilyModifyState(g => g.TargetLocation, s_basketball);
 
@@ -412,13 +412,12 @@ public sealed class GameTests
         // should NOT be targeting Prawn Stars now, because we can't reach it out the gate.
         Assert.That(game.TargetLocation, Is.Not.EqualTo(prawnStars));
 
-        // just restart it...
+        // just restart it, giving it what's needed to reach Prawn Stars
         game = new(s_lowRolls);
+        game.InitializeCheckedLocations([s_basketball]);
+        game.InitializeReceivedItems([.. Enumerable.Range(0, 5).Select(_ => s_normalRat), s_premiumCanOfPrawnFood]);
         game.AddPriorityLocation(prawnStars);
 
-        // give what's needed to reach Prawn Stars
-        game.ArbitrarilyModifyState(g => g.CheckedLocations, new() { InCheckedOrder = [s_basketball] });
-        game.ArbitrarilyModifyState(g => g.ReceivedItems, new() { InReceivedOrder = [.. Enumerable.Range(0, 5).Select(_ => s_normalRat), s_premiumCanOfPrawnFood] });
         game.Advance();
 
         // NOW that's what we should be targeting
@@ -518,7 +517,8 @@ public sealed class GameTests
 
         ItemDefinitionModel auraItem = GameDefinitions.Instance.AllItems.First(i => i.AurasGranted.Length == 1 && i.AurasGranted[0] == aura);
 
-        Game game = new(Prng.State.Start(), spoilerData);
+        Game game = new(Prng.State.Start());
+        game.InitializeSpoilerData(spoilerData);
         game.ArbitrarilyModifyState(g => g.CurrentLocation, GameDefinitions.Instance.StartRegion.Locations[^1]);
         game.ArbitrarilyModifyState(g => g.TargetLocation, GameDefinitions.Instance.StartRegion.Locations[^1]);
 
@@ -546,9 +546,9 @@ public sealed class GameTests
     public void PriorityLocationsPastClearableLandmarksShouldBlockThePlayer()
     {
         Game game = new(s_lowRolls);
+        game.InitializeReceivedItems(Enumerable.Repeat(s_normalRat, 5));
         game.ArbitrarilyModifyState(g => g.CurrentLocation, GameDefinitions.Instance.StartRegion.Locations[^1]);
         game.ArbitrarilyModifyState(g => g.TargetLocation, GameDefinitions.Instance.StartRegion.Locations[^1]);
-        game.ArbitrarilyModifyState(g => g.ReceivedItems, new() { InReceivedOrder = [.. Enumerable.Repeat(s_normalRat, 5)] });
         game.ArbitrarilyModifyState(g => g.PriorityLocations, [ s_beforePrawnStars.Locations[1] ]);
 
         for (int i = 0; i < 3; i++)
@@ -569,10 +569,10 @@ public sealed class GameTests
         }
 
         Game game = new(s_highRolls);
+        game.InitializeReceivedItems(Enumerable.Repeat(s_normalRat, 5));
+        game.InitializeCheckedLocations(s_startRegion.Locations);
         game.ArbitrarilyModifyState(g => g.CurrentLocation, GameDefinitions.Instance.StartLocation);
         game.ArbitrarilyModifyState(g => g.TargetLocation, s_basketball);
-        game.ArbitrarilyModifyState(g => g.ReceivedItems, new() { InReceivedOrder = [.. Enumerable.Repeat(s_normalRat, 5)] });
-        game.ArbitrarilyModifyState(g => g.CheckedLocations, new() { InCheckedOrder = [.. s_startRegion.Locations] });
         game.ArbitrarilyModifyState(g => g.EnergyFactor, -100);
         game.Advance();
         Assert.Multiple(() =>
@@ -641,10 +641,10 @@ public sealed class GameTests
     {
         LocationDefinitionModel lastLocationBeforeBasketball = GameDefinitions.Instance.StartRegion.Locations[^1];
         Game game = new(s_lowRolls);
+        game.InitializeCheckedLocations([lastLocationBeforeBasketball]);
         game.ArbitrarilyModifyState(g => g.CurrentLocation, lastLocationBeforeBasketball);
         game.ArbitrarilyModifyState(g => g.TargetLocation, lastLocationBeforeBasketball);
         game.ArbitrarilyModifyState(g => g.PriorityLocations, [s_basketball, lastLocationBeforeBasketball ]);
-        game.ArbitrarilyModifyState(g => g.CheckedLocations, new() { InCheckedOrder = [lastLocationBeforeBasketball] });
         game.Advance();
 
         Assert.That(game.TargetLocation, Is.Not.EqualTo(lastLocationBeforeBasketball));
@@ -654,29 +654,24 @@ public sealed class GameTests
     public void StartledShouldNotMoveThroughLockedLocations()
     {
         Game game = new(Prng.State.Start());
-        game.ArbitrarilyModifyState(g => g.CurrentLocation, GameDefinitions.Instance.LocationsByName["After Pirate Bake Sale #1"]);
-        game.ArbitrarilyModifyState(g => g.TargetLocation, GameDefinitions.Instance.LocationsByName["Bowling Ball Door"]);
-        game.ArbitrarilyModifyState(g => g.ReceivedItems, new()
-        {
-            InReceivedOrder =
-            [
+        game.InitializeReceivedItems(
+        [
                 .. Enumerable.Repeat(s_normalRat, 40),
                 GameDefinitions.Instance.ItemsByName["Priceless Antique"],
                 GameDefinitions.Instance.ItemsByName["Pie Rat"],
                 GameDefinitions.Instance.ItemsByName["Pizza Rat"],
                 GameDefinitions.Instance.ItemsByName["Chef Rat"],
-            ],
-        });
-        game.ArbitrarilyModifyState(g => g.CheckedLocations, new()
-        {
-            InCheckedOrder =
-            [
-                s_basketball,
-                GameDefinitions.Instance.LocationsByName["Angry Turtles"],
-                GameDefinitions.Instance.LocationsByName["Restaurant"],
-                GameDefinitions.Instance.LocationsByName["Bowling Ball Door"],
-            ],
-        });
+        ]);
+        game.InitializeCheckedLocations(
+        [
+            s_basketball,
+            GameDefinitions.Instance.LocationsByName["Angry Turtles"],
+            GameDefinitions.Instance.LocationsByName["Restaurant"],
+            GameDefinitions.Instance.LocationsByName["Bowling Ball Door"],
+        ]);
+        game.ArbitrarilyModifyState(g => g.CurrentLocation, GameDefinitions.Instance.LocationsByName["After Pirate Bake Sale #1"]);
+        game.ArbitrarilyModifyState(g => g.TargetLocation, GameDefinitions.Instance.LocationsByName["Bowling Ball Door"]);
+
         for (int i = 0; i < 100; i++)
         {
             game.ArbitrarilyModifyState(g => g.StartledCounter, 1);
