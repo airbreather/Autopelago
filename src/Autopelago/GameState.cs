@@ -35,6 +35,8 @@ public sealed record GameState
 
     public required TargetLocationReason TargetLocationReason { get; init; }
 
+    public required ShortestPaths.Path PathToTargetLocation { get; init; }
+
     public required ReceivedItems ReceivedItems { get; init; }
 
     public required CheckedLocations CheckedLocations { get; init; }
@@ -85,6 +87,7 @@ public sealed record GameState
             CurrentLocation = GameDefinitions.Instance.StartLocation,
             TargetLocation = GameDefinitions.Instance.StartLocation,
             TargetLocationReason = TargetLocationReason.GameNotStarted,
+            PathToTargetLocation = ShortestPaths.Path.Only(GameDefinitions.Instance.StartLocation),
             ReceivedItems = new() { InReceivedOrder = [] },
             CheckedLocations = new() { InCheckedOrder = [] },
             PriorityPriorityLocations = [GameDefinitions.Instance.GoalLocation],
@@ -183,6 +186,7 @@ public sealed record GameState
             PreviousStepMovementLog.SequenceEqual(other.PreviousStepMovementLog) &&
             CurrentLocation == other.CurrentLocation &&
             TargetLocation == other.TargetLocation &&
+            PathToTargetLocation == other.PathToTargetLocation &&
             TargetLocationReason == other.TargetLocationReason &&
             LocationCheckAttemptsThisStep == other.LocationCheckAttemptsThisStep &&
             ActionBalanceAfterPreviousStep == other.ActionBalanceAfterPreviousStep &&
@@ -208,7 +212,8 @@ public sealed record GameState
                 CurrentLocation,
                 TargetLocation,
                 TargetLocationReason,
-                LocationCheckAttemptsThisStep),
+                LocationCheckAttemptsThisStep,
+                PathToTargetLocation),
             HashCode.Combine(
                 ActionBalanceAfterPreviousStep,
                 FoodFactor,

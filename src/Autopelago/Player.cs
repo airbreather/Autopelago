@@ -225,26 +225,18 @@ public sealed partial class Player
         }
 
         List<LocationVector> movementLog = [];
-        TargetLocationReason bestTargetLocationReason = _state.TargetLocationReason;
         while (actionBalance > 0 && !_state.IsCompleted)
         {
             --actionBalance;
 
-            LocationDefinitionModel bestTargetLocation = BestTargetLocation(out bestTargetLocationReason, out ShortestPaths.Path bestPathToTargetLocation);
-            if (_state.TargetLocation != bestTargetLocation)
+            // changing your route takes an action unless you're startled.
+            if (UpdateTargetLocation() && _state.TargetLocationReason != TargetLocationReason.Startled)
             {
-                // changing your route takes an action...
-                _state = _state with { TargetLocation = bestTargetLocation };
-
-                // ...unless you're startled, in which case it was instinct.
-                if (bestTargetLocationReason != TargetLocationReason.Startled)
-                {
-                    continue;
-                }
+                continue;
             }
 
             bool moved = false;
-            if (_state.CurrentLocation != bestTargetLocation)
+            if (_state.CurrentLocation != _state.TargetLocation)
             {
                 switch (_state.EnergyFactor)
                 {
@@ -268,8 +260,8 @@ public sealed partial class Player
                 {
                     movementLog.Add(new()
                     {
-                        PreviousLocation = bestPathToTargetLocation.Locations[i],
-                        CurrentLocation = bestPathToTargetLocation.Locations[i + 1],
+                        PreviousLocation = _state.PathToTargetLocation.Locations[i],
+                        CurrentLocation = _state.PathToTargetLocation.Locations[i + 1],
                     });
                     _state = _state with { CurrentLocation = movementLog[^1].CurrentLocation };
                     moved = true;
@@ -286,20 +278,19 @@ public sealed partial class Player
                 }
             }
 
-            if (bestTargetLocationReason == TargetLocationReason.Priority && _state.CurrentLocation == _state.TargetLocation)
+            if (_state.CurrentLocation == _state.TargetLocation)
             {
-                // we've reached our next priority location. remove it from the queue.
                 LocationDefinitionModel targetLocation = _state.TargetLocation;
-                _state = _state with { PriorityLocations = _state.PriorityLocations.RemoveAll(l => l == targetLocation) };
+                _state = _state.TargetLocationReason switch
+                {
+                    TargetLocationReason.PriorityPriority => _state with { PriorityPriorityLocations = _state.PriorityPriorityLocations.RemoveAll(l => l == targetLocation) },
+                    TargetLocationReason.Priority => _state with { PriorityLocations = _state.PriorityLocations.RemoveAll(l => l == targetLocation) },
+                    _ => _state,
+                };
             }
 
-            // figure out if anything above changed our best target location. if not, then don't
-            // update anything so that the Epoch will stay the same!
-            bestTargetLocation = BestTargetLocation(out bestTargetLocationReason, out bestPathToTargetLocation);
-            if (bestTargetLocation != _state.TargetLocation)
-            {
-                _state = _state with { TargetLocation = bestTargetLocation };
-            }
+            // don't burn more than one action per round.
+            UpdateTargetLocation();
         }
 
         if (actionBalance > 0)
@@ -310,27 +301,10 @@ public sealed partial class Player
             actionBalance = 0;
         }
 
-        if (_state.LocationCheckAttemptsThisStep != 0)
-        {
-            _state = _state with { LocationCheckAttemptsThisStep = 0 };
-        }
-
-        if (_state.ActionBalanceAfterPreviousStep != actionBalance)
-        {
-            _state = _state with { ActionBalanceAfterPreviousStep = actionBalance };
-        }
-
         if (_state.StartledCounter > 0)
         {
             _state = _state with { StartledCounter = _state.StartledCounter - 1 };
-            if (_state.StartledCounter == 0)
-            {
-                LocationDefinitionModel bestTargetLocation = BestTargetLocation(out _, out _);
-                if (bestTargetLocation != _state.TargetLocation)
-                {
-                    _state = _state with { TargetLocation = bestTargetLocation };
-                }
-            }
+            UpdateTargetLocation();
         }
 
         if (movementLog.Count == 0)
@@ -345,10 +319,24 @@ public sealed partial class Player
             _state = _state with { PreviousStepMovementLog = [.. movementLog] };
         }
 
-        if (_state.TargetLocationReason != bestTargetLocationReason)
+        // some wrap-ups.
+        _state = _state with
         {
-            _state = _state with { TargetLocationReason = bestTargetLocationReason };
-        }
+            LocationCheckAttemptsThisStep = 0,
+            ActionBalanceAfterPreviousStep = actionBalance,
+        };
+    }
+
+    private bool UpdateTargetLocation()
+    {
+        LocationDefinitionModel prevTargetLocation = _state.TargetLocation;
+        _state = _state with
+        {
+            TargetLocation = BestTargetLocation(out TargetLocationReason bestTargetLocationReason, out ShortestPaths.Path bestPathToTargetLocation),
+            TargetLocationReason = bestTargetLocationReason,
+            PathToTargetLocation = bestPathToTargetLocation,
+        };
+        return _state.TargetLocation != prevTargetLocation;
     }
 
     private LocationDefinitionModel BestTargetLocation(out TargetLocationReason reason, out ShortestPaths.Path bestPath)

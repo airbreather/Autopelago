@@ -150,9 +150,33 @@ public sealed record ShortestPaths
 
     private ReadOnlySpan2D<int> Prev => new(ImmutableCollectionsMarshal.AsArray(_prev)!, _loc.Length, _loc.Length);
 
+    public bool Equals(ShortestPaths? other)
+    {
+        return
+            other is not null &&
+            _loc.SequenceEqual(other._loc) &&
+            _dist.SequenceEqual(other._dist) &&
+            _prev.SequenceEqual(other._prev);
+    }
+
+    public override int GetHashCode()
+    {
+        // length doesn't seem selective enough. probably more risky to
+        HashCode hc = default;
+        hc.Add(_loc.Length);
+        foreach (string loc in _loc)
+        {
+            hc.AddBytes(MemoryMarshal.AsBytes(loc.AsSpan()));
+        }
+
+        hc.AddBytes(MemoryMarshal.AsBytes(_dist.AsSpan()));
+        hc.AddBytes(MemoryMarshal.AsBytes(_prev.AsSpan()));
+        return hc.ToHashCode();
+    }
+
     public readonly record struct Path
     {
-        private readonly ShortestPaths _parent;
+        private readonly ShortestPaths? _parent;
 
         private readonly LocationDefinitionModel _from;
 
@@ -175,7 +199,40 @@ public sealed record ShortestPaths
             _locations = new(() => self.GetLocations());
         }
 
+        private Path(LocationDefinitionModel from)
+        {
+            _parent = null;
+            _from = from;
+            _to = from;
+            _i = 0;
+            _j = 0;
+            _locations = new(() => [from]);
+        }
+
         public ImmutableArray<LocationDefinitionModel> Locations => _locations.Value;
+
+        public static Path Only(LocationDefinitionModel location) => new(location);
+
+        public bool Equals(Path other)
+        {
+            return
+                _parent == other._parent &&
+                _from == other._from &&
+                _to == other._to &&
+                _i == other._i &&
+                _j == other._j;
+        }
+
+        public override int GetHashCode()
+        {
+            return HashCode.Combine(
+                _parent,
+                _from,
+                _to,
+                _i,
+                _j
+            );
+        }
 
         private static bool IsForward(GameDefinitions defs, RegionDefinitionModel from, RegionDefinitionModel to)
         {
@@ -195,7 +252,7 @@ public sealed record ShortestPaths
 
         private ImmutableArray<LocationDefinitionModel> GetLocations()
         {
-            RegionDefinitionModel fromRegion = _parent._defs.AllRegions[_from.Key.RegionKey];
+            RegionDefinitionModel fromRegion = _parent!._defs.AllRegions[_from.Key.RegionKey];
             RegionDefinitionModel toRegion = _parent._defs.AllRegions[_to.Key.RegionKey];
             if (fromRegion == toRegion)
             {
