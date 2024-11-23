@@ -2,10 +2,26 @@ using System.Collections.Frozen;
 using System.Collections.Immutable;
 using System.Linq.Expressions;
 using System.Reflection;
-using System.Runtime.CompilerServices;
-using System.Text.RegularExpressions;
 
 namespace Autopelago;
+
+public enum UncheckedLandmarkBehavior
+{
+    DoNotPassThrough,
+    PassThroughIfRequirementsSatisfied,
+    AlwaysPassThrough,
+}
+
+public enum TargetLocationReason
+{
+    GameNotStarted,
+    NowhereUsefulToMove,
+    ClosestReachable,
+    Priority,
+    PriorityPriority,
+    GoMode,
+    Startled,
+}
 
 public sealed record LocationVector
 {
@@ -14,109 +30,56 @@ public sealed record LocationVector
     public required LocationDefinitionModel CurrentLocation { get; init; }
 }
 
-public sealed partial class Game
+public sealed class Game
 {
-    private readonly FrozenDictionary<LocationDefinitionModel, ArchipelagoItemFlags> _spoilerData;
-
-    private GameState _state;
-
     private ShortestPaths.Path _pathToTargetLocation = ShortestPaths.Path.Only(GameDefinitions.Instance.StartLocation);
 
     private int _locationCheckAttemptsThisStep;
 
     private int _actionBalanceAfterPreviousStep;
 
-    public Game(Prng.State prngState, GameState initialState, [CallerFilePath] string? testFilePath = null)
-        : this(prngState, initialState, GameDefinitions.Instance.LocationsByName.Values.ToFrozenDictionary(l => l, l => l.UnrandomizedItem?.ArchipelagoFlags ?? ArchipelagoItemFlags.None))
+    public Game(Prng.State prngState)
+        : this(prngState, GameDefinitions.Instance.LocationsByName.Values.ToFrozenDictionary(l => l, l => l.UnrandomizedItem?.ArchipelagoFlags ?? ArchipelagoItemFlags.None))
     {
-        // this isn't bulletproof. I need only avoid accidents, not malice.
-        AllowFromTestsOnly(testFilePath);
     }
 
-    public Game(Prng.State prngState, GameState initialState, FrozenDictionary<LocationDefinitionModel, ArchipelagoItemFlags> spoilerData)
+    public Game(Prng.State prngState, FrozenDictionary<LocationDefinitionModel, ArchipelagoItemFlags> spoilerData)
     {
         PrngState = prngState;
-        _state = initialState;
-        _spoilerData = spoilerData;
+        SpoilerData = spoilerData;
     }
+
+    public FrozenDictionary<LocationDefinitionModel, ArchipelagoItemFlags> SpoilerData { get; private set; }
 
     public ImmutableArray<LocationVector> PreviousStepMovementLog { get; private set; } = [];
 
-    public LocationDefinitionModel CurrentLocation
-    {
-        get => _state.CurrentLocation;
-        private set => _state = _state with { CurrentLocation = value };
-    }
+    public LocationDefinitionModel CurrentLocation { get; private set; } = GameDefinitions.Instance.StartLocation;
 
-    public LocationDefinitionModel TargetLocation
-    {
-        get => _state.TargetLocation;
-        private set => _state = _state with { TargetLocation = value };
-    }
+    public LocationDefinitionModel TargetLocation { get; private set; } = GameDefinitions.Instance.StartLocation;
 
     public TargetLocationReason TargetLocationReason { get; private set; } = TargetLocationReason.GameNotStarted;
 
-    public ReceivedItems ReceivedItems
-    {
-        get => _state.ReceivedItems;
-        private set => _state = _state with { ReceivedItems = value };
-    }
+    public ReceivedItems ReceivedItems { get; private set; } = new() { InReceivedOrder = [] };
 
-    public CheckedLocations CheckedLocations
-    {
-        get => _state.CheckedLocations;
-        private set => _state = _state with { CheckedLocations = value };
-    }
+    public CheckedLocations CheckedLocations { get; private set; } = new() { InCheckedOrder = [] };
 
     public ImmutableList<LocationDefinitionModel> PriorityPriorityLocations { get; private set; } = [GameDefinitions.Instance.GoalLocation];
 
-    public ImmutableList<LocationDefinitionModel> PriorityLocations
-    {
-        get => _state.PriorityLocations;
-        private set => _state = _state with { PriorityLocations = value };
-    }
+    public ImmutableList<LocationDefinitionModel> PriorityLocations { get; private set; } = [];
 
-    public int FoodFactor
-    {
-        get => _state.FoodFactor;
-        private set => _state = _state with { FoodFactor = value };
-    }
+    public int FoodFactor { get; private set; }
 
-    public int LuckFactor
-    {
-        get => _state.LuckFactor;
-        private set => _state = _state with { LuckFactor = value };
-    }
+    public int LuckFactor { get; private set; }
 
-    public int EnergyFactor
-    {
-        get => _state.EnergyFactor;
-        private set => _state = _state with { EnergyFactor = value };
-    }
+    public int EnergyFactor { get; private set; }
 
-    public int StyleFactor
-    {
-        get => _state.StyleFactor;
-        private set => _state = _state with { StyleFactor = value };
-    }
+    public int StyleFactor { get; private set; }
 
-    public int DistractionCounter
-    {
-        get => _state.DistractionCounter;
-        private set => _state = _state with { DistractionCounter = value };
-    }
+    public int DistractionCounter { get; private set; }
 
-    public int StartledCounter
-    {
-        get => _state.StartledCounter;
-        private set => _state = _state with { StartledCounter = value };
-    }
+    public int StartledCounter { get; private set; }
 
-    public bool HasConfidence
-    {
-        get => _state.HasConfidence;
-        private set => _state = _state with { HasConfidence = value };
-    }
+    public bool HasConfidence { get; private set; }
 
     public Prng.State PrngState { get; private set; }
 
@@ -124,10 +87,8 @@ public sealed partial class Game
 
     private int DiceModifier => (ReceivedItems.RatCount / 3) - (_locationCheckAttemptsThisStep * 5);
 
-    public void ArbitrarilyModifyState<T>(Expression<Func<Game, T>> prop, T value, [CallerFilePath] string? testFilePath = null)
+    public void ArbitrarilyModifyState<T>(Expression<Func<Game, T>> prop, T value)
     {
-        // this isn't bulletproof. I need only avoid accidents, not malice.
-        AllowFromTestsOnly(testFilePath);
         ((PropertyInfo)(((MemberExpression)prop.Body).Member)).SetValue(this, value);
     }
 
@@ -138,7 +99,7 @@ public sealed partial class Game
             return false;
         }
 
-        _state = _state with { PriorityLocations = PriorityLocations.Add(toPrioritize) };
+        PriorityLocations = PriorityLocations.Add(toPrioritize);
         return true;
     }
 
@@ -152,7 +113,7 @@ public sealed partial class Game
         }
 
         LocationDefinitionModel removed = PriorityLocations[index];
-        _state = _state with { PriorityLocations = PriorityLocations.RemoveAt(index) };
+        PriorityLocations = PriorityLocations.RemoveAt(index);
         return removed;
     }
 
@@ -174,7 +135,7 @@ public sealed partial class Game
 
         bool VisitLocation(LocationDefinitionModel curr, ArchipelagoItemFlags flags)
         {
-            if (uncheckedLocationsToIgnore.Contains(curr) || _spoilerData[curr] != flags)
+            if (uncheckedLocationsToIgnore.Contains(curr) || curr.RewardIsFixed || SpoilerData[curr] != flags)
             {
                 return true;
             }
@@ -260,25 +221,22 @@ public sealed partial class Game
             // subtract first
             if (subtractConfidence)
             {
-                _state = _state with { HasConfidence = false };
+                HasConfidence = false;
             }
 
             if (addConfidence)
             {
-                _state = _state with { HasConfidence = true };
+                HasConfidence = true;
             }
         }
 
-        _state = _state with
-        {
-            ReceivedItems = new() { InReceivedOrder = ReceivedItems.InReceivedOrder.AddRange(newItems) },
-            FoodFactor = FoodFactor + (foodMod * 5),
-            EnergyFactor = EnergyFactor + (energyFactorMod * 5),
-            LuckFactor = LuckFactor + luckFactorMod,
-            StyleFactor = StyleFactor + (stylishMod * 2),
-            DistractionCounter = DistractionCounter + distractedMod,
-            StartledCounter = StartledCounter + startledMod,
-        };
+        ReceivedItems = new() { InReceivedOrder = ReceivedItems.InReceivedOrder.AddRange(newItems) };
+        FoodFactor += (foodMod * 5);
+        EnergyFactor += (energyFactorMod * 5);
+        LuckFactor += luckFactorMod;
+        StyleFactor += (stylishMod * 2);
+        DistractionCounter += distractedMod;
+        StartledCounter += startledMod;
         PriorityPriorityLocations = PriorityPriorityLocations.AddRange(priorityPriorityLocations);
     }
 
@@ -294,12 +252,12 @@ public sealed partial class Game
         {
             case < 0:
                 --actionBalance;
-                _state = _state with { FoodFactor = FoodFactor + 1 };
+                FoodFactor += 1;
                 break;
 
             case > 0:
                 ++actionBalance;
-                _state = _state with { FoodFactor = FoodFactor - 1 };
+                FoodFactor -= 1;
                 break;
         }
 
@@ -312,7 +270,7 @@ public sealed partial class Game
                 actionBalance = 0;
             }
 
-            _state = _state with { DistractionCounter = DistractionCounter - 1 };
+            DistractionCounter -= 1;
         }
 
         List<LocationVector> movementLog = [];
@@ -333,12 +291,12 @@ public sealed partial class Game
                 {
                     case < 0:
                         --actionBalance;
-                        _state = _state with { EnergyFactor = EnergyFactor + 1 };
+                        EnergyFactor += 1;
                         break;
 
                     case > 0:
                         ++actionBalance;
-                        _state = _state with { EnergyFactor = EnergyFactor - 1 };
+                        EnergyFactor -= 1;
                         break;
                 }
 
@@ -354,7 +312,7 @@ public sealed partial class Game
                         PreviousLocation = _pathToTargetLocation.Locations[i],
                         CurrentLocation = _pathToTargetLocation.Locations[i + 1],
                     });
-                    _state = _state with { CurrentLocation = movementLog[^1].CurrentLocation };
+                    CurrentLocation = movementLog[^1].CurrentLocation;
                     moved = true;
                 }
             }
@@ -372,12 +330,16 @@ public sealed partial class Game
             if (CurrentLocation == TargetLocation)
             {
                 LocationDefinitionModel targetLocation = TargetLocation;
-                _state = TargetLocationReason switch
+                switch (TargetLocationReason)
                 {
-                    TargetLocationReason.Priority => _state with { PriorityLocations = PriorityLocations.RemoveAll(l => l == targetLocation) },
-                    _ => _state,
-                };
-                PriorityPriorityLocations = PriorityPriorityLocations.RemoveAll(l => l == targetLocation);
+                    case TargetLocationReason.Priority:
+                        PriorityLocations = PriorityLocations.RemoveAll(l => l == targetLocation);
+                        break;
+
+                    case TargetLocationReason.PriorityPriority:
+                        PriorityPriorityLocations = PriorityPriorityLocations.RemoveAll(l => l == targetLocation);
+                        break;
+                }
             }
 
             // don't burn more than one action per round on changing the target location. we only do
@@ -396,7 +358,7 @@ public sealed partial class Game
 
         if (StartledCounter > 0)
         {
-            _state = _state with { StartledCounter = StartledCounter - 1 };
+            StartledCounter -= 1;
             UpdateTargetLocation();
         }
 
@@ -416,10 +378,7 @@ public sealed partial class Game
     private bool UpdateTargetLocation()
     {
         LocationDefinitionModel prevTargetLocation = TargetLocation;
-        _state = _state with
-        {
-            TargetLocation = BestTargetLocation(out TargetLocationReason bestTargetLocationReason, out ShortestPaths.Path bestPathToTargetLocation),
-        };
+        TargetLocation = BestTargetLocation(out TargetLocationReason bestTargetLocationReason, out ShortestPaths.Path bestPathToTargetLocation);
         TargetLocationReason = bestTargetLocationReason;
         _pathToTargetLocation = bestPathToTargetLocation;
         return TargetLocation != prevTargetLocation;
@@ -510,22 +469,22 @@ public sealed partial class Game
     private bool TryCheck(LocationDefinitionModel location)
     {
         int extraDiceModifier = 0;
-        switch (_state.LuckFactor)
+        switch (LuckFactor)
         {
             case < 0:
                 extraDiceModifier -= 5;
-                _state = _state with { LuckFactor = _state.LuckFactor + 1 };
+                LuckFactor += 1;
                 break;
 
             case > 0:
-                _state = _state with { LuckFactor = _state.LuckFactor - 1 };
+                LuckFactor -= 1;
                 goto success;
         }
 
-        if (_state.StyleFactor > 0)
+        if (StyleFactor > 0)
         {
             extraDiceModifier += 5;
-            _state = _state with { StyleFactor = _state.StyleFactor - 1 };
+            StyleFactor -= 1;
         }
 
         if (NextD20() + DiceModifier + extraDiceModifier < location.AbilityCheckDC)
@@ -534,13 +493,7 @@ public sealed partial class Game
         }
 
         success:
-        _state = _state with
-        {
-            CheckedLocations = new()
-            {
-                InCheckedOrder = _state.CheckedLocations.InCheckedOrder.Add(location),
-            },
-        };
+        CheckedLocations = new() { InCheckedOrder = CheckedLocations.InCheckedOrder.Add(location) };
         return true;
     }
 
@@ -616,15 +569,4 @@ public sealed partial class Game
         PrngState = s;
         return result;
     }
-
-    private static void AllowFromTestsOnly(ReadOnlySpan<char> filePath, [CallerArgumentExpression(nameof(filePath))] string? paramName = null)
-    {
-        if (!MyRegex().IsMatch(filePath))
-        {
-            throw new ArgumentException("Spoiler data is required for all real callers.", paramName);
-        }
-    }
-
-    [GeneratedRegex(@"Autopelago\.Test[/\\][^/\\]*\.cs", RegexOptions.Compiled | RegexOptions.CultureInvariant)]
-    private static partial Regex MyRegex();
 }

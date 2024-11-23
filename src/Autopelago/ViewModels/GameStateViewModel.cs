@@ -73,9 +73,9 @@ public sealed partial class GameStateViewModel : ViewModelBase, IDisposable
 
     private readonly CancellationTokenSource _gameCompleteCts = new();
 
-    private GameState? _initializingState = GameState.Start();
+    private Game _game = new(Prng.State.Start());
 
-    private Game _game = null!;
+    private bool _started;
 
     private ClientWebSocketBox _clientWebSocketBox = null!;
 
@@ -600,17 +600,14 @@ public sealed partial class GameStateViewModel : ViewModelBase, IDisposable
                 await _gameStateMutex.WaitAsync();
                 try
                 {
-                    _initializingState = _initializingState! with
+                    _game.ArbitrarilyModifyState(g => g.CheckedLocations, new()
                     {
-                        CheckedLocations = new()
-                        {
-                            InCheckedOrder =
-                            [
-                                .._connected.CheckedLocations
-                                    .Select(locationId => _lastFullData.LocationsById[locationId]),
-                            ],
-                        },
-                    };
+                        InCheckedOrder =
+                        [
+                            .._connected.CheckedLocations
+                                .Select(locationId => _lastFullData.LocationsById[locationId]),
+                        ],
+                    });
 
                     foreach (LocationDefinitionModel location in _game.CheckedLocations.InCheckedOrder)
                     {
@@ -644,19 +641,16 @@ public sealed partial class GameStateViewModel : ViewModelBase, IDisposable
                 break;
 
             case ReceivedItemsPacketModel receivedItems:
-                if (_initializingState is { } initializingState)
+                if (!_started)
                 {
-                    _initializingState = initializingState with
+                    _game.ArbitrarilyModifyState(g => g.ReceivedItems, new()
                     {
-                        ReceivedItems = new()
-                        {
-                            InReceivedOrder =
-                            [
-                                .. receivedItems.Items
-                                    .Select(i => _lastFullData.ItemsById[i.Item]),
-                            ],
-                        },
-                    };
+                        InReceivedOrder =
+                        [
+                            .. receivedItems.Items
+                                .Select(i => _lastFullData.ItemsById[i.Item]),
+                        ],
+                    });
                 }
                 else
                 {
@@ -703,8 +697,8 @@ public sealed partial class GameStateViewModel : ViewModelBase, IDisposable
                     ApplyAuraData(auraData);
                 }
 
-                _game = new(Prng.State.Start(8675309), _initializingState!, _spoilerData);
-                _initializingState = null;
+                _game = new(Prng.State.Start(8675309), _spoilerData);
+                _started = true;
                 UpdateMeters();
                 _dataAvailableSignal.Release();
                 break;
@@ -1241,17 +1235,14 @@ public sealed partial class GameStateViewModel : ViewModelBase, IDisposable
 
     private void ApplyAuraData(AuraData auraData)
     {
-        _initializingState = _initializingState! with
-        {
-            DistractionCounter = auraData.DistractionCounter,
-            StartledCounter = auraData.StartledCounter,
-            HasConfidence = auraData.HasConfidence,
-            FoodFactor = auraData.FoodFactor,
-            LuckFactor = auraData.LuckFactor,
-            StyleFactor = auraData.StyleFactor,
-            EnergyFactor = auraData.EnergyFactor,
-            PriorityLocations = [.. auraData.PriorityLocations.Select(p => GameDefinitions.Instance.LocationsByName[p])],
-        };
+        _game.ArbitrarilyModifyState(g => g.DistractionCounter, auraData.DistractionCounter);
+        _game.ArbitrarilyModifyState(g => g.StartledCounter, auraData.StartledCounter);
+        _game.ArbitrarilyModifyState(g => g.HasConfidence, auraData.HasConfidence);
+        _game.ArbitrarilyModifyState(g => g.FoodFactor, auraData.FoodFactor);
+        _game.ArbitrarilyModifyState(g => g.LuckFactor, auraData.LuckFactor);
+        _game.ArbitrarilyModifyState(g => g.StyleFactor, auraData.StyleFactor);
+        _game.ArbitrarilyModifyState(g => g.EnergyFactor, auraData.EnergyFactor);
+        _game.ArbitrarilyModifyState(g => g.PriorityLocations, [.. auraData.PriorityLocations.Select(p => GameDefinitions.Instance.LocationsByName[p])]);
     }
 
     [Reactive]
