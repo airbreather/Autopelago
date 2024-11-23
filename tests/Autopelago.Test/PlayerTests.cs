@@ -48,8 +48,8 @@ public sealed class PlayerTests
         player.Advance();
         Assert.Multiple(() =>
         {
-            Assert.That(player.State.CheckedLocations, Is.Empty);
-            Assert.That(player.State.PrngState, Is.EqualTo(prngState));
+            Assert.That(player.CheckedLocations, Is.Empty);
+            Assert.That(player.PrngState, Is.EqualTo(prngState));
         });
 
         // the next attempt should succeed, despite only rolling 1 higher than the first roll of the
@@ -61,14 +61,14 @@ public sealed class PlayerTests
         player.Advance();
         Assert.Multiple(() =>
         {
-            Assert.That(player.State.CheckedLocations.InCheckedOrder.FirstOrDefault(), Is.EqualTo(s_startLocation));
-            Assert.That(player.State.TargetLocation, Is.EqualTo(s_startRegion.Locations[1]));
+            Assert.That(player.CheckedLocations.InCheckedOrder.FirstOrDefault(), Is.EqualTo(s_startLocation));
+            Assert.That(player.TargetLocation, Is.EqualTo(s_startRegion.Locations[1]));
 
             // because they succeeded on their first attempt, they have just enough actions to reach and
             // then make a feeble attempt at the next location on the route
-            Assert.That(player.State.CurrentLocation, Is.EqualTo(player.State.TargetLocation));
-            Assert.That(player.State.CheckedLocations, Has.Count.EqualTo(1));
-            Assert.That(player.State.PrngState, Is.EqualTo(prngState));
+            Assert.That(player.CurrentLocation, Is.EqualTo(player.TargetLocation));
+            Assert.That(player.CheckedLocations, Has.Count.EqualTo(1));
+            Assert.That(player.PrngState, Is.EqualTo(prngState));
         });
     }
 
@@ -83,7 +83,7 @@ public sealed class PlayerTests
             ReceivedItems = new() { InReceivedOrder = [.. Enumerable.Repeat(s_normalRat, ratCount)] },
         });
         player.Advance();
-        Assert.That(player.State.CheckedLocations.InCheckedOrder, ratCount < 5 ? Does.Not.Contain(s_basketball) : Contains.Item(s_basketball));
+        Assert.That(player.CheckedLocations.InCheckedOrder, ratCount < 5 ? Does.Not.Contain(s_basketball) : Contains.Item(s_basketball));
     }
 
     [Test]
@@ -103,9 +103,9 @@ public sealed class PlayerTests
         // basketball, then move, then complete that first location that we moved to.
         Assert.Multiple(() =>
         {
-            Assert.That(player.State.CurrentLocation.Region, Is.EqualTo(s_beforePrawnStars).Or.EqualTo(s_beforeAngryTurtles));
-            Assert.That(player.State.CurrentLocation.Key.N, Is.EqualTo(0));
-            Assert.That(player.State.TargetLocation.Key.N, Is.EqualTo(1));
+            Assert.That(player.CurrentLocation.Region, Is.EqualTo(s_beforePrawnStars).Or.EqualTo(s_beforeAngryTurtles));
+            Assert.That(player.CurrentLocation.Key.N, Is.EqualTo(0));
+            Assert.That(player.TargetLocation.Key.N, Is.EqualTo(1));
         });
     }
 
@@ -117,16 +117,15 @@ public sealed class PlayerTests
         List<ItemDefinitionModel> newReceivedItems = [];
         while (true)
         {
-            GameState prev = player.State;
+            int prevCheckedLocationsCount = player.CheckedLocations.Count;
             player.Advance();
-            Assert.That(player.State, Is.Not.EqualTo(prev));
 
-            if (player.State.IsCompleted)
+            if (player.IsCompleted)
             {
                 break;
             }
 
-            foreach (LocationDefinitionModel newCheckedLocation in player.State.CheckedLocations.InCheckedOrder.Skip(prev.CheckedLocations.Count))
+            foreach (LocationDefinitionModel newCheckedLocation in player.CheckedLocations.InCheckedOrder.Skip(prevCheckedLocationsCount))
             {
                 newReceivedItems.Add(newCheckedLocation.UnrandomizedItem!);
             }
@@ -149,7 +148,7 @@ public sealed class PlayerTests
         player.Advance();
         player.Advance();
         player.Advance();
-        Assert.That(player.State.CheckedLocations, Has.Count.EqualTo(effectCount));
+        Assert.That(player.CheckedLocations, Has.Count.EqualTo(effectCount));
     }
 
     [Test]
@@ -162,12 +161,12 @@ public sealed class PlayerTests
         // also fails because -5 from the aura and -5 from the second attempt. even a natural 20
         // can't save you from a -15, so this first Advance call should utterly fail.
         player.Advance();
-        Assert.That(player.State.CheckedLocations, Is.Empty);
+        Assert.That(player.CheckedLocations, Is.Empty);
 
         // the 14 burns the final Unlucky buff, so following it up with a 15 overcomes the mere -5
         // from trying a second time on the same Advance call.
         player.Advance();
-        Assert.That(player.State.CheckedLocations, Has.Count.EqualTo(1));
+        Assert.That(player.CheckedLocations, Has.Count.EqualTo(1));
     }
 
     [Test]
@@ -182,19 +181,19 @@ public sealed class PlayerTests
         });
 
         player.Advance();
-        Assert.That(player.State.CheckedLocations, Has.Count.EqualTo(3));
+        Assert.That(player.CheckedLocations, Has.Count.EqualTo(3));
 
         player.Advance();
-        Assert.That(player.State.CheckedLocations, Has.Count.EqualTo(6));
+        Assert.That(player.CheckedLocations, Has.Count.EqualTo(6));
 
         // the energy factor wears off after that, though. in fact, the next round, there's only
         // enough actions to do "move, check, move".
         player.Advance();
-        Assert.That(player.State.CheckedLocations, Has.Count.EqualTo(7));
+        Assert.That(player.CheckedLocations, Has.Count.EqualTo(7));
 
         // one more round: "check, move, check"
         player.Advance();
-        Assert.That(player.State.CheckedLocations, Has.Count.EqualTo(9));
+        Assert.That(player.CheckedLocations, Has.Count.EqualTo(9));
     }
 
     [Test]
@@ -205,23 +204,23 @@ public sealed class PlayerTests
 
         // 3 actions are "check, move, (movement penalty)".
         player.Advance();
-        Assert.That(player.State.CheckedLocations, Has.Count.EqualTo(1));
+        Assert.That(player.CheckedLocations, Has.Count.EqualTo(1));
 
         // 3 actions are "check, move, (movement penalty)" again.
         player.Advance();
-        Assert.That(player.State.CheckedLocations, Has.Count.EqualTo(2));
+        Assert.That(player.CheckedLocations, Has.Count.EqualTo(2));
 
         // 3 actions are "fail, check, move".
         player.Advance();
-        Assert.That(player.State.CheckedLocations, Has.Count.EqualTo(3));
+        Assert.That(player.CheckedLocations, Has.Count.EqualTo(3));
 
         // 3 actions are "(movement penalty), check, move".
         player.Advance();
-        Assert.That(player.State.CheckedLocations, Has.Count.EqualTo(4));
+        Assert.That(player.CheckedLocations, Has.Count.EqualTo(4));
 
         // 3 actions are "check, move, check".
         player.Advance();
-        Assert.That(player.State.CheckedLocations, Has.Count.EqualTo(6));
+        Assert.That(player.CheckedLocations, Has.Count.EqualTo(6));
     }
 
     [Test]
@@ -233,25 +232,25 @@ public sealed class PlayerTests
         player.Advance();
         Assert.Multiple(() =>
         {
-            Assert.That(player.State.CheckedLocations, Has.Count.EqualTo(2));
-            Assert.That(player.State.CurrentLocation.Key.N, Is.EqualTo(2));
+            Assert.That(player.CheckedLocations, Has.Count.EqualTo(2));
+            Assert.That(player.CurrentLocation.Key.N, Is.EqualTo(2));
         });
 
         // 4 actions are "check, move, check, move".
         player.Advance();
         Assert.Multiple(() =>
         {
-            Assert.That(player.State.CheckedLocations, Has.Count.EqualTo(4));
-            Assert.That(player.State.CurrentLocation.Key.N, Is.EqualTo(4));
+            Assert.That(player.CheckedLocations, Has.Count.EqualTo(4));
+            Assert.That(player.CurrentLocation.Key.N, Is.EqualTo(4));
         });
 
         // 3 actions are "check, move, check".
         player.Advance();
         Assert.Multiple(() =>
         {
-            Assert.That(player.State.CheckedLocations, Has.Count.EqualTo(6));
-            Assert.That(player.State.CurrentLocation.Key.N, Is.EqualTo(5));
-            Assert.That(player.State.TargetLocation.Key.N, Is.EqualTo(6));
+            Assert.That(player.CheckedLocations, Has.Count.EqualTo(6));
+            Assert.That(player.CurrentLocation.Key.N, Is.EqualTo(5));
+            Assert.That(player.TargetLocation.Key.N, Is.EqualTo(6));
         });
 
         player.ReceiveItems([GameDefinitions.Instance.AllItems.First(i => i.AurasGranted.SequenceEqual(["well_fed"]))]);
@@ -260,10 +259,10 @@ public sealed class PlayerTests
         player.Advance();
         Assert.Multiple(() =>
         {
-            Assert.That(player.State.CheckedLocations, Has.Count.EqualTo(8));
-            Assert.That(player.State.CurrentLocation.Key.N, Is.EqualTo(7));
-            Assert.That(player.State.TargetLocation.Key.N, Is.EqualTo(8));
-            Assert.That(player.State.FoodFactor, Is.EqualTo(4));
+            Assert.That(player.CheckedLocations, Has.Count.EqualTo(8));
+            Assert.That(player.CurrentLocation.Key.N, Is.EqualTo(7));
+            Assert.That(player.TargetLocation.Key.N, Is.EqualTo(8));
+            Assert.That(player.FoodFactor, Is.EqualTo(4));
         });
     }
 
@@ -276,25 +275,25 @@ public sealed class PlayerTests
         player.Advance();
         Assert.Multiple(() =>
         {
-            Assert.That(player.State.CheckedLocations, Has.Count.EqualTo(1));
-            Assert.That(player.State.CurrentLocation.Key.N, Is.EqualTo(1));
+            Assert.That(player.CheckedLocations, Has.Count.EqualTo(1));
+            Assert.That(player.CurrentLocation.Key.N, Is.EqualTo(1));
         });
 
         // 2 actions are "check, move".
         player.Advance();
         Assert.Multiple(() =>
         {
-            Assert.That(player.State.CheckedLocations, Has.Count.EqualTo(2));
-            Assert.That(player.State.CurrentLocation.Key.N, Is.EqualTo(2));
+            Assert.That(player.CheckedLocations, Has.Count.EqualTo(2));
+            Assert.That(player.CurrentLocation.Key.N, Is.EqualTo(2));
         });
 
         // 3 actions are "check, move, check".
         player.Advance();
         Assert.Multiple(() =>
         {
-            Assert.That(player.State.CheckedLocations, Has.Count.EqualTo(4));
-            Assert.That(player.State.CurrentLocation.Key.N, Is.EqualTo(3));
-            Assert.That(player.State.TargetLocation.Key.N, Is.EqualTo(4));
+            Assert.That(player.CheckedLocations, Has.Count.EqualTo(4));
+            Assert.That(player.CurrentLocation.Key.N, Is.EqualTo(3));
+            Assert.That(player.TargetLocation.Key.N, Is.EqualTo(4));
         });
 
         player.ReceiveItems([GameDefinitions.Instance.AllItems.First(i => i.AurasGranted.SequenceEqual(["upset_tummy"]))]);
@@ -303,10 +302,10 @@ public sealed class PlayerTests
         player.Advance();
         Assert.Multiple(() =>
         {
-            Assert.That(player.State.CheckedLocations, Has.Count.EqualTo(5));
-            Assert.That(player.State.CurrentLocation.Key.N, Is.EqualTo(4));
-            Assert.That(player.State.TargetLocation.Key.N, Is.EqualTo(5));
-            Assert.That(player.State.FoodFactor, Is.EqualTo(-4));
+            Assert.That(player.CheckedLocations, Has.Count.EqualTo(5));
+            Assert.That(player.CurrentLocation.Key.N, Is.EqualTo(4));
+            Assert.That(player.TargetLocation.Key.N, Is.EqualTo(5));
+            Assert.That(player.FoodFactor, Is.EqualTo(-4));
         });
     }
 
@@ -331,9 +330,9 @@ public sealed class PlayerTests
         player.Advance();
         Assert.Multiple(() =>
         {
-            Assert.That(player.State.CheckedLocations, Has.Count.EqualTo(2));
-            Assert.That(player.State.CurrentLocation.Key.N, Is.EqualTo(1));
-            Assert.That(player.State.TargetLocation.Key.N, Is.EqualTo(2));
+            Assert.That(player.CheckedLocations, Has.Count.EqualTo(2));
+            Assert.That(player.CurrentLocation.Key.N, Is.EqualTo(1));
+            Assert.That(player.TargetLocation.Key.N, Is.EqualTo(2));
         });
     }
 
@@ -347,9 +346,9 @@ public sealed class PlayerTests
         player.Advance();
         Assert.Multiple(() =>
         {
-            Assert.That(player.State.CheckedLocations, Has.Count.EqualTo(2));
-            Assert.That(player.State.CurrentLocation.Key.N, Is.EqualTo(1));
-            Assert.That(player.State.TargetLocation.Key.N, Is.EqualTo(2));
+            Assert.That(player.CheckedLocations, Has.Count.EqualTo(2));
+            Assert.That(player.CurrentLocation.Key.N, Is.EqualTo(1));
+            Assert.That(player.TargetLocation.Key.N, Is.EqualTo(2));
         });
     }
 
@@ -374,7 +373,7 @@ public sealed class PlayerTests
         for (int i = 0; i < 2; i++)
         {
             player.Advance();
-            Assert.That(player.State.TargetLocation.Key.RegionKey, Is.EqualTo(GameDefinitions.Instance.StartRegion.Key));
+            Assert.That(player.TargetLocation.Key.RegionKey, Is.EqualTo(GameDefinitions.Instance.StartRegion.Key));
             player.ArbitrarilyModifyState(s => s with { PrngState = s_lowRolls });
         }
 
@@ -382,12 +381,12 @@ public sealed class PlayerTests
         player.ReceiveItems([finalRandomizedItem]);
         HashSet<LocationKey> fixedRewardsGranted = [];
         int advancesSoFar = 0;
-        while (!player.State.IsCompleted)
+        while (!player.IsCompleted)
         {
             player.ArbitrarilyModifyState(s => s with { PrngState = s_highRolls });
             player.Advance();
-            Assert.That(player.State.TargetLocation.Region, Is.InstanceOf<LandmarkRegionDefinitionModel>());
-            foreach (LocationDefinitionModel checkedLocation in player.State.CheckedLocations.InCheckedOrder)
+            Assert.That(player.TargetLocation.Region, Is.InstanceOf<LandmarkRegionDefinitionModel>());
+            foreach (LocationDefinitionModel checkedLocation in player.CheckedLocations.InCheckedOrder)
             {
                 if (fixedRewardsGranted.Add(checkedLocation.Key) && checkedLocation is { RewardIsFixed: true, UnrandomizedItem: { } unrandomizedItem })
                 {
@@ -406,15 +405,16 @@ public sealed class PlayerTests
         Player player = new(GameState.Start(s_lowRolls));
 
         LocationDefinitionModel prawnStars = GameDefinitions.Instance.LocationsByName["Prawn Stars"];
-        Assert.That(player.State.TargetLocation.Key, Is.EqualTo(new LocationKey { RegionKey = "Menu", N = 0 }));
+        Assert.That(player.TargetLocation.Key, Is.EqualTo(new LocationKey { RegionKey = "Menu", N = 0 }));
 
         // prioritize Prawn Stars
         player.AddPriorityLocation(prawnStars);
-        GameState stateBeforeScrubbedState = player.State;
+        GameState stateBeforeScrubbedState = null!;
+        player.ArbitrarilyModifyState(state => stateBeforeScrubbedState = state);
         player.Advance();
 
         // should NOT be targeting Prawn Stars now, because we can't reach it out the gate.
-        Assert.That(player.State.TargetLocation, Is.Not.EqualTo(prawnStars));
+        Assert.That(player.TargetLocation, Is.Not.EqualTo(prawnStars));
 
         // give what's needed to reach Prawn Stars
         player.ArbitrarilyModifyState(_ => stateBeforeScrubbedState with
@@ -425,7 +425,7 @@ public sealed class PlayerTests
         player.Advance();
 
         // NOW that's what we should be targeting
-        Assert.That(player.State.TargetLocation, Is.EqualTo(prawnStars));
+        Assert.That(player.TargetLocation, Is.EqualTo(prawnStars));
 
         // teleport the rat over to Prawn Stars and have it do its thing (remember it's rolling all
         // natural 1s today).
@@ -433,13 +433,13 @@ public sealed class PlayerTests
         player.Advance();
 
         // it should still be there, and it should still be our priority location.
-        Assert.That(player.State.PriorityLocations, Is.EqualTo(new[] { prawnStars }));
+        Assert.That(player.PriorityLocations, Is.EqualTo(new[] { prawnStars }));
 
         // now roll natural 20s.
         player.ArbitrarilyModifyState(state => state with { PrngState = s_highRolls });
         player.Advance();
 
-        Assert.That(player.State.PriorityLocations, Is.Empty);
+        Assert.That(player.PriorityLocations, Is.Empty);
     }
 
     [Test]
@@ -452,16 +452,16 @@ public sealed class PlayerTests
         });
 
         player.Advance();
-        LocationDefinitionModel middleLocation = player.State.CurrentLocation;
+        LocationDefinitionModel middleLocation = player.CurrentLocation;
 
         player.Advance();
-        if (player.State.CurrentLocation == player.State.TargetLocation)
+        if (player.CurrentLocation == player.TargetLocation)
         {
             Assert.Inconclusive("YAML was changed too much: there aren't enough locations in the starting region for this test.");
         }
 
         // even though it's all high rolls, we shouldn't have any checks because the rat is hard-prioritizing.
-        Assert.That(player.State.CheckedLocations, Is.Empty);
+        Assert.That(player.CheckedLocations, Is.Empty);
 
         player.ReceiveItems([GameDefinitions.Instance.AllItems.First(i => i.AurasGranted.SequenceEqual(["startled"]))]);
 
@@ -470,8 +470,8 @@ public sealed class PlayerTests
         player.Advance();
         Assert.Multiple(() =>
         {
-            Assert.That(player.State.StartledCounter, Is.Zero);
-            Assert.That(player.State.CurrentLocation, Is.EqualTo(middleLocation));
+            Assert.That(player.StartledCounter, Is.Zero);
+            Assert.That(player.CurrentLocation, Is.EqualTo(middleLocation));
         });
     }
 
@@ -491,20 +491,20 @@ public sealed class PlayerTests
         LocationDefinitionModel expectedStartleTarget = GameDefinitions.Instance.StartRegion.Locations[^10];
         Assert.Multiple(() =>
         {
-            Assert.That(player.State.StartledCounter, Is.Zero);
-            Assert.That(player.State.DistractionCounter, Is.EqualTo(1));
-            Assert.That(player.State.CurrentLocation, Is.EqualTo(expectedStartleTarget));
+            Assert.That(player.StartledCounter, Is.Zero);
+            Assert.That(player.DistractionCounter, Is.EqualTo(1));
+            Assert.That(player.CurrentLocation, Is.EqualTo(expectedStartleTarget));
         });
 
         // second step, there's a new distraction that we hadn't gotten to yet.
         player.Advance();
 
         // distraction burns a whole step
-        Assert.That(player.State.CurrentLocation, Is.EqualTo(expectedStartleTarget));
+        Assert.That(player.CurrentLocation, Is.EqualTo(expectedStartleTarget));
 
         // now we're fine
         player.Advance();
-        Assert.That(player.State.CheckedLocations, Has.Count.EqualTo(2));
+        Assert.That(player.CheckedLocations, Has.Count.EqualTo(2));
     }
 
     [Test]
@@ -534,7 +534,7 @@ public sealed class PlayerTests
         // even though there's a target RIGHT on the other side, we still favor the nearest one that
         // we can already reach with what we currently have.
         player.ReceiveItems([auraItem]);
-        Assert.That(player.State.PriorityPriorityLocations, Is.EqualTo(new[]
+        Assert.That(player.PriorityPriorityLocations, Is.EqualTo(new[]
         {
             GameDefinitions.Instance.GoalLocation,
             GameDefinitions.Instance.StartLocation,
@@ -543,7 +543,7 @@ public sealed class PlayerTests
         // if there's nothing else that we can reach, then we should NOT target the unreachable one
         // that's just out of reach. it should just fizzle.
         player.ReceiveItems([auraItem]);
-        Assert.That(player.State.PriorityPriorityLocations, Is.EqualTo(new[]
+        Assert.That(player.PriorityPriorityLocations, Is.EqualTo(new[]
         {
             GameDefinitions.Instance.GoalLocation,
             GameDefinitions.Instance.StartLocation,
@@ -575,7 +575,7 @@ public sealed class PlayerTests
             player.ArbitrarilyModifyState(state => state with { PrngState = s_lowRolls });
         }
 
-        Assert.That(player.State.CurrentLocation, Is.EqualTo(s_basketball));
+        Assert.That(player.CurrentLocation, Is.EqualTo(s_basketball));
     }
 
     [Test]
@@ -605,40 +605,40 @@ public sealed class PlayerTests
         Assert.Multiple(() =>
         {
             Assert.That(
-                player.State.PreviousStepMovementLog.Select(v => v.PreviousLocation),
+                player.PreviousStepMovementLog.Select(v => v.PreviousLocation),
                 Is.EqualTo(s_startRegion.Locations[..6]));
             Assert.That(
-                player.State.PreviousStepMovementLog.Select(v => v.CurrentLocation),
+                player.PreviousStepMovementLog.Select(v => v.CurrentLocation),
                 Is.EqualTo(s_startRegion.Locations[1..7]));
             Assert.That(
-                player.State.CurrentLocation,
-                Is.EqualTo(player.State.PreviousStepMovementLog[^1].CurrentLocation));
+                player.CurrentLocation,
+                Is.EqualTo(player.PreviousStepMovementLog[^1].CurrentLocation));
         });
         player.Advance();
         Assert.Multiple(() =>
         {
             Assert.That(
-                player.State.PreviousStepMovementLog.Select(v => v.PreviousLocation),
+                player.PreviousStepMovementLog.Select(v => v.PreviousLocation),
                 Is.EqualTo(s_startRegion.Locations[6..9]));
             Assert.That(
-                player.State.PreviousStepMovementLog.Select(v => v.CurrentLocation),
+                player.PreviousStepMovementLog.Select(v => v.CurrentLocation),
                 Is.EqualTo(s_startRegion.Locations[7..10]));
             Assert.That(
-                player.State.CurrentLocation,
-                Is.EqualTo(player.State.PreviousStepMovementLog[^1].CurrentLocation));
+                player.CurrentLocation,
+                Is.EqualTo(player.PreviousStepMovementLog[^1].CurrentLocation));
         });
         player.Advance();
         Assert.Multiple(() =>
         {
             Assert.That(
-                player.State.PreviousStepMovementLog.Select(v => v.PreviousLocation),
+                player.PreviousStepMovementLog.Select(v => v.PreviousLocation),
                 Is.EqualTo(s_startRegion.Locations[9..15]));
             Assert.That(
-                player.State.PreviousStepMovementLog.Select(v => v.CurrentLocation),
+                player.PreviousStepMovementLog.Select(v => v.CurrentLocation),
                 Is.EqualTo(s_startRegion.Locations[10..16]));
             Assert.That(
-                player.State.CurrentLocation,
-                Is.EqualTo(player.State.PreviousStepMovementLog[^1].CurrentLocation));
+                player.CurrentLocation,
+                Is.EqualTo(player.PreviousStepMovementLog[^1].CurrentLocation));
         });
         player.ArbitrarilyModifyState(state => state with { EnergyFactor = 0 });
         player.Advance();
@@ -650,15 +650,15 @@ public sealed class PlayerTests
                 s_basketball,
             ];
             Assert.That(
-                player.State.PreviousStepMovementLog.Select(v => v.PreviousLocation),
+                player.PreviousStepMovementLog.Select(v => v.PreviousLocation),
                 Is.EqualTo(s_startRegion.Locations[15..]));
             Assert.That(
-                player.State.PreviousStepMovementLog.Select(v => v.CurrentLocation),
+                player.PreviousStepMovementLog.Select(v => v.CurrentLocation),
                 Is.EqualTo(expectedCurrentLocationSequence));
             Assert.That(
-                player.State.CurrentLocation,
-                Is.EqualTo(player.State.PreviousStepMovementLog[^1].CurrentLocation));
-            Assert.That(player.State.CheckedLocations.InCheckedOrder, Contains.Item(s_basketball));
+                player.CurrentLocation,
+                Is.EqualTo(player.PreviousStepMovementLog[^1].CurrentLocation));
+            Assert.That(player.CheckedLocations.InCheckedOrder, Contains.Item(s_basketball));
         });
     }
 
@@ -684,7 +684,7 @@ public sealed class PlayerTests
         });
         player.Advance();
 
-        Assert.That(player.State.TargetLocation, Is.Not.EqualTo(lastLocationBeforeBasketball));
+        Assert.That(player.TargetLocation, Is.Not.EqualTo(lastLocationBeforeBasketball));
     }
 
     [Test]
@@ -721,17 +721,17 @@ public sealed class PlayerTests
             player.ArbitrarilyModifyState(state => state with { StartledCounter = 1 });
             player.Advance();
             Assert.That(
-                player.State.PreviousStepMovementLog.Select(m => m.CurrentLocation),
+                player.PreviousStepMovementLog.Select(m => m.CurrentLocation),
                 Has.None
                     .EqualTo(GameDefinitions.Instance.LocationsByName["Pirate Bake Sale"])
                     .Or.EqualTo(GameDefinitions.Instance.LocationsByName["Prawn Stars"]));
-            if (player.State.CurrentLocation == s_startLocation)
+            if (player.CurrentLocation == s_startLocation)
             {
                 break;
             }
         }
 
-        Assert.That(player.State.CurrentLocation, Is.EqualTo(s_startLocation));
+        Assert.That(player.CurrentLocation, Is.EqualTo(s_startLocation));
     }
 
     [Test]
@@ -757,13 +757,13 @@ public sealed class PlayerTests
 
         Assert.Multiple(() =>
         {
-            Assert.That(player.State.FoodFactor, Is.EqualTo(-10));
-            Assert.That(player.State.LuckFactor, Is.EqualTo(-1));
-            Assert.That(player.State.StartledCounter, Is.EqualTo(3));
-            Assert.That(player.State.EnergyFactor, Is.EqualTo(10)); // 5 canceled by the first confidence!
-            Assert.That(player.State.StyleFactor, Is.EqualTo(2));
-            Assert.That(player.State.DistractionCounter, Is.Zero); // canceled by the first confidence!
-            Assert.That(player.State.HasConfidence);
+            Assert.That(player.FoodFactor, Is.EqualTo(-10));
+            Assert.That(player.LuckFactor, Is.EqualTo(-1));
+            Assert.That(player.StartledCounter, Is.EqualTo(3));
+            Assert.That(player.EnergyFactor, Is.EqualTo(10)); // 5 canceled by the first confidence!
+            Assert.That(player.StyleFactor, Is.EqualTo(2));
+            Assert.That(player.DistractionCounter, Is.Zero); // canceled by the first confidence!
+            Assert.That(player.HasConfidence);
         });
     }
 
