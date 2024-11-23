@@ -644,37 +644,6 @@ public sealed record LocationDefinitionModel
     public required bool RewardIsFixed { get; init; }
 
     public RegionDefinitionModel Region => GameDefinitions.Instance.AllRegions[Key.RegionKey];
-
-    public bool TryCheck(ref GameState state)
-    {
-        int extraDiceModifier = 0;
-        switch (state.LuckFactor)
-        {
-            case < 0:
-                extraDiceModifier -= 5;
-                state = state with { LuckFactor = state.LuckFactor + 1 };
-                break;
-
-            case > 0:
-                state = state with { LuckFactor = state.LuckFactor - 1 };
-                goto success;
-        }
-
-        if (state.StyleFactor > 0)
-        {
-            extraDiceModifier += 5;
-            state = state with { StyleFactor = state.StyleFactor - 1 };
-        }
-
-        if (GameState.NextD20(ref state) + state.DiceModifier + extraDiceModifier < this.AbilityCheckDC)
-        {
-            return false;
-        }
-
-        success:
-        state = state with { CheckedLocations = new() { InCheckedOrder = state.CheckedLocations.InCheckedOrder.Add(this) } };
-        return true;
-    }
 }
 
 public abstract record GameRequirement

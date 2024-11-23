@@ -308,7 +308,7 @@ public sealed partial class Player
 
             if (!moved && StartledCounter == 0 && !CheckedLocations.Contains(CurrentLocation))
             {
-                bool success = CurrentLocation.TryCheck(ref _state);
+                bool success = TryCheck(CurrentLocation);
                 _state = _state with { LocationCheckAttemptsThisStep = LocationCheckAttemptsThisStep + 1 };
                 if (!success)
                 {
@@ -455,6 +455,43 @@ public sealed partial class Player
         reason = TargetLocationReason.NowhereUsefulToMove;
         bestPath = ReceivedItems.ShortestPaths.GetPathOrNull(CurrentLocation, CurrentLocation)!.Value;
         return CurrentLocation;
+    }
+
+    private bool TryCheck(LocationDefinitionModel location)
+    {
+        int extraDiceModifier = 0;
+        switch (_state.LuckFactor)
+        {
+            case < 0:
+                extraDiceModifier -= 5;
+                _state = _state with { LuckFactor = _state.LuckFactor + 1 };
+                break;
+
+            case > 0:
+                _state = _state with { LuckFactor = _state.LuckFactor - 1 };
+                goto success;
+        }
+
+        if (_state.StyleFactor > 0)
+        {
+            extraDiceModifier += 5;
+            _state = _state with { StyleFactor = _state.StyleFactor - 1 };
+        }
+
+        if (GameState.NextD20(ref _state) + _state.DiceModifier + extraDiceModifier < location.AbilityCheckDC)
+        {
+            return false;
+        }
+
+        success:
+        _state = _state with
+        {
+            CheckedLocations = new()
+            {
+                InCheckedOrder = _state.CheckedLocations.InCheckedOrder.Add(location),
+            },
+        };
+        return true;
     }
 
     private static void AllowFromTestsOnly(ReadOnlySpan<char> filePath, [CallerArgumentExpression(nameof(filePath))] string? paramName = null)
