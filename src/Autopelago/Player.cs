@@ -289,7 +289,9 @@ public sealed partial class Player
                 };
             }
 
-            // don't burn more than one action per round.
+            // don't burn more than one action per round on changing the target location. we only do
+            // it at all because it represents the rat having to take time to "think" after a change
+            // to its priorities or available actions.
             UpdateTargetLocation();
         }
 
@@ -307,19 +309,15 @@ public sealed partial class Player
             UpdateTargetLocation();
         }
 
-        if (movementLog.Count == 0)
+        if (movementLog.Count == 0 && _state.PreviousStepMovementLog.Length > 1)
         {
-            if (_state.PreviousStepMovementLog.Length > 1)
-            {
-                _state = _state with { PreviousStepMovementLog = [_state.PreviousStepMovementLog[^1]] };
-            }
+            _state = _state with { PreviousStepMovementLog = [_state.PreviousStepMovementLog[^1]] };
         }
         else
         {
             _state = _state with { PreviousStepMovementLog = [.. movementLog] };
         }
 
-        // some wrap-ups.
         _state = _state with
         {
             LocationCheckAttemptsThisStep = 0,
