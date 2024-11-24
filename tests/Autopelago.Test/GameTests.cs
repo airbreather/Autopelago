@@ -626,7 +626,7 @@ public sealed class GameTests
         game.Advance();
         Assert.Multiple(() =>
         {
-            ImmutableArray<LocationDefinitionModel> expectedCurrentLocationSequence =[
+            ImmutableArray<LocationDefinitionModel> expectedCurrentLocationSequence = [
                 .. s_startRegion.Locations[16..],
                 s_basketball,
             ];
@@ -652,7 +652,7 @@ public sealed class GameTests
         game.InitializeCheckedLocations([lastLocationBeforeBasketball]);
         game.ArbitrarilyModifyState(g => g.CurrentLocation, lastLocationBeforeBasketball);
         game.ArbitrarilyModifyState(g => g.TargetLocation, lastLocationBeforeBasketball);
-        game.ArbitrarilyModifyState(g => g.PriorityLocations, new([s_basketball, lastLocationBeforeBasketball ]));
+        game.ArbitrarilyModifyState(g => g.PriorityLocations, new([s_basketball, lastLocationBeforeBasketball]));
         game.Advance();
 
         Assert.That(game.TargetLocation, Is.Not.EqualTo(lastLocationBeforeBasketball));

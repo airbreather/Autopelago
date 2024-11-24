@@ -468,7 +468,7 @@ public sealed class RouteCalculator
 
     private void RecalculateClearable()
     {
-        Queue<(RegionDefinitionModel Region, ImmutableArray<ItemDefinitionModel> ReceivedItems) > q = [];
+        Queue<(RegionDefinitionModel Region, ImmutableArray<ItemDefinitionModel> ReceivedItems)> q = [];
         q.Enqueue((GameDefinitions.Instance.StartRegion, [.. _receivedItems]));
         HashSet<string> seenRegions = [];
         while (q.TryDequeue(out var tup))
