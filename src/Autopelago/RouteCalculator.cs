@@ -25,6 +25,10 @@ public sealed class RouteCalculator
 
     private readonly HashSet<string> _clearableLandmarks = [];
 
+    private readonly PriorityQueue<(RegionDefinitionModel Region, Direction Direction), int> _q = new();
+
+    private readonly HashSet<string> _visitedRegions = [];
+
     private int _lastReceivedItemsCount;
 
     private int _lastCheckedLocationsCount;
@@ -109,16 +113,17 @@ public sealed class RouteCalculator
         //
         // in all of those cases, we must examine at least one region other than the one that we're
         // currently in (minimally, to prove that there's no region in some direction).
-        PriorityQueue<(RegionDefinitionModel Region, Direction Direction), int> q = new();
-        HashSet<string> visitedRegions = [currentLocation.Key.RegionKey];
+        _q.Clear();
+        _visitedRegions.Clear();
+        _visitedRegions.Add(currentLocation.Key.RegionKey);
         foreach ((RegionDefinitionModel connectedRegion, Direction direction) in _connectedRegions[currentLocation.Region])
         {
             if (_fillerRegions.ContainsKey(connectedRegion.Key) ||
                 _checkedLocationsBitmap[connectedRegion.Key][0] ||
                 _clearableLandmarks.Contains(connectedRegion.Key))
             {
-                visitedRegions.Add(connectedRegion.Key);
-                q.Enqueue((connectedRegion, direction), direction switch
+                _visitedRegions.Add(connectedRegion.Key);
+                _q.Enqueue((connectedRegion, direction), direction switch
                 {
                     Direction.TowardsGoal => forwardLocationsInCurrentRegion,
                     _ => backwardLocationsInCurrentRegion,
@@ -126,7 +131,7 @@ public sealed class RouteCalculator
             }
         }
 
-        while (q.TryDequeue(out var tup, out int extraDistance))
+        while (_q.TryDequeue(out var tup, out int extraDistance))
         {
             if (extraDistance >= bestDistance)
             {
@@ -177,12 +182,12 @@ public sealed class RouteCalculator
 
             foreach ((RegionDefinitionModel nextConnectedRegion, Direction nextDirection) in _connectedRegions[connectedRegion])
             {
-                if (visitedRegions.Add(nextConnectedRegion.Key) &&
+                if (_visitedRegions.Add(nextConnectedRegion.Key) &&
                     (_fillerRegions.ContainsKey(nextConnectedRegion.Key) ||
                      _checkedLocationsBitmap[nextConnectedRegion.Key][0] ||
                      _clearableLandmarks.Contains(nextConnectedRegion.Key)))
                 {
-                    q.Enqueue((nextConnectedRegion, nextDirection), extraDistance);
+                    _q.Enqueue((nextConnectedRegion, nextDirection), extraDistance);
                 }
             }
         }
