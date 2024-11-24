@@ -11,9 +11,6 @@
     <ApplicationIcon>Assets/Images/Autopelago.ico</ApplicationIcon>
     <PublishTrimmed>true</PublishTrimmed>
     <TrimMode>partial</TrimMode>
-    
-    <!-- all right, I'll cave, I want the "field" keyword. -->
-    <LangVersion>preview</LangVersion>
   </PropertyGroup>
 
   <PropertyGroup Label="Publish options" Condition=" '$(_IsPublishing)' == 'true' ">
