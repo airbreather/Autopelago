@@ -25,10 +25,6 @@ public sealed class RouteCalculator
 
     private readonly HashSet<string> _clearableLandmarks = [];
 
-    private readonly PriorityQueue<(RegionDefinitionModel Region, Direction Direction), int> _q = new();
-
-    private readonly HashSet<string> _visitedRegions = [];
-
     private int _lastReceivedItemsCount;
 
     private int _lastCheckedLocationsCount;
@@ -113,17 +109,16 @@ public sealed class RouteCalculator
         //
         // in all of those cases, we must examine at least one region other than the one that we're
         // currently in (minimally, to prove that there's no region in some direction).
-        _q.Clear();
-        _visitedRegions.Clear();
-        _visitedRegions.Add(currentLocation.Key.RegionKey);
+        PriorityQueue<(RegionDefinitionModel Region, Direction Direction), int> q = new();
+        HashSet<string> visitedRegions = [currentLocation.Key.RegionKey];
         foreach ((RegionDefinitionModel connectedRegion, Direction direction) in _connectedRegions[currentLocation.Region])
         {
             if (_fillerRegions.ContainsKey(connectedRegion.Key) ||
                 _checkedLocationsBitmap[connectedRegion.Key][0] ||
                 _clearableLandmarks.Contains(connectedRegion.Key))
             {
-                _visitedRegions.Add(connectedRegion.Key);
-                _q.Enqueue((connectedRegion, direction), direction switch
+                visitedRegions.Add(connectedRegion.Key);
+                q.Enqueue((connectedRegion, direction), direction switch
                 {
                     Direction.TowardsGoal => forwardLocationsInCurrentRegion,
                     _ => backwardLocationsInCurrentRegion,
@@ -131,7 +126,7 @@ public sealed class RouteCalculator
             }
         }
 
-        while (_q.TryDequeue(out var tup, out int extraDistance))
+        while (q.TryDequeue(out var tup, out int extraDistance))
         {
             if (extraDistance >= bestDistance)
             {
@@ -144,38 +139,32 @@ public sealed class RouteCalculator
             {
                 if (direction == Direction.TowardsGoal)
                 {
-                    for (int i = 0; i < checkedLocationsInConnectedRegion.Length; i++)
+                    int max = Math.Min(checkedLocationsInConnectedRegion.Length, bestDistance - extraDistance);
+                    for (int i = 0; i < max; i++)
                     {
                         if (checkedLocationsInConnectedRegion[i])
                         {
                             continue;
                         }
 
-                        if (bestDistance <= extraDistance + i)
-                        {
-                            continue;
-                        }
-
                         bestDistance = extraDistance + i;
                         bestLocationKey = new() { RegionKey = connectedRegion.Key, N = i };
+                        break;
                     }
                 }
                 else
                 {
-                    for (int i = 0; i < checkedLocationsInConnectedRegion.Length; i++)
+                    int min = bestDistance == int.MaxValue ? 0 : Math.Max(0, extraDistance - bestDistance);
+                    for (int i = checkedLocationsInConnectedRegion.Length - 1; i >= min; --i)
                     {
-                        if (checkedLocationsInConnectedRegion[^(i + 1)])
+                        if (checkedLocationsInConnectedRegion[i])
                         {
                             continue;
                         }
 
-                        if (bestDistance <= extraDistance + i)
-                        {
-                            continue;
-                        }
-
-                        bestDistance = extraDistance + i;
-                        bestLocationKey = new() { RegionKey = connectedRegion.Key, N = (^(i + 1)).GetOffset(checkedLocationsInConnectedRegion.Length) };
+                        bestDistance = checkedLocationsInConnectedRegion.Length - i - i + extraDistance;
+                        bestLocationKey = new() { RegionKey = connectedRegion.Key, N = i };
+                        break;
                     }
                 }
             }
@@ -188,12 +177,12 @@ public sealed class RouteCalculator
 
             foreach ((RegionDefinitionModel nextConnectedRegion, Direction nextDirection) in _connectedRegions[connectedRegion])
             {
-                if (_visitedRegions.Add(nextConnectedRegion.Key) &&
+                if (visitedRegions.Add(nextConnectedRegion.Key) &&
                     (_fillerRegions.ContainsKey(nextConnectedRegion.Key) ||
                      _checkedLocationsBitmap[nextConnectedRegion.Key][0] ||
                      _clearableLandmarks.Contains(nextConnectedRegion.Key)))
                 {
-                    _q.Enqueue((nextConnectedRegion, nextDirection), extraDistance);
+                    q.Enqueue((nextConnectedRegion, nextDirection), extraDistance);
                 }
             }
         }
