@@ -367,8 +367,7 @@ public sealed class GameTests
 
         // give it all randomized items except the last one.
         ItemDefinitionModel finalRandomizedItem = GameDefinitions.Instance.ProgressionItems["mongoose_in_a_combat_spacecraft"];
-        game.ReceiveItems(
-        [
+        game.ReceiveItems([
             .. GameDefinitions.Instance.LocationsByKey.Values
                 .Where(l => l is { RewardIsFixed: false, UnrandomizedItem: not null })
                 .Select(l => l.UnrandomizedItem!)
@@ -520,8 +519,7 @@ public sealed class GameTests
             "conspiratorial" => ArchipelagoItemFlags.Trap,
             _ => throw null!,
         };
-        FrozenDictionary<LocationDefinitionModel, ArchipelagoItemFlags> spoilerData = CreateSpoiler(
-        [
+        FrozenDictionary<LocationDefinitionModel, ArchipelagoItemFlags> spoilerData = CreateSpoiler([
             (GameDefinitions.Instance.StartLocation, targetFlags),
             (s_beforePrawnStars.Locations[0], targetFlags),
             (s_beforePrawnStars.Locations[^1], targetFlags),
@@ -628,8 +626,7 @@ public sealed class GameTests
         game.Advance();
         Assert.Multiple(() =>
         {
-            ImmutableArray<LocationDefinitionModel> expectedCurrentLocationSequence =
-            [
+            ImmutableArray<LocationDefinitionModel> expectedCurrentLocationSequence =[
                 .. s_startRegion.Locations[16..],
                 s_basketball,
             ];
@@ -665,16 +662,14 @@ public sealed class GameTests
     public void StartledShouldNotMoveThroughLockedLocations()
     {
         Game game = new(Prng.State.Start());
-        game.InitializeReceivedItems(
-        [
-                .. Enumerable.Repeat(s_normalRat, 40),
-                GameDefinitions.Instance.ItemsByName["Priceless Antique"],
-                GameDefinitions.Instance.ItemsByName["Pie Rat"],
-                GameDefinitions.Instance.ItemsByName["Pizza Rat"],
-                GameDefinitions.Instance.ItemsByName["Chef Rat"],
+        game.InitializeReceivedItems([
+            .. Enumerable.Repeat(s_normalRat, 40),
+            GameDefinitions.Instance.ItemsByName["Priceless Antique"],
+            GameDefinitions.Instance.ItemsByName["Pie Rat"],
+            GameDefinitions.Instance.ItemsByName["Pizza Rat"],
+            GameDefinitions.Instance.ItemsByName["Chef Rat"],
         ]);
-        game.InitializeCheckedLocations(
-        [
+        game.InitializeCheckedLocations([
             s_basketball,
             GameDefinitions.Instance.LocationsByName["Angry Turtles"],
             GameDefinitions.Instance.LocationsByName["Restaurant"],
