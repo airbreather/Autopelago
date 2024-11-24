@@ -593,15 +593,17 @@ public sealed partial class GameStateViewModel : ViewModelBase, IDisposable
 
                 GetPacketModel getPacket = new() { Keys = [AurasKey] };
                 ValueTask requestSpoilerTask = SendPacketsAsync([locationScouts, getPacket]);
+                LocationDefinitionModel[] checkedLocations =
+                [
+                    .. _connected.CheckedLocations
+                        .Select(locationId => _lastFullData.LocationsById[locationId]),
+                ];
                 await _gameStateMutex.WaitAsync();
                 try
                 {
-                    _game.InitializeCheckedLocations(
-                        _connected.CheckedLocations
-                            .Select(locationId => _lastFullData.LocationsById[locationId])
-                    );
+                    _game.InitializeCheckedLocations(checkedLocations);
 
-                    foreach (LocationDefinitionModel location in _game.CheckedLocations)
+                    foreach (LocationDefinitionModel location in checkedLocations)
                     {
                         if (_landmarkRegionsByLocation.TryGetValue(location, out var viewModel))
                         {
@@ -871,7 +873,7 @@ public sealed partial class GameStateViewModel : ViewModelBase, IDisposable
         using IMemoryOwner<byte> firstBufOwner = MemoryPool<byte>.Shared.Rent(65536);
         Memory<byte> fullFirstBuf = firstBufOwner.Memory;
         Queue<IDisposable?> extraDisposables = [];
-        while (!goalRegion.Checked)
+        while (!_gameCompleteCts.Token.IsCancellationRequested)
         {
             ValueWebSocketReceiveResult prevReceiveResult;
             try
