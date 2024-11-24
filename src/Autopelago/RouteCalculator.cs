@@ -282,9 +282,22 @@ public sealed class RouteCalculator
 
     public IEnumerable<LocationDefinitionModel>? GetPath(LocationDefinitionModel currentLocation, LocationDefinitionModel targetLocation)
     {
-        if (currentLocation == targetLocation)
+        if (currentLocation.Key.RegionKey == targetLocation.Key.RegionKey)
         {
-            return [targetLocation];
+            LocationKey currentLocationKey = currentLocation.Key;
+            if (currentLocationKey.N == targetLocation.Key.N)
+            {
+                return [targetLocation];
+            }
+
+            if (currentLocation.Key.N > targetLocation.Key.N)
+            {
+                return Enumerable.Range(1, currentLocationKey.N - targetLocation.Key.N)
+                    .Select(n => GameDefinitions.Instance.LocationsByKey[currentLocationKey with { N = currentLocationKey.N - n }]);
+            }
+
+            return Enumerable.Range(1, targetLocation.Key.N - currentLocationKey.N)
+                .Select(n => GameDefinitions.Instance.LocationsByKey[currentLocationKey with { N = currentLocationKey.N + n }]);
         }
 
         RecalculateAccessibility();
