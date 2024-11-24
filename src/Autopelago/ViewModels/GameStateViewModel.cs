@@ -9,7 +9,6 @@ using System.Reactive;
 using System.Reactive.Disposables;
 using System.Reactive.Linq;
 using System.Reactive.Subjects;
-using System.Runtime.InteropServices;
 using System.Text;
 using System.Text.Json;
 using System.Text.Json.Serialization;
@@ -68,13 +67,13 @@ public sealed partial class GameStateViewModel : ViewModelBase, IDisposable
 
     private readonly Settings _settings;
 
-    private readonly Player _player = new();
-
     private readonly FrozenDictionary<ItemDefinitionModel, CollectableItemViewModel> _collectableItemsByModel;
 
     private readonly FrozenDictionary<LocationDefinitionModel, LandmarkRegionViewModel> _landmarkRegionsByLocation;
 
     private readonly CancellationTokenSource _gameCompleteCts = new();
+
+    private readonly Game _game = new(Prng.State.Start());
 
     private ClientWebSocketBox _clientWebSocketBox = null!;
 
@@ -85,12 +84,6 @@ public sealed partial class GameStateViewModel : ViewModelBase, IDisposable
     private RoomUpdatePacketModel? _lastRoomUpdate;
 
     private AutopelagoData _lastFullData = null!;
-
-    private FrozenDictionary<LocationDefinitionModel, ArchipelagoItemFlags> _spoilerData = null!;
-
-    private bool _completedHandshake;
-
-    private GameState _state = GameState.Start();
 
     private Prng.State _intervalPrngState = Prng.State.Start();
 
@@ -600,19 +593,17 @@ public sealed partial class GameStateViewModel : ViewModelBase, IDisposable
 
                 GetPacketModel getPacket = new() { Keys = [AurasKey] };
                 ValueTask requestSpoilerTask = SendPacketsAsync([locationScouts, getPacket]);
+                LocationDefinitionModel[] checkedLocations =
+                [
+                    .. _connected.CheckedLocations
+                        .Select(locationId => _lastFullData.LocationsById[locationId]),
+                ];
                 await _gameStateMutex.WaitAsync();
                 try
                 {
-                    _state = _state with
-                    {
-                        CheckedLocations =
-                        [
-                            .. _connected.CheckedLocations
-                                .Select(locationId => _lastFullData.LocationsById[locationId]),
-                        ]
-                    };
+                    _game.InitializeCheckedLocations(checkedLocations);
 
-                    foreach (LocationDefinitionModel location in _state.CheckedLocations)
+                    foreach (LocationDefinitionModel location in checkedLocations)
                     {
                         if (_landmarkRegionsByLocation.TryGetValue(location, out var viewModel))
                         {
@@ -635,7 +626,7 @@ public sealed partial class GameStateViewModel : ViewModelBase, IDisposable
                     spoilerData[_lastFullData.LocationsById[networkItem.Location]] = networkItem.Flags;
                 }
 
-                _spoilerData = spoilerData.ToFrozenDictionary();
+                _game.InitializeSpoilerData(spoilerData.ToFrozenDictionary());
                 break;
 
             case RoomUpdatePacketModel roomUpdate:
@@ -644,13 +635,20 @@ public sealed partial class GameStateViewModel : ViewModelBase, IDisposable
                 break;
 
             case ReceivedItemsPacketModel receivedItems:
-                await _gameStateMutex.WaitAsync();
-                try
+                if (!_game.HasStarted)
                 {
-                    if (_completedHandshake)
+                    _game.InitializeReceivedItems(
+                        receivedItems.Items
+                            .Select(i => _lastFullData.ItemsById[i.Item])
+                    );
+                }
+                else
+                {
+                    await _gameStateMutex.WaitAsync();
+                    try
                     {
                         await SendPacketsAsync([
-                            .. Handle(ref _state, receivedItems),
+                            .. Handle(receivedItems),
                             new SetPacketModel
                             {
                                 Key = AurasKey,
@@ -660,30 +658,20 @@ public sealed partial class GameStateViewModel : ViewModelBase, IDisposable
                                     {
                                         Operation = ArchipelagoDataStorageOperationType.Replace,
                                         Value = JsonSerializer.SerializeToNode(
-                                            GetAuraData(_state),
+                                            _game.AuraData,
                                             AuraDataSerializationContext.Default.AuraData
                                         )!,
                                     },
                                 ],
                             },
                         ]);
-                    }
-                    else
-                    {
-                        _state = _state with
-                        {
-                            ReceivedItems = [
-                                .. receivedItems.Items
-                                    .Select(i => _lastFullData.ItemsById[i.Item]),
-                            ],
-                        };
-                    }
 
-                    UpdateMeters();
-                }
-                finally
-                {
-                    _gameStateMutex.Release();
+                        UpdateMeters();
+                    }
+                    finally
+                    {
+                        _gameStateMutex.Release();
+                    }
                 }
 
                 break;
@@ -696,10 +684,10 @@ public sealed partial class GameStateViewModel : ViewModelBase, IDisposable
 
                 if (auras.Deserialize(AuraDataSerializationContext.Default.AuraData) is { } auraData)
                 {
-                    _state = ApplyAuraData(_state, auraData);
+                    _game.InitializeAuraData(auraData);
                 }
 
-                _completedHandshake = true;
+                _game.EnsureStarted();
                 UpdateMeters();
                 _dataAvailableSignal.Release();
                 break;
@@ -793,14 +781,7 @@ public sealed partial class GameStateViewModel : ViewModelBase, IDisposable
                 await _gameStateMutex.WaitAsync();
                 try
                 {
-                    _state = _state with
-                    {
-                        PriorityLocations = _state.PriorityLocations.Add(new()
-                        {
-                            Location = toPrioritize,
-                            Source = PriorityLocationModel.SourceKind.Player,
-                        }),
-                    };
+                    _game.AddPriorityLocation(toPrioritize);
                 }
                 finally
                 {
@@ -825,19 +806,11 @@ public sealed partial class GameStateViewModel : ViewModelBase, IDisposable
         else if (cmd.StartsWith("stop ", StringComparison.OrdinalIgnoreCase))
         {
             string loc = cmd["stop ".Length..].Trim('"');
-            PriorityLocationModel? toRemove;
+            LocationDefinitionModel? removed;
             await _gameStateMutex.WaitAsync();
             try
             {
-                toRemove = _state.PriorityLocations.FirstOrDefault(l =>
-                    l.Source == PriorityLocationModel.SourceKind.Player &&
-                    l.Location.Name.Equals(loc, StringComparison.InvariantCultureIgnoreCase)
-                );
-
-                if (toRemove is not null)
-                {
-                    _state = _state with { PriorityLocations = _state.PriorityLocations.Remove(toRemove) };
-                }
+                removed = _game.RemovePriorityLocation(loc);
             }
             finally
             {
@@ -846,9 +819,9 @@ public sealed partial class GameStateViewModel : ViewModelBase, IDisposable
 
             SayPacketModel say = new()
             {
-                Text = toRemove is null
+                Text = removed is null
                     ? $"Um... excuse me, but... I don't see a '{loc}' to remove..."
-                    : $"Oh, OK. I'll stop trying to get to '{toRemove.Location.Name}', {probablyPlayerAlias}.",
+                    : $"Oh, OK. I'll stop trying to get to '{removed.Name}', {probablyPlayerAlias}.",
             };
             await SendPacketsAsync([say]);
         }
@@ -900,7 +873,7 @@ public sealed partial class GameStateViewModel : ViewModelBase, IDisposable
         using IMemoryOwner<byte> firstBufOwner = MemoryPool<byte>.Shared.Rent(65536);
         Memory<byte> fullFirstBuf = firstBufOwner.Memory;
         Queue<IDisposable?> extraDisposables = [];
-        while (!goalRegion.Checked)
+        while (!_gameCompleteCts.Token.IsCancellationRequested)
         {
             ValueWebSocketReceiveResult prevReceiveResult;
             try
@@ -1003,9 +976,9 @@ public sealed partial class GameStateViewModel : ViewModelBase, IDisposable
 
     private async Task RunPlayLoopAsync()
     {
-        _nextFullInterval = NextInterval(_state);
+        _nextFullInterval = NextInterval();
         await _dataAvailableSignal.WaitAsync();
-        while (!_state.IsCompleted)
+        while (!_game.IsCompleted)
         {
             TimeSpan remaining = _nextFullInterval - _timeProvider.GetElapsedTime(_prevStartTimestamp);
             if (remaining > TimeSpan.Zero)
@@ -1041,10 +1014,9 @@ public sealed partial class GameStateViewModel : ViewModelBase, IDisposable
                 }
             }
 
-            GameState prevState, nextState;
             async ValueTask CheckGoMode()
             {
-                if (!_wasGoMode && _player.NextGoModeLocation(_state) is not null)
+                if (!_wasGoMode && _game.TargetLocationReason == TargetLocationReason.GoMode)
                 {
                     SayPacketModel say = new()
                     {
@@ -1055,14 +1027,15 @@ public sealed partial class GameStateViewModel : ViewModelBase, IDisposable
                 }
             }
 
+            int prevCheckedLocationsCount;
             _prevStartTimestamp = _timeProvider.GetTimestamp();
             await _gameStateMutex.WaitAsync();
             try
             {
-                prevState = _state;
-                _nextFullInterval = NextInterval(_state);
+                prevCheckedLocationsCount = _game.CheckedLocations.Count;
+                _nextFullInterval = NextInterval();
                 await CheckGoMode();
-                _state = nextState = _player.Advance(prevState);
+                _game.Advance();
                 await CheckGoMode();
             }
             finally
@@ -1071,7 +1044,7 @@ public sealed partial class GameStateViewModel : ViewModelBase, IDisposable
             }
 
             List<long> locationIds = [];
-            foreach (LocationDefinitionModel location in nextState.CheckedLocations.Except(prevState.CheckedLocations))
+            foreach (LocationDefinitionModel location in _game.CheckedLocations.Skip(prevCheckedLocationsCount))
             {
                 locationIds.Add(_lastFullData.LocationIds[location]);
                 if (_landmarkRegionsByLocation.TryGetValue(location, out LandmarkRegionViewModel? viewModel))
@@ -1086,13 +1059,13 @@ public sealed partial class GameStateViewModel : ViewModelBase, IDisposable
                 await SendPacketsAsync([locationChecks]);
             }
 
-            TargetLocation = _state.TargetLocation;
-            for (int i = 0; i < _state.PreviousStepMovementLog.Length; i++)
+            TargetLocation = _game.TargetLocation;
+            for (int i = 0; i < _game.PreviousStepMovementLog.Length; i++)
             {
-                LocationVector mov = _state.PreviousStepMovementLog[i];
+                LocationVector mov = _game.PreviousStepMovementLog[i];
                 PreviousLocation = mov.PreviousLocation;
                 CurrentLocation = mov.CurrentLocation;
-                if (i == _state.PreviousStepMovementLog.Length - 1)
+                if (i == _game.PreviousStepMovementLog.Length - 1)
                 {
                     // don't delay the last movement, Avalonia's easing will take care of it.
                     continue;
@@ -1113,7 +1086,7 @@ public sealed partial class GameStateViewModel : ViewModelBase, IDisposable
 
             UpdateMeters();
 
-            if (_state.CurrentLocation.EnumerateReachableLocationsByDistance(_state).Count() == _state.CheckedLocations.Count)
+            if (_game.TargetLocationReason == TargetLocationReason.NowhereUsefulToMove)
             {
                 if (_prevBlockedReportTimestamp is long prevBlockedReportTimestamp)
                 {
@@ -1175,152 +1148,48 @@ public sealed partial class GameStateViewModel : ViewModelBase, IDisposable
         "There's a rumor that something's going on at '{LOCATION}'!",
     ];
 
-    private ImmutableArray<SayPacketModel> Handle(ref GameState state, ReceivedItemsPacketModel receivedItems)
+    private ImmutableArray<SayPacketModel> Handle(ReceivedItemsPacketModel receivedItems)
     {
         var convertedItems = ImmutableArray.CreateRange(receivedItems.Items, (item, itemsReverseMapping) => itemsReverseMapping[item.Item], _lastFullData.ItemsById);
-        for (int i = receivedItems.Index; i < state.ReceivedItems.Count; i++)
+        for (int i = receivedItems.Index; i < _game.ReceivedItems.Count; i++)
         {
-            if (convertedItems[i - receivedItems.Index] != state.ReceivedItems[i])
+            if (convertedItems[i - receivedItems.Index] != _game.ReceivedItems[i])
             {
                 throw new InvalidOperationException("Need to resync. Try connecting again.");
             }
         }
 
-        ImmutableArray<ItemDefinitionModel> newItems = convertedItems[(state.ReceivedItems.Count - receivedItems.Index)..];
-        if (newItems.IsEmpty)
+        ImmutableArray<ItemDefinitionModel> newItems = convertedItems[(_game.ReceivedItems.Count - receivedItems.Index)..];
+        int priorityPriorityLocationCountBefore = _game.PriorityPriorityLocations.Count;
+        _game.ReceiveItems(newItems);
+
+        if (priorityPriorityLocationCountBefore == _game.PriorityPriorityLocations.Count)
         {
             return [];
         }
 
-        int foodMod = 0;
-        int energyFactorMod = 0;
-        int luckFactorMod = 0;
-        int distractedMod = 0;
-        int stylishMod = 0;
-        int startledMod = 0;
-        List<PriorityLocationModel.SourceKind> smartAndConspiratorial = [];
-        foreach (ItemDefinitionModel newItem in newItems)
+        List<SayPacketModel> newPackets = [];
+        foreach (LocationDefinitionModel newPriorityLocation in _game.PriorityPriorityLocations.Skip(priorityPriorityLocationCountBefore))
         {
-            // "confidence" takes place right away: it could apply to another item in the batch.
-            bool addConfidence = false;
-            bool subtractConfidence = false;
-            foreach (string aura in newItem.AurasGranted)
+            newPackets.Add(new()
             {
-                switch (aura)
-                {
-                    case "upset_tummy" when state.HasConfidence:
-                    case "unlucky" when state.HasConfidence:
-                    case "sluggish" when state.HasConfidence:
-                    case "distracted" when state.HasConfidence:
-                    case "startled" when state.HasConfidence:
-                    case "conspiratorial" when state.HasConfidence:
-                        subtractConfidence = true;
-                        break;
-
-                    case "well_fed":
-                        ++foodMod;
-                        break;
-
-                    case "upset_tummy":
-                        --foodMod;
-                        break;
-
-                    case "lucky":
-                        ++luckFactorMod;
-                        break;
-
-                    case "unlucky":
-                        --luckFactorMod;
-                        break;
-
-                    case "energized":
-                        ++energyFactorMod;
-                        break;
-
-                    case "sluggish":
-                        --energyFactorMod;
-                        break;
-
-                    case "distracted":
-                        ++distractedMod;
-                        break;
-
-                    case "stylish":
-                        ++stylishMod;
-                        break;
-
-                    case "startled":
-                        ++startledMod;
-                        break;
-
-                    case "smart":
-                        smartAndConspiratorial.Add(PriorityLocationModel.SourceKind.Smart);
-                        break;
-
-                    case "conspiratorial":
-                        smartAndConspiratorial.Add(PriorityLocationModel.SourceKind.Conspiratorial);
-                        break;
-
-                    case "confident":
-                        addConfidence = true;
-                        break;
-                }
-            }
-
-            // subtract first
-            if (subtractConfidence)
-            {
-                state = state with { HasConfidence = false };
-            }
-
-            if (addConfidence)
-            {
-                state = state with { HasConfidence = true };
-            }
+                Text = s_newTargetPhrases[Random.Shared.Next(s_newTargetPhrases.Length)].Replace("{LOCATION}", newPriorityLocation.Name),
+            });
         }
 
-        state = state
-            .ResolveSmartAndConspiratorialAuras(CollectionsMarshal.AsSpan(smartAndConspiratorial), _spoilerData, out ImmutableArray<PriorityLocationModel> newPriorityLocations) with
-        {
-            ReceivedItems = state.ReceivedItems.AddRange(newItems),
-            FoodFactor = state.FoodFactor + (foodMod * 5),
-            EnergyFactor = state.EnergyFactor + (energyFactorMod * 5),
-            LuckFactor = state.LuckFactor + luckFactorMod,
-            StyleFactor = state.StyleFactor + (stylishMod * 2),
-            DistractionCounter = state.DistractionCounter + distractedMod,
-            StartledCounter = state.StartledCounter + startledMod,
-        };
-
-        if (newPriorityLocations.IsEmpty)
-        {
-            return [];
-        }
-
-        Prng.State prngState = state.PrngState;
-        SayPacketModel[] newPackets = new SayPacketModel[newPriorityLocations.Length];
-        for (int i = 0; i < newPackets.Length; i++)
-        {
-            double num = Prng.NextDouble(ref prngState);
-            newPackets[i] = new()
-            {
-                Text = s_newTargetPhrases[(int)(s_newTargetPhrases.Length * num)].Replace("{LOCATION}", newPriorityLocations[i].Location.Name),
-            };
-        }
-
-        state = state with { PrngState = prngState };
-        return ImmutableCollectionsMarshal.AsImmutableArray(newPackets);
+        return [.. newPackets];
     }
 
-    private TimeSpan NextInterval(GameState state)
+    private TimeSpan NextInterval()
     {
         double rangeSeconds = (double)(_settings.MaxStepSeconds - _settings.MinStepSeconds);
         double baseInterval = (double)_settings.MinStepSeconds + (rangeSeconds * Prng.NextDouble(ref _intervalPrngState));
-        return TimeSpan.FromSeconds(baseInterval * state.IntervalDurationMultiplier);
+        return TimeSpan.FromSeconds(baseInterval);
     }
 
     private void UpdateMeters()
     {
-        foreach (ItemDefinitionModel item in _state.ReceivedItems)
+        foreach (ItemDefinitionModel item in _game.ReceivedItems)
         {
             if (_collectableItemsByModel.TryGetValue(item, out CollectableItemViewModel? viewModel))
             {
@@ -1328,44 +1197,14 @@ public sealed partial class GameStateViewModel : ViewModelBase, IDisposable
             }
         }
 
-        RatCount = _state.RatCount;
-        FoodFactor = _state.FoodFactor;
-        EnergyFactor = _state.EnergyFactor;
-        LuckFactor = _state.LuckFactor;
-        StyleFactor = _state.StyleFactor;
-        DistractionCounter = _state.DistractionCounter;
-        StartledCounter = _state.StartledCounter;
-        HasConfidence = _state.HasConfidence;
-    }
-
-    private static AuraData GetAuraData(GameState state)
-    {
-        return new()
-        {
-            DistractionCounter = state.DistractionCounter,
-            StartledCounter = state.StartledCounter,
-            HasConfidence = state.HasConfidence,
-            FoodFactor = state.FoodFactor,
-            LuckFactor = state.LuckFactor,
-            StyleFactor = state.StyleFactor,
-            EnergyFactor = state.EnergyFactor,
-            PriorityLocations = [.. state.PriorityLocations.Select(l => l.ToProxy())],
-        };
-    }
-
-    private static GameState ApplyAuraData(GameState state, AuraData auraData)
-    {
-        return state with
-        {
-            DistractionCounter = auraData.DistractionCounter,
-            StartledCounter = auraData.StartledCounter,
-            HasConfidence = auraData.HasConfidence,
-            FoodFactor = auraData.FoodFactor,
-            LuckFactor = auraData.LuckFactor,
-            StyleFactor = auraData.StyleFactor,
-            EnergyFactor = auraData.EnergyFactor,
-            PriorityLocations = [.. auraData.PriorityLocations.Select(p => p.ToPriorityLocation())],
-        };
+        RatCount = _game.RatCount;
+        FoodFactor = _game.FoodFactor;
+        EnergyFactor = _game.EnergyFactor;
+        LuckFactor = _game.LuckFactor;
+        StyleFactor = _game.StyleFactor;
+        DistractionCounter = _game.DistractionCounter;
+        StartledCounter = _game.StartledCounter;
+        HasConfidence = _game.HasConfidence;
     }
 
     [Reactive]
@@ -1421,25 +1260,6 @@ public sealed partial class GameStateViewModel : ViewModelBase, IDisposable
         public required FrozenDictionary<long, LocationDefinitionModel> LocationsById { get; init; }
 
         public required FrozenDictionary<string, int> SlotByPlayerAlias { get; init; }
-    }
-
-    private sealed record AuraData
-    {
-        public required int FoodFactor { get; init; }
-
-        public required int LuckFactor { get; init; }
-
-        public required int EnergyFactor { get; init; }
-
-        public required int StyleFactor { get; init; }
-
-        public required int DistractionCounter { get; init; }
-
-        public required int StartledCounter { get; init; }
-
-        public required bool HasConfidence { get; init; }
-
-        public required ImmutableArray<PriorityLocationModel.PriorityLocationModelProxy> PriorityLocations { get; init; }
     }
 
     [JsonSerializable(typeof(AuraData))]
