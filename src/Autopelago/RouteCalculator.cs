@@ -67,19 +67,33 @@ public sealed class RouteCalculator
         if (!checkedLocationsInCurrentRegion.HasAllSet())
         {
             // this won't necessarily be the final answer, but it will be a solid upper bound.
-            for (int i = 0; i < checkedLocationsInCurrentRegion.Length; i++)
+            for (int i = currentLocation.Key.N + 1; i < checkedLocationsInCurrentRegion.Length; i++)
             {
                 if (checkedLocationsInCurrentRegion[i])
                 {
                     continue;
                 }
 
-                int distance = Math.Abs(currentLocation.Key.N - i);
+                bestDistance = i - currentLocation.Key.N;
+                bestLocationKey = currentLocation.Key with { N = i };
+                break;
+            }
+
+            for (int i = currentLocation.Key.N - 1; i >= 0; --i)
+            {
+                if (checkedLocationsInCurrentRegion[i])
+                {
+                    continue;
+                }
+
+                int distance = currentLocation.Key.N - i;
                 if (distance < bestDistance)
                 {
                     bestDistance = distance;
                     bestLocationKey = currentLocation.Key with { N = i };
                 }
+
+                break;
             }
         }
 
