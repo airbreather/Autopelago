@@ -54,8 +54,8 @@ public sealed class RouteCalculator
         }
 
         // we're not already LITERALLY standing on an unchecked location, so do the full version.
-        int forwardLocationsInCurrentRegion = currentLocation.Key.N;
-        int backwardLocationsInCurrentRegion = currentLocation.Region.Locations.Length - currentLocation.Key.N - 1;
+        int backwardLocationsInCurrentRegion = currentLocation.Key.N;
+        int forwardLocationsInCurrentRegion = currentLocation.Region.Locations.Length - currentLocation.Key.N - 1;
 
         int bestDistance = int.MaxValue;
         LocationKey? bestLocationKey = null;

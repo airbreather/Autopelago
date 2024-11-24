@@ -106,7 +106,7 @@ public sealed class GameTests
     }
 
     [Test]
-    public void GameShouldBeWinnable([Random(1, Distinct = true)] ulong seed)
+    public void GameShouldBeWinnable([Random(100, Distinct = true)] ulong seed)
     {
         Game game = new(Prng.State.Start(seed));
         int advancesSoFar = 0;
@@ -130,12 +130,6 @@ public sealed class GameTests
             {
                 game.ReceiveItems([.. newReceivedItems]);
                 newReceivedItems.Clear();
-            }
-
-            ++advancesSoFar;
-            if (advancesSoFar > 20000)
-            {
-                _ = 0;
             }
 
             Assert.That(advancesSoFar, Is.LessThan(40_000), "If you can't win in 40k steps, then you're useless.");
