@@ -32,6 +32,11 @@ public sealed class GameTests
 
     private static readonly Prng.State s_lowRolls = EnsureSeedProducesInitialD20Sequence("Sr8rXn/wy4+RmchoEi8DdYc99ConsS+Fj2g7IoicNns="u8, [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1]);
 
+    private static readonly FrozenDictionary<string, ItemDefinitionModel> s_singleAuraItems =
+        new[] { "well_fed", "upset_tummy", "lucky", "unlucky", "energized", "sluggish", "distracted", "stylish", "startled", "smart", "conspiratorial", "confident" }
+            .Select(aura => GameDefinitions.Instance.AllItems.First(i => i.AurasGranted.SequenceEqual([aura])))
+            .ToFrozenDictionary(i => i.AurasGranted[0]);
+
     [Test]
     public void FirstAttemptsShouldMakeSense()
     {
@@ -141,7 +146,7 @@ public sealed class GameTests
     public void LuckyAuraShouldForceSuccess([Values(1, 2, 3)] int effectCount)
     {
         Game game = new(s_lowRolls);
-        game.ArbitrarilyModifyState(g => g.LuckFactor, effectCount);
+        game.ReceiveItems([.. Enumerable.Repeat(s_singleAuraItems["lucky"], effectCount)]);
         game.Advance();
         game.Advance();
         game.Advance();
@@ -153,7 +158,7 @@ public sealed class GameTests
     {
         Prng.State seed = EnsureSeedProducesInitialD20Sequence(2242996, [14, 19, 20, 14, 15]);
         Game game = new(seed);
-        game.ArbitrarilyModifyState(g => g.LuckFactor, -4);
+        game.ReceiveItems([.. Enumerable.Repeat(s_singleAuraItems["unlucky"], 4)]);
 
         // normally, a 14 as your first roll should pass, but with Unlucky it's not enough. the 19
         // also fails because -5 from the aura and -5 from the second attempt. even a natural 20
@@ -173,8 +178,10 @@ public sealed class GameTests
         // with an "energy factor" of 5, you can make up to a total of 6 checks in two rounds before
         // needing to spend any actions to move, if you are lucky enough.
         Game game = new(s_lowRolls);
-        game.ArbitrarilyModifyState(g => g.EnergyFactor, 5);
-        game.ArbitrarilyModifyState(g => g.LuckFactor, 9);
+        game.ReceiveItems([
+            s_singleAuraItems["energized"],
+            .. Enumerable.Repeat(s_singleAuraItems["lucky"], 9),
+        ]);
 
         game.Advance();
         Assert.That(game.CheckedLocations, Has.Count.EqualTo(3));
@@ -251,7 +258,7 @@ public sealed class GameTests
             Assert.That(game.TargetLocation.Key.N, Is.EqualTo(6));
         });
 
-        game.ReceiveItems([GameDefinitions.Instance.AllItems.First(i => i.AurasGranted.SequenceEqual(["well_fed"]))]);
+        game.ReceiveItems([s_singleAuraItems["well_fed"]]);
 
         // 4 actions are "move, check, move, check".
         game.Advance();
@@ -295,7 +302,7 @@ public sealed class GameTests
             Assert.That(game.TargetLocation.Key.N, Is.EqualTo(4));
         });
 
-        game.ReceiveItems([GameDefinitions.Instance.AllItems.First(i => i.AurasGranted.SequenceEqual(["upset_tummy"]))]);
+        game.ReceiveItems([s_singleAuraItems["upset_tummy"]]);
 
         // 2 actions are "move, check".
         game.Advance();
@@ -312,16 +319,19 @@ public sealed class GameTests
     public void DistractionCounterShouldWasteEntireRound()
     {
         Game game = new(s_highRolls);
-        game.ArbitrarilyModifyState(g => g.DistractionCounter, 2);
 
-        // distraction should also burn through your food factor.
-        game.ArbitrarilyModifyState(g => g.FoodFactor, 2);
+        game.ReceiveItems([
+            .. Enumerable.Repeat(s_singleAuraItems["distracted"], 5),
 
-        // 0 actions
-        game.Advance();
+            // distraction should also burn through your food factor.
+            .. Enumerable.Repeat(s_singleAuraItems["well_fed"], 1),
+        ]);
 
-        // 0 actions
-        game.Advance();
+        for (int i = 0; i < 5; i++)
+        {
+            // 0 actions
+            game.Advance();
+        }
 
         // 3 actions are "check, move, check"
         game.Advance();
@@ -425,7 +435,7 @@ public sealed class GameTests
 
         // teleport the rat over to Prawn Stars and have it do its thing (remember it's rolling all
         // natural 1s today).
-        game.ArbitrarilyModifyState(g => g.CurrentLocation, game.TargetLocation);
+        game.ArbitrarilyModifyState(g => g.CurrentLocation, prawnStars);
         game.Advance();
 
         // it should still be there, and it should still be our priority location.
@@ -457,7 +467,7 @@ public sealed class GameTests
         // even though it's all high rolls, we shouldn't have any checks because the rat is hard-prioritizing.
         Assert.That(game.CheckedLocations, Is.Empty);
 
-        game.ReceiveItems([GameDefinitions.Instance.AllItems.First(i => i.AurasGranted.SequenceEqual(["startled"]))]);
+        game.ReceiveItems([s_singleAuraItems["startled"]]);
 
         // it used all its movement to get from middleLocation to here previously, so being startled
         // should cause it to use that same movement to get exactly back to middleLocation again.
@@ -474,8 +484,10 @@ public sealed class GameTests
     {
         Game game = new(s_highRolls);
         game.ArbitrarilyModifyState(g => g.CurrentLocation, GameDefinitions.Instance.StartRegion.Locations[^1]);
-        game.ArbitrarilyModifyState(g => g.StartledCounter, 1);
-        game.ArbitrarilyModifyState(g => g.DistractionCounter, 2);
+        game.ReceiveItems([
+            s_singleAuraItems["startled"],
+            .. Enumerable.Repeat(s_singleAuraItems["distracted"], 2),
+        ]);
 
         // first step, we're startled out of our distraction.
         game.Advance();
@@ -515,8 +527,6 @@ public sealed class GameTests
             (s_beforePrawnStars.Locations[^1], targetFlags),
         ]);
 
-        ItemDefinitionModel auraItem = GameDefinitions.Instance.AllItems.First(i => i.AurasGranted.Length == 1 && i.AurasGranted[0] == aura);
-
         Game game = new(Prng.State.Start());
         game.InitializeSpoilerData(spoilerData);
         game.ArbitrarilyModifyState(g => g.CurrentLocation, GameDefinitions.Instance.StartRegion.Locations[^1]);
@@ -524,7 +534,7 @@ public sealed class GameTests
 
         // even though there's a target RIGHT on the other side, we still favor the nearest one that
         // we can already reach with what we currently have.
-        game.ReceiveItems([auraItem]);
+        game.ReceiveItems([s_singleAuraItems[aura]]);
         Assert.That(game.PriorityPriorityLocations, Is.EqualTo(new[]
         {
             GameDefinitions.Instance.StartLocation,
@@ -532,7 +542,7 @@ public sealed class GameTests
 
         // if there's nothing else that we can reach, then we should NOT target the unreachable one
         // that's just out of reach. it should just fizzle.
-        game.ReceiveItems([auraItem]);
+        game.ReceiveItems([s_singleAuraItems[aura]]);
         Assert.That(game.PriorityPriorityLocations, Is.EqualTo(new[]
         {
             GameDefinitions.Instance.StartLocation,
@@ -571,7 +581,10 @@ public sealed class GameTests
         game.InitializeCheckedLocations(s_startRegion.Locations);
         game.ArbitrarilyModifyState(g => g.CurrentLocation, GameDefinitions.Instance.StartLocation);
         game.ArbitrarilyModifyState(g => g.TargetLocation, s_basketball);
-        game.ArbitrarilyModifyState(g => g.EnergyFactor, -100);
+
+        // the start region isn't big enough for the test as it was originally written, so cheat a
+        // little bit and steal a bunch of movements from the rat.
+        game.ReceiveItems([.. Enumerable.Repeat(s_singleAuraItems["sluggish"], 20)]);
         game.Advance();
         Assert.Multiple(() =>
         {
