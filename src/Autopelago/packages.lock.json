@@ -98,12 +98,6 @@
           "Material.Icons": "2.1.10"
         }
       },
-      "Microsoft.NET.ILLink.Tasks": {
-        "type": "Direct",
-        "requested": "[9.0.0, )",
-        "resolved": "9.0.0",
-        "contentHash": "zAwp213evC3UkimtVXRb+Dlgc/40QG145nmZDtp2LO9zJJMfrp+i/87BnXN7tRXEA4liyzdFkjqG1HE8/RPb4A=="
-      },
       "ReactiveUI.Fody": {
         "type": "Direct",
         "requested": "[19.5.41, )",

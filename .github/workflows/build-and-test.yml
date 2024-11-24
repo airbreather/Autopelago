@@ -2,6 +2,7 @@ on:
   push:
     branches:
       - main
+      - untrimmed
 
 jobs:
   build-and-test:
