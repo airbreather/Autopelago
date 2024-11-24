@@ -348,7 +348,7 @@ public sealed class GameTests
     {
         Prng.State seed = EnsureSeedProducesInitialD20Sequence(80387, [5, 10]);
         Game game = new(seed);
-        game.ArbitrarilyModifyState(g => g.StyleFactor, 2);
+        game.ReceiveItems([.. Enumerable.Repeat(s_singleAuraItems["stylish"], 2)]);
 
         // 3 actions are "check, move, check".
         game.Advance();
@@ -685,7 +685,7 @@ public sealed class GameTests
 
         for (int i = 0; i < 100; i++)
         {
-            game.ArbitrarilyModifyState(g => g.StartledCounter, 1);
+            game.ReceiveItems([s_singleAuraItems["startled"]]);
             game.Advance();
             Assert.That(
                 game.PreviousStepMovementLog.Select(m => m.CurrentLocation),
