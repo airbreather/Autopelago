@@ -132,6 +132,7 @@ public sealed class GameTests
                 newReceivedItems.Clear();
             }
 
+            ++advancesSoFar;
             Assert.That(advancesSoFar, Is.LessThan(40_000), "If you can't win in 40k steps, then you're useless.");
         }
     }
