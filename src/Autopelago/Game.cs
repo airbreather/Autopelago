@@ -1,22 +1,16 @@
 using System.Collections.Frozen;
 using System.Collections.Immutable;
+using System.Collections.ObjectModel;
 using System.Linq.Expressions;
 using System.Reflection;
 
 namespace Autopelago;
 
-public enum UncheckedLandmarkBehavior
-{
-    DoNotPassThrough,
-    PassThroughIfRequirementsSatisfied,
-    AlwaysPassThrough,
-}
-
 public enum TargetLocationReason
 {
     GameNotStarted,
     NowhereUsefulToMove,
-    ClosestReachable,
+    ClosestReachableUnchecked,
     Priority,
     PriorityPriority,
     GoMode,
@@ -53,15 +47,17 @@ public sealed record LocationVector
 
 public sealed class Game
 {
-    private ShortestPaths.Path _pathToTargetLocation = ShortestPaths.Path.Only(GameDefinitions.Instance.StartLocation);
-
     private int _actionBalanceAfterPreviousStep;
 
     private bool _initializedAuraData;
 
+    private RouteCalculator? _routeCalculator;
+
+    private IEnumerator<LocationDefinitionModel>? _targetLocationPathEnumerator;
+
     public Game(Prng.State prngState)
     {
-        PrngState = prngState;
+        _prngState = prngState;
     }
 
     private FrozenDictionary<LocationDefinitionModel, ArchipelagoItemFlags>? _spoilerData;
@@ -76,31 +72,45 @@ public sealed class Game
 
     public TargetLocationReason TargetLocationReason { get; private set; } = TargetLocationReason.GameNotStarted;
 
-    private ReceivedItems? _receivedItems;
+    private int? _ratCount;
 
-    public ReceivedItems ReceivedItems
+    private List<ItemDefinitionModel>? _receivedItems;
+
+    public ReadOnlyCollection<ItemDefinitionModel> ReceivedItems
     {
         get
         {
             EnsureStarted();
-            return _receivedItems!;
+            return _receivedItems!.AsReadOnly();
         }
     }
 
-    private CheckedLocations? _checkedLocations;
+    private List<LocationDefinitionModel>? _checkedLocations;
 
-    public CheckedLocations CheckedLocations
+    public ReadOnlyCollection<LocationDefinitionModel> CheckedLocations
     {
         get
         {
             EnsureStarted();
-            return _checkedLocations!;
+            return _checkedLocations!.AsReadOnly();
         }
     }
 
-    public ImmutableList<LocationDefinitionModel> PriorityPriorityLocations { get; private set; } = [GameDefinitions.Instance.GoalLocation];
+    private List<LocationDefinitionModel> _priorityPriorityLocations = [];
 
-    public ImmutableList<LocationDefinitionModel> PriorityLocations { get; private set; } = [];
+    public ReadOnlyCollection<LocationDefinitionModel> PriorityPriorityLocations => _priorityPriorityLocations.AsReadOnly();
+
+    private List<LocationDefinitionModel> _priorityLocations = [];
+
+    public ReadOnlyCollection<LocationDefinitionModel> PriorityLocations
+    {
+        get => _priorityLocations.AsReadOnly();
+        private set
+        {
+            _priorityLocations.Clear();
+            _priorityLocations.AddRange(value);
+        }
+    }
 
     public int FoodFactor { get; private set; }
 
@@ -115,6 +125,18 @@ public sealed class Game
     public int StartledCounter { get; private set; }
 
     public bool HasConfidence { get; private set; }
+
+    public int RatCount
+    {
+        get
+        {
+            EnsureStarted();
+            return _ratCount ??= _receivedItems!
+                .DefaultIfEmpty()
+                .Sum(i => i?.RatCount.GetValueOrDefault())
+                .GetValueOrDefault();
+        }
+    }
 
     public AuraData AuraData
     {
@@ -134,13 +156,14 @@ public sealed class Game
                 DistractionCounter = DistractionCounter,
                 StartledCounter = StartledCounter,
                 HasConfidence = HasConfidence,
-                PriorityPriorityLocations = [.. PriorityPriorityLocations.Select(l => l.Name)],
-                PriorityLocations = [.. PriorityLocations.Select(l => l.Name)],
+                PriorityPriorityLocations = [.. _priorityPriorityLocations.Select(l => l.Name)],
+                PriorityLocations = [.. _priorityLocations.Select(l => l.Name)],
             };
         }
     }
 
-    public Prng.State PrngState { get; private set; }
+    private Prng.State _prngState;
+    public Prng.State PrngState { get => _prngState; private set => _prngState = value; }
 
     public bool HasStarted { get; private set; }
 
@@ -158,17 +181,17 @@ public sealed class Game
             throw new InvalidOperationException("Checked locations have already been initialized.");
         }
 
-        _checkedLocations = new() { InCheckedOrder = [.. checkedLocations] };
+        _checkedLocations = [.. checkedLocations];
     }
 
     public void InitializeReceivedItems(IEnumerable<ItemDefinitionModel> receivedItems)
     {
-        if (_spoilerData is not null)
+        if (_receivedItems is not null)
         {
             throw new InvalidOperationException("Received items have already been initialized.");
         }
 
-        _receivedItems = new() { InReceivedOrder = [.. receivedItems] };
+        _receivedItems = [.. receivedItems];
     }
 
     public void InitializeSpoilerData(FrozenDictionary<LocationDefinitionModel, ArchipelagoItemFlags> spoilerData)
@@ -195,11 +218,11 @@ public sealed class Game
         DistractionCounter = auraData.DistractionCounter;
         StartledCounter = auraData.StartledCounter;
         HasConfidence = auraData.HasConfidence;
-        PriorityPriorityLocations =
+        _priorityPriorityLocations =
         [
             .. auraData.PriorityPriorityLocations.Select(l => GameDefinitions.Instance.LocationsByName[l]),
         ];
-        PriorityLocations =
+        _priorityLocations =
         [
             .. auraData.PriorityLocations.Select(l => GameDefinitions.Instance.LocationsByName[l]),
         ];
@@ -209,26 +232,26 @@ public sealed class Game
 
     public bool AddPriorityLocation(LocationDefinitionModel toPrioritize)
     {
-        if (PriorityLocations.Contains(toPrioritize))
+        if (_priorityLocations.Contains(toPrioritize))
         {
             return false;
         }
 
-        PriorityLocations = PriorityLocations.Add(toPrioritize);
+        _priorityLocations.Add(toPrioritize);
         return true;
     }
 
     public LocationDefinitionModel? RemovePriorityLocation(string locationName)
     {
-        int index = PriorityLocations.FindIndex(
+        int index = _priorityLocations.FindIndex(
             l => l.Name.Equals(locationName, StringComparison.InvariantCultureIgnoreCase));
         if (index < 0)
         {
             return null;
         }
 
-        LocationDefinitionModel removed = PriorityLocations[index];
-        PriorityLocations = PriorityLocations.RemoveAt(index);
+        LocationDefinitionModel removed = _priorityLocations[index];
+        _priorityLocations.RemoveAt(index);
         return removed;
     }
 
@@ -239,9 +262,11 @@ public sealed class Game
             return;
         }
 
-        _checkedLocations ??= new() { InCheckedOrder = [] };
-        _receivedItems ??= new() { InReceivedOrder = [] };
+        _checkedLocations ??= [];
+        _receivedItems ??= [];
+        _spoilerData ??= GameDefinitions.Instance.LocationsByName.Values.Where(l => l.UnrandomizedItem is not null).ToFrozenDictionary(l => l, l => l.UnrandomizedItem!.ArchipelagoFlags);
         _initializedAuraData = true;
+        _routeCalculator = new(_spoilerData, _receivedItems!.AsReadOnly(), _checkedLocations!.AsReadOnly());
         HasStarted = true;
     }
 
@@ -279,8 +304,13 @@ public sealed class Game
             DistractionCounter -= 1;
         }
 
-        int diceModifier = ReceivedItems.RatCount / 3;
+        int diceModifier = RatCount / 3;
         List<LocationVector> movementLog = [];
+
+        // "Startled" has its own separate code to figure out the route to take.
+        using IEnumerator<LocationDefinitionModel>? startledPath = actionBalance > 0 && StartledCounter > 0
+            ? _routeCalculator!.GetStartledPath(CurrentLocation).GetEnumerator()
+            : null;
         while (actionBalance > 0 && !IsCompleted)
         {
             --actionBalance;
@@ -314,11 +344,24 @@ public sealed class Game
                 // same in dense areas.
                 for (int i = 0; i < 3 && CurrentLocation != TargetLocation; i++)
                 {
-                    movementLog.Add(new()
+                    if (startledPath?.MoveNext() == true)
                     {
-                        PreviousLocation = _pathToTargetLocation.Locations[i],
-                        CurrentLocation = _pathToTargetLocation.Locations[i + 1],
-                    });
+                        movementLog.Add(new()
+                        {
+                            PreviousLocation = CurrentLocation,
+                            CurrentLocation = startledPath.Current,
+                        });
+                    }
+                    else
+                    {
+                        _targetLocationPathEnumerator!.MoveNext();
+                        movementLog.Add(new()
+                        {
+                            PreviousLocation = CurrentLocation,
+                            CurrentLocation = _targetLocationPathEnumerator.Current,
+                        });
+                    }
+
                     CurrentLocation = movementLog[^1].CurrentLocation;
                     moved = true;
                 }
@@ -349,9 +392,9 @@ public sealed class Game
                     StyleFactor -= 1;
                 }
 
-                if (forceSuccess || (NextD20() + immediateDiceModifier >= CurrentLocation.AbilityCheckDC))
+                if (forceSuccess || (Prng.NextD20(ref _prngState) + immediateDiceModifier >= CurrentLocation.AbilityCheckDC))
                 {
-                    _checkedLocations = new() { InCheckedOrder = CheckedLocations.InCheckedOrder.Add(CurrentLocation) };
+                    _checkedLocations!.Add(CurrentLocation);
                 }
                 else
                 {
@@ -365,11 +408,11 @@ public sealed class Game
                 switch (TargetLocationReason)
                 {
                     case TargetLocationReason.Priority:
-                        PriorityLocations = PriorityLocations.RemoveAll(l => l == targetLocation);
+                        _priorityLocations.RemoveAll(l => l == targetLocation);
                         break;
 
                     case TargetLocationReason.PriorityPriority:
-                        PriorityPriorityLocations = PriorityPriorityLocations.RemoveAll(l => l == targetLocation);
+                        _priorityPriorityLocations.RemoveAll(l => l == targetLocation);
                         break;
                 }
             }
@@ -408,6 +451,7 @@ public sealed class Game
 
     public void ReceiveItems(ImmutableArray<ItemDefinitionModel> newItems)
     {
+        EnsureStarted();
         if (newItems.IsEmpty)
         {
             return;
@@ -419,26 +463,6 @@ public sealed class Game
         int distractedMod = 0;
         int stylishMod = 0;
         int startledMod = 0;
-        List<LocationDefinitionModel> priorityPriorityLocations = [];
-        HashSet<LocationDefinitionModel> uncheckedLocationsToIgnore = [.. PriorityPriorityLocations];
-
-        bool VisitLocation(LocationDefinitionModel curr, ArchipelagoItemFlags flags)
-        {
-            if (uncheckedLocationsToIgnore.Contains(curr) || curr.RewardIsFixed || SpoilerData[curr] != flags)
-            {
-                return true;
-            }
-
-            priorityPriorityLocations.Add(curr);
-            uncheckedLocationsToIgnore.Add(curr);
-            return false;
-        }
-
-        LocationVisitor smartVisitor = LocationVisitor.Create((curr, _, _, alreadyChecked) =>
-            alreadyChecked || VisitLocation(curr, ArchipelagoItemFlags.LogicalAdvancement));
-        LocationVisitor conspiratorialVisitor = LocationVisitor.Create((curr, _, _, alreadyChecked) =>
-            alreadyChecked || VisitLocation(curr, ArchipelagoItemFlags.Trap));
-
         foreach (ItemDefinitionModel newItem in newItems)
         {
             // "confidence" takes place right away: it could apply to another item in the batch.
@@ -494,11 +518,14 @@ public sealed class Game
                         break;
 
                     case "smart":
-                        VisitLocationsByDistanceFromCurrentLocation(smartVisitor, UncheckedLandmarkBehavior.PassThroughIfRequirementsSatisfied);
-                        break;
-
                     case "conspiratorial":
-                        VisitLocationsByDistanceFromCurrentLocation(conspiratorialVisitor, UncheckedLandmarkBehavior.PassThroughIfRequirementsSatisfied);
+                        ArchipelagoItemFlags flags = aura == "smart" ? ArchipelagoItemFlags.LogicalAdvancement : ArchipelagoItemFlags.Trap;
+                        FrozenSet<LocationDefinitionModel> toSkip = [.. _priorityPriorityLocations];
+                        if (_routeCalculator!.GetClosestLocationsWithItemFlags(CurrentLocation, flags).FirstOrDefault(l => !toSkip.Contains(l)) is { } loc)
+                        {
+                            _priorityPriorityLocations.Add(loc);
+                        }
+
                         break;
 
                     case "confident":
@@ -519,177 +546,76 @@ public sealed class Game
             }
         }
 
-        _receivedItems = new() { InReceivedOrder = ReceivedItems.InReceivedOrder.AddRange(newItems) };
+        _receivedItems!.AddRange(newItems);
         FoodFactor += (foodMod * 5);
         EnergyFactor += (energyFactorMod * 5);
         LuckFactor += luckFactorMod;
         StyleFactor += (stylishMod * 2);
         DistractionCounter += distractedMod;
         StartledCounter += startledMod;
-        PriorityPriorityLocations = PriorityPriorityLocations.AddRange(priorityPriorityLocations);
+
+        _ratCount = null;
     }
 
     private bool UpdateTargetLocation()
     {
         LocationDefinitionModel prevTargetLocation = TargetLocation;
-        TargetLocation = BestTargetLocation(out TargetLocationReason bestTargetLocationReason, out ShortestPaths.Path bestPathToTargetLocation);
+        TargetLocation = BestTargetLocation(out TargetLocationReason bestTargetLocationReason);
         TargetLocationReason = bestTargetLocationReason;
-        _pathToTargetLocation = bestPathToTargetLocation;
-        return TargetLocation != prevTargetLocation;
+        _targetLocationPathEnumerator ??= _routeCalculator!.GetPath(CurrentLocation, TargetLocation)!.GetEnumerator();
+        if (TargetLocation == prevTargetLocation)
+        {
+            return false;
+        }
+
+        using var _ = _targetLocationPathEnumerator;
+        _targetLocationPathEnumerator = _routeCalculator!.GetPath(CurrentLocation, TargetLocation)!.GetEnumerator();
+        return true;
     }
 
-    private LocationDefinitionModel BestTargetLocation(out TargetLocationReason reason, out ShortestPaths.Path bestPath)
+    private LocationDefinitionModel BestTargetLocation(out TargetLocationReason reason)
     {
         if (StartledCounter > 0)
         {
             reason = TargetLocationReason.Startled;
-            bestPath = CheckedLocations.ShortestPaths.GetPathOrNull(CurrentLocation, GameDefinitions.Instance.StartLocation)!.Value;
             return GameDefinitions.Instance.StartLocation;
         }
 
-        foreach (LocationDefinitionModel priorityPriorityLocation in PriorityPriorityLocations)
+        if (_routeCalculator!.CanReachGoal() && _routeCalculator!.GetPath(CurrentLocation, GameDefinitions.Instance.GoalLocation) is { } path0)
         {
-            if (ReceivedItems.ShortestPaths.GetPathOrNull(CurrentLocation, priorityPriorityLocation) is ShortestPaths.Path priorityPath)
-            {
-                reason = priorityPriorityLocation == GameDefinitions.Instance.GoalLocation
-                    ? TargetLocationReason.GoMode
-                    : TargetLocationReason.PriorityPriority;
-                bestPath = CheckedLocations.ShortestPaths.GetPathOrNull(CurrentLocation, priorityPriorityLocation) ?? priorityPath;
-                return
-                    bestPath.Locations.FirstOrDefault(l => l.Region is LandmarkRegionDefinitionModel landmark && !CheckedLocations.Contains(landmark)) ??
-                    bestPath.Locations[^1];
-            }
+            reason = TargetLocationReason.GoMode;
+            return path0.Prepend(CurrentLocation).FirstOrDefault(p => p.Region is LandmarkRegionDefinitionModel && !CheckedLocations.Contains(p)) ?? GameDefinitions.Instance.GoalLocation;
         }
 
-        foreach (LocationDefinitionModel priorityLocation in PriorityLocations)
+        foreach (LocationDefinitionModel priorityPriorityLocation in _priorityPriorityLocations)
         {
-            if (ReceivedItems.ShortestPaths.GetPathOrNull(CurrentLocation, priorityLocation) is ShortestPaths.Path priorityPath)
-            {
-                reason = TargetLocationReason.Priority;
-                bestPath = CheckedLocations.ShortestPaths.GetPathOrNull(CurrentLocation, priorityLocation) ?? priorityPath;
-                return
-                    bestPath.Locations.FirstOrDefault(l => l.Region is LandmarkRegionDefinitionModel landmark && !CheckedLocations.Contains(landmark)) ??
-                    bestPath.Locations[^1];
-            }
-        }
-
-        if (!CheckedLocations.Contains(CurrentLocation))
-        {
-            reason = TargetLocationReason.ClosestReachable;
-            bestPath = ReceivedItems.ShortestPaths.GetPathOrNull(CurrentLocation, CurrentLocation)!.Value;
-            return CurrentLocation;
-        }
-
-        PriorityQueue<LocationDefinitionModel, int> q = new();
-        q.Enqueue(CurrentLocation, 0);
-        HashSet<LocationDefinitionModel> settled = [];
-        while (q.TryDequeue(out LocationDefinitionModel? nextLocation, out int distance))
-        {
-            if (!settled.Add(nextLocation))
+            if (_routeCalculator!.GetPath(CurrentLocation, priorityPriorityLocation) is not { } path)
             {
                 continue;
             }
 
-            if (!CheckedLocations.Contains(nextLocation))
+            reason = TargetLocationReason.PriorityPriority;
+            return path.Prepend(CurrentLocation).FirstOrDefault(p => p.Region is LandmarkRegionDefinitionModel && !CheckedLocations.Contains(p)) ?? priorityPriorityLocation;
+        }
+
+        foreach (LocationDefinitionModel priorityLocation in _priorityLocations)
+        {
+            if (_routeCalculator!.GetPath(CurrentLocation, priorityLocation) is not { } path)
             {
-                reason = TargetLocationReason.ClosestReachable;
-                bestPath = ReceivedItems.ShortestPaths.GetPathOrNull(CurrentLocation, nextLocation)!.Value;
-                return nextLocation;
+                continue;
             }
 
-            foreach (LocationDefinitionModel connected in GameDefinitions.Instance.ConnectedLocations[nextLocation])
-            {
-                if (settled.Contains(connected))
-                {
-                    // already fully handled this one.
-                    continue;
-                }
+            reason = TargetLocationReason.Priority;
+            return path.Prepend(CurrentLocation).FirstOrDefault(p => p.Region is LandmarkRegionDefinitionModel && !CheckedLocations.Contains(p)) ?? priorityLocation;
+        }
 
-                if (connected.Region is LandmarkRegionDefinitionModel landmark && !landmark.Requirement.Satisfied(ReceivedItems))
-                {
-                    // can't actually reach it to check it.
-                    continue;
-                }
-
-                q.Enqueue(connected, distance + 1);
-            }
+        if (_routeCalculator!.FindClosestUncheckedLocation(CurrentLocation) is { } closestReachableUnchecked)
+        {
+            reason = TargetLocationReason.ClosestReachableUnchecked;
+            return closestReachableUnchecked;
         }
 
         reason = TargetLocationReason.NowhereUsefulToMove;
-        bestPath = ReceivedItems.ShortestPaths.GetPathOrNull(CurrentLocation, CurrentLocation)!.Value;
         return CurrentLocation;
-    }
-
-    private void VisitLocationsByDistanceFromCurrentLocation(LocationVisitor visitor, UncheckedLandmarkBehavior uncheckedLandmarkBehavior)
-    {
-        IEnumerable<string> allowedRegions = GameDefinitions.Instance.FillerRegions.Keys;
-        switch (uncheckedLandmarkBehavior)
-        {
-            case UncheckedLandmarkBehavior.PassThroughIfRequirementsSatisfied:
-                allowedRegions = allowedRegions.Concat(GameDefinitions.Instance.LandmarkRegions.Values
-                    .Where(r => r.Requirement.Satisfied(ReceivedItems))
-                    .Select(r => r.Key));
-                goto case UncheckedLandmarkBehavior.DoNotPassThrough;
-
-            case UncheckedLandmarkBehavior.DoNotPassThrough:
-                allowedRegions = allowedRegions.Concat(CheckedLocations.InCheckedOrder.Select(l => l.Key.RegionKey));
-                break;
-
-            case UncheckedLandmarkBehavior.AlwaysPassThrough:
-                allowedRegions = GameDefinitions.Instance.AllRegions.Keys;
-                break;
-        }
-
-        FrozenSet<string> allowedRegionsSet = [.. allowedRegions];
-
-        // we skip visiting CurrentLocation so that previousLocation can be non-nullable
-        HashSet<LocationDefinitionModel> visitedLocations = [CurrentLocation];
-        PriorityQueue<(LocationDefinitionModel CurrentLocation, LocationDefinitionModel PreviousLocation), int> q = new();
-        foreach (LocationDefinitionModel connectedLocation in GameDefinitions.Instance.ConnectedLocations[CurrentLocation])
-        {
-            if (allowedRegionsSet.Contains(connectedLocation.Key.RegionKey))
-            {
-                q.Enqueue((connectedLocation, CurrentLocation), 1);
-            }
-        }
-
-        while (q.TryDequeue(out var tup, out int distance))
-        {
-            (LocationDefinitionModel curr, LocationDefinitionModel prev) = tup;
-            if (!visitedLocations.Add(curr))
-            {
-                continue;
-            }
-
-            if (!visitor.VisitLocation(
-                    currentLocation: curr,
-                    previousLocation: prev,
-                    distance: distance,
-                    alreadyChecked: CheckedLocations.Contains(curr)))
-            {
-                return;
-            }
-
-            foreach (LocationDefinitionModel next in GameDefinitions.Instance.ConnectedLocations[curr])
-            {
-                // allow the goal location here: if it's connected to a reachable location, then we
-                // consider it to be reachable itself. this lets us get away with not having to keep
-                // track of the locations with fixed rewards, though a future YAML change could make
-                // that no longer correct, so it feels A LITTLE BIT hacky.
-                if (next == GameDefinitions.Instance.GoalLocation ||
-                    allowedRegionsSet.Contains(next.Key.RegionKey) && !visitedLocations.Contains(next))
-                {
-                    q.Enqueue((next, curr), distance + 1);
-                }
-            }
-        }
-    }
-
-    private int NextD20()
-    {
-        Prng.State s = PrngState;
-        int result = Prng.NextD20(ref s);
-        PrngState = s;
-        return result;
     }
 }

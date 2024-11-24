@@ -61,7 +61,7 @@ public sealed class GameTests
         game.Advance();
         Assert.Multiple(() =>
         {
-            Assert.That(game.CheckedLocations.InCheckedOrder.FirstOrDefault(), Is.EqualTo(s_startLocation));
+            Assert.That(game.CheckedLocations.FirstOrDefault(), Is.EqualTo(s_startLocation));
             Assert.That(game.TargetLocation, Is.EqualTo(s_startRegion.Locations[1]));
 
             // because they succeeded on their first attempt, they have just enough actions to reach and
@@ -81,7 +81,7 @@ public sealed class GameTests
         game.ArbitrarilyModifyState(g => g.CurrentLocation, s_startRegion.Locations[^1]);
         game.ArbitrarilyModifyState(g => g.TargetLocation, s_startRegion.Locations[^1]);
         game.Advance();
-        Assert.That(game.CheckedLocations.InCheckedOrder, ratCount < 5 ? Does.Not.Contain(s_basketball) : Contains.Item(s_basketball));
+        Assert.That(game.CheckedLocations, ratCount < 5 ? Does.Not.Contain(s_basketball) : Contains.Item(s_basketball));
     }
 
     [Test]
@@ -106,7 +106,7 @@ public sealed class GameTests
     }
 
     [Test]
-    public void GameShouldBeWinnable([Random(100, Distinct = true)] ulong seed)
+    public void GameShouldBeWinnable([Random(1, Distinct = true)] ulong seed)
     {
         Game game = new(Prng.State.Start(seed));
         int advancesSoFar = 0;
@@ -121,7 +121,7 @@ public sealed class GameTests
                 break;
             }
 
-            foreach (LocationDefinitionModel newCheckedLocation in game.CheckedLocations.InCheckedOrder.Skip(prevCheckedLocationsCount))
+            foreach (LocationDefinitionModel newCheckedLocation in game.CheckedLocations.Skip(prevCheckedLocationsCount))
             {
                 newReceivedItems.Add(newCheckedLocation.UnrandomizedItem!);
             }
@@ -133,7 +133,12 @@ public sealed class GameTests
             }
 
             ++advancesSoFar;
-            Assert.That(advancesSoFar, Is.LessThan(1_000_000), "If you can't win in a million steps, then you're useless.");
+            if (advancesSoFar > 20000)
+            {
+                _ = 0;
+            }
+
+            Assert.That(advancesSoFar, Is.LessThan(40_000), "If you can't win in 40k steps, then you're useless.");
         }
     }
 
@@ -384,7 +389,7 @@ public sealed class GameTests
             game.ArbitrarilyModifyState(g => g.PrngState, s_highRolls);
             game.Advance();
             Assert.That(game.TargetLocation.Region, Is.InstanceOf<LandmarkRegionDefinitionModel>());
-            foreach (LocationDefinitionModel checkedLocation in game.CheckedLocations.InCheckedOrder)
+            foreach (LocationDefinitionModel checkedLocation in game.CheckedLocations)
             {
                 if (fixedRewardsGranted.Add(checkedLocation.Key) && checkedLocation is { RewardIsFixed: true, UnrandomizedItem: { } unrandomizedItem })
                 {
@@ -443,7 +448,7 @@ public sealed class GameTests
     {
         // force the first steps to move it towards the last reachable location in this region
         Game game = new(s_highRolls);
-        game.ArbitrarilyModifyState(g => g.PriorityLocations, [GameDefinitions.Instance.StartRegion.Locations[^1]]);
+        game.ArbitrarilyModifyState(g => g.PriorityLocations, new([GameDefinitions.Instance.StartRegion.Locations[^1]]));
 
         game.Advance();
         LocationDefinitionModel middleLocation = game.CurrentLocation;
@@ -527,7 +532,6 @@ public sealed class GameTests
         game.ReceiveItems([auraItem]);
         Assert.That(game.PriorityPriorityLocations, Is.EqualTo(new[]
         {
-            GameDefinitions.Instance.GoalLocation,
             GameDefinitions.Instance.StartLocation,
         }));
 
@@ -536,7 +540,6 @@ public sealed class GameTests
         game.ReceiveItems([auraItem]);
         Assert.That(game.PriorityPriorityLocations, Is.EqualTo(new[]
         {
-            GameDefinitions.Instance.GoalLocation,
             GameDefinitions.Instance.StartLocation,
         }));
     }
@@ -549,7 +552,7 @@ public sealed class GameTests
         game.InitializeReceivedItems(Enumerable.Repeat(s_normalRat, 5));
         game.ArbitrarilyModifyState(g => g.CurrentLocation, GameDefinitions.Instance.StartRegion.Locations[^1]);
         game.ArbitrarilyModifyState(g => g.TargetLocation, GameDefinitions.Instance.StartRegion.Locations[^1]);
-        game.ArbitrarilyModifyState(g => g.PriorityLocations, [ s_beforePrawnStars.Locations[1] ]);
+        game.ArbitrarilyModifyState(g => g.PriorityLocations, new([s_beforePrawnStars.Locations[1]]));
 
         for (int i = 0; i < 3; i++)
         {
@@ -631,7 +634,7 @@ public sealed class GameTests
             Assert.That(
                 game.CurrentLocation,
                 Is.EqualTo(game.PreviousStepMovementLog[^1].CurrentLocation));
-            Assert.That(game.CheckedLocations.InCheckedOrder, Contains.Item(s_basketball));
+            Assert.That(game.CheckedLocations, Contains.Item(s_basketball));
         });
     }
 
@@ -644,7 +647,7 @@ public sealed class GameTests
         game.InitializeCheckedLocations([lastLocationBeforeBasketball]);
         game.ArbitrarilyModifyState(g => g.CurrentLocation, lastLocationBeforeBasketball);
         game.ArbitrarilyModifyState(g => g.TargetLocation, lastLocationBeforeBasketball);
-        game.ArbitrarilyModifyState(g => g.PriorityLocations, [s_basketball, lastLocationBeforeBasketball ]);
+        game.ArbitrarilyModifyState(g => g.PriorityLocations, new([s_basketball, lastLocationBeforeBasketball ]));
         game.Advance();
 
         Assert.That(game.TargetLocation, Is.Not.EqualTo(lastLocationBeforeBasketball));

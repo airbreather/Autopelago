@@ -601,7 +601,7 @@ public sealed partial class GameStateViewModel : ViewModelBase, IDisposable
                             .Select(locationId => _lastFullData.LocationsById[locationId])
                     );
 
-                    foreach (LocationDefinitionModel location in _game.CheckedLocations.InCheckedOrder)
+                    foreach (LocationDefinitionModel location in _game.CheckedLocations)
                     {
                         if (_landmarkRegionsByLocation.TryGetValue(location, out var viewModel))
                         {
@@ -1042,7 +1042,7 @@ public sealed partial class GameStateViewModel : ViewModelBase, IDisposable
             }
 
             List<long> locationIds = [];
-            foreach (LocationDefinitionModel location in _game.CheckedLocations.InCheckedOrder.Skip(prevCheckedLocationsCount))
+            foreach (LocationDefinitionModel location in _game.CheckedLocations.Skip(prevCheckedLocationsCount))
             {
                 locationIds.Add(_lastFullData.LocationIds[location]);
                 if (_landmarkRegionsByLocation.TryGetValue(location, out LandmarkRegionViewModel? viewModel))
@@ -1151,7 +1151,7 @@ public sealed partial class GameStateViewModel : ViewModelBase, IDisposable
         var convertedItems = ImmutableArray.CreateRange(receivedItems.Items, (item, itemsReverseMapping) => itemsReverseMapping[item.Item], _lastFullData.ItemsById);
         for (int i = receivedItems.Index; i < _game.ReceivedItems.Count; i++)
         {
-            if (convertedItems[i - receivedItems.Index] != _game.ReceivedItems.InReceivedOrder[i])
+            if (convertedItems[i - receivedItems.Index] != _game.ReceivedItems[i])
             {
                 throw new InvalidOperationException("Need to resync. Try connecting again.");
             }
@@ -1187,7 +1187,7 @@ public sealed partial class GameStateViewModel : ViewModelBase, IDisposable
 
     private void UpdateMeters()
     {
-        foreach (ItemDefinitionModel item in _game.ReceivedItems.InReceivedOrder)
+        foreach (ItemDefinitionModel item in _game.ReceivedItems)
         {
             if (_collectableItemsByModel.TryGetValue(item, out CollectableItemViewModel? viewModel))
             {
@@ -1195,7 +1195,7 @@ public sealed partial class GameStateViewModel : ViewModelBase, IDisposable
             }
         }
 
-        RatCount = _game.ReceivedItems.RatCount;
+        RatCount = _game.RatCount;
         FoodFactor = _game.FoodFactor;
         EnergyFactor = _game.EnergyFactor;
         LuckFactor = _game.LuckFactor;
