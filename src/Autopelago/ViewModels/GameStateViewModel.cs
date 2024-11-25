@@ -128,7 +128,7 @@ public sealed class GameStateViewModel : ViewModelBase, IDisposable
             );
 
         TargetPoint = provider.CurrentGameState
-            .Select(g => GetPoint(g.TargetLocation) + FillerRegionViewModel.ToCenter );
+            .Select(g => GetPoint(g.TargetLocation) + FillerRegionViewModel.ToCenter);
 
         IConnectableObservable<LocationVector> movementLogs0 = provider.CurrentGameState
             .Select(SpaceOut)

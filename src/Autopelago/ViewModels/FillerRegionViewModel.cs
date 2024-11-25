@@ -104,8 +104,8 @@ public sealed class FillerRegionViewModel : ViewModelBase
         // drawn as a line from landmark to landmark, subtract a count of pixels from each endpoint,
         // move the middle points in proportion to where they would have been on the longer line but
         // for this, and then move the line that count of pixels in towards the middle.
-        const int DensifyMultiplier = 20;
-        int densifiedLength = ((definingPointsOrig.Length - 1) * DensifyMultiplier) + 1;
+        const int densifyMultiplier = 20;
+        int densifiedLength = ((definingPointsOrig.Length - 1) * densifyMultiplier) + 1;
         using IMemoryOwner<Point> pointsOwner = MemoryPool<Point>.Shared.Rent(densifiedLength * 2);
         using IMemoryOwner<double> prjOwner = MemoryPool<double>.Shared.Rent(densifiedLength * 2);
         Span<Point> densifiedDefiningPoints = pointsOwner.Memory[..densifiedLength].Span;
@@ -126,25 +126,25 @@ public sealed class FillerRegionViewModel : ViewModelBase
 
         double originalLength = definingPointsPrj[^1];
 
-        const double PaddingAtBeginning = 8;
-        const double PaddingAtEnd = 8;
+        const double paddingAtBeginning = 8;
+        const double paddingAtEnd = 8;
         if (regionKey == GameDefinitions.Instance.StartRegion.Key)
         {
             // start region needs less padding at the start
-            const double StartRegionPaddingAtBeginning = 2;
-            double newProportion = (originalLength - PaddingAtEnd - StartRegionPaddingAtBeginning) / originalLength;
+            const double startRegionPaddingAtBeginning = 2;
+            double newProportion = (originalLength - paddingAtEnd - startRegionPaddingAtBeginning) / originalLength;
             foreach (ref double targetPointPrj in targetPointsPrj)
             {
-                targetPointPrj = (targetPointPrj * newProportion) + StartRegionPaddingAtBeginning;
+                targetPointPrj = (targetPointPrj * newProportion) + startRegionPaddingAtBeginning;
             }
         }
         else
         {
             // all other filler regions need padding on both sides.
-            double newProportion = (originalLength - PaddingAtBeginning - PaddingAtEnd) / originalLength;
+            double newProportion = (originalLength - paddingAtBeginning - paddingAtEnd) / originalLength;
             foreach (ref double targetPointPrj in targetPointsPrj)
             {
-                targetPointPrj = (targetPointPrj * newProportion) + PaddingAtBeginning;
+                targetPointPrj = (targetPointPrj * newProportion) + paddingAtBeginning;
             }
         }
 
