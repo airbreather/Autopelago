@@ -39,6 +39,7 @@ public sealed class GameStateViewModel : ViewModelBase, IDisposable
         "i may live in a sewer, but i'm squeaky clean!",
         "ahem, a little privacy please?",
         "you're not a cat, are you? just checking...",
+        "'click me to see where I want to go'? what does that mean?",
     ];
 
     private static readonly FrozenDictionary<string, int> s_progressionItemSortOrder = ProgressionItemSortOrder();
