@@ -7,7 +7,7 @@ public sealed record Settings
     public static readonly Settings Default = new()
     {
         Host = "archipelago.gg",
-        Port = 65535,
+        Port = 38281,
         Slot = "",
         Password = "",
         MinStepSeconds = 30,
@@ -17,7 +17,7 @@ public sealed record Settings
     public static readonly Settings ForDesigner = new()
     {
         Host = "UI DESIGNER",
-        Port = 65535,
+        Port = 38281,
         Slot = "Ratthew",
         Password = "",
         MinStepSeconds = 1,

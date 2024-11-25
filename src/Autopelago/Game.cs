@@ -47,6 +47,8 @@ public sealed record LocationVector
 
 public sealed class Game
 {
+    private readonly Lock _lock = new();
+
     private int _actionBalanceAfterPreviousStep;
 
     private bool _initializedAuraData;
@@ -55,24 +57,26 @@ public sealed class Game
 
     private IEnumerator<LocationDefinitionModel>? _targetLocationPathEnumerator;
 
+    private FrozenDictionary<LocationDefinitionModel, ArchipelagoItemFlags>? _spoilerData;
+
     public Game(Prng.State prngState)
     {
         _prngState = prngState;
     }
 
-    private FrozenDictionary<LocationDefinitionModel, ArchipelagoItemFlags>? _spoilerData;
-    public FrozenDictionary<LocationDefinitionModel, ArchipelagoItemFlags> SpoilerData =>
-        _spoilerData ?? throw new InvalidOperationException("Game has not started yet.");
-
-    public ImmutableArray<LocationVector> PreviousStepMovementLog { get; private set; } = [];
+    public ImmutableArray<LocationVector> PreviousStepMovementLog { get; private set; } = [
+        new()
+        {
+            PreviousLocation = GameDefinitions.Instance.StartLocation,
+            CurrentLocation = GameDefinitions.Instance.StartLocation,
+        },
+    ];
 
     public LocationDefinitionModel CurrentLocation { get; private set; } = GameDefinitions.Instance.StartLocation;
 
     public LocationDefinitionModel TargetLocation { get; private set; } = GameDefinitions.Instance.StartLocation;
 
     public TargetLocationReason TargetLocationReason { get; private set; } = TargetLocationReason.GameNotStarted;
-
-    private int? _ratCount;
 
     private List<ItemDefinitionModel>? _receivedItems;
 
@@ -131,7 +135,7 @@ public sealed class Game
         get
         {
             EnsureStarted();
-            return _ratCount ??= _receivedItems!
+            return _receivedItems!
                 .DefaultIfEmpty()
                 .Sum(i => i?.RatCount.GetValueOrDefault())
                 .GetValueOrDefault();
@@ -171,11 +175,12 @@ public sealed class Game
 
     public void ArbitrarilyModifyState<T>(Expression<Func<Game, T>> prop, T value)
     {
-        ((PropertyInfo)(((MemberExpression)prop.Body).Member)).SetValue(this, value);
+        ((PropertyInfo)((MemberExpression)prop.Body).Member).SetValue(this, value);
     }
 
     public void InitializeCheckedLocations(IEnumerable<LocationDefinitionModel> checkedLocations)
     {
+        using Lock.Scope _ = _lock.EnterScope();
         if (_checkedLocations is not null)
         {
             throw new InvalidOperationException("Checked locations have already been initialized.");
@@ -186,6 +191,7 @@ public sealed class Game
 
     public void InitializeReceivedItems(IEnumerable<ItemDefinitionModel> receivedItems)
     {
+        using Lock.Scope _ = _lock.EnterScope();
         if (_receivedItems is not null)
         {
             throw new InvalidOperationException("Received items have already been initialized.");
@@ -196,6 +202,7 @@ public sealed class Game
 
     public void InitializeSpoilerData(FrozenDictionary<LocationDefinitionModel, ArchipelagoItemFlags> spoilerData)
     {
+        using Lock.Scope _ = _lock.EnterScope();
         if (_spoilerData is not null)
         {
             throw new InvalidOperationException("Spoiler data has already been initialized.");
@@ -206,6 +213,7 @@ public sealed class Game
 
     public void InitializeAuraData(AuraData auraData)
     {
+        using Lock.Scope _ = _lock.EnterScope();
         if (_initializedAuraData)
         {
             throw new InvalidOperationException("Aura data has already been initialized.");
@@ -232,6 +240,7 @@ public sealed class Game
 
     public bool AddPriorityLocation(LocationDefinitionModel toPrioritize)
     {
+        using Lock.Scope _ = _lock.EnterScope();
         if (_priorityLocations.Contains(toPrioritize))
         {
             return false;
@@ -243,6 +252,7 @@ public sealed class Game
 
     public LocationDefinitionModel? RemovePriorityLocation(string locationName)
     {
+        using Lock.Scope _ = _lock.EnterScope();
         int index = _priorityLocations.FindIndex(
             l => l.Name.Equals(locationName, StringComparison.InvariantCultureIgnoreCase));
         if (index < 0)
@@ -257,6 +267,7 @@ public sealed class Game
 
     public void EnsureStarted()
     {
+        using Lock.Scope _ = _lock.EnterScope();
         if (HasStarted)
         {
             return;
@@ -272,6 +283,7 @@ public sealed class Game
 
     public void Advance()
     {
+        using Lock.Scope _ = _lock.EnterScope();
         EnsureStarted();
         if (IsCompleted)
         {
@@ -437,9 +449,12 @@ public sealed class Game
             UpdateTargetLocation();
         }
 
-        if (movementLog.Count == 0 && PreviousStepMovementLog.Length > 1)
+        if (movementLog.Count == 0)
         {
-            PreviousStepMovementLog = [PreviousStepMovementLog[^1]];
+            if (PreviousStepMovementLog.Length > 1)
+            {
+                PreviousStepMovementLog = [PreviousStepMovementLog[^1]];
+            }
         }
         else
         {
@@ -449,8 +464,16 @@ public sealed class Game
         _actionBalanceAfterPreviousStep = actionBalance;
     }
 
+    public void CheckLocations(ImmutableArray<LocationDefinitionModel> newLocations)
+    {
+        using Lock.Scope _ = _lock.EnterScope();
+        EnsureStarted();
+        _checkedLocations!.AddRange(newLocations.Except(_checkedLocations));
+    }
+
     public void ReceiveItems(ImmutableArray<ItemDefinitionModel> newItems)
     {
+        using Lock.Scope _ = _lock.EnterScope();
         EnsureStarted();
         if (newItems.IsEmpty)
         {
@@ -547,14 +570,12 @@ public sealed class Game
         }
 
         _receivedItems!.AddRange(newItems);
-        FoodFactor += (foodMod * 5);
-        EnergyFactor += (energyFactorMod * 5);
+        FoodFactor += foodMod * 5;
+        EnergyFactor += energyFactorMod * 5;
         LuckFactor += luckFactorMod;
-        StyleFactor += (stylishMod * 2);
+        StyleFactor += stylishMod * 2;
         DistractionCounter += distractedMod;
         StartledCounter += startledMod;
-
-        _ratCount = null;
     }
 
     private bool UpdateTargetLocation()
@@ -568,7 +589,7 @@ public sealed class Game
             return false;
         }
 
-        using var _ = _targetLocationPathEnumerator;
+        using IEnumerator<LocationDefinitionModel> _ = _targetLocationPathEnumerator;
         _targetLocationPathEnumerator = _routeCalculator!.GetPath(CurrentLocation, TargetLocation)!.GetEnumerator();
         return true;
     }

@@ -14,9 +14,14 @@ public sealed class MainWindowViewModel : ViewModelBase, IDisposable
 
     public MainWindowViewModel()
     {
+        CancellationTokenSource cts = new();
         GameStateViewModel? gameStateViewModel = null;
         ReactiveCommand<Unit, Unit> backToMainMenuCommand = ReactiveCommand.Create(() =>
         {
+            CancellationTokenSource oldCts = cts;
+            cts = new();
+            oldCts.Cancel();
+
             if (gameStateViewModel is not null)
             {
                 gameStateViewModel.Dispose();
@@ -31,30 +36,32 @@ public sealed class MainWindowViewModel : ViewModelBase, IDisposable
         _connectCommandSubscription = SettingsSelection.ConnectCommand
             .Subscribe(settings =>
             {
+                GameStateObservableProvider provider = new(settings, TimeProvider.System);
+
                 _shouldSaveSettings.OnNext(Unit.Default);
-                gameStateViewModel = new(settings)
+                gameStateViewModel = new(provider)
                 {
                     SlotName = settings.Slot,
                     BackToMainMenuCommand = backToMainMenuCommand,
-                    EndingFanfareCommand = ReactiveCommand.Create(() => { ContentViewModel = EndingFanfare; }),
                 };
-                gameStateViewModel.ConnectionRefused.Subscribe(connectionRefused =>
+                provider.GameComplete.Subscribe(_ => ContentViewModel = EndingFanfare);
+                provider.UnhandledException.Subscribe(ex =>
                 {
-                    gameStateViewModel.Dispose();
-                    Error.Message = string.Join(Environment.NewLine, connectionRefused.Errors);
-                    ContentViewModel = Error;
-                });
-                gameStateViewModel.UnhandledException.Subscribe(ex =>
-                {
-                    gameStateViewModel.Dispose();
+                    gameStateViewModel?.Dispose();
+                    gameStateViewModel = null;
                     Error.Message = $"{ex}";
                     ContentViewModel = Error;
                 });
                 ContentViewModel = gameStateViewModel;
-                gameStateViewModel.Begin();
+                provider.RunAsync(cts.Token);
             });
 
         ContentViewModel = SettingsSelection;
+    }
+
+    public void Dispose()
+    {
+        _connectCommandSubscription.Dispose();
     }
 
     public IObservable<Unit> ShouldSaveSettings => _shouldSaveSettings;
@@ -67,9 +74,4 @@ public sealed class MainWindowViewModel : ViewModelBase, IDisposable
 
     [Reactive]
     public ViewModelBase ContentViewModel { get; set; }
-
-    public void Dispose()
-    {
-        _connectCommandSubscription.Dispose();
-    }
 }

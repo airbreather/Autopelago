@@ -67,11 +67,11 @@ public static class YamlHelper
 
         foreach ((YamlNode key, YamlNode value) in mapping.Children)
         {
-            foreach (var evt in ConvertToEventStream(key))
+            foreach (ParsingEvent evt in ConvertToEventStream(key))
             {
                 yield return evt;
             }
-            foreach (var evt in ConvertToEventStream(value))
+            foreach (ParsingEvent evt in ConvertToEventStream(value))
             {
                 yield return evt;
             }

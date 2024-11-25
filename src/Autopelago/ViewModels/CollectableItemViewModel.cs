@@ -38,6 +38,13 @@ public sealed class CollectableItemViewModel : ViewModelBase, IDisposable
             .Subscribe(collected => Image = collected ? _saturatedImage : _desaturatedImage);
     }
 
+    public void Dispose()
+    {
+        _updateImageSubscription.Dispose();
+        _saturatedImage.Dispose();
+        _desaturatedImage.Dispose();
+    }
+
     public string ItemKey { get; }
 
     public ItemDefinitionModel Model { get; }
@@ -47,11 +54,4 @@ public sealed class CollectableItemViewModel : ViewModelBase, IDisposable
 
     [Reactive]
     public Bitmap? Image { get; set; }
-
-    public void Dispose()
-    {
-        _updateImageSubscription.Dispose();
-        _saturatedImage.Dispose();
-        _desaturatedImage.Dispose();
-    }
 }

@@ -68,6 +68,11 @@ public sealed class GameRequirementToolTipViewModel : ViewModelBase, IDisposable
         }
     }
 
+    public void Dispose()
+    {
+        _subscription.Dispose();
+    }
+
     public GameRequirement Model { get; }
 
     [Reactive]
@@ -90,10 +95,5 @@ public sealed class GameRequirementToolTipViewModel : ViewModelBase, IDisposable
                 yield return dsc;
             }
         }
-    }
-
-    public void Dispose()
-    {
-        _subscription.Dispose();
     }
 }

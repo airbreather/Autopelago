@@ -23,11 +23,6 @@ public sealed class EndingFanfareViewModel : ViewModelBase, IDisposable
             .Subscribe(_ => Image = _frames[(_frameNum++) & 1]);
     }
 
-    [Reactive]
-    public Bitmap? Image { get; private set; }
-
-    public required ReactiveCommand<Unit, Unit> BackToMapCommand { get; init; }
-
     public void Dispose()
     {
         _frameInterval.Dispose();
@@ -36,4 +31,9 @@ public sealed class EndingFanfareViewModel : ViewModelBase, IDisposable
             frame.Dispose();
         }
     }
+
+    [Reactive]
+    public Bitmap? Image { get; private set; }
+
+    public required ReactiveCommand<Unit, Unit> BackToMapCommand { get; init; }
 }

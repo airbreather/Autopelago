@@ -94,6 +94,22 @@ public sealed class LandmarkRegionViewModel : ViewModelBase, IDisposable
             .Subscribe(satisfied => Available = satisfied && !Checked);
     }
 
+    public void Dispose()
+    {
+        _clearAvailableSubscription.Dispose();
+        _updateImagesSubscription.Dispose();
+        _watchToolTipsSubscription.Dispose();
+        foreach (Bitmap saturated in _saturated)
+        {
+            saturated.Dispose();
+        }
+
+        foreach (Bitmap desaturated in _desaturated)
+        {
+            desaturated.Dispose();
+        }
+    }
+
     public string RegionKey { get; }
 
     public LandmarkRegionDefinitionModel Region { get; }
@@ -121,22 +137,6 @@ public sealed class LandmarkRegionViewModel : ViewModelBase, IDisposable
 
     [Reactive]
     internal long FrameCounter { get; private set; }
-
-    public void Dispose()
-    {
-        _clearAvailableSubscription.Dispose();
-        _updateImagesSubscription.Dispose();
-        _watchToolTipsSubscription.Dispose();
-        foreach (Bitmap saturated in _saturated)
-        {
-            saturated.Dispose();
-        }
-
-        foreach (Bitmap desaturated in _desaturated)
-        {
-            desaturated.Dispose();
-        }
-    }
 
     internal void NextFrame()
     {

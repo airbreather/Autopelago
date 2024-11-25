@@ -153,7 +153,7 @@ public sealed partial class App : Application
 
                 try
                 {
-                    using (FileStream settingsStream = tmpSettingsFile.OpenWrite())
+                    using (FileStream settingsStream = tmpSettingsFile.Create())
                     {
                         JsonSerializer.Serialize(settingsStream, finalState, typeInfo);
                     }

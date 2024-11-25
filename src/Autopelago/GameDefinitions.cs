@@ -442,8 +442,8 @@ public sealed record RegionDefinitionsModel
             AllRegions = allRegions.ToFrozenDictionary(),
             LandmarkRegions = landmarkRegions.ToFrozenDictionary(),
             FillerRegions = fillerRegions.ToFrozenDictionary(),
-            ConnectedLocations = connectedLocations.ToFrozenDictionary(kvp => kvp.Key, kvp => kvp.Value.ToImmutableArray()),
-            ConnectedRegions = connectedRegions.ToFrozenDictionary(kvp => kvp.Key, kvp => kvp.Value.ToImmutableArray()),
+            ConnectedLocations = connectedLocations.ToFrozenDictionary(kvp => kvp.Key, kvp => kvp.Value.Distinct().ToImmutableArray()),
+            ConnectedRegions = connectedRegions.ToFrozenDictionary(kvp => kvp.Key, kvp => kvp.Value.Distinct().ToImmutableArray()),
         };
     }
 }

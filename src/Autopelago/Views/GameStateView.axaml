@@ -14,19 +14,7 @@
     x:TypeArguments="viewModels:GameStateViewModel">
 
     <Design.DataContext>
-        <viewModels:GameStateViewModel SlotName="Ratthew" RatCount="16" StartledCounter="1" HasConfidence="True">
-            <viewModels:GameStateViewModel.ProgressionItemsCollected>
-                <x:String>pizza_rat</x:String>
-                <x:String>premium_can_of_prawn_food</x:String>
-                <x:String>ratstronaut</x:String>
-            </viewModels:GameStateViewModel.ProgressionItemsCollected>
-
-            <viewModels:GameStateViewModel.LandmarksChecked>
-                <x:String>basketball</x:String>
-                <x:String>prawn_stars</x:String>
-            </viewModels:GameStateViewModel.LandmarksChecked>
-
-        </viewModels:GameStateViewModel>
+        <viewModels:GameStateViewModel />
     </Design.DataContext>
 
     <Control.Styles>
@@ -128,36 +116,36 @@
                         </ToolTip.Tip>
 
                         <TextBlock Grid.Row="0" Grid.Column="0" Classes="meter-label" Text="RAT:" />
-                        <ProgressBar Grid.Row="0" Grid.Column="1" Minimum="0" Maximum="50" Value="{Binding RatCount}" />
-                        <TextBlock Margin="5,0,0,0" Grid.Row="0" Grid.Column="2" Classes="meter-label" Text="{Binding RatCount}" />
+                        <ProgressBar Grid.Row="0" Grid.Column="1" Minimum="0" Maximum="50" Value="{Binding RatCount^}" />
+                        <TextBlock Margin="5,0,0,0" Grid.Row="0" Grid.Column="2" Classes="meter-label" Text="{Binding RatCount^}" />
 
                         <TextBlock Grid.Row="1" Grid.Column="0" Classes="meter-label" Text="NOM:" />
-                        <ProgressBar Grid.Row="1" Grid.Column="1" Minimum="-20" Maximum="20" Value="{Binding FoodFactor}" />
-                        <TextBlock Margin="5,0,0,0" Grid.Row="1" Grid.Column="2" Classes="meter-label" Text="{Binding FoodFactor}" />
+                        <ProgressBar Grid.Row="1" Grid.Column="1" Minimum="-20" Maximum="20" Value="{Binding FoodFactor^}" />
+                        <TextBlock Margin="5,0,0,0" Grid.Row="1" Grid.Column="2" Classes="meter-label" Text="{Binding FoodFactor^}" />
 
                         <TextBlock Grid.Row="2" Grid.Column="0" Classes="meter-label" Text="LCK:" />
-                        <ProgressBar Grid.Row="2" Grid.Column="1" Minimum="-4" Maximum="4" Value="{Binding LuckFactor}" />
-                        <TextBlock Margin="5,0,0,0" Grid.Row="2" Grid.Column="2" Classes="meter-label" Text="{Binding LuckFactor}" />
+                        <ProgressBar Grid.Row="2" Grid.Column="1" Minimum="-4" Maximum="4" Value="{Binding LuckFactor^}" />
+                        <TextBlock Margin="5,0,0,0" Grid.Row="2" Grid.Column="2" Classes="meter-label" Text="{Binding LuckFactor^}" />
 
                         <TextBlock Grid.Row="3" Grid.Column="0" Classes="meter-label" Text="NRG:" />
-                        <ProgressBar Grid.Row="3" Grid.Column="1" Minimum="-20" Maximum="20" Value="{Binding EnergyFactor}" />
-                        <TextBlock Margin="5,0,0,0" Grid.Row="3" Grid.Column="2" Classes="meter-label" Text="{Binding EnergyFactor}" />
+                        <ProgressBar Grid.Row="3" Grid.Column="1" Minimum="-20" Maximum="20" Value="{Binding EnergyFactor^}" />
+                        <TextBlock Margin="5,0,0,0" Grid.Row="3" Grid.Column="2" Classes="meter-label" Text="{Binding EnergyFactor^}" />
 
                         <TextBlock Grid.Row="4" Grid.Column="0" Classes="meter-label" Text="STY:" />
-                        <ProgressBar Grid.Row="4" Grid.Column="1" Minimum="0" Maximum="8" Value="{Binding StyleFactor}" />
-                        <TextBlock Margin="5,0,0,0" Grid.Row="4" Grid.Column="2" Classes="meter-label" Text="{Binding StyleFactor}" />
+                        <ProgressBar Grid.Row="4" Grid.Column="1" Minimum="0" Maximum="8" Value="{Binding StyleFactor^}" />
+                        <TextBlock Margin="5,0,0,0" Grid.Row="4" Grid.Column="2" Classes="meter-label" Text="{Binding StyleFactor^}" />
 
                         <TextBlock Grid.Row="5" Grid.Column="0" Classes="meter-label" Text="DIS:" />
-                        <ProgressBar Grid.Row="5" Grid.Column="1" Minimum="0" Maximum="4" Value="{Binding DistractionCounter}" />
-                        <TextBlock Margin="5,0,0,0" Grid.Row="5" Grid.Column="2" Classes="meter-label" Text="{Binding DistractionCounter}" />
+                        <ProgressBar Grid.Row="5" Grid.Column="1" Minimum="0" Maximum="4" Value="{Binding DistractionCounter^}" />
+                        <TextBlock Margin="5,0,0,0" Grid.Row="5" Grid.Column="2" Classes="meter-label" Text="{Binding DistractionCounter^}" />
 
                         <TextBlock Grid.Row="6" Grid.Column="0" Classes="meter-label" Text="STT:" />
-                        <ProgressBar Grid.Row="6" Grid.Column="1" Minimum="0" Maximum="4" Value="{Binding StartledCounter}" />
-                        <TextBlock Margin="5,0,0,0" Grid.Row="6" Grid.Column="2" Classes="meter-label" Text="{Binding StartledCounter}" />
+                        <ProgressBar Grid.Row="6" Grid.Column="1" Minimum="0" Maximum="4" Value="{Binding StartledCounter^}" />
+                        <TextBlock Margin="5,0,0,0" Grid.Row="6" Grid.Column="2" Classes="meter-label" Text="{Binding StartledCounter^}" />
 
                         <TextBlock Grid.Row="7" Grid.Column="0" Classes="meter-label" Text="CNF:" />
-                        <ProgressBar Grid.Row="7" Grid.Column="1" IsIndeterminate="{Binding HasConfidence}" />
-                        <TextBlock Margin="5,0,0,0" Grid.Row="7" Grid.Column="2" Classes="meter-label" Text="{Binding HasConfidence, Converter={StaticResource YNConverter}}" />
+                        <ProgressBar Grid.Row="7" Grid.Column="1" IsIndeterminate="{Binding HasConfidence^}" />
+                        <TextBlock Margin="5,0,0,0" Grid.Row="7" Grid.Column="2" Classes="meter-label" Text="{Binding HasConfidence^, Converter={StaticResource YNConverter}}" />
                     </Grid>
                 </Border>
 
@@ -281,13 +269,13 @@
                                         </ItemsControl.ItemTemplate>
                                     </ItemsControl>
                                     <Canvas Width="300" Height="450">
-                                        <Image Classes="player" Classes.onFiller="{Binding CurrentFillerRegion, Mode=OneWay, Converter={x:Static ObjectConverters.IsNotNull}}"
-                                               Classes.notPaused="{Binding !Paused}"
+                                        <Image Classes="player"
+                                               Classes.notPaused="{Binding !Paused^}"
                                                PointerMoved="OnPointerMovedOverControlWithToolTip"
-                                               Width="16" Canvas.Left="{Binding CurrentPoint.X, Mode=OneWay}"
-                                               Height="16" Canvas.Top="{Binding CurrentPoint.Y, Mode=OneWay}"
+                                               Width="16" Canvas.Left="{Binding CurrentPoint^.X, Mode=OneWay}"
+                                               Height="16" Canvas.Top="{Binding CurrentPoint^.Y, Mode=OneWay}"
                                                Source="/Assets/Images/pack_rat.webp"
-                                               my:PlayerWiggleProperties.TargetAngle="{Binding RelativeAngle}"
+                                               my:PlayerWiggleProperties.TargetAngle="{Binding RelativeAngle^}"
                                                ToolTip.ToolTipOpening="OnPlayerToolTipOpening">
                                             <Image.RenderTransform>
                                               <!--
@@ -296,7 +284,7 @@
                                               would break!
                                               -->
                                               <TransformGroup>
-                                                <ScaleTransform ScaleX="{Binding ScaleX}" />
+                                                <ScaleTransform ScaleX="{Binding ScaleX^}" />
                                                 <RotateTransform />
                                               </TransformGroup>
                                             </Image.RenderTransform>
@@ -322,9 +310,9 @@
                                                           Grid.RowDefinitions="Auto,Auto,*,Auto"
                                                           Grid.ColumnDefinitions="Auto,*">
                                                       <TextBlock Grid.Row="0" Grid.Column="0" Margin="5,0,0,0" VerticalAlignment="Center" Text="●" />
-                                                      <TextBlock Grid.Row="0" Grid.Column="1" Margin="2,0,0,0" Text="{Binding CurrentLocation.Name, StringFormat='At \'{0}\'.'}" />
+                                                      <TextBlock Grid.Row="0" Grid.Column="1" Margin="2,0,0,0" Text="{Binding CurrentLocation^.Name, StringFormat='At \'{0}\'.'}" />
                                                       <TextBlock Grid.Row="1" Grid.Column="0" Margin="5,10,0,0" VerticalAlignment="Center" Text="●" />
-                                                      <TextBlock Grid.Row="1" Grid.Column="1" Margin="2,10,0,0" Text="{Binding TargetLocation.Name, StringFormat='Going to \'{0}\'.'}" />
+                                                      <TextBlock Grid.Row="1" Grid.Column="1" Margin="2,10,0,0" Text="{Binding TargetLocation^.Name, StringFormat='Going to \'{0}\'.'}" />
                                                       <TextBlock Grid.Row="3" Margin="5,20,0,0" Grid.ColumnSpan="2" Classes="tooltip small" Text="{Binding RatThought}" />
                                                     </Grid>
                                                   </Grid>
@@ -334,9 +322,9 @@
                                         </Image>
                                         <TextBlock Text="eek!"
                                                    FontSize="3.5"
-                                                   IsVisible="{Binding StartledCounter, Converter={StaticResource NonZeroConverter}}"
-                                                   Canvas.Left="{Binding CurrentPoint.X, Mode=OneWay}"
-                                                   Canvas.Top="{Binding CurrentPoint.Y, Mode=OneWay}"
+                                                   IsVisible="{Binding StartledCounter^, Converter={StaticResource NonZeroConverter}}"
+                                                   Canvas.Left="{Binding CurrentPoint^.X, Mode=OneWay}"
+                                                   Canvas.Top="{Binding CurrentPoint^.Y, Mode=OneWay}"
                                                    RenderTransform="translate(2px, -3px)" />
                                     </Canvas>
                                 </Panel>

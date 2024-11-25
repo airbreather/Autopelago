@@ -45,6 +45,11 @@ public sealed partial class SettingsSelectionViewModel : ViewModelBase, IDisposa
             }));
     }
 
+    public void Dispose()
+    {
+        _subscriptions.Dispose();
+    }
+
     public ReactiveCommand<Unit, Settings> ConnectCommand { get; }
 
     [Reactive]
@@ -88,11 +93,6 @@ public sealed partial class SettingsSelectionViewModel : ViewModelBase, IDisposa
             MinStepSeconds = value.MinStepSeconds;
             MaxStepSeconds = value.MaxStepSeconds;
         }
-    }
-
-    public void Dispose()
-    {
-        _subscriptions.Dispose();
     }
 
     [GeneratedRegex(@"\:(?<port>\d+)$", RegexOptions.Compiled | RegexOptions.ExplicitCapture | RegexOptions.NonBacktracking | RegexOptions.CultureInvariant)]
