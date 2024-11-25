@@ -17,6 +17,13 @@ public enum TargetLocationReason
     Startled,
 }
 
+public enum AddPriorityLocationResult
+{
+    AlreadyPrioritized,
+    AddedReachable,
+    AddedUnreachable,
+}
+
 public sealed record AuraData
 {
     public int FoodFactor { get; init; }
@@ -247,16 +254,18 @@ public sealed class Game
         _initializedAuraData = true;
     }
 
-    public bool AddPriorityLocation(LocationDefinitionModel toPrioritize)
+    public AddPriorityLocationResult AddPriorityLocation(LocationDefinitionModel toPrioritize)
     {
         using Lock.Scope _ = _lock.EnterScope();
         if (_priorityLocations.Contains(toPrioritize))
         {
-            return false;
+            return AddPriorityLocationResult.AlreadyPrioritized;
         }
 
         _priorityLocations.Add(toPrioritize);
-        return true;
+        return _routeCalculator!.CanReach(toPrioritize)
+            ? AddPriorityLocationResult.AddedReachable
+            : AddPriorityLocationResult.AddedUnreachable;
     }
 
     public LocationDefinitionModel? RemovePriorityLocation(string locationName)

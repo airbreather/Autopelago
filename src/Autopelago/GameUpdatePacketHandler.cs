@@ -216,11 +216,13 @@ public sealed class GameUpdatePacketHandler : ArchipelagoPacketHandler, IDisposa
             string loc = cmd["go ".Length..].Trim('"');
             if (GameDefinitions.Instance.LocationsByNameCaseInsensitive.TryGetValue(loc, out LocationDefinitionModel? toPrioritize))
             {
-                _gameUpdates.Value.AddPriorityLocation(toPrioritize);
-                SayPacketModel say = new()
+                string message = _gameUpdates.Value.AddPriorityLocation(toPrioritize) switch
                 {
-                    Text = $"All right, I'll get right over to '{toPrioritize.Name}', {probablyPlayerAlias}!",
+                    AddPriorityLocationResult.AlreadyPrioritized => $"Hey, {probablyPlayerAlias}, just so you know, I already had '{toPrioritize.Name}' on my radar. I'll get there when I can, no worries!",
+                    AddPriorityLocationResult.AddedUnreachable => $"I'll keep it in mind that '{toPrioritize.Name}' is important to you, '{probablyPlayerAlias}'. I can't get there just yet, though, so please be patient with me...",
+                    _ => $"All right, I'll get right over to '{toPrioritize.Name}', {probablyPlayerAlias}!",
                 };
+                SayPacketModel say = new() { Text = message };
                 await sender.SendPacketsAsync([say]);
             }
             else

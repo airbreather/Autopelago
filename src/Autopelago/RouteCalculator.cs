@@ -48,6 +48,12 @@ public sealed class RouteCalculator
         _checkedLocations = checkedLocations;
     }
 
+    public bool CanReach(LocationDefinitionModel location)
+    {
+        // TODO: optimize. this isn't speed-critical, and I'd rather release quickly.
+        return GetPath(GameDefinitions.Instance.StartLocation, location) is not null;
+    }
+
     public LocationDefinitionModel? FindClosestUncheckedLocation(LocationDefinitionModel currentLocation)
     {
         RecalculateAccessibility();
