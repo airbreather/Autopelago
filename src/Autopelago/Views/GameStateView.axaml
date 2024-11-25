@@ -377,6 +377,20 @@
                                                    Canvas.Left="{Binding CurrentPoint^.X, Mode=OneWay}"
                                                    Canvas.Top="{Binding CurrentPoint^.Y, Mode=OneWay}"
                                                    RenderTransform="translate(2px, -3px)" />
+                                        <materialIcons:MaterialIcon Kind="Antenna"
+                                                                    Width="6"
+                                                                    Height="6"
+                                                                    IsVisible="{Binding MovingToConspiratorial^}"
+                                                                    Canvas.Left="{Binding CurrentPoint^.X, Mode=OneWay}"
+                                                                    Canvas.Top="{Binding CurrentPoint^.Y, Mode=OneWay}"
+                                                                    RenderTransform="translate(5px, -3px)" />
+                                        <materialIcons:MaterialIcon Kind="LightbulbDimmer10"
+                                                                    Width="6"
+                                                                    Height="6"
+                                                                    IsVisible="{Binding MovingToSmart^}"
+                                                                    Canvas.Left="{Binding CurrentPoint^.X, Mode=OneWay}"
+                                                                    Canvas.Top="{Binding CurrentPoint^.Y, Mode=OneWay}"
+                                                                    RenderTransform="translate(5px, -3px)" />
                                     </Canvas>
                                 </Panel>
                             </Viewbox>

@@ -116,6 +116,15 @@ public sealed class Game
         }
     }
 
+    public FrozenDictionary<LocationDefinitionModel, ArchipelagoItemFlags> SpoilerData
+    {
+        get
+        {
+            EnsureStarted();
+            return _spoilerData!;
+        }
+    }
+
     public int FoodFactor { get; private set; }
 
     public int LuckFactor { get; private set; }

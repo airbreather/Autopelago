@@ -104,6 +104,10 @@ public sealed class GameStateViewModel : ViewModelBase, IDisposable
             .Select(g => g.StartledCounter);
         HasConfidence = provider.CurrentGameState
             .Select(g => g.HasConfidence);
+        MovingToSmart = provider.CurrentGameState
+            .Select(g => g.TargetLocationReason == TargetLocationReason.PriorityPriority && g.SpoilerData[g.TargetLocation] == ArchipelagoItemFlags.LogicalAdvancement);
+        MovingToConspiratorial = provider.CurrentGameState
+            .Select(g => g.TargetLocationReason == TargetLocationReason.PriorityPriority && g.SpoilerData[g.TargetLocation] == ArchipelagoItemFlags.Trap);
 
         CurrentLocation = provider.CurrentGameState
             .Select(v => v.CurrentLocation);
@@ -274,6 +278,10 @@ public sealed class GameStateViewModel : ViewModelBase, IDisposable
     public IObservable<int> StartledCounter { get; }
 
     public IObservable<bool> HasConfidence { get; }
+
+    public IObservable<bool> MovingToSmart { get; }
+
+    public IObservable<bool> MovingToConspiratorial { get; }
 
     public required ReactiveCommand<Unit, Unit> BackToMainMenuCommand { get; init; }
 

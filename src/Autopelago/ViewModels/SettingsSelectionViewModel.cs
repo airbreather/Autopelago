@@ -1,7 +1,6 @@
 using System.Globalization;
 using System.Reactive;
 using System.Reactive.Disposables;
-using System.Reactive.Linq;
 using System.Text.RegularExpressions;
 
 using ReactiveUI;
@@ -23,8 +22,7 @@ public sealed partial class SettingsSelectionViewModel : ViewModelBase, IDisposa
                 portValue - decimal.Round(portValue) == 0 &&
                 !string.IsNullOrWhiteSpace(slot) &&
                 minStepSeconds > 0 &&
-                maxStepSeconds >= minStepSeconds)
-            .DistinctUntilChanged();
+                maxStepSeconds >= minStepSeconds);
         ConnectCommand = ReactiveCommand.Create(() => SettingsModel, canConnect);
 
         _subscriptions.Add(this
