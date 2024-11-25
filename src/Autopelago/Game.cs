@@ -254,7 +254,7 @@ public sealed class Game
         _initializedAuraData = true;
     }
 
-    public AddPriorityLocationResult AddPriorityLocation(LocationDefinitionModel toPrioritize)
+    public AddPriorityLocationResult? AddPriorityLocation(LocationDefinitionModel toPrioritize)
     {
         using Lock.Scope _ = _lock.EnterScope();
         if (_priorityLocations.Contains(toPrioritize))
@@ -263,9 +263,11 @@ public sealed class Game
         }
 
         _priorityLocations.Add(toPrioritize);
-        return _routeCalculator!.CanReach(toPrioritize)
-            ? AddPriorityLocationResult.AddedReachable
-            : AddPriorityLocationResult.AddedUnreachable;
+        return _routeCalculator?.CanReach(toPrioritize) switch
+        {
+            false => AddPriorityLocationResult.AddedUnreachable,
+            _ => AddPriorityLocationResult.AddedReachable,
+        };
     }
 
     public LocationDefinitionModel? RemovePriorityLocation(string locationName)
