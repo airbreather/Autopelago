@@ -230,7 +230,8 @@
 
                 <TabItem Header="Map">
                     <Panel>
-                        <ScrollViewer HorizontalScrollBarVisibility="Disabled" VerticalScrollBarVisibility="Auto">
+                        <ScrollViewer HorizontalScrollBarVisibility="Disabled" VerticalScrollBarVisibility="Auto"
+                                      AllowAutoHide="False">
                             <Viewbox>
                                 <Panel>
                                     <Panel.Resources>
