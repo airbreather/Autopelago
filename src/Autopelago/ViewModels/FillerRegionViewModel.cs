@@ -1,5 +1,7 @@
+using System.Buffers;
 using System.Collections.Frozen;
 using System.Collections.Immutable;
+using System.Diagnostics;
 
 using Avalonia;
 
@@ -10,17 +12,17 @@ public sealed class FillerRegionViewModel : ViewModelBase
     internal static readonly Vector ToCenter = new Point(16, 16) / 2;
 
 #pragma warning disable format
-    private static readonly FrozenDictionary<string, ImmutableArray<Point>> s_definingPoints = new Dictionary<string, ImmutableArray<Point>>
+    private static readonly FrozenDictionary<string, ImmutableArray<Point>> s_definingPoints = new Dictionary<string, Point[]>
     {
         ["Menu"] = [new(0, 77), new(57, 77)],
-        ["before_prawn_stars"] = [new(61, 77), new(90, 77), new(90, 34), new(101, 34)],
-        ["before_angry_turtles"] = [new(61, 77), new(90, 77), new(90, 120), new(101, 120)],
+        ["before_prawn_stars"] = [new(61, 74), new(90, 74), new(90, 34), new(101, 34)],
+        ["before_angry_turtles"] = [new(61, 80), new(90, 80), new(90, 120), new(101, 120)],
         ["before_pirate_bake_sale"] = [new(105, 34), new(164, 34)],
         ["before_restaurant"] = [new(105, 120), new(164, 120)],
         ["after_pirate_bake_sale"] = [new(168, 34), new(183, 34),
-            new(185.44, 34.12), new(189.16, 34.35), new(192.08, 34.84), new(194.46, 35.47), new(197.73, 36.71), new(200.45, 38.11), new(204.34, 40.8), new(206.22, 42.44), new(208.74, 45.06), new(210.48, 47.19), new(212.72, 50.39), new(213.99, 52.49), new(215.71, 55.73), new(217.51, 59.72), new(219.29, 64.54), new(220.79, 69.64), new(221.69, 73.51), new(222.2, 76.42),
-            new(223, 77), new(252, 77)],
-        ["after_restaurant"] = [new(168, 120), new(219, 120), new(219, 105), new(185, 105), new(185, 91), new(238, 91), new(238, 77), new(252, 77)],
+            new(185.44, 34.12), new(189.16, 34.35), new(192.08, 34.84), new(194.46, 35.47), new(197.73, 36.71), new(200.45, 38.11), new(204.34, 40.8), new(206.22, 42.44), new(208.74, 45.06), new(210.48, 47.19), new(212.72, 50.39), new(213.99, 52.49), new(215.71, 55.73), new(217.51, 59.72), new(219.29, 64.54), new(220.79, 69.64), new(221.69, 71.51), new(222.2, 73.42),
+            new(223, 75), new(252, 75)],
+        ["after_restaurant"] = [new(168, 120), new(219, 120), new(219, 105), new(185, 105), new(185, 91), new(238, 91), new(241, 80), new(252, 80)],
         ["before_captured_goldfish"] = [new(256, 77), new(290, 77), new(290, 104)],
         ["before_computer_interface"] = [new(290, 108), new(290, 225), new(284, 225)],
         ["before_kart_races"] = [new(281, 223), new(237, 179)],
@@ -54,7 +56,7 @@ public sealed class FillerRegionViewModel : ViewModelBase
         ["after_space_opera"] = [new(184, 346), new(242, 354)],
         ["before_asteroid_with_pants"] = [new(195, 400), new(231, 406)],
         ["after_minotaur_labyrinth"] = [new(195, 398), new(207, 386), new(209, 385), new(216, 378), new(218, 377), new(226, 369), new(228, 368), new(236, 360), new(238, 359), new(242, 355)],
-    }.ToFrozenDictionary(kvp => kvp.Key, kvp => ImmutableArray.CreateRange(kvp.Value, p => p - ToCenter));
+    }.ToFrozenDictionary(kvp => kvp.Key, kvp => ConvertDefiningPoints(kvp.Key, kvp.Value));
 #pragma warning restore format
 
     public FillerRegionViewModel(FillerRegionDefinitionModel model)
@@ -66,41 +68,142 @@ public sealed class FillerRegionViewModel : ViewModelBase
         // - "endpoint" is the endpoint of a segment that ends at the indicated point. the "prj"
         //   convention from "point" applies here, too.
         Model = model;
-        ImmutableArray<Point> definingPoints = s_definingPoints[model.Key];
-        Span<double> endpointsPrj = definingPoints.Length > 100
-            ? new double[definingPoints.Length]
-            : stackalloc double[definingPoints.Length];
+        ReadOnlySpan<Point> definingPoints = s_definingPoints[model.Key].AsSpan();
+        ReadOnlySpan<double> endpointsPrj = IndexLine(
+            definingPoints,
+            definingPoints.Length > 100
+                ? new double[definingPoints.Length]
+                : stackalloc double[definingPoints.Length]);
 
+        ImmutableArray<FillerLocationViewModel>.Builder locationsBuilder = ImmutableArray.CreateBuilder<FillerLocationViewModel>(Model.Locations.Length);
+        locationsBuilder.Count = Model.Locations.Length;
+        for (int i = 0; i < Model.Locations.Length; i++)
+        {
+            double prj = (i / ((double)model.Locations.Length - 1)) * endpointsPrj[^1];
+            Point projected = Project(prj, definingPoints, endpointsPrj);
+            locationsBuilder[i] = new(Model.Locations[i], projected);
+        }
+
+        Locations = locationsBuilder.MoveToImmutable();
+    }
+
+    public FillerRegionDefinitionModel Model { get; }
+
+    public ImmutableArray<FillerLocationViewModel> Locations { get; }
+
+    private static ImmutableArray<Point> ConvertDefiningPoints(string regionKey, ReadOnlySpan<Point> definingPointsOrig)
+    {
+        // the starting and ending points are RIGHT on top of their corresponding landmark locations
+        // (by design, since that's how I figured them out). this makes the filler dots hard to read
+        // on the map, yes, but it also makes movement through the landmark locations look sluggish:
+        // each landmark location has two filler locations RIGHT next to it, and the player moves at
+        // a constant speed in terms of LOCATIONS (not in terms of SCREEN COORDINATES), so unless we
+        // pad them out like this, those look like little speed bumps. perhaps it would have been OK
+        // in isolation, but now it would cause the dots to draw on top of the icons of the landmark
+        // locations, which is a no-go. so instead, we have this helper to take what would have been
+        // drawn as a line from landmark to landmark, subtract a count of pixels from each endpoint,
+        // move the middle points in proportion to where they would have been on the longer line but
+        // for this, and then move the line that count of pixels in towards the middle.
+        const int DensifyMultiplier = 20;
+        int densifiedLength = ((definingPointsOrig.Length - 1) * DensifyMultiplier) + 1;
+        using IMemoryOwner<Point> pointsOwner = MemoryPool<Point>.Shared.Rent(densifiedLength * 2);
+        using IMemoryOwner<double> prjOwner = MemoryPool<double>.Shared.Rent(densifiedLength * 2);
+        Span<Point> densifiedDefiningPoints = pointsOwner.Memory[..densifiedLength].Span;
+        Span<Point> densifiedTargetPoints = pointsOwner.Memory[(^densifiedLength)..].Span;
+        Span<double> densifiedDefiningPointsPrj = prjOwner.Memory[..densifiedLength].Span;
+        Span<double> densifiedTargetPointsPrj = prjOwner.Memory[(^densifiedLength)..].Span;
+
+        Densify(definingPointsOrig, densifiedDefiningPoints);
+
+        // rename things so we don't need to have the word "densified" at all after this block.
+        Span<Point> definingPoints = densifiedDefiningPoints;
+        Span<Point> targetPoints = densifiedTargetPoints;
+        Span<double> definingPointsPrj = densifiedDefiningPointsPrj;
+        Span<double> targetPointsPrj = densifiedTargetPointsPrj;
+
+        IndexLine(definingPoints, definingPointsPrj);
+        definingPointsPrj.CopyTo(targetPointsPrj);
+
+        double originalLength = definingPointsPrj[^1];
+
+        const double PaddingAtBeginning = 8;
+        const double PaddingAtEnd = 8;
+        if (regionKey == GameDefinitions.Instance.StartRegion.Key)
+        {
+            // start region needs less padding at the start
+            const double StartRegionPaddingAtBeginning = 2;
+            double newProportion = (originalLength - PaddingAtEnd - StartRegionPaddingAtBeginning) / originalLength;
+            foreach (ref double targetPointPrj in targetPointsPrj)
+            {
+                targetPointPrj = (targetPointPrj * newProportion) + StartRegionPaddingAtBeginning;
+            }
+        }
+        else
+        {
+            // all other filler regions need padding on both sides.
+            double newProportion = (originalLength - PaddingAtBeginning - PaddingAtEnd) / originalLength;
+            foreach (ref double targetPointPrj in targetPointsPrj)
+            {
+                targetPointPrj = (targetPointPrj * newProportion) + PaddingAtBeginning;
+            }
+        }
+
+        for (int i = 0; i < definingPoints.Length; i++)
+        {
+            targetPoints[i] = Project(targetPointsPrj[i], definingPoints, definingPointsPrj) - ToCenter;
+        }
+
+        return [.. targetPoints];
+    }
+
+    private static void Densify(ReadOnlySpan<Point> definingPoints, Span<Point> densifiedPoints)
+    {
+        int densifyMultiplier = (densifiedPoints.Length - 1) / (definingPoints.Length - 1);
+        Debug.Assert(((definingPoints.Length - 1) * densifyMultiplier) + 1 == densifiedPoints.Length);
+        densifiedPoints[0] = definingPoints[0];
+        for (int i = 1; i < definingPoints.Length; i++)
+        {
+            Point p0 = definingPoints[i - 1];
+            Point p1 = definingPoints[i];
+            for (int j = 0; j < densifyMultiplier; j++)
+            {
+                double p1Share = (densifyMultiplier - j) / (double)densifyMultiplier;
+                densifiedPoints[(i * densifyMultiplier) - j] =
+                    (p0 * (1 - p1Share)) +
+                    (p1 * p1Share);
+            }
+        }
+    }
+
+    private static Span<double> IndexLine(ReadOnlySpan<Point> definingPoints, Span<double> endpointsPrj)
+    {
         endpointsPrj[0] = 0;
         for (int i = 1; i < endpointsPrj.Length; i++)
         {
             endpointsPrj[i] = endpointsPrj[i - 1] + Point.Distance(definingPoints[i - 1], definingPoints[i]);
         }
 
-        ImmutableArray<Point>.Builder locationPointsBuilder = ImmutableArray.CreateBuilder<Point>(Model.Locations.Length);
-        locationPointsBuilder.Count = Model.Locations.Length;
-        locationPointsBuilder[0] = definingPoints[0];
-        int endpointIndex = 1;
-        for (int i = 1; i < Model.Locations.Length; i++)
-        {
-            double nextPointPrjOnPath = endpointsPrj[^1] * (i / (double)(Model.Locations.Length - 1));
-            while (nextPointPrjOnPath > endpointsPrj[endpointIndex])
-            {
-                endpointIndex++;
-            }
-
-            double nextPointPrjOnSegment = nextPointPrjOnPath - endpointsPrj[endpointIndex - 1];
-            double p1Share = nextPointPrjOnSegment / (endpointsPrj[endpointIndex] - endpointsPrj[endpointIndex - 1]);
-            double p0Share = 1 - p1Share;
-            Point p0 = definingPoints[endpointIndex - 1];
-            Point p1 = definingPoints[endpointIndex];
-            locationPointsBuilder[i] = (p0 * p0Share) + (p1 * p1Share);
-        }
-
-        LocationPoints = locationPointsBuilder.MoveToImmutable();
+        return endpointsPrj;
     }
 
-    public FillerRegionDefinitionModel Model { get; }
+    private static Point Project(double prj, ReadOnlySpan<Point> definingPoints, ReadOnlySpan<double> definingPointsPrj)
+    {
+        // ASSUMPTION: prj <= definingPointsPrj[^1]
+        for (int i = 0; i < definingPointsPrj.Length - 1; i++)
+        {
+            if (definingPointsPrj[i + 1] < prj)
+            {
+                continue;
+            }
 
-    public ImmutableArray<Point> LocationPoints { get; }
+            double segPos = prj - definingPointsPrj[i];
+            double segLen = definingPointsPrj[i + 1] - definingPointsPrj[i];
+            double p1Share = segPos / segLen;
+            return
+                (definingPoints[i] * (1 - p1Share)) +
+                (definingPoints[i + 1] * p1Share);
+        }
+
+        throw new ArgumentException("must be between the actual projected endpoints");
+    }
 }

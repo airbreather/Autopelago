@@ -81,9 +81,10 @@ public sealed class GameStateViewModel : ViewModelBase, IDisposable
                select (((RatCountRequirement)tt.Model).RatCount, tt),
         ];
 
-        FrozenDictionary<string, FillerRegionViewModel> fillerRegionLookup = GameDefinitions.Instance.FillerRegions
-            .ToFrozenDictionary(kvp => kvp.Key, kvp => new FillerRegionViewModel(kvp.Value));
-        FillerLocationPoints = [.. fillerRegionLookup.Values.SelectMany(r => r.LocationPoints).Select(p => p + FillerRegionViewModel.ToCenter)];
+        FrozenDictionary<LocationKey, FillerLocationViewModel> fillerLocationLookup = GameDefinitions.Instance.FillerRegions.Values
+            .SelectMany(r => new FillerRegionViewModel(r).Locations)
+            .ToFrozenDictionary(l => l.Model.Key);
+        FillerLocations = [.. fillerLocationLookup.Values];
 
         Paused = provider.Paused;
 
@@ -196,9 +197,13 @@ public sealed class GameStateViewModel : ViewModelBase, IDisposable
             {
                 foreach (LocationDefinitionModel location in g.CheckedLocations.Skip(lastCheckedLocationsCount))
                 {
-                    if (landmarkRegionsLookup.TryGetValue(location.Key.RegionKey, out LandmarkRegionViewModel? viewModel))
+                    if (landmarkRegionsLookup.TryGetValue(location.Key.RegionKey, out LandmarkRegionViewModel? landmarkViewModel))
                     {
-                        viewModel.Checked = true;
+                        landmarkViewModel.Checked = true;
+                    }
+                    else if (fillerLocationLookup.TryGetValue(location.Key, out FillerLocationViewModel? fillerViewModel))
+                    {
+                        fillerViewModel.Checked = true;
                     }
                 }
 
@@ -215,7 +220,7 @@ public sealed class GameStateViewModel : ViewModelBase, IDisposable
         {
             return landmarkRegionsLookup.TryGetValue(location.Region.Key, out LandmarkRegionViewModel? landmark)
                 ? landmark.CanvasLocation
-                : fillerRegionLookup[location.Key.RegionKey].LocationPoints[location.Key.N];
+                : fillerLocationLookup[location.Key].Point;
         }
 
         double GetTrueAngle(Point prev, Point curr)
@@ -274,7 +279,7 @@ public sealed class GameStateViewModel : ViewModelBase, IDisposable
 
     public ReactiveCommand<Unit, Unit> PlayPauseCommand { get; }
 
-    public ImmutableArray<Point> FillerLocationPoints { get; }
+    public ImmutableArray<FillerLocationViewModel> FillerLocations { get; }
 
     public ImmutableArray<CollectableItemViewModel> ProgressionItems { get; } =
     [
