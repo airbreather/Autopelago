@@ -189,8 +189,9 @@ public sealed class GameStateViewModel : ViewModelBase, IDisposable
             }));
 
         int lastCheckedLocationsCount = 0;
+        bool wasCompleted = false;
         _subscriptions.Add(provider.CurrentGameState
-            .Where(g => g.CheckedLocations.Count > lastCheckedLocationsCount)
+            .Where(g => g.CheckedLocations.Count > lastCheckedLocationsCount || (g.IsCompleted && !wasCompleted))
             .Subscribe(g =>
             {
                 foreach (LocationDefinitionModel location in g.CheckedLocations.Skip(lastCheckedLocationsCount))
@@ -201,7 +202,13 @@ public sealed class GameStateViewModel : ViewModelBase, IDisposable
                     }
                 }
 
+                if (g.IsCompleted && !wasCompleted && landmarkRegionsLookup.TryGetValue(GameDefinitions.Instance.GoalRegion.Key, out LandmarkRegionViewModel? goalViewModel))
+                {
+                    goalViewModel.Checked = true;
+                }
+
                 lastCheckedLocationsCount = g.CheckedLocations.Count;
+                wasCompleted = g.IsCompleted;
             }));
 
         Point GetPoint(LocationDefinitionModel location)
