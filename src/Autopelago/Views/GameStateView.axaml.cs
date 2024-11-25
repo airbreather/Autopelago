@@ -50,4 +50,12 @@ public partial class GameStateView : ReactiveUserControl<GameStateViewModel>
     {
         ViewModel?.NextRatThought();
     }
+
+    private void OnPlayerClicked(object? sender, PointerPressedEventArgs e)
+    {
+        if (ViewModel is { } viewModel)
+        {
+            viewModel.PlayerIsActivated = !viewModel.PlayerIsActivated;
+        }
+    }
 }

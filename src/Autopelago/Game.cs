@@ -274,6 +274,13 @@ public sealed class Game
         return removed;
     }
 
+    public IEnumerable<LocationDefinitionModel> CalculateRoute(LocationDefinitionModel fromLocation, LocationDefinitionModel toLocation)
+    {
+        using Lock.Scope _ = _lock.EnterScope();
+        EnsureStarted();
+        return _routeCalculator!.GetPath(fromLocation, toLocation) ?? [];
+    }
+
     public void EnsureStarted()
     {
         using Lock.Scope _ = _lock.EnterScope();
@@ -288,6 +295,7 @@ public sealed class Game
         _initializedAuraData = true;
         _routeCalculator = new(_spoilerData, _receivedItems!.AsReadOnly(), _checkedLocations!.AsReadOnly());
         HasStarted = true;
+        UpdateTargetLocation();
     }
 
     public void Advance()

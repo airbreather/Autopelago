@@ -6,6 +6,7 @@ using System.Reactive.Linq;
 using System.Reactive.Subjects;
 
 using Avalonia;
+using Avalonia.Media;
 using Avalonia.ReactiveUI;
 
 using ReactiveUI;
@@ -114,6 +115,19 @@ public sealed class GameStateViewModel : ViewModelBase, IDisposable
 
         TargetLocation = provider.CurrentGameState
             .Select(g => g.TargetLocation);
+
+        CurrentPath = provider.CurrentGameState
+            .DistinctUntilChanged(g => (g.CurrentLocation, g.TargetLocation, g.ReceivedItems.Count(i => i.ArchipelagoFlags == ArchipelagoItemFlags.LogicalAdvancement)))
+            .Select(g =>
+                new PolylineGeometry(
+                    g.CalculateRoute(g.CurrentLocation, g.TargetLocation)
+                        .Select(l => GetPoint(l) + FillerRegionViewModel.ToCenter),
+                    false
+                )
+            );
+
+        TargetPoint = provider.CurrentGameState
+            .Select(g => GetPoint(g.TargetLocation) + FillerRegionViewModel.ToCenter );
 
         IConnectableObservable<LocationVector> movementLogs0 = provider.CurrentGameState
             .Select(SpaceOut)
@@ -251,6 +265,9 @@ public sealed class GameStateViewModel : ViewModelBase, IDisposable
     [Reactive]
     public string RatThought { get; set; } = s_ratThoughts[0];
 
+    [Reactive]
+    public bool PlayerIsActivated { get; set; }
+
     public IObservable<bool> Paused { get; }
 
     public IObservable<int> RatCount { get; }
@@ -260,6 +277,8 @@ public sealed class GameStateViewModel : ViewModelBase, IDisposable
     public IObservable<Point> CurrentPoint { get; }
 
     public IObservable<LocationDefinitionModel> TargetLocation { get; }
+
+    public IObservable<Point> TargetPoint { get; }
 
     public IObservable<double> RelativeAngle { get; }
 
@@ -282,6 +301,8 @@ public sealed class GameStateViewModel : ViewModelBase, IDisposable
     public IObservable<bool> MovingToSmart { get; }
 
     public IObservable<bool> MovingToConspiratorial { get; }
+
+    public IObservable<PolylineGeometry> CurrentPath { get; }
 
     public required ReactiveCommand<Unit, Unit> BackToMainMenuCommand { get; init; }
 

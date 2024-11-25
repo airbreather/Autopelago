@@ -4,6 +4,7 @@ using System.Reactive.Linq;
 using System.Reactive.Subjects;
 using System.Reactive.Threading.Tasks;
 
+using Avalonia.Controls;
 using Avalonia.ReactiveUI;
 
 namespace Autopelago;
@@ -35,6 +36,26 @@ public sealed class GameStateObservableProvider
         GameComplete = _gameComplete.AsObservable();
         UnhandledException = _unhandledException.AsObservable();
         Paused = _paused.AsObservable();
+
+        if (Design.IsDesignMode)
+        {
+            Game g = new(Prng.State.Start());
+
+            int prevCheckedLocationsCount = 0;
+            Observable.Interval(TimeSpan.FromSeconds(1), AvaloniaScheduler.Instance)
+                .Subscribe(_ =>
+                {
+                    g.Advance();
+                    g.ReceiveItems([
+                        .. g.CheckedLocations
+                            .Skip(prevCheckedLocationsCount)
+                            .Where(l => l.UnrandomizedItem is not null)
+                            .Select(l => l.UnrandomizedItem!),
+                    ]);
+                    prevCheckedLocationsCount = g.CheckedLocations.Count;
+                    _currentGameState.OnNext(g);
+                });
+        }
     }
 
     public IObservable<Game> CurrentGameState { get; }
