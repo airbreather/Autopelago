@@ -295,7 +295,6 @@ public sealed class Game
         _initializedAuraData = true;
         _routeCalculator = new(_spoilerData, _receivedItems!.AsReadOnly(), _checkedLocations!.AsReadOnly());
         HasStarted = true;
-        UpdateTargetLocation();
     }
 
     public void Advance()
