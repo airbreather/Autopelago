@@ -110,22 +110,11 @@ public sealed class GameStateViewModel : ViewModelBase, IDisposable
         TargetLocation = provider.CurrentGameState
             .Select(g => g.TargetLocation);
 
-        LocationVector finalVector = new()
-        {
-            PreviousLocation = GameDefinitions.Instance.ConnectedLocations[GameDefinitions.Instance.GoalLocation].Single().Location,
-            CurrentLocation = GameDefinitions.Instance.GoalLocation,
-        };
-        IConnectableObservable<LocationVector> movementLogs = provider.CurrentGameState
-            .Select(g => g.IsCompleted)
-            .DistinctUntilChanged(g => g ? Guid.NewGuid() : default)
-            .Select(c => c
-                ? Observable.Return(finalVector)
-                : provider.CurrentGameState
-                    .Select(SpaceOut)
-                    .Switch()
-            ).Switch()
+        IConnectableObservable<LocationVector> movementLogs0 = provider.CurrentGameState
+            .Select(SpaceOut)
+            .Switch()
             .Publish();
-        _subscriptions.Add(movementLogs.Connect());
+        _subscriptions.Add(movementLogs0.Connect());
         IObservable<LocationVector> SpaceOut(Game gameState)
         {
             ImmutableArray<LocationVector> locations = gameState.PreviousStepMovementLog;
@@ -144,6 +133,10 @@ public sealed class GameStateViewModel : ViewModelBase, IDisposable
                 }
             });
         }
+
+        IConnectableObservable<LocationVector> movementLogs = movementLogs0
+            .Replay(1);
+        _subscriptions.Add(movementLogs.Connect());
 
         CurrentPoint = movementLogs
             .Select(v => GetPoint(v.CurrentLocation));
