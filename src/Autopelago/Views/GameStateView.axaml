@@ -56,33 +56,50 @@
         <Style Selector="TextBlock.tooltip.small">
             <Setter Property="FontSize" Value="8" />
         </Style>
-        <Style Selector="Image.player.notPaused">
-            <Style.Animations>
-                <Animation Duration="0:0:1"
-                           IterationCount="Infinite">
-                    <KeyFrame Cue="0%">
-                        <Setter Property="my:PlayerWiggleProperties.WiggleFactor" Value="0" />
-                    </KeyFrame>
-                    <KeyFrame Cue="25%">
-                        <Setter Property="my:PlayerWiggleProperties.WiggleFactor" Value="10" />
-                    </KeyFrame>
-                    <KeyFrame Cue="50%">
-                        <Setter Property="my:PlayerWiggleProperties.WiggleFactor" Value="0" />
-                    </KeyFrame>
-                    <KeyFrame Cue="75%">
-                        <Setter Property="my:PlayerWiggleProperties.WiggleFactor" Value="-10" />
-                    </KeyFrame>
-                    <KeyFrame Cue="100%">
-                        <Setter Property="my:PlayerWiggleProperties.WiggleFactor" Value="0" />
-                    </KeyFrame>
-                </Animation>
-            </Style.Animations>
+        <Style Selector="Image.player">
+            <Setter Property="Effect">
+                <DropShadowEffect OffsetX="1.5" OffsetY="1.5" BlurRadius="1" />
+            </Setter>
+            <Style Selector="^.notPaused">
+                <Style.Animations>
+                    <Animation Duration="0:0:1"
+                               IterationCount="Infinite">
+                        <KeyFrame Cue="0%">
+                            <Setter Property="my:PlayerWiggleProperties.WiggleFactor" Value="0" />
+                        </KeyFrame>
+                        <KeyFrame Cue="25%">
+                            <Setter Property="my:PlayerWiggleProperties.WiggleFactor" Value="10" />
+                        </KeyFrame>
+                        <KeyFrame Cue="50%">
+                            <Setter Property="my:PlayerWiggleProperties.WiggleFactor" Value="0" />
+                        </KeyFrame>
+                        <KeyFrame Cue="75%">
+                            <Setter Property="my:PlayerWiggleProperties.WiggleFactor" Value="-10" />
+                        </KeyFrame>
+                        <KeyFrame Cue="100%">
+                            <Setter Property="my:PlayerWiggleProperties.WiggleFactor" Value="0" />
+                        </KeyFrame>
+                    </Animation>
+                </Style.Animations>
+            </Style>
         </Style>
-        <Style Selector="Rectangle.fillerLocation:not(.checked)">
-            <Setter Property="Fill" Value="Yellow" />
+        <Style Selector="Border.fillerLocation">
+            <Setter Property="Effect">
+                <DropShadowEffect OffsetX="0.6" OffsetY="0.6" BlurRadius="1" />
+            </Setter>
         </Style>
-        <Style Selector="Rectangle.fillerLocation.checked">
-            <Setter Property="Fill" Value="Gray" />
+        <Style Selector="Rectangle.fillerLocation">
+            <Style Selector="^:not(.checked)">
+                <Setter Property="Fill" Value="Yellow" />
+            </Style>
+            <Style Selector="^.checked">
+                <Setter Property="Fill" Value="Gray" />
+            </Style>
+        </Style>
+        <Style Selector="Image.landmark">
+            <Setter Property="Effect">
+                <DropShadowEffect OffsetX="2.8" OffsetY="2.8" Opacity="0.8" />
+            </Setter>
         </Style>
     </Control.Styles>
 
@@ -248,7 +265,7 @@
                                                     <ToolTip.Tip>
                                                         <ContentControl Content="{Binding .}" ContentTemplate="{StaticResource LandmarkToolTipDataTemplate}" />
                                                     </ToolTip.Tip>
-                                                    <Image Height="16" Width="16" Source="{Binding Image, Mode=OneWay}" />
+                                                    <Image Classes="landmark" Height="16" Width="16" Source="{Binding Image, Mode=OneWay}" />
                                                 </Grid>
                                             </DataTemplate>
                                         </ItemsControl.ItemTemplate>
@@ -267,7 +284,7 @@
                                         </ItemsControl.Styles>
                                         <ItemsControl.ItemTemplate>
                                             <DataTemplate>
-                                                <Border RenderTransform="translate(-1.5px, -1.5px)" BorderBrush="Black" BorderThickness="0.5">
+                                                <Border Classes="fillerLocation" RenderTransform="translate(-1.5px, -1.5px)" BorderBrush="Black" BorderThickness="0.5">
                                                     <Rectangle Classes="fillerLocation"
                                                                Classes.checked="{Binding Checked}"
                                                                Width="1.6" Height="1.6" />
