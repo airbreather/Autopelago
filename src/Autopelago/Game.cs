@@ -4,8 +4,6 @@ using System.Collections.ObjectModel;
 using System.Linq.Expressions;
 using System.Reflection;
 
-using Serilog;
-
 namespace Autopelago;
 
 using static GameEventId;
@@ -73,6 +71,7 @@ public sealed class Game
     private FrozenDictionary<ArchipelagoItemFlags, FrozenSet<LocationKey>>? _spoilerData;
 
     public Game(Prng.State prngState)
+        : this(prngState, null)
     {
     }
 

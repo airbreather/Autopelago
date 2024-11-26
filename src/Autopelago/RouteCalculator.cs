@@ -23,18 +23,6 @@ public sealed class RouteCalculator
 
     private readonly HashSet<string> _clearableLandmarks = [];
 
-    private readonly PriorityQueue<(RegionDefinitionModel Region, Direction Direction), int> _pq = new();
-
-    private readonly Queue<(RegionDefinitionModel Region, Direction Direction)> _q = new();
-
-    private readonly HashSet<string> _visitedRegions = [];
-
-    private readonly Dictionary<string, (RegionDefinitionModel Region, Direction Direction)> _prev = [];
-
-    private readonly Stack<(RegionDefinitionModel Region, Direction Direction)> _regionStack = [];
-
-    private readonly List<LocationDefinitionModel> _pathLocations = [];
-
     private int _lastReceivedItemsCount;
 
     private int _lastCheckedLocationsCount;
@@ -52,6 +40,8 @@ public sealed class RouteCalculator
         return GetPath(GameDefinitions.Instance.StartLocation, location) is not null;
     }
 
+    private readonly PriorityQueue<(RegionDefinitionModel Region, Direction Direction), int> _pq = new();
+    private readonly HashSet<string> _visitedRegions = [];
     public LocationDefinitionModel? FindClosestUncheckedLocation(LocationDefinitionModel currentLocation)
     {
         RecalculateAccessibility();
@@ -227,9 +217,84 @@ public sealed class RouteCalculator
             : null;
     }
 
+    private readonly Queue<ImmutableList<(RegionDefinitionModel Region, Direction? Direction)>> _qqq = [];
     public IEnumerable<LocationDefinitionModel> GetStartledPath(LocationDefinitionModel currentLocation)
     {
-        return GetPath(currentLocation, GameDefinitions.Instance.StartLocation)!;
+        RecalculateAccessibility();
+
+        if (currentLocation.Key.RegionKey == GameDefinitions.Instance.StartRegion.Key)
+        {
+            // trivial.
+            for (int i = currentLocation.Key.N - 1; i >= 0; --i)
+            {
+                yield return GameDefinitions.Instance.LocationsByKey[currentLocation.Key with { N = i }];
+            }
+
+            yield break;
+        }
+
+        // here's the thing about "Startled". I think it's technically possible that a simple BFS by
+        // just the regions (regardless of the number of locations in each) is not guaranteed to
+        // yield a shortest path to the start. but that doesn't matter. the player is spooked. they
+        // aren't necessarily making the best decisions at the time either. so I'm going to cheat:
+        // find a shortest path by number of regions, then yield the locations along that path. it's
+        // absolutely not worth the extra complication to do any better than that.
+        _qqq.Clear();
+        _visitedRegions.Clear();
+        _qqq.Enqueue([(currentLocation.Region, null)]);
+        _visitedRegions.Add(currentLocation.Key.RegionKey);
+        while (_qqq.TryDequeue(out ImmutableList<(RegionDefinitionModel Region, Direction? Direction)>? regionPath))
+        {
+            foreach ((RegionDefinitionModel connectedRegion, Direction direction) in _connectedRegions[regionPath[^1].Region])
+            {
+                if (!_fillerRegions.ContainsKey(connectedRegion.Key) &&
+                    !_checkedLocations[connectedRegion.Key][0])
+                {
+                    continue;
+                }
+
+                if (connectedRegion.Key == GameDefinitions.Instance.StartRegion.Key)
+                {
+                    // found it. follow the path from the current region. it starts off a little
+                    // complicated because we probably start in the middle.
+                    ImmutableArray<LocationDefinitionModel> startRegionLocations = currentLocation.Region.Locations;
+                    switch (regionPath.ElementAtOrDefault(1).Direction ?? direction)
+                    {
+                        case Direction.TowardsGoal:
+                            for (int i = currentLocation.Key.N + 1; i < startRegionLocations.Length; i++)
+                            {
+                                yield return startRegionLocations[i];
+                            }
+
+                            break;
+
+                        default:
+                            for (int i = currentLocation.Key.N - 1; i >= 0; --i)
+                            {
+                                yield return startRegionLocations[i];
+                            }
+
+                            break;
+                    }
+
+                    // OK, now just yield all the full regions all the way through.
+                    foreach ((RegionDefinitionModel nextRegion, Direction? nextDirection) in regionPath.Skip(1).Append((connectedRegion, direction)))
+                    {
+                        foreach (LocationDefinitionModel loc in nextDirection == Direction.TowardsGoal ? nextRegion.Locations : nextRegion.Locations.Reverse())
+                        {
+                            yield return loc;
+                        }
+                    }
+
+                    yield break;
+                }
+
+                if (_visitedRegions.Add(connectedRegion.Key))
+                {
+                    _qqq.Enqueue(regionPath.Add((connectedRegion, direction)));
+                }
+            }
+        }
     }
 
     public bool CanReachGoal()
@@ -237,6 +302,10 @@ public sealed class RouteCalculator
         return _clearableLandmarks.Contains(GameDefinitions.Instance.GoalRegion.Key);
     }
 
+    private readonly Queue<(RegionDefinitionModel Region, Direction Direction)> _q = new();
+    private readonly List<LocationDefinitionModel> _pathLocations = [];
+    private readonly Dictionary<string, (RegionDefinitionModel Region, Direction Direction)> _prev = [];
+    private readonly Stack<(RegionDefinitionModel Region, Direction Direction)> _regionStack = [];
     public IEnumerable<LocationDefinitionModel>? GetPath(LocationDefinitionModel currentLocation, LocationDefinitionModel targetLocation)
     {
         if (currentLocation.Key.RegionKey == targetLocation.Key.RegionKey)
