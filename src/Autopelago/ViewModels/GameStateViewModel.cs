@@ -214,7 +214,7 @@ public sealed class GameStateViewModel : ViewModelBase, IDisposable
             .Where(g => g.CheckedLocations.Count > lastCheckedLocationsCount || (g.IsCompleted && !wasCompleted))
             .Subscribe(g =>
             {
-                foreach (LocationDefinitionModel location in g.CheckedLocations.Skip(lastCheckedLocationsCount))
+                foreach (LocationDefinitionModel location in g.CheckedLocations.Order.Skip(lastCheckedLocationsCount))
                 {
                     if (landmarkRegionsLookup.TryGetValue(location.Key.RegionKey, out LandmarkRegionViewModel? landmarkViewModel))
                     {

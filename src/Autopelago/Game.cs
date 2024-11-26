@@ -96,14 +96,14 @@ public sealed class Game
         }
     }
 
-    private List<LocationDefinitionModel>? _checkedLocations;
+    private CheckedLocations? _checkedLocations;
 
-    public ReadOnlyCollection<LocationDefinitionModel> CheckedLocations
+    public CheckedLocations CheckedLocations
     {
         get
         {
             EnsureStarted();
-            return _checkedLocations!.AsReadOnly();
+            return _checkedLocations!;
         }
     }
 
@@ -202,7 +202,11 @@ public sealed class Game
             throw new InvalidOperationException("Checked locations have already been initialized.");
         }
 
-        _checkedLocations = [.. checkedLocations];
+        _checkedLocations = new();
+        foreach (LocationDefinitionModel location in checkedLocations)
+        {
+            _checkedLocations.MarkChecked(location);
+        }
     }
 
     public void InitializeReceivedItems(IEnumerable<ItemDefinitionModel> receivedItems)
@@ -300,11 +304,11 @@ public sealed class Game
             return;
         }
 
-        _checkedLocations ??= [];
+        _checkedLocations ??= new();
         _receivedItems ??= [];
         _spoilerData ??= GameDefinitions.Instance.LocationsByName.Values.Where(l => l.UnrandomizedItem is not null).ToFrozenDictionary(l => l, l => l.UnrandomizedItem!.ArchipelagoFlags);
         _initializedAuraData = true;
-        _routeCalculator = new(_spoilerData, _receivedItems!.AsReadOnly(), _checkedLocations!.AsReadOnly());
+        _routeCalculator = new(_spoilerData, _receivedItems!.AsReadOnly(), _checkedLocations);
         HasStarted = true;
     }
 
@@ -406,7 +410,7 @@ public sealed class Game
                 }
             }
 
-            if (!moved && StartledCounter == 0 && !CheckedLocations.Contains(CurrentLocation))
+            if (!moved && StartledCounter == 0 && !CheckedLocations[CurrentLocation.Key])
             {
                 int immediateDiceModifier = diceModifier;
                 bool forceSuccess = false;
@@ -433,7 +437,7 @@ public sealed class Game
 
                 if (forceSuccess || (Prng.NextD20(ref _prngState) + immediateDiceModifier >= CurrentLocation.AbilityCheckDC))
                 {
-                    _checkedLocations!.Add(CurrentLocation);
+                    _checkedLocations!.MarkChecked(CurrentLocation);
                 }
                 else
                 {
@@ -495,7 +499,10 @@ public sealed class Game
     {
         using Lock.Scope _ = _lock.EnterScope();
         EnsureStarted();
-        _checkedLocations!.AddRange(newLocations.Except(_checkedLocations));
+        foreach (LocationDefinitionModel location in newLocations)
+        {
+            _checkedLocations!.MarkChecked(location);
+        }
     }
 
     public void ReceiveItems(ImmutableArray<ItemDefinitionModel> newItems)
@@ -632,7 +639,7 @@ public sealed class Game
         if (_routeCalculator!.CanReachGoal() && _routeCalculator!.GetPath(CurrentLocation, GameDefinitions.Instance.GoalLocation) is { } path0)
         {
             reason = TargetLocationReason.GoMode;
-            return path0.Prepend(CurrentLocation).FirstOrDefault(p => p.Region is LandmarkRegionDefinitionModel && !CheckedLocations.Contains(p)) ?? GameDefinitions.Instance.GoalLocation;
+            return path0.Prepend(CurrentLocation).FirstOrDefault(p => p.Region is LandmarkRegionDefinitionModel && !CheckedLocations[p]) ?? GameDefinitions.Instance.GoalLocation;
         }
 
         foreach (LocationDefinitionModel priorityPriorityLocation in _priorityPriorityLocations)
@@ -643,7 +650,7 @@ public sealed class Game
             }
 
             reason = TargetLocationReason.PriorityPriority;
-            return path.Prepend(CurrentLocation).FirstOrDefault(p => p.Region is LandmarkRegionDefinitionModel && !CheckedLocations.Contains(p)) ?? priorityPriorityLocation;
+            return path.Prepend(CurrentLocation).FirstOrDefault(p => p.Region is LandmarkRegionDefinitionModel && !CheckedLocations[p]) ?? priorityPriorityLocation;
         }
 
         foreach (LocationDefinitionModel priorityLocation in _priorityLocations)
@@ -654,7 +661,7 @@ public sealed class Game
             }
 
             reason = TargetLocationReason.Priority;
-            return path.Prepend(CurrentLocation).FirstOrDefault(p => p.Region is LandmarkRegionDefinitionModel && !CheckedLocations.Contains(p)) ?? priorityLocation;
+            return path.Prepend(CurrentLocation).FirstOrDefault(p => p.Region is LandmarkRegionDefinitionModel && !CheckedLocations[p]) ?? priorityLocation;
         }
 
         if (_routeCalculator!.FindClosestUncheckedLocation(CurrentLocation) is { } closestReachableUnchecked)

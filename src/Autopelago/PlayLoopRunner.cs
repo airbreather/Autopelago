@@ -112,7 +112,7 @@ public sealed class PlayLoopRunner : IDisposable
             _gameUpdates.OnNext(game);
 
             List<long> locationIds = [];
-            foreach (LocationDefinitionModel location in game.CheckedLocations.Skip(prevCheckedLocationsCount))
+            foreach (LocationDefinitionModel location in game.CheckedLocations.Order.Skip(prevCheckedLocationsCount))
             {
                 locationIds.Add(_locationIds[location]);
             }

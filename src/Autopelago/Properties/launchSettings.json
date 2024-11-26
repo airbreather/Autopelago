@@ -4,6 +4,11 @@
     "run": {
       "commandName": "Project",
       "dotnetRunMessages": true
+    },
+    "science": {
+      "commandName": "Project",
+      "commandLineArgs": "g",
+      "dotnetRunMessages": true
     }
   }
 }

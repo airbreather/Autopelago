@@ -11,6 +11,12 @@ internal static class Program
     [STAThread]
     private static int Main(string[] args)
     {
+        if (args.FirstOrDefault() is "g")
+        {
+            Task.Run(async () => await BespokeMultiworld.Generator.BuildAsync(Prng.State.Start(), default)).GetAwaiter().GetResult();
+            return 0;
+        }
+
         Log.Logger = new LoggerConfiguration()
             .WriteTo.Console()
             .Enrich.FromLogContext()
