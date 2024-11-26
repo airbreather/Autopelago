@@ -1,6 +1,7 @@
 using System.Collections.Frozen;
 using System.Reactive.Linq;
 using System.Reactive.Subjects;
+using System.Runtime.InteropServices;
 using System.Text;
 using System.Text.Json;
 using System.Text.Json.Serialization;
@@ -177,13 +178,14 @@ public sealed class GameInitializer : ArchipelagoPacketHandler
 
     private void Handle(LocationInfoPacketModel locationInfo)
     {
-        Dictionary<LocationKey, ArchipelagoItemFlags> spoilerData = [];
+        Dictionary<ArchipelagoItemFlags, HashSet<LocationKey>> spoilerData = [];
         foreach (ItemModel networkItem in locationInfo.Locations)
         {
-            spoilerData[_locationsById![networkItem.Location].Key] = networkItem.Flags;
+            (CollectionsMarshal.GetValueRefOrAddDefault(spoilerData, networkItem.Flags, out _) ??= [])
+                .Add(_locationsById![networkItem.Location].Key);
         }
 
-        _game.InitializeSpoilerData(spoilerData.ToFrozenDictionary());
+        _game.InitializeSpoilerData(spoilerData.ToFrozenDictionary(kvp => kvp.Key, kvp => kvp.Value.ToFrozenSet()));
     }
 
     private void Handle(RoomUpdatePacketModel roomUpdate)

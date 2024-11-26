@@ -519,7 +519,7 @@ public sealed class GameTests
             "conspiratorial" => ArchipelagoItemFlags.Trap,
             _ => throw null!,
         };
-        FrozenDictionary<LocationKey, ArchipelagoItemFlags> spoilerData = CreateSpoiler([
+        FrozenDictionary<ArchipelagoItemFlags, FrozenSet<LocationKey>> spoilerData = CreateSpoiler([
             (GameDefinitions.Instance.StartLocation, targetFlags),
             (s_beforePrawnStars.Locations[0], targetFlags),
             (s_beforePrawnStars.Locations[^1], targetFlags),
@@ -780,7 +780,7 @@ public sealed class GameTests
         }
     }
 
-    private static FrozenDictionary<LocationKey, ArchipelagoItemFlags> CreateSpoiler(ReadOnlySpan<(LocationDefinitionModel Location, ArchipelagoItemFlags Flags)> defined)
+    private static FrozenDictionary<ArchipelagoItemFlags, FrozenSet<LocationKey>> CreateSpoiler(ReadOnlySpan<(LocationDefinitionModel Location, ArchipelagoItemFlags Flags)> defined)
     {
         Dictionary<LocationKey, ArchipelagoItemFlags> result = GameDefinitions.Instance.LocationsByName.Values.ToDictionary(l => l.Key, _ => ArchipelagoItemFlags.None);
         foreach ((LocationDefinitionModel location, ArchipelagoItemFlags flags) in defined)
@@ -788,7 +788,9 @@ public sealed class GameTests
             result[location.Key] = flags;
         }
 
-        return result.ToFrozenDictionary();
+        return result
+            .GroupBy(kvp => kvp.Value, kvp => kvp.Key)
+            .ToFrozenDictionary(grp => grp.Key, grp => grp.ToFrozenSet());
     }
 
     private static Prng.State EnsureSeedProducesInitialD20Sequence(ulong seed, ReadOnlySpan<int> exactVals)

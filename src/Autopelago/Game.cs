@@ -70,7 +70,7 @@ public sealed class Game
 
     private IEnumerator<LocationDefinitionModel>? _targetLocationPathEnumerator;
 
-    private FrozenDictionary<LocationKey, ArchipelagoItemFlags>? _spoilerData;
+    private FrozenDictionary<ArchipelagoItemFlags, FrozenSet<LocationKey>>? _spoilerData;
 
     public Game(Prng.State prngState)
     {
@@ -134,7 +134,7 @@ public sealed class Game
         }
     }
 
-    public FrozenDictionary<LocationKey, ArchipelagoItemFlags> SpoilerData
+    public FrozenDictionary<ArchipelagoItemFlags, FrozenSet<LocationKey>> SpoilerData
     {
         get
         {
@@ -231,7 +231,7 @@ public sealed class Game
         _receivedItems = [.. receivedItems];
     }
 
-    public void InitializeSpoilerData(FrozenDictionary<LocationKey, ArchipelagoItemFlags> spoilerData)
+    public void InitializeSpoilerData(FrozenDictionary<ArchipelagoItemFlags, FrozenSet<LocationKey>> spoilerData)
     {
         using Lock.Scope _ = _lock.EnterScope();
         if (_spoilerData is not null)
@@ -317,7 +317,10 @@ public sealed class Game
 
         _checkedLocations ??= new();
         _receivedItems ??= [];
-        _spoilerData ??= GameDefinitions.Instance.LocationsByName.Values.Where(l => l.UnrandomizedItem is not null).ToFrozenDictionary(l => l.Key, l => l.UnrandomizedItem!.ArchipelagoFlags);
+        _spoilerData ??= GameDefinitions.Instance.LocationsByName.Values
+            .Where(l => l.UnrandomizedItem is not null)
+            .GroupBy(l => l.UnrandomizedItem!.ArchipelagoFlags, l => l.Key)
+            .ToFrozenDictionary(grp => grp.Key, grp => grp.ToFrozenSet());
         _initializedAuraData = true;
         _routeCalculator = new(_spoilerData, _receivedItems!.AsReadOnly(), _checkedLocations);
         HasStarted = true;
@@ -479,12 +482,12 @@ public sealed class Game
                 switch (TargetLocationReason)
                 {
                     case TargetLocationReason.Priority:
-                        _priorityLocations.RemoveAll(l => l == targetLocation);
+                        _priorityLocations.Remove(targetLocation);
                         _instrumentation?.Trace(ClearPriority);
                         break;
 
                     case TargetLocationReason.PriorityPriority:
-                        _priorityPriorityLocations.RemoveAll(l => l == targetLocation);
+                        _priorityPriorityLocations.Remove(targetLocation);
                         _instrumentation?.Trace(ClearPriorityPriority);
                         break;
                 }

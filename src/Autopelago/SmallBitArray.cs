@@ -42,4 +42,9 @@ public struct SmallBitArray
     {
         get => _bits != UInt128.Zero;
     }
+
+    public void Clear()
+    {
+        _bits = UInt128.Zero;
+    }
 }

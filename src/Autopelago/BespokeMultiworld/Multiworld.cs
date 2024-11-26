@@ -10,6 +10,8 @@ public sealed class Multiworld : IDisposable
 
     public required ImmutableArray<FrozenDictionary<LocationKey, WorldItem>> FullSpoilerData { get; init; }
 
+    public required ImmutableArray<FrozenDictionary<ArchipelagoItemFlags, FrozenSet<LocationKey>>> PartialSpoilerData { get; init; }
+
     public void Dispose()
     {
         foreach (World slot in Slots)
@@ -23,16 +25,16 @@ public sealed class Multiworld : IDisposable
         List<ItemDefinitionModel>[] sendNextRound = new List<ItemDefinitionModel>[Slots.Length];
         for (int i = 0; i < Slots.Length; i++)
         {
-            Slots[i].Game.InitializeSpoilerData(FullSpoilerData[i].ToFrozenDictionary(kvp => kvp.Key, kvp => GameDefinitions.Instance.ItemsByName[kvp.Value.ItemName].ArchipelagoFlags));
+            Slots[i].Game.InitializeSpoilerData(PartialSpoilerData[i]);
             sendNextRound[i] = [];
         }
 
         Span<int> prevCheckedLocations = stackalloc int[Slots.Length];
         prevCheckedLocations.Clear();
+        int steps = 0;
         while (true)
         {
             bool advanced = false;
-            bool allBK = true;
             for (int i = 0; i < Slots.Length; i++)
             {
                 World slot = Slots[i];
@@ -57,9 +59,9 @@ public sealed class Multiworld : IDisposable
 
                 slot.Game.Advance();
                 advanced = true;
-                allBK &= slot.Game.TargetLocationReason == TargetLocationReason.NowhereUsefulToMove;
             }
 
+            ++steps;
             if (!advanced)
             {
                 break;
@@ -82,17 +84,15 @@ public sealed class Multiworld : IDisposable
                 prevCheckedLocations[i] = locs.Count;
             }
 
-            bool sentAny = false;
             for (int i = 0; i < Slots.Length; i++)
             {
                 Slots[i].Game.ReceiveItems(CollectionsMarshal.AsSpan(sendNextRound[i]));
-                sentAny |= sendNextRound[i].Count > 0;
                 CollectionsMarshal.SetCount(sendNextRound[i], 0);
             }
 
-            if (allBK && !sentAny)
+            if (steps > 100_000)
             {
-                throw new InvalidOperationException("All BK!");
+                throw new InvalidOperationException("Pretty sure you're deadlocking at 100k.");
             }
         }
     }

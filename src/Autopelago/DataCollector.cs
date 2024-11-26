@@ -1,5 +1,6 @@
 using System.Collections.Frozen;
 using System.Collections.Immutable;
+using System.Diagnostics;
 using System.Runtime.InteropServices;
 
 using Autopelago.BespokeMultiworld;
@@ -40,6 +41,7 @@ public static class DataCollector
         Prng.State state = seed;
         Prng.State[] multiworldSeeds = new Prng.State[250];
         ImmutableArray<FrozenDictionary<LocationKey, WorldItem>>[] allSpoilerData = new ImmutableArray<FrozenDictionary<LocationKey, WorldItem>>[250];
+        ImmutableArray<FrozenDictionary<ArchipelagoItemFlags, FrozenSet<LocationKey>>>[] partialSpoilerData = new ImmutableArray<FrozenDictionary<ArchipelagoItemFlags, FrozenSet<LocationKey>>>[250];
         for (int i = 0; i < multiworldSeeds.Length; i++)
         {
             multiworldSeeds[i] = state;
@@ -50,45 +52,62 @@ public static class DataCollector
         {
             UInt128 archipelagoSeed = new(Prng.Next(ref multiworldSeeds[i]), Prng.Next(ref multiworldSeeds[i]));
             allSpoilerData[i] = await PlaythroughGenerator.GenerateAsync(archipelagoSeed, cancellationToken2);
+            partialSpoilerData[i] = ImmutableArray.CreateRange(allSpoilerData[i], val => val
+                .GroupBy(kvp => kvp.Value.Item.ArchipelagoFlags, kvp => kvp.Key)
+                .ToFrozenDictionary(grp => grp.Key, grp => grp.ToFrozenSet()));
         });
 
         int done = 0;
-        Parallel.For(0, multiworldSeeds.Length, i =>
+        long lastReport = Stopwatch.GetTimestamp();
+        TimeSpan reportInterval = TimeSpan.FromMilliseconds(50);
+        Lock l = new();
+        Parallel.For(0, 250_000, (ij, loopState) =>
         {
-            Prng.State multiworldPrngState = multiworldSeeds[i];
-            int seedNumber = i;
-            ImmutableArray<FrozenDictionary<LocationKey, WorldItem>> fullSpoilerData = allSpoilerData[i];
-            Parallel.For(0, 1000, j =>
+            if (loopState.IsStopped)
             {
-                List<GameEvent> gameEvents = [];
-                int iterationNumber = j;
-                World[] slotsMutable = new World[fullSpoilerData.Length];
-                for (int k = 0; k < slotsMutable.Length; k++)
+                return;
+            }
+
+            try
+            {
+                int i = Math.DivRem(ij, 1000, out int j);
+
+                Prng.State multiworldPrngState = multiworldSeeds[i];
+                World[] slotsMutable = new World[allSpoilerData[i].Length];
+                int gameEvents = 0;
+                for (int k = 0; k < 4; k++)
                 {
-                    int slotNumber = k;
                     slotsMutable[k] = new(multiworldPrngState);
-                    slotsMutable[k].Instrumentation.GameEvents.Subscribe(id => gameEvents.Add(new()
-                    {
-                        Id = id,
-                        SeedNumber = seedNumber,
-                        IterationNumber = iterationNumber,
-                        SlotNumber = slotNumber,
-                    }));
-                    Prng.ShortJump(ref multiworldPrngState);
+                    slotsMutable[k].Instrumentation.GameEvents.Subscribe(_ => gameEvents++);
                 }
 
                 ImmutableArray<World> slots = ImmutableCollectionsMarshal.AsImmutableArray(slotsMutable);
                 using Multiworld multiworld = new()
                 {
                     Slots = slots,
-                    FullSpoilerData = fullSpoilerData,
+                    FullSpoilerData = allSpoilerData[i],
+                    PartialSpoilerData = partialSpoilerData[i],
                 };
 
                 multiworld.Run();
-                Console.Write($"\rFinished #{Interlocked.Increment(ref done)} with {gameEvents.Count} events");
-
-                gameEvents.Clear();
-            });
+                Interlocked.Increment(ref done);
+                if (Stopwatch.GetElapsedTime(lastReport) > reportInterval)
+                {
+                    lock (l)
+                    {
+                        if (Stopwatch.GetElapsedTime(lastReport) > reportInterval)
+                        {
+                            Console.Write($"\rFinished #{done} with {gameEvents} events");
+                            lastReport = Stopwatch.GetTimestamp();
+                        }
+                    }
+                }
+            }
+            catch
+            {
+                loopState.Stop();
+                throw;
+            }
         });
     }
 }
