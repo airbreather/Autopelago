@@ -106,7 +106,7 @@ public sealed class GameStateObservableProvider
                     _unhandledException.OnNext(t.Exception.Flatten());
                     _unhandledException.OnCompleted();
                 }
-            },  cancellationToken, TaskContinuationOptions.ExecuteSynchronously, TaskScheduler.Default);
+            }, cancellationToken, TaskContinuationOptions.ExecuteSynchronously, TaskScheduler.Default);
 
         GameAndContext gameAndContext = await gameAndContextTask;
         unregisterGameInitializer.Dispose();
@@ -122,7 +122,7 @@ public sealed class GameStateObservableProvider
                     _unhandledException.OnNext(t.Exception.Flatten());
                     _unhandledException.OnCompleted();
                 }
-            },  cancellationToken, TaskContinuationOptions.ExecuteSynchronously, TaskScheduler.Default);
+            }, cancellationToken, TaskContinuationOptions.ExecuteSynchronously, TaskScheduler.Default);
 
         using IDisposable gameUpdatesSubscription = Observable
             .Merge(AvaloniaScheduler.Instance, updatePacketHandler.GameUpdates, playLoopRunner.GameUpdates)
