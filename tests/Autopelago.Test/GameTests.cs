@@ -729,6 +729,57 @@ public sealed class GameTests
         });
     }
 
+    [Test]
+    [Property("Regression", 92)]
+    public void RegressionTestPathingErrors()
+    {
+        Game game = new(s_highRolls);
+        game.InitializeCheckedLocations([
+            GameDefinitions.Instance.LocationsByName["Basketball"],
+            GameDefinitions.Instance.LocationsByName["Angry Turtles"],
+            GameDefinitions.Instance.LocationsByName["Restaurant"],
+            GameDefinitions.Instance.LocationsByName["Bowling Ball Door"],
+            GameDefinitions.Instance.LocationsByName["Captured Goldfish"],
+            .. GameDefinitions.Instance.FillerRegions["Menu"].Locations, // "Before Basketball"
+            .. GameDefinitions.Instance.FillerRegions["before_prawn_stars"].Locations,
+            .. GameDefinitions.Instance.FillerRegions["before_angry_turtles"].Locations,
+            .. GameDefinitions.Instance.FillerRegions["after_restaurant"].Locations,
+            .. GameDefinitions.Instance.FillerRegions["before_captured_goldfish"].Locations,
+
+            .. GameDefinitions.Instance.FillerRegions["after_pirate_bake_sale"].Locations.AsSpan(3..),
+            .. GameDefinitions.Instance.FillerRegions["before_computer_interface"].Locations.AsSpan(..3),
+        ]);
+        game.InitializeReceivedItems([
+            GameDefinitions.Instance.ItemsByName["Giant Novelty Scissors"],
+            GameDefinitions.Instance.ItemsByName["Ninja Rat"],
+            GameDefinitions.Instance.ItemsByName["Chef Rat"],
+            GameDefinitions.Instance.ItemsByName["Computer Rat"],
+            GameDefinitions.Instance.ItemsByName["Notorious R.A.T."],
+            .. Enumerable.Repeat(s_normalRat, 14),
+        ]);
+
+        game.ArbitrarilyModifyState(g => g.CurrentLocation, GameDefinitions.Instance.LocationsByName["Before Goldfish #2"]);
+        game.ArbitrarilyModifyState(g => g.TargetLocation, GameDefinitions.Instance.LocationsByName["Before Computer Interface #4"]);
+
+        // the rat has everything it needs to make a few location checks. make sure it does that and
+        // doesn't instead go into a loop like it was seen doing before.
+        int initialCheckedLocationCount = game.CheckedLocations.Count;
+        HashSet<LocationKey> locationsVisited = [];
+        while (true)
+        {
+            game.Advance();
+            if (game.CheckedLocations.Count > initialCheckedLocationCount)
+            {
+                break;
+            }
+
+            // this part ensures that the test will not loop forever: a LocationDefinitionModel does
+            // exist for CurrentLocation, and only <1000 of those ever get created.
+            Assert.That(locationsVisited, Does.Not.Contain(game.CurrentLocation.Key));
+            locationsVisited.Add(game.CurrentLocation.Key);
+        }
+    }
+
     private static FrozenDictionary<LocationDefinitionModel, ArchipelagoItemFlags> CreateSpoiler(ReadOnlySpan<(LocationDefinitionModel Location, ArchipelagoItemFlags Flags)> defined)
     {
         Dictionary<LocationDefinitionModel, ArchipelagoItemFlags> result = GameDefinitions.Instance.LocationsByName.Values.ToDictionary(l => l, _ => ArchipelagoItemFlags.None);

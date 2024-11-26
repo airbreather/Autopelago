@@ -141,7 +141,7 @@ public sealed class RouteCalculator
                 {
                     Direction.TowardsGoal => forwardLocationsInCurrentRegion,
                     _ => backwardLocationsInCurrentRegion,
-                } + 1);
+                } + 1); // +1 gets us to the first location in the next region.
             }
         }
 
@@ -158,8 +158,7 @@ public sealed class RouteCalculator
             {
                 if (direction == Direction.TowardsGoal)
                 {
-                    int max = Math.Min(checkedLocationsInConnectedRegion.Length, bestDistance - extraDistance);
-                    for (int i = 0; i < max; i++)
+                    for (int i = 0; i < checkedLocationsInConnectedRegion.Length && extraDistance + i < bestDistance; i++)
                     {
                         if (checkedLocationsInConnectedRegion[i])
                         {
@@ -168,40 +167,59 @@ public sealed class RouteCalculator
 
                         bestDistance = extraDistance + i;
                         bestLocationKey = new() { RegionKey = connectedRegion.Key, N = i };
-                        break;
                     }
                 }
                 else
                 {
-                    int min = bestDistance == int.MaxValue ? 0 : Math.Max(0, extraDistance - bestDistance);
-                    for (int i = checkedLocationsInConnectedRegion.Length - 1; i >= min; --i)
+                    for (int i = 0; i < checkedLocationsInConnectedRegion.Length && extraDistance + i < bestDistance; i++)
                     {
-                        if (checkedLocationsInConnectedRegion[i])
+                        if (checkedLocationsInConnectedRegion[^(i + 1)])
                         {
                             continue;
                         }
 
-                        bestDistance = checkedLocationsInConnectedRegion.Length - i - i + extraDistance;
-                        bestLocationKey = new() { RegionKey = connectedRegion.Key, N = i };
+                        bestDistance = extraDistance + i;
+                        bestLocationKey = new() { RegionKey = connectedRegion.Key, N = (^(i + 1)).GetOffset(checkedLocationsInConnectedRegion.Length) };
                         break;
                     }
                 }
             }
 
-            extraDistance += checkedLocationsInConnectedRegion.Length + 1;
-            if (extraDistance >= bestDistance)
-            {
-                continue;
-            }
-
+            // routes from here will take at least one step into the next region, so add that here.
+            // the exact details of how far we will need to walk through the current region to get
+            // to the next one will depend on the direction we face when entering the next region.
+            ++extraDistance;
             foreach ((RegionDefinitionModel nextConnectedRegion, Direction nextDirection) in _connectedRegions[connectedRegion])
             {
+                // at the time of writing, we technically don't need this to be conditional: only
+                // landmark regions can connect to more than one other region in a given direction,
+                // and it costs the same to route through them regardless of which direction a path
+                // turns through them. it costs practically nothing to do this check, though, so I'm
+                // going to do it if for no other reason than to make it possible to fix a few odd
+                // cases in the sewer level that look different on the map than the actual path that
+                // the game implements by creating new filler regions that connect to other filler
+                // regions to make everything visually consistent.
+                //
+                // the -1 part below is because the path up to this point has already gotten us to
+                // the first location in the region we'd be coming from, so the only thing that we
+                // need to do is add on the number of ADDITIONAL locations within our region that we
+                // need to follow to get to the location in the current region that exits to the
+                // connected region.
+                int nextExtraDistance = nextDirection == direction
+                    ? extraDistance + checkedLocationsInConnectedRegion.Length - 1
+                    : extraDistance;
+
+                if (nextExtraDistance >= bestDistance)
+                {
+                    continue;
+                }
+
                 if (_visitedRegions.Add(nextConnectedRegion.Key) &&
                     (_fillerRegions.ContainsKey(nextConnectedRegion.Key) ||
                      _checkedLocationsBitmap[nextConnectedRegion.Key][0] ||
                      _clearableLandmarks.Contains(nextConnectedRegion.Key)))
                 {
-                    _pq.Enqueue((nextConnectedRegion, nextDirection), extraDistance);
+                    _pq.Enqueue((nextConnectedRegion, nextDirection), nextExtraDistance);
                 }
             }
         }
