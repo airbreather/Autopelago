@@ -3,7 +3,6 @@ using System.Reactive.Linq;
 using System.Reactive.Subjects;
 using System.Text;
 using System.Text.Json;
-using System.Text.Json.Nodes;
 using System.Text.Json.Serialization;
 
 using Serilog;
@@ -103,7 +102,7 @@ public sealed class GameInitializer : ArchipelagoPacketHandler
                 break;
 
             case RetrievedPacketModel retrieved:
-                await HandleAsync(retrieved, sender);
+                Handle(retrieved);
                 break;
 
             case PrintJSONPacketModel printJSON:
@@ -204,7 +203,7 @@ public sealed class GameInitializer : ArchipelagoPacketHandler
         _game.InitializeReceivedItems(receivedItems.Items.Select(i => _itemsById![i.Item]));
     }
 
-    private async ValueTask HandleAsync(RetrievedPacketModel retrieved, ArchipelagoPacketProvider sender)
+    private void Handle(RetrievedPacketModel retrieved)
     {
         if (!retrieved.Keys.TryGetValue(AurasKey, out JsonElement auras))
         {
@@ -218,14 +217,10 @@ public sealed class GameInitializer : ArchipelagoPacketHandler
                 _game.InitializeAuraData(auraData);
             }
         }
-        catch
+        catch (Exception ex)
         {
             // don't permanently stick the rat into an oddball state.
-            SayPacketModel say = new()
-            {
-                Text = $"Whoa, something weird just happened... I dreamt that I played a game before, and my auras looked like this, but that doesn't make any sense to me today: {JsonObject.Create(auras)?.ToJsonString()}",
-            };
-            await sender.SendPacketsAsync([say]);
+            Log.Fatal(ex, "Failed to deserialize auras: {Auras}", JsonSerializer.SerializeToNode(auras)?.ToJsonString() ?? "(null)");
         }
 
         if (_generalItemNameMapping is not { } generalItemNameMapping ||
