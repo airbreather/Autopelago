@@ -37,6 +37,7 @@ public sealed record MultiworldInfo
 }
 
 [JsonSerializable(typeof(AuraData))]
+[JsonSerializable(typeof(JsonElement))]
 public sealed partial class AuraDataSerializationContext : JsonSerializerContext;
 
 public sealed class GameInitializer : ArchipelagoPacketHandler
@@ -220,7 +221,7 @@ public sealed class GameInitializer : ArchipelagoPacketHandler
         catch (Exception ex)
         {
             // don't permanently stick the rat into an oddball state.
-            Log.Fatal(ex, "Failed to deserialize auras: {Auras}", JsonSerializer.SerializeToNode(auras)?.ToJsonString() ?? "(null)");
+            Log.Fatal(ex, "Failed to deserialize auras: {Auras}", JsonSerializer.SerializeToNode(auras, AuraDataSerializationContext.Default.JsonElement)?.ToJsonString() ?? "(null)");
         }
 
         if (_generalItemNameMapping is not { } generalItemNameMapping ||
