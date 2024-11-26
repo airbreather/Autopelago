@@ -122,6 +122,11 @@ public sealed partial class App : Application
         MainWindow.Width = size.Width;
         MainWindow.Height = size.Height;
 
+        if (initialState.MainWindowState is { } windowState)
+        {
+            MainWindow.WindowState = windowState;
+        }
+
         // Track the position as it changes. Under at least some conditions, MainWindow.Position
         // seems to just always give PixelPoint.Origin on my XWayland machine.
         PixelPoint mainWindowPosition = MainWindow.Position;
