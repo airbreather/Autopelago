@@ -38,6 +38,13 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "workflows", "workflows", "{
 		.forgejo\workflows\build-and-test.yml = .forgejo\workflows\build-and-test.yml
 	EndProjectSection
 EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = ".github", ".github", "{00C15243-5ABF-46AC-8593-38A510977196}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "workflows", "workflows", "{81D54ED6-F4F2-427D-ACAF-75AC45182B88}"
+	ProjectSection(SolutionItems) = preProject
+		.github\workflows\build-and-test.yml = .github\workflows\build-and-test.yml
+	EndProjectSection
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -62,5 +69,7 @@ Global
 		{BDAD4517-A855-4E52-8DE3-107C28AEACCD} = {58A1F431-F5F0-4EEC-8C3C-43E184744216}
 		{04F180EB-D343-496E-8790-A52885A902D4} = {BDAD4517-A855-4E52-8DE3-107C28AEACCD}
 		{64CFBC04-8ABD-4104-94BB-9B2CBD09B836} = {BDAD4517-A855-4E52-8DE3-107C28AEACCD}
+		{00C15243-5ABF-46AC-8593-38A510977196} = {58A1F431-F5F0-4EEC-8C3C-43E184744216}
+		{81D54ED6-F4F2-427D-ACAF-75AC45182B88} = {00C15243-5ABF-46AC-8593-38A510977196}
 	EndGlobalSection
 EndGlobal
