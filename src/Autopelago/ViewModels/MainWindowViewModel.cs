@@ -50,6 +50,9 @@ public sealed class MainWindowViewModel : ViewModelBase, IDisposable
                     gameStateViewModel?.Dispose();
                     gameStateViewModel = null;
                     Error.Message = $"{ex}";
+                    CancellationTokenSource oldCts = cts;
+                    cts = new();
+                    oldCts.Cancel();
                     ContentViewModel = Error;
                 });
                 ContentViewModel = gameStateViewModel;
