@@ -519,7 +519,7 @@ public sealed class GameTests
             "conspiratorial" => ArchipelagoItemFlags.Trap,
             _ => throw null!,
         };
-        FrozenDictionary<LocationDefinitionModel, ArchipelagoItemFlags> spoilerData = CreateSpoiler([
+        FrozenDictionary<LocationKey, ArchipelagoItemFlags> spoilerData = CreateSpoiler([
             (GameDefinitions.Instance.StartLocation, targetFlags),
             (s_beforePrawnStars.Locations[0], targetFlags),
             (s_beforePrawnStars.Locations[^1], targetFlags),
@@ -780,12 +780,12 @@ public sealed class GameTests
         }
     }
 
-    private static FrozenDictionary<LocationDefinitionModel, ArchipelagoItemFlags> CreateSpoiler(ReadOnlySpan<(LocationDefinitionModel Location, ArchipelagoItemFlags Flags)> defined)
+    private static FrozenDictionary<LocationKey, ArchipelagoItemFlags> CreateSpoiler(ReadOnlySpan<(LocationDefinitionModel Location, ArchipelagoItemFlags Flags)> defined)
     {
-        Dictionary<LocationDefinitionModel, ArchipelagoItemFlags> result = GameDefinitions.Instance.LocationsByName.Values.ToDictionary(l => l, _ => ArchipelagoItemFlags.None);
+        Dictionary<LocationKey, ArchipelagoItemFlags> result = GameDefinitions.Instance.LocationsByName.Values.ToDictionary(l => l.Key, _ => ArchipelagoItemFlags.None);
         foreach ((LocationDefinitionModel location, ArchipelagoItemFlags flags) in defined)
         {
-            result[location] = flags;
+            result[location.Key] = flags;
         }
 
         return result.ToFrozenDictionary();

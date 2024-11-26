@@ -2,44 +2,16 @@ using System.Collections.Frozen;
 using System.Collections.Immutable;
 using System.Diagnostics;
 using System.IO.Compression;
-using System.Runtime.InteropServices;
 using System.Text;
 using System.Text.RegularExpressions;
 
 namespace Autopelago.BespokeMultiworld;
 
-public static partial class Generator
+public static partial class PlaythroughGenerator
 {
-    public static async Task<Multiworld> BuildAsync(Prng.State seed, CancellationToken cancellationToken)
+    public static async Task<ImmutableArray<FrozenDictionary<LocationKey, WorldItem>>> GenerateAsync(UInt128 archipelagoSeed, CancellationToken cancellationToken)
     {
-        int slotCount = Directory.EnumerateFiles(Paths.InputYamlFiles).Count();
-
-        Prng.State prngState = seed;
-        UInt128 archipelagoSeed = new(Prng.Next(ref prngState), Prng.Next(ref prngState));
-
-        ImmutableArray<World> slots;
-        {
-            World[] slotsMutable = new World[slotCount];
-            for (int i = 0; i < slotsMutable.Length; i++)
-            {
-                slotsMutable[i] = new(prngState);
-                Prng.ShortJump(ref prngState);
-            }
-
-            slots = ImmutableCollectionsMarshal.AsImmutableArray(slotsMutable);
-        }
-
         byte[] spoilerLogData = await GenerateSpoilerLogForRunAsync(archipelagoSeed, cancellationToken);
-        FrozenDictionary<WorldLocation, WorldItem> fullSpoilerData = ParseSpoilerLog(spoilerLogData);
-        return new()
-        {
-            Slots = slots,
-            FullSpoilerData = fullSpoilerData,
-        };
-    }
-
-    private static FrozenDictionary<WorldLocation, WorldItem> ParseSpoilerLog(byte[] spoilerLogData)
-    {
         using MemoryStream ms = new(spoilerLogData);
         using StreamReader rd = new(ms, Encoding.UTF8, detectEncodingFromByteOrderMarks: true, leaveOpen: true);
 
@@ -49,8 +21,13 @@ public static partial class Generator
             playerNames[i] = ReadPlayerName(i);
         }
 
-        return ReadSpoilerData()
-            .ToFrozenDictionary(tup => tup.Location, tup => tup.Item);
+        return
+        [
+            .. ReadSpoilerData()
+                .GroupBy(tup => tup.Location.Slot)
+                .OrderBy(grp => grp.Key)
+                .Select(grp => grp.ToFrozenDictionary(tup => tup.Location.Location, tup => tup.Item)),
+        ];
         int ReadPlayerCount()
         {
             while (true)
@@ -132,28 +109,43 @@ public static partial class Generator
 
     private static async Task<byte[]> GenerateSpoilerLogForRunAsync(UInt128 archipelagoSeed, CancellationToken cancellationToken)
     {
+        string zipFile = Paths.ResultFileForSeed(archipelagoSeed);
+        if (!File.Exists(zipFile))
+        {
+            await ActuallyGenerateAsync(archipelagoSeed, cancellationToken);
+        }
+
+        using ZipArchive zip = ZipFile.OpenRead(zipFile);
+        foreach (ZipArchiveEntry entry in zip.Entries)
+        {
+            if (!entry.FullName.EndsWith("Spoiler.txt", StringComparison.OrdinalIgnoreCase))
+            {
+                continue;
+            }
+
+            using MemoryStream ms = new();
+            await using (Stream s = entry.Open())
+            {
+                await s.CopyToAsync(ms, cancellationToken);
+            }
+
+            return ms.ToArray();
+        }
+
+        throw new InvalidOperationException("Could not generate a spoiler log for some reason.");
+    }
+
+    private static async Task ActuallyGenerateAsync(UInt128 archipelagoSeed, CancellationToken cancellationToken)
+    {
         using Process p = Process.Start(GetProcessStartInfo(archipelagoSeed))
-            ?? throw new InvalidOperationException("Failed to start process");
+                          ?? throw new InvalidOperationException("Failed to start process");
 
         await p.WaitForExitAsync(cancellationToken);
-        foreach (string zipFile in Directory.EnumerateFiles(Paths.TempForSeed(archipelagoSeed), Paths.ZipFilePattern))
+        foreach (string zipFile in Directory.GetFiles(Paths.TempForSeed(archipelagoSeed), Paths.ZipFilePattern))
         {
-            using ZipArchive zip = ZipFile.OpenRead(zipFile);
-            foreach (ZipArchiveEntry entry in zip.Entries)
-            {
-                if (!entry.FullName.EndsWith("Spoiler.txt", StringComparison.OrdinalIgnoreCase))
-                {
-                    continue;
-                }
-
-                using MemoryStream ms = new();
-                await using (Stream s = entry.Open())
-                {
-                    await s.CopyToAsync(ms, cancellationToken);
-                }
-
-                return ms.ToArray();
-            }
+            Directory.CreateDirectory(Path.GetDirectoryName(Paths.ResultFileForSeed(archipelagoSeed))!);
+            File.Move(zipFile, Paths.ResultFileForSeed(archipelagoSeed));
+            return;
         }
 
         throw new InvalidOperationException("Could not generate a spoiler log for some reason.");
@@ -209,6 +201,11 @@ public static partial class Generator
         public static string TempForSeed(UInt128 archipelagoSeed)
         {
             return Path.Combine(s_tempPathBase, $"{archipelagoSeed}");
+        }
+
+        public static string ResultFileForSeed(UInt128 archipelagoSeed)
+        {
+            return Path.Combine(s_resultsPathBase, $"{archipelagoSeed}.zip");
         }
     }
 

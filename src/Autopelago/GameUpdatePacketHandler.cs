@@ -103,7 +103,7 @@ public sealed class GameUpdatePacketHandler : ArchipelagoPacketHandler, IDisposa
 
         ImmutableArray<ItemDefinitionModel> newItems = convertedItems[(game.ReceivedItems.Count - receivedItems.Index)..];
         int priorityPriorityLocationCountBefore = game.PriorityPriorityLocations.Count;
-        game.ReceiveItems(newItems);
+        game.ReceiveItems(newItems.AsSpan());
         _gameUpdates.OnNext(game);
 
         List<ArchipelagoPacketModel> newPackets = [];

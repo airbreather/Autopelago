@@ -177,10 +177,10 @@ public sealed class GameInitializer : ArchipelagoPacketHandler
 
     private void Handle(LocationInfoPacketModel locationInfo)
     {
-        Dictionary<LocationDefinitionModel, ArchipelagoItemFlags> spoilerData = [];
+        Dictionary<LocationKey, ArchipelagoItemFlags> spoilerData = [];
         foreach (ItemModel networkItem in locationInfo.Locations)
         {
-            spoilerData[_locationsById![networkItem.Location]] = networkItem.Flags;
+            spoilerData[_locationsById![networkItem.Location].Key] = networkItem.Flags;
         }
 
         _game.InitializeSpoilerData(spoilerData.ToFrozenDictionary());

@@ -107,9 +107,9 @@ public sealed class GameStateViewModel : ViewModelBase, IDisposable
         HasConfidence = provider.CurrentGameState
             .Select(g => g.HasConfidence);
         MovingToSmart = provider.CurrentGameState
-            .Select(g => g.TargetLocationReason == TargetLocationReason.PriorityPriority && g.SpoilerData[g.TargetLocation] == ArchipelagoItemFlags.LogicalAdvancement);
+            .Select(g => g.TargetLocationReason == TargetLocationReason.PriorityPriority && g.SpoilerData[g.TargetLocation.Key] == ArchipelagoItemFlags.LogicalAdvancement);
         MovingToConspiratorial = provider.CurrentGameState
-            .Select(g => g.TargetLocationReason == TargetLocationReason.PriorityPriority && g.SpoilerData[g.TargetLocation] == ArchipelagoItemFlags.Trap);
+            .Select(g => g.TargetLocationReason == TargetLocationReason.PriorityPriority && g.SpoilerData[g.TargetLocation.Key] == ArchipelagoItemFlags.Trap);
 
         CurrentLocation = provider.CurrentGameState
             .Select(v => v.CurrentLocation);

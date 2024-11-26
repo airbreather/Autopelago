@@ -7,7 +7,7 @@ namespace Autopelago;
 
 public sealed class RouteCalculator
 {
-    private readonly FrozenDictionary<ArchipelagoItemFlags, FrozenSet<LocationDefinitionModel>> _spoilerData;
+    private readonly FrozenDictionary<ArchipelagoItemFlags, FrozenSet<LocationKey>> _spoilerData;
 
     private readonly ReadOnlyCollection<ItemDefinitionModel> _receivedItems;
 
@@ -39,7 +39,7 @@ public sealed class RouteCalculator
 
     private int _lastCheckedLocationsCount;
 
-    public RouteCalculator(FrozenDictionary<LocationDefinitionModel, ArchipelagoItemFlags> spoilerData, ReadOnlyCollection<ItemDefinitionModel> receivedItems, CheckedLocations checkedLocations)
+    public RouteCalculator(FrozenDictionary<LocationKey, ArchipelagoItemFlags> spoilerData, ReadOnlyCollection<ItemDefinitionModel> receivedItems, CheckedLocations checkedLocations)
     {
         _spoilerData = spoilerData.GroupBy(kvp => kvp.Value, kvp => kvp.Key).ToFrozenDictionary(g => g.Key, g => g.ToFrozenSet());
         _receivedItems = receivedItems;
@@ -439,7 +439,7 @@ public sealed class RouteCalculator
     {
         RecalculateAccessibility();
 
-        FrozenSet<LocationDefinitionModel> spoilerData = _spoilerData[flags];
+        FrozenSet<LocationKey> spoilerData = _spoilerData[flags];
 
         // TODO: optimize this, it's getting late.
         FrozenDictionary<string, BitArray> visitedLocations = GameDefinitions.Instance.AllRegions.Values.ToFrozenDictionary(r => r.Key, r => new BitArray(r.Locations.Length));
@@ -448,7 +448,7 @@ public sealed class RouteCalculator
         visitedLocations[currentLocation.Key.RegionKey][currentLocation.Key.N] = true;
         while (q.TryDequeue(out LocationDefinitionModel? loc))
         {
-            if (spoilerData.Contains(loc))
+            if (spoilerData.Contains(loc.Key))
             {
                 yield return loc;
             }

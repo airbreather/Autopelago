@@ -4,7 +4,11 @@ using System.Collections.ObjectModel;
 using System.Linq.Expressions;
 using System.Reflection;
 
+using Serilog;
+
 namespace Autopelago;
+
+using static GameEventId;
 
 public enum TargetLocationReason
 {
@@ -56,6 +60,8 @@ public sealed class Game
 {
     private readonly Lock _lock = new();
 
+    private readonly GameInstrumentation? _instrumentation;
+
     private int _actionBalanceAfterPreviousStep;
 
     private bool _initializedAuraData;
@@ -64,11 +70,16 @@ public sealed class Game
 
     private IEnumerator<LocationDefinitionModel>? _targetLocationPathEnumerator;
 
-    private FrozenDictionary<LocationDefinitionModel, ArchipelagoItemFlags>? _spoilerData;
+    private FrozenDictionary<LocationKey, ArchipelagoItemFlags>? _spoilerData;
 
     public Game(Prng.State prngState)
     {
+    }
+
+    public Game(Prng.State prngState, GameInstrumentation? instrumentation)
+    {
         _prngState = prngState;
+        _instrumentation = instrumentation;
     }
 
     public ImmutableArray<LocationVector> PreviousStepMovementLog { get; private set; } = [
@@ -123,7 +134,7 @@ public sealed class Game
         }
     }
 
-    public FrozenDictionary<LocationDefinitionModel, ArchipelagoItemFlags> SpoilerData
+    public FrozenDictionary<LocationKey, ArchipelagoItemFlags> SpoilerData
     {
         get
         {
@@ -220,7 +231,7 @@ public sealed class Game
         _receivedItems = [.. receivedItems];
     }
 
-    public void InitializeSpoilerData(FrozenDictionary<LocationDefinitionModel, ArchipelagoItemFlags> spoilerData)
+    public void InitializeSpoilerData(FrozenDictionary<LocationKey, ArchipelagoItemFlags> spoilerData)
     {
         using Lock.Scope _ = _lock.EnterScope();
         if (_spoilerData is not null)
@@ -306,7 +317,7 @@ public sealed class Game
 
         _checkedLocations ??= new();
         _receivedItems ??= [];
-        _spoilerData ??= GameDefinitions.Instance.LocationsByName.Values.Where(l => l.UnrandomizedItem is not null).ToFrozenDictionary(l => l, l => l.UnrandomizedItem!.ArchipelagoFlags);
+        _spoilerData ??= GameDefinitions.Instance.LocationsByName.Values.Where(l => l.UnrandomizedItem is not null).ToFrozenDictionary(l => l.Key, l => l.UnrandomizedItem!.ArchipelagoFlags);
         _initializedAuraData = true;
         _routeCalculator = new(_spoilerData, _receivedItems!.AsReadOnly(), _checkedLocations);
         HasStarted = true;
@@ -315,9 +326,11 @@ public sealed class Game
     public void Advance()
     {
         using Lock.Scope _ = _lock.EnterScope();
+        _instrumentation?.Trace(StartStep);
         EnsureStarted();
         if (IsCompleted)
         {
+            _instrumentation?.Trace(StopStep);
             return;
         }
 
@@ -327,16 +340,20 @@ public sealed class Game
             case < 0:
                 --actionBalance;
                 FoodFactor += 1;
+                _instrumentation?.Trace(ProcessNegativeFood);
                 break;
 
             case > 0:
                 ++actionBalance;
                 FoodFactor -= 1;
+                _instrumentation?.Trace(ProcessPositiveFood);
                 break;
         }
 
         if (DistractionCounter > 0)
         {
+            _instrumentation?.Trace(ProcessDistraction);
+
             // being startled takes priority over a distraction. you just saw a ghost, you're not
             // thinking about the Rubik's Cube that you got at about the same time!
             if (StartledCounter == 0)
@@ -356,11 +373,13 @@ public sealed class Game
             : null;
         while (actionBalance > 0 && !IsCompleted)
         {
+            _instrumentation?.Trace(StartSubstep);
             --actionBalance;
 
             // changing your route takes an action unless you're startled.
             if (UpdateTargetLocation() && TargetLocationReason != TargetLocationReason.Startled)
             {
+                _instrumentation?.Trace(StopSubstep);
                 continue;
             }
 
@@ -372,11 +391,13 @@ public sealed class Game
                     case < 0:
                         --actionBalance;
                         EnergyFactor += 1;
+                        _instrumentation?.Trace(ProcessNegativeEnergy);
                         break;
 
                     case > 0:
                         ++actionBalance;
                         EnergyFactor -= 1;
+                        _instrumentation?.Trace(ProcessPositiveEnergy);
                         break;
                 }
 
@@ -387,6 +408,7 @@ public sealed class Game
                 // same in dense areas.
                 for (int i = 0; i < 3 && CurrentLocation != TargetLocation; i++)
                 {
+                    _instrumentation?.Trace(MoveOnce);
                     if (startledPath?.MoveNext() == true)
                     {
                         movementLog.Add(new()
@@ -408,6 +430,8 @@ public sealed class Game
                     CurrentLocation = movementLog[^1].CurrentLocation;
                     moved = true;
                 }
+
+                _instrumentation?.Trace(DoneMoving);
             }
 
             if (!moved && StartledCounter == 0 && !CheckedLocations[CurrentLocation.Key])
@@ -421,11 +445,13 @@ public sealed class Game
                     case < 0:
                         immediateDiceModifier -= 5;
                         LuckFactor += 1;
+                        _instrumentation?.Trace(ProcessNegativeLuck);
                         break;
 
                     case > 0:
                         LuckFactor -= 1;
                         forceSuccess = true;
+                        _instrumentation?.Trace(ProcessPositiveLuck);
                         break;
                 }
 
@@ -433,8 +459,10 @@ public sealed class Game
                 {
                     immediateDiceModifier += 5;
                     StyleFactor -= 1;
+                    _instrumentation?.Trace(ProcessPositiveStyle);
                 }
 
+                _instrumentation?.Trace(TryLocation);
                 if (forceSuccess || (Prng.NextD20(ref _prngState) + immediateDiceModifier >= CurrentLocation.AbilityCheckDC))
                 {
                     _checkedLocations!.MarkChecked(CurrentLocation);
@@ -452,10 +480,12 @@ public sealed class Game
                 {
                     case TargetLocationReason.Priority:
                         _priorityLocations.RemoveAll(l => l == targetLocation);
+                        _instrumentation?.Trace(ClearPriority);
                         break;
 
                     case TargetLocationReason.PriorityPriority:
                         _priorityPriorityLocations.RemoveAll(l => l == targetLocation);
+                        _instrumentation?.Trace(ClearPriorityPriority);
                         break;
                 }
             }
@@ -473,11 +503,16 @@ public sealed class Game
             // a "use it or lose it" system.
             actionBalance = 0;
         }
+        else
+        {
+            _instrumentation?.Trace(DeductNextMovement);
+        }
 
         if (StartledCounter > 0)
         {
             StartledCounter -= 1;
             UpdateTargetLocation();
+            _instrumentation?.Trace(ProcessPositiveStartled);
         }
 
         if (movementLog.Count == 0)
@@ -505,7 +540,7 @@ public sealed class Game
         }
     }
 
-    public void ReceiveItems(ImmutableArray<ItemDefinitionModel> newItems)
+    public void ReceiveItems(ReadOnlySpan<ItemDefinitionModel> newItems)
     {
         using Lock.Scope _ = _lock.EnterScope();
         EnsureStarted();
@@ -522,6 +557,8 @@ public sealed class Game
         int startledMod = 0;
         foreach (ItemDefinitionModel newItem in newItems)
         {
+            _instrumentation?.Trace(ReceiveItem);
+
             // "confidence" takes place right away: it could apply to another item in the batch.
             bool addConfidence = false;
             bool subtractConfidence = false;
@@ -536,6 +573,7 @@ public sealed class Game
                     case "startled" when HasConfidence:
                     case "conspiratorial" when HasConfidence:
                         subtractConfidence = true;
+                        _instrumentation?.Trace(SubtractConfidence);
                         break;
 
                     case "well_fed":
@@ -581,12 +619,18 @@ public sealed class Game
                         if (_routeCalculator!.GetClosestLocationsWithItemFlags(CurrentLocation, flags).FirstOrDefault(l => !toSkip.Contains(l)) is { } loc)
                         {
                             _priorityPriorityLocations.Add(loc);
+                            _instrumentation?.Trace(AddPriorityPriorityLocation);
+                        }
+                        else
+                        {
+                            _instrumentation?.Trace(FizzlePriorityPriorityLocation);
                         }
 
                         break;
 
                     case "confident":
                         addConfidence = true;
+                        _instrumentation?.Trace(AddConfidence);
                         break;
                 }
             }
@@ -620,9 +664,11 @@ public sealed class Game
         _targetLocationPathEnumerator ??= _routeCalculator!.GetPath(CurrentLocation, TargetLocation)!.GetEnumerator();
         if (TargetLocation == prevTargetLocation)
         {
+            _instrumentation?.Trace(KeepTargetLocation);
             return false;
         }
 
+        _instrumentation?.Trace(SwitchTargetLocation);
         using IEnumerator<LocationDefinitionModel> _ = _targetLocationPathEnumerator;
         _targetLocationPathEnumerator = _routeCalculator!.GetPath(CurrentLocation, TargetLocation)!.GetEnumerator();
         return true;
