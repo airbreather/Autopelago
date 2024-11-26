@@ -98,7 +98,15 @@ public sealed class GameStateObservableProvider
         GameInitializer gameInitializer = new(_settings, _unhandledException.AsObserver());
         Task<GameAndContext> gameAndContextTask = gameInitializer.InitializedGame.ToTask(cancellationToken);
         IDisposable unregisterGameInitializer = await packets.RegisterHandlerAsync(gameInitializer);
-        Task runPacketLoopTask = packets.RunToCompletionAsync(socket, cancellationToken);
+        Task runPacketLoopTask = packets.RunToCompletionAsync(socket, cancellationToken)
+            .ContinueWith(t =>
+            {
+                if (t.IsFaulted)
+                {
+                    _unhandledException.OnNext(t.Exception.Flatten());
+                    _unhandledException.OnCompleted();
+                }
+            },  cancellationToken, TaskContinuationOptions.ExecuteSynchronously, TaskScheduler.Default);
 
         GameAndContext gameAndContext = await gameAndContextTask;
         unregisterGameInitializer.Dispose();
@@ -106,7 +114,15 @@ public sealed class GameStateObservableProvider
         using IDisposable unregisterUpdatePacketHandler = await packets.RegisterHandlerAsync(updatePacketHandler);
 
         using PlayLoopRunner playLoopRunner = new(gameAndContext.Game, gameAndContext.Context, packets, _settings, _timeProvider);
-        Task runPlayLoopTask = playLoopRunner.RunPlayLoopAsync(Paused, cancellationToken);
+        Task runPlayLoopTask = playLoopRunner.RunPlayLoopAsync(Paused, cancellationToken)
+            .ContinueWith(t =>
+            {
+                if (t.IsFaulted)
+                {
+                    _unhandledException.OnNext(t.Exception.Flatten());
+                    _unhandledException.OnCompleted();
+                }
+            },  cancellationToken, TaskContinuationOptions.ExecuteSynchronously, TaskScheduler.Default);
 
         using IDisposable gameUpdatesSubscription = Observable
             .Merge(AvaloniaScheduler.Instance, updatePacketHandler.GameUpdates, playLoopRunner.GameUpdates)
