@@ -1,60 +1,109 @@
-using System.Reactive.Disposables;
-using System.Reactive.Linq;
-using System.Reactive.Subjects;
+using System.Collections.ObjectModel;
 
 namespace Autopelago;
 
-public enum GameEventId : byte
+public sealed record MovementTraceEvent
 {
-    StartStep,
-    StopStep,
-    ProcessNegativeFood,
-    ProcessPositiveFood,
-    ProcessDistraction,
-    StartSubstep,
-    StopSubstep,
-    KeepTargetLocation,
-    SwitchTargetLocation,
-    ProcessNegativeEnergy,
-    ProcessPositiveEnergy,
-    MoveOnce,
-    DoneMoving,
-    ProcessNegativeLuck,
-    ProcessPositiveLuck,
-    ProcessPositiveStyle,
-    TryLocation,
-    ClearPriority,
-    ClearPriorityPriority,
-    DeductNextMovement,
-    ProcessPositiveStartled,
-    ReceiveItem,
-    AddConfidence,
-    SubtractConfidence,
-    AddPriorityPriorityLocation,
-    FizzlePriorityPriorityLocation,
+    public required int StepNumber { get; init; }
+
+    public required LocationDefinitionModel From { get; init; }
+
+    public required LocationDefinitionModel To { get; init; }
+
+    public required TargetLocationReason Reason { get; init; }
 }
 
-public sealed class GameInstrumentation : IDisposable
+public sealed record LocationAttemptTraceEvent
 {
-    private readonly CompositeDisposable _disposables = [];
+    public required int StepNumber { get; init; }
 
-    private readonly Subject<GameEventId> _gameEvents = new();
+    public required LocationDefinitionModel Location { get; init; }
+
+    private readonly byte _rollFlags;
+
+    public required byte Roll
+    {
+        get => (byte)(_rollFlags & ((1 << 5) - 1));
+        init => _rollFlags |= value;
+    }
+
+    public required bool HasLucky
+    {
+        get => (_rollFlags & (1 << 5)) != 0;
+        init => _rollFlags = value
+            ? (byte)(_rollFlags | (1 << 5))
+            : (byte)(_rollFlags & ~(1 << 5));
+    }
+
+    public required bool HasUnlucky
+    {
+        get => (_rollFlags & (1 << 6)) != 0;
+        init => _rollFlags = value
+            ? (byte)(_rollFlags | (1 << 6))
+            : (byte)(_rollFlags & ~(1 << 6));
+    }
+
+    public required bool HasStylish
+    {
+        get => (_rollFlags & (1 << 7)) != 0;
+        init => _rollFlags = value
+            ? (byte)(_rollFlags | (1 << 7))
+            : (byte)(_rollFlags & ~(1 << 7));
+    }
+
+    public required byte RatCount { get; init; }
+
+    public required byte AbilityCheckDC { get; init; }
+}
+
+public sealed class GameInstrumentation
+{
+    private readonly List<MovementTraceEvent> _movements = [];
+
+    private readonly List<LocationAttemptTraceEvent> _locationAttempts = [];
+
+    private int _stepNumber;
 
     public GameInstrumentation()
     {
-        _disposables.Add(_gameEvents);
-        GameEvents = _gameEvents.AsObservable();
+        Movements = _movements.AsReadOnly();
+        LocationAttempts = _locationAttempts.AsReadOnly();
     }
 
-    public IObservable<GameEventId> GameEvents { get; }
+    public int StepNumber => _stepNumber;
 
-    public void Trace(GameEventId gameEventId)
+    public ReadOnlyCollection<MovementTraceEvent> Movements { get; }
+
+    public ReadOnlyCollection<LocationAttemptTraceEvent> LocationAttempts { get; }
+
+    public void NextStep()
     {
-        _gameEvents.OnNext(gameEventId);
+        _stepNumber++;
     }
 
-    public void Dispose()
+    public void TraceMovement(LocationDefinitionModel from, LocationDefinitionModel to, TargetLocationReason reason)
     {
-        _disposables.Dispose();
+        _movements.Add(new()
+        {
+            StepNumber = _stepNumber,
+            From = from,
+            To = to,
+            Reason = reason,
+        });
+    }
+
+    public void TraceLocationAttempt(LocationDefinitionModel location, byte roll, bool hasLucky, bool hasUnlucky, bool hasStylish, byte ratCount, byte abilityCheckDC)
+    {
+        _locationAttempts.Add(new()
+        {
+            StepNumber = _stepNumber,
+            Location = location,
+            Roll = roll,
+            HasLucky = hasLucky,
+            HasUnlucky = hasUnlucky,
+            HasStylish = hasStylish,
+            RatCount = ratCount,
+            AbilityCheckDC = abilityCheckDC,
+        });
     }
 }

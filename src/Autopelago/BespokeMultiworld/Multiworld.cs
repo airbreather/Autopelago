@@ -4,21 +4,13 @@ using System.Runtime.InteropServices;
 
 namespace Autopelago.BespokeMultiworld;
 
-public sealed class Multiworld : IDisposable
+public sealed class Multiworld
 {
     public required ImmutableArray<World> Slots { get; init; }
 
     public required ImmutableArray<FrozenDictionary<LocationKey, WorldItem>> FullSpoilerData { get; init; }
 
     public required ImmutableArray<FrozenDictionary<ArchipelagoItemFlags, FrozenSet<LocationKey>>> PartialSpoilerData { get; init; }
-
-    public void Dispose()
-    {
-        foreach (World slot in Slots)
-        {
-            slot.Dispose();
-        }
-    }
 
     public void Run()
     {
@@ -31,7 +23,6 @@ public sealed class Multiworld : IDisposable
 
         Span<int> prevCheckedLocations = stackalloc int[Slots.Length];
         prevCheckedLocations.Clear();
-        int steps = 0;
         while (true)
         {
             bool advanced = false;
@@ -58,10 +49,10 @@ public sealed class Multiworld : IDisposable
                 }
 
                 slot.Game.Advance();
+                slot.Instrumentation.NextStep();
                 advanced = true;
             }
 
-            ++steps;
             if (!advanced)
             {
                 break;
@@ -90,7 +81,7 @@ public sealed class Multiworld : IDisposable
                 CollectionsMarshal.SetCount(sendNextRound[i], 0);
             }
 
-            if (steps > 100_000)
+            if (Slots[0].Instrumentation.StepNumber > 100_000)
             {
                 throw new InvalidOperationException("Pretty sure you're deadlocking at 100k.");
             }

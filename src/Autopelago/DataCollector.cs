@@ -7,33 +7,6 @@ using Autopelago.BespokeMultiworld;
 
 namespace Autopelago;
 
-[StructLayout(LayoutKind.Auto)]
-public readonly record struct GameEvent
-{
-    public required GameEventId Id { get; init; }
-
-    private readonly byte _seedNumber;
-    public required int SeedNumber
-    {
-        get => _seedNumber;
-        init => _seedNumber = checked((byte)value);
-    }
-
-    private readonly short _iterationNumber;
-    public required int IterationNumber
-    {
-        get => _iterationNumber;
-        init => _iterationNumber = checked((short)value);
-    }
-
-    private readonly byte _slotNumber;
-    public required int SlotNumber
-    {
-        get => _slotNumber;
-        init => _slotNumber = checked((byte)value);
-    }
-}
-
 public static class DataCollector
 {
     public static async Task RunAsync(Prng.State seed, CancellationToken cancellationToken)
@@ -57,13 +30,13 @@ public static class DataCollector
                 .ToFrozenDictionary(grp => grp.Key, grp => grp.ToFrozenSet()));
         });
 
+        ImmutableArray<LocationAttemptTraceEvent>[] locationAttempts = new ImmutableArray<LocationAttemptTraceEvent>[1_000_000];
+        ImmutableArray<MovementTraceEvent>[] movements = new ImmutableArray<MovementTraceEvent>[1_000_000];
         int done = 0;
-        long lastReport = Stopwatch.GetTimestamp();
-        TimeSpan reportInterval = TimeSpan.FromMilliseconds(50);
-        Lock l = new();
+        long startTimestamp = Stopwatch.GetTimestamp();
         Parallel.For(0, 250_000, (ij, loopState) =>
         {
-            if (loopState.IsStopped)
+            if (loopState.ShouldExitCurrentIteration)
             {
                 return;
             }
@@ -74,15 +47,13 @@ public static class DataCollector
 
                 Prng.State multiworldPrngState = multiworldSeeds[i];
                 World[] slotsMutable = new World[allSpoilerData[i].Length];
-                int gameEvents = 0;
                 for (int k = 0; k < 4; k++)
                 {
                     slotsMutable[k] = new(multiworldPrngState);
-                    slotsMutable[k].Instrumentation.GameEvents.Subscribe(_ => gameEvents++);
                 }
 
                 ImmutableArray<World> slots = ImmutableCollectionsMarshal.AsImmutableArray(slotsMutable);
-                using Multiworld multiworld = new()
+                Multiworld multiworld = new()
                 {
                     Slots = slots,
                     FullSpoilerData = allSpoilerData[i],
@@ -90,17 +61,18 @@ public static class DataCollector
                 };
 
                 multiworld.Run();
-                Interlocked.Increment(ref done);
-                if (Stopwatch.GetElapsedTime(lastReport) > reportInterval)
+                for (int k = 0; k < 4; k++)
                 {
-                    lock (l)
-                    {
-                        if (Stopwatch.GetElapsedTime(lastReport) > reportInterval)
-                        {
-                            Console.Write($"\rFinished #{done} with {gameEvents} events");
-                            lastReport = Stopwatch.GetTimestamp();
-                        }
-                    }
+                    locationAttempts[(ij * 4) + k] = [.. slots[k].Instrumentation.LocationAttempts];
+                    movements[(ij * 4) + k] = [.. slots[k].Instrumentation.Movements];
+                }
+
+                int doneHere = Interlocked.Increment(ref done);
+                if ((doneHere & 127) == 0)
+                {
+                    TimeSpan elapsed = Stopwatch.GetElapsedTime(startTimestamp);
+                    TimeSpan estimatedRemaining = (250_000 - doneHere) * (elapsed / doneHere);
+                    Console.Write($"\rFinished #{doneHere} after {elapsed:m\\:ss}, meaning about {estimatedRemaining:m\\:ss} left");
                 }
             }
             catch

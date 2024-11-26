@@ -6,8 +6,6 @@ using System.Reflection;
 
 namespace Autopelago;
 
-using static GameEventId;
-
 public enum TargetLocationReason
 {
     GameNotStarted,
@@ -328,11 +326,9 @@ public sealed class Game
     public void Advance()
     {
         using Lock.Scope _ = _lock.EnterScope();
-        _instrumentation?.Trace(StartStep);
         EnsureStarted();
         if (IsCompleted)
         {
-            _instrumentation?.Trace(StopStep);
             return;
         }
 
@@ -342,20 +338,16 @@ public sealed class Game
             case < 0:
                 --actionBalance;
                 FoodFactor += 1;
-                _instrumentation?.Trace(ProcessNegativeFood);
                 break;
 
             case > 0:
                 ++actionBalance;
                 FoodFactor -= 1;
-                _instrumentation?.Trace(ProcessPositiveFood);
                 break;
         }
 
         if (DistractionCounter > 0)
         {
-            _instrumentation?.Trace(ProcessDistraction);
-
             // being startled takes priority over a distraction. you just saw a ghost, you're not
             // thinking about the Rubik's Cube that you got at about the same time!
             if (StartledCounter == 0)
@@ -375,13 +367,11 @@ public sealed class Game
             : null;
         while (actionBalance > 0 && !IsCompleted)
         {
-            _instrumentation?.Trace(StartSubstep);
             --actionBalance;
 
             // changing your route takes an action unless you're startled.
             if (UpdateTargetLocation() && TargetLocationReason != TargetLocationReason.Startled)
             {
-                _instrumentation?.Trace(StopSubstep);
                 continue;
             }
 
@@ -393,13 +383,11 @@ public sealed class Game
                     case < 0:
                         --actionBalance;
                         EnergyFactor += 1;
-                        _instrumentation?.Trace(ProcessNegativeEnergy);
                         break;
 
                     case > 0:
                         ++actionBalance;
                         EnergyFactor -= 1;
-                        _instrumentation?.Trace(ProcessPositiveEnergy);
                         break;
                 }
 
@@ -410,7 +398,6 @@ public sealed class Game
                 // same in dense areas.
                 for (int i = 0; i < 3 && CurrentLocation != TargetLocation; i++)
                 {
-                    _instrumentation?.Trace(MoveOnce);
                     if (startledPath?.MoveNext() == true)
                     {
                         movementLog.Add(new()
@@ -431,15 +418,17 @@ public sealed class Game
 
                     CurrentLocation = movementLog[^1].CurrentLocation;
                     moved = true;
-                }
 
-                _instrumentation?.Trace(DoneMoving);
+                    _instrumentation?.TraceMovement(movementLog[^1].PreviousLocation, movementLog[^1].CurrentLocation, TargetLocationReason);
+                }
             }
 
             if (!moved && StartledCounter == 0 && !CheckedLocations[CurrentLocation.Key])
             {
                 int immediateDiceModifier = diceModifier;
-                bool forceSuccess = false;
+                bool hasLucky = false;
+                bool hasUnlucky = false;
+                bool hasStylish = StyleFactor > 0;
                 diceModifier -= 5;
 
                 switch (LuckFactor)
@@ -447,29 +436,31 @@ public sealed class Game
                     case < 0:
                         immediateDiceModifier -= 5;
                         LuckFactor += 1;
-                        _instrumentation?.Trace(ProcessNegativeLuck);
+                        hasUnlucky = true;
                         break;
 
                     case > 0:
                         LuckFactor -= 1;
-                        forceSuccess = true;
-                        _instrumentation?.Trace(ProcessPositiveLuck);
+                        hasLucky = true;
                         break;
                 }
 
-                if (StyleFactor > 0 && !forceSuccess)
+                if (hasStylish && !hasLucky)
                 {
                     immediateDiceModifier += 5;
                     StyleFactor -= 1;
-                    _instrumentation?.Trace(ProcessPositiveStyle);
                 }
 
-                _instrumentation?.Trace(TryLocation);
-                if (forceSuccess || (Prng.NextD20(ref _prngState) + immediateDiceModifier >= CurrentLocation.AbilityCheckDC))
+                byte d20 = 0;
+                bool success = false;
+                if (hasLucky || ((d20 = (byte)Prng.NextD20(ref _prngState)) + immediateDiceModifier >= CurrentLocation.AbilityCheckDC))
                 {
                     _checkedLocations!.MarkChecked(CurrentLocation);
+                    success = true;
                 }
-                else
+
+                _instrumentation?.TraceLocationAttempt(CurrentLocation, d20, hasLucky, hasUnlucky, hasStylish, (byte)RatCount, (byte)CurrentLocation.AbilityCheckDC);
+                if (!success)
                 {
                     continue;
                 }
@@ -482,12 +473,10 @@ public sealed class Game
                 {
                     case TargetLocationReason.Priority:
                         _priorityLocations.Remove(targetLocation);
-                        _instrumentation?.Trace(ClearPriority);
                         break;
 
                     case TargetLocationReason.PriorityPriority:
                         _priorityPriorityLocations.Remove(targetLocation);
-                        _instrumentation?.Trace(ClearPriorityPriority);
                         break;
                 }
             }
@@ -505,16 +494,11 @@ public sealed class Game
             // a "use it or lose it" system.
             actionBalance = 0;
         }
-        else
-        {
-            _instrumentation?.Trace(DeductNextMovement);
-        }
 
         if (StartledCounter > 0)
         {
             StartledCounter -= 1;
             UpdateTargetLocation();
-            _instrumentation?.Trace(ProcessPositiveStartled);
         }
 
         if (movementLog.Count == 0)
@@ -559,8 +543,6 @@ public sealed class Game
         int startledMod = 0;
         foreach (ItemDefinitionModel newItem in newItems)
         {
-            _instrumentation?.Trace(ReceiveItem);
-
             // "confidence" takes place right away: it could apply to another item in the batch.
             bool addConfidence = false;
             bool subtractConfidence = false;
@@ -575,7 +557,6 @@ public sealed class Game
                     case "startled" when HasConfidence:
                     case "conspiratorial" when HasConfidence:
                         subtractConfidence = true;
-                        _instrumentation?.Trace(SubtractConfidence);
                         break;
 
                     case "well_fed":
@@ -621,18 +602,12 @@ public sealed class Game
                         if (_routeCalculator!.GetClosestLocationsWithItemFlags(CurrentLocation, flags).FirstOrDefault(l => !toSkip.Contains(l)) is { } loc)
                         {
                             _priorityPriorityLocations.Add(loc);
-                            _instrumentation?.Trace(AddPriorityPriorityLocation);
-                        }
-                        else
-                        {
-                            _instrumentation?.Trace(FizzlePriorityPriorityLocation);
                         }
 
                         break;
 
                     case "confident":
                         addConfidence = true;
-                        _instrumentation?.Trace(AddConfidence);
                         break;
                 }
             }
@@ -666,11 +641,9 @@ public sealed class Game
         _targetLocationPathEnumerator ??= _routeCalculator!.GetPath(CurrentLocation, TargetLocation)!.GetEnumerator();
         if (TargetLocation == prevTargetLocation)
         {
-            _instrumentation?.Trace(KeepTargetLocation);
             return false;
         }
 
-        _instrumentation?.Trace(SwitchTargetLocation);
         using IEnumerator<LocationDefinitionModel> _ = _targetLocationPathEnumerator;
         _targetLocationPathEnumerator = _routeCalculator!.GetPath(CurrentLocation, TargetLocation)!.GetEnumerator();
         return true;
