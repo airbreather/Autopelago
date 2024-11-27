@@ -12,14 +12,23 @@ internal static class Program
     private static int Main(string[] args)
     {
         Log.Logger = new LoggerConfiguration()
-            .WriteTo.Console()
+            .WriteTo.Async(
+                within => within.Console()
+            )
             .Enrich.FromLogContext()
             .CreateLogger();
 
         // get this built right away. errors here can be really annoying otherwise.
         GameDefinitions defs = GameDefinitions.Instance;
-        return BuildAvaloniaApp()
-            .StartWithClassicDesktopLifetime(args);
+        try
+        {
+            return BuildAvaloniaApp()
+                .StartWithClassicDesktopLifetime(args);
+        }
+        finally
+        {
+            Log.CloseAndFlush();
+        }
     }
 
     // Avalonia configuration, don't remove; also used by visual designer.
