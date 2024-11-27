@@ -43,7 +43,7 @@
 
   <ItemGroup>
     <AvaloniaResource Include="Assets\**" />
-    <EmbeddedResource Include="AutopelagoDefinitions.yml" LogicalName="AutopelagoDefinitions.yml" />
+    <EmbeddedResource Include="$(ProjectDir)../AutopelagoDefinitions.yml" LogicalName="AutopelagoDefinitions.yml" />
   </ItemGroup>
 
 </Project>
