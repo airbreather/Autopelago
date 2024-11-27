@@ -13,7 +13,7 @@ x86-64 only. There's no "installer" or anything like that, just a zipped-up sing
 - Linux: pretty easy. make sure [these packages](https://github.com/dotnet/core/blob/v9.0.0/release-notes/9.0/os-packages.md) are installed, download the `linux-x64` file from the latest [release](https://github.com/airbreather/Autopelago/releases), and run it.
 - macOS / FreeBSD: harder and untested. install .NET 9.0 SDK, clone this repository, go to `src/Autopelago`, and `dotnet run -c Release`.
    - macOS users: apparently you can get the SDK from here https://dotnet.microsoft.com/en-us/download/dotnet/9.0
-   - FreeBSD users: apparently the SDK comes from the `lang/dotnet` port. This is kind of new, see [the wiki](https://wiki.freebsd.org/.NET) for any updates. You may need to make changes to Autopelago's own code to get it back to running on a slightly older version of .NET, if FreeBSD's poer hasn't been updated yet.
+   - FreeBSD users: apparently the SDK comes from the `lang/dotnet` port. This is kind of new, see [the wiki](https://wiki.freebsd.org/.NET) for any updates. You may need to make changes to Autopelago's own code to get it back to running on a slightly older version of .NET, if FreeBSD's port hasn't been updated yet.
 - Anything else: probably impossible.
 
 ### First Steps
