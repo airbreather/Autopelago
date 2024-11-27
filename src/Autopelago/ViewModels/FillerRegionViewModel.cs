@@ -77,10 +77,13 @@ public sealed class FillerRegionViewModel : ViewModelBase
 
         ImmutableArray<FillerLocationViewModel>.Builder locationsBuilder = ImmutableArray.CreateBuilder<FillerLocationViewModel>(Model.Locations.Length);
         locationsBuilder.Count = Model.Locations.Length;
+        ReadOnlySpan<Vector> transforms = model.Key == GameDefinitions.Instance.StartRegion.Key
+            ? [new(0, 3), default, new(0, -3), default]
+            : [default, default, default, default];
         for (int i = 0; i < Model.Locations.Length; i++)
         {
             double prj = (i / ((double)model.Locations.Length - 1)) * endpointsPrj[^1];
-            Point projected = Project(prj, definingPoints, endpointsPrj);
+            Point projected = Project(prj, definingPoints, endpointsPrj) + transforms[i & 3];
             locationsBuilder[i] = new(Model.Locations[i], projected);
         }
 
