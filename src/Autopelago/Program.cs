@@ -13,7 +13,8 @@ internal static class Program
     {
         Log.Logger = new LoggerConfiguration()
             .WriteTo.Async(
-                within => within.Console()
+                within => within.Console(),
+                blockWhenFull: true
             )
             .Enrich.FromLogContext()
             .CreateLogger();
