@@ -7,7 +7,7 @@
     },
     "science": {
       "commandName": "Project",
-      "commandLineArgs": "g",
+      "commandLineArgs": "g $HOME/SCIENCE 100 4 15 8675309",
       "dotnetRunMessages": true
     }
   }
