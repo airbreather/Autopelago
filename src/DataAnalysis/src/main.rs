@@ -202,6 +202,7 @@ struct LocationAttemptAccumulator {
 
 #[derive(Serialize)]
 struct Statistics {
+    num: u64,
     min: u16,
     max: u16,
     mean: f64,
@@ -221,6 +222,7 @@ fn get_mut_at_with_extend<T>(v: &mut Vec<T>, index: usize) -> &mut T where T: De
 impl Statistics {
     fn of(vals: &mut Vec<u16>) -> Self {
         vals.sort();
+        let num_vals = vals.len() as u64;
         let median: u16 = {
             if (vals.len() & 1) == 0 {
                 if vals.len() == 1 {
@@ -238,13 +240,11 @@ impl Statistics {
         let mut min_val = u16::MAX;
         let mut max_val = u16::MIN;
         let mut sum_of_vals = 0u64;
-        let mut num_of_vals = 0usize;
         let mut counts = Vec::<usize>::new();
         for val in vals.iter() {
             min_val = min(min_val, *val);
             max_val = max(max_val, *val);
             sum_of_vals += *val as u64;
-            num_of_vals += 1;
             *get_mut_at_with_extend(&mut counts, *val as usize) += 1;
         }
 
@@ -257,7 +257,7 @@ impl Statistics {
             }
         }
 
-        let mean = sum_of_vals as f64 / num_of_vals as f64;
+        let mean = sum_of_vals as f64 / num_vals as f64;
 
         let mut variance_numerator = 0f64;
         for n in vals.iter() {
@@ -265,13 +265,14 @@ impl Statistics {
             variance_numerator += dev * dev;
         }
 
-        let sd = if num_of_vals == 1 {
+        let sd = if num_vals == 1 {
             -1f64
         } else {
-            variance_numerator.sqrt() / (num_of_vals - 1) as f64
+            variance_numerator.sqrt() / (num_vals - 1) as f64
         };
 
         Self {
+            num: num_vals,
             min: min_val,
             max: max_val,
             mean,
