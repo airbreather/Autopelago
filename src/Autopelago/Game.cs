@@ -40,6 +40,8 @@ public sealed record AuraData
 
     public bool HasConfidence { get; init; }
 
+    public int MercyModifier { get; init; }
+
     public ImmutableArray<string> PriorityPriorityLocations { get; init; } = [];
 
     public ImmutableArray<string> PriorityLocations { get; init; } = [];
@@ -152,6 +154,8 @@ public sealed class Game
 
     public int StartledCounter { get; private set; }
 
+    public int MercyModifier { get; private set; }
+
     public bool HasConfidence { get; private set; }
 
     public int RatCount
@@ -183,6 +187,7 @@ public sealed class Game
                 StyleFactor = StyleFactor,
                 DistractionCounter = DistractionCounter,
                 StartledCounter = StartledCounter,
+                MercyModifier = MercyModifier,
                 HasConfidence = HasConfidence,
                 PriorityPriorityLocations = [.. _priorityPriorityLocations.Select(l => l.Name)],
                 PriorityLocations = [.. _priorityLocations.Select(l => l.Name)],
@@ -197,46 +202,49 @@ public sealed class Game
 
     public bool IsCompleted => CurrentLocation == GameDefinitions.Instance.GoalLocation;
 
-    public static int CalculatePermanentRollModifier(IEnumerable<ItemDefinitionModel> receivedItems)
+    public int PermanentRollModifier
     {
-        int ratCount = receivedItems.DefaultIfEmpty().Sum(i => i?.RatCount.GetValueOrDefault()).GetValueOrDefault();
-
-        // diminishing returns
-        int rolling = 0;
-
-        // +1 for every 3 rats up to the first 12
-        if (ratCount <= 12)
+        get
         {
-            rolling += ratCount / 3;
+            int ratCount = RatCount;
+
+            // diminishing returns
+            int rolling = 0;
+
+            // +1 for every 3 rats up to the first 12
+            if (ratCount <= 12)
+            {
+                rolling += ratCount / 3;
+                return rolling;
+            }
+
+            rolling += 4;
+            ratCount -= 12;
+
+            // beyond that, +1 for every 5 rats up to the next 15
+            if (ratCount <= 15)
+            {
+                rolling += ratCount / 5;
+                return rolling;
+            }
+
+            rolling += 3;
+            ratCount -= 15;
+
+            // beyond that, +1 for every 7 rats up to the next 14
+            if (ratCount <= 14)
+            {
+                rolling += ratCount / 7;
+                return rolling;
+            }
+
+            rolling += 2;
+            ratCount -= 14;
+
+            // everything else is +1 for every 8 rats.
+            rolling += ratCount / 8;
             return rolling;
         }
-
-        rolling += 4;
-        ratCount -= 12;
-
-        // beyond that, +1 for every 5 rats up to the next 15
-        if (ratCount <= 15)
-        {
-            rolling += ratCount / 5;
-            return rolling;
-        }
-
-        rolling += 3;
-        ratCount -= 15;
-
-        // beyond that, +1 for every 7 rats up to the next 14
-        if (ratCount <= 14)
-        {
-            rolling += ratCount / 7;
-            return rolling;
-        }
-
-        rolling += 2;
-        ratCount -= 14;
-
-        // everything else is +1 for every 8 rats.
-        rolling += ratCount / 8;
-        return rolling;
     }
 
     public void ArbitrarilyModifyState<T>(Expression<Func<Game, T>> prop, T value)
@@ -295,6 +303,7 @@ public sealed class Game
         StyleFactor = auraData.StyleFactor;
         DistractionCounter = auraData.DistractionCounter;
         StartledCounter = auraData.StartledCounter;
+        MercyModifier = auraData.MercyModifier;
         HasConfidence = auraData.HasConfidence;
         _priorityPriorityLocations =
         [
@@ -361,7 +370,7 @@ public sealed class Game
             .GroupBy(l => l.UnrandomizedItem!.ArchipelagoFlags, l => l.Key)
             .ToFrozenDictionary(grp => grp.Key, grp => grp.ToFrozenSet());
         _initializedAuraData = true;
-        _routeCalculator = new(_spoilerData, _receivedItems!.AsReadOnly(), _checkedLocations);
+        _routeCalculator = new(this);
         HasStarted = true;
     }
 
@@ -374,6 +383,8 @@ public sealed class Game
             return;
         }
 
+        bool failedFirstCheck = false;
+        bool isFirstCheck = true;
         int actionBalance = 3 + _actionBalanceAfterPreviousStep;
         switch (FoodFactor)
         {
@@ -400,7 +411,7 @@ public sealed class Game
             DistractionCounter -= 1;
         }
 
-        int diceModifier = CalculatePermanentRollModifier(_receivedItems!);
+        int diceModifier = PermanentRollModifier;
         List<LocationVector> movementLog = [];
 
         // "Startled" has its own separate code to figure out the route to take.
@@ -467,7 +478,7 @@ public sealed class Game
 
             if (!moved && StartledCounter == 0 && !CheckedLocations[CurrentLocation.Key])
             {
-                int immediateDiceModifier = diceModifier;
+                int immediateDiceModifier = diceModifier + MercyModifier;
                 bool hasLucky = false;
                 bool hasUnlucky = false;
                 bool hasStylish = StyleFactor > 0;
@@ -498,12 +509,15 @@ public sealed class Game
                 if (hasLucky || ((d20 = (byte)Prng.NextD20(ref _prngState)) + immediateDiceModifier >= CurrentLocation.AbilityCheckDC))
                 {
                     _checkedLocations!.MarkChecked(CurrentLocation);
+                    MercyModifier = 0;
                     success = true;
                 }
 
                 _instrumentation?.TraceLocationAttempt(CurrentLocation, d20, hasLucky, hasUnlucky, hasStylish, (byte)RatCount, (byte)CurrentLocation.AbilityCheckDC);
+                isFirstCheck = false;
                 if (!success)
                 {
+                    failedFirstCheck = isFirstCheck;
                     continue;
                 }
             }
@@ -556,6 +570,10 @@ public sealed class Game
         }
 
         _actionBalanceAfterPreviousStep = actionBalance;
+        if (failedFirstCheck)
+        {
+            ++MercyModifier;
+        }
     }
 
     public void CheckLocations(ImmutableArray<LocationDefinitionModel> newLocations)

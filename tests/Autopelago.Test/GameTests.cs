@@ -156,11 +156,13 @@ public sealed class GameTests
     [Test]
     public void UnluckyAuraShouldReduceModifier()
     {
-        // give it enough rats to get a +1 modifier so that we can see a natural 20 fail.
-        Prng.State seed = EnsureSeedProducesInitialD20Sequence(2242996, [14, 19, 20, 14, 15]);
+        Prng.State seed = EnsureSeedProducesInitialD20Sequence(1673567, [14, 19, 20, 13, 15]);
         Game game = new(seed);
         game.ReceiveItems([
             .. Enumerable.Repeat(s_singleAuraItems["unlucky"], 4),
+
+            // give it enough rats to get a +1 modifier so that we can see a natural 20 fail after
+            // it would have succeeded
             .. Enumerable.Repeat(s_normalRat, 3),
         ]);
 
@@ -170,8 +172,9 @@ public sealed class GameTests
         game.Advance();
         Assert.That(game.CheckedLocations, Is.Empty);
 
-        // the 14 burns the final Unlucky buff, so following it up with a 15 overcomes the mere -5
-        // from trying a second time on the same Advance call.
+        // the 13 burns the final Unlucky buff, so following it up with a 15 overcomes the mere -5
+        // from trying a second time on the same Advance call as well as the mercy modifier that was
+        // granted when we failed our first check on the previous step.
         game.Advance();
         Assert.That(game.CheckedLocations, Has.Count.EqualTo(1));
     }
