@@ -23,6 +23,8 @@ public sealed class RouteCalculator
 
     private readonly HashSet<string> _clearableLandmarks = [];
 
+    private readonly HashSet<string> _checkableRegions = [GameDefinitions.Instance.StartRegion.Key];
+
     private int _lastReceivedItemsCount;
 
     private int _lastCheckedLocationsCount;
@@ -50,7 +52,7 @@ public sealed class RouteCalculator
         // the closest unchecked location (perhaps because we failed at clearing it). let's optimize
         // for that case here, even though it should not affect correctness.
         SmallBitArray checkedLocationsInCurrentRegion = _checkedLocations[currentLocation.Key.RegionKey];
-        if (!checkedLocationsInCurrentRegion[currentLocation.Key.N])
+        if (!checkedLocationsInCurrentRegion[currentLocation.Key.N] && _checkableRegions.Contains(currentLocation.Key.RegionKey))
         {
             return currentLocation;
         }
@@ -66,7 +68,7 @@ public sealed class RouteCalculator
         // closest unchecked location will either be in that same filler region, one of the (up to)
         // two adjacent landmark regions, or far enough away that there's an entire filler region's
         // worth of checked locations between the two.
-        if (!checkedLocationsInCurrentRegion.HasAllSet)
+        if (_checkableRegions.Contains(currentLocation.Key.RegionKey) && !checkedLocationsInCurrentRegion.HasAllSet)
         {
             // this won't necessarily be the final answer, but it will be a solid upper bound.
             for (int i = currentLocation.Key.N + 1; i < checkedLocationsInCurrentRegion.Length; i++)
@@ -142,7 +144,7 @@ public sealed class RouteCalculator
 
             (RegionDefinitionModel connectedRegion, Direction direction) = tup;
             SmallBitArray checkedLocationsInConnectedRegion = _checkedLocations[connectedRegion.Key];
-            if (!checkedLocationsInConnectedRegion.HasAllSet)
+            if (_checkableRegions.Contains(connectedRegion.Key) && !checkedLocationsInConnectedRegion.HasAllSet)
             {
                 if (direction == Direction.TowardsGoal)
                 {
@@ -492,6 +494,8 @@ public sealed class RouteCalculator
     private readonly HashSet<string> _seenRegions = [];
     private void RecalculateClearable()
     {
+        int rollModifier = Game.CalculatePermanentRollModifier(_receivedItems);
+
         _qq.Clear();
         _seenRegions.Clear();
 
@@ -500,6 +504,11 @@ public sealed class RouteCalculator
         {
             (RegionDefinitionModel region, IReadOnlyList<ItemDefinitionModel> receivedItems) = tup;
             _seenRegions.Add(region.Key);
+            if (20 + rollModifier >= region.AbilityCheckDC)
+            {
+                _checkableRegions.Add(region.Key);
+            }
+
             if (_landmarkRegions.TryGetValue(region.Key, out LandmarkRegionDefinitionModel? landmark) &&
                 !_checkedLocations[region.Key][0] &&
                 !_clearableLandmarks.Contains(region.Key))

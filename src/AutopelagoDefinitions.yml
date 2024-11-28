@@ -485,6 +485,7 @@ regions:
       reward_is_fixed: yes
       requires:
         item: blackbird
+      ability_check_dc: 1
 
     snakes_on_a_planet:
       name: 'Snakes on a Planet'
@@ -492,6 +493,7 @@ regions:
       reward_is_fixed: yes
       requires:
         item: mongoose_in_a_combat_spacecraft
+      ability_check_dc: 26
       exits:
         - moon_comma_the
 
@@ -502,6 +504,7 @@ regions:
         any:
           - item: asteroid_belt
           - item: moon_shaped_like_a_butt
+      ability_check_dc: 30
       exits: []
 
     minotaur_labyrinth:
@@ -511,6 +514,7 @@ regions:
         any:
           - item: red_matador_cape
           - item: lab_rat
+      ability_check_dc: 25
       exits:
         - before_asteroid_with_pants
         - after_minotaur_labyrinth
@@ -520,6 +524,7 @@ regions:
       unrandomized_item: pack_rat
       requires:
         rat_count: 49
+      ability_check_dc: 24
       exits:
         - after_space_opera
 
@@ -530,6 +535,7 @@ regions:
         any:
           - item: constellation_prize
           - item: free_vowel
+      ability_check_dc: 25
       exits:
         - before_minotaur_labyrinth
         - before_space_opera
@@ -539,6 +545,7 @@ regions:
       unrandomized_item: pack_rat
       requires:
         item: foreign_coin
+      ability_check_dc: 28
       exits: []
 
     frozen_assets:
@@ -546,6 +553,7 @@ regions:
       unrandomized_item: pack_rat
       requires:
         item: playing_with_fire_for_dummies
+      ability_check_dc: 28
       exits: []
 
     homeless_mummy:
@@ -555,6 +563,7 @@ regions:
         any:
           - item: ziggu_rat
           - item: pharaoh_not_anti_mummy_spray
+      ability_check_dc: 25
       exits:
         - before_frozen_assets
         - before_alien_vending_machine
@@ -565,6 +574,7 @@ regions:
       unrandomized_item: constellation_prize
       requires:
         rat_count: 40
+      ability_check_dc: 25
       exits:
         - after_stalled_rocket_get_out_and_push
 
@@ -573,6 +583,7 @@ regions:
       unrandomized_item: pack_rat
       requires:
         item: quantum_sugar_cube
+      ability_check_dc: 25
       exits:
         - before_stalled_rocket_get_out_and_push
         - before_homeless_mummy
@@ -586,6 +597,7 @@ regions:
           - item: ratstronaut
           - item: energy_drink_that_is_pure_rocket_fuel
           - item: pile_of_scrap_metal_in_the_shape_of_a_rocket_ship
+      ability_check_dc: 24
       exits:
         - before_roboclop_the_robot_war_horse
 
@@ -596,6 +608,7 @@ regions:
         any:
           - item: virtual_key
           - item: map_of_the_entire_internet
+      ability_check_dc: 25
       exits:
         - before_makeshift_rocket_ship
 
@@ -606,6 +619,7 @@ regions:
         any:
           - item: fifty_cents
           - item: notorious_r_a_t
+      ability_check_dc: 22
       exits:
         - after_rat_rap_battle
 
@@ -616,6 +630,7 @@ regions:
         any:
           - item: gym_rat
           - item: forklift_certification
+      ability_check_dc: 22
       exits:
         - after_stack_of_crates
 
@@ -624,6 +639,7 @@ regions:
       unrandomized_item: pack_rat
       requires:
         item: childs_first_hand_axe
+      ability_check_dc: 21
       exits:
         - before_rat_rap_battle
 
@@ -632,6 +648,7 @@ regions:
       unrandomized_item: pack_rat
       requires:
         rat_count: 37
+      ability_check_dc: 25
       exits: []
 
     trapeze:
@@ -639,6 +656,7 @@ regions:
       unrandomized_item: pack_rat
       requires:
         item: acro_rat
+      ability_check_dc: 25
       exits: []
 
     computer_ram:
@@ -646,6 +664,7 @@ regions:
       unrandomized_item: pack_rat
       requires:
         item: artificial_grass
+      ability_check_dc: 20
       exits:
         - before_stack_of_crates
 
@@ -656,6 +675,7 @@ regions:
         any:
           - item: fake_mouse_ears
           - item: legally_binding_contract
+      ability_check_dc: 19
       exits:
         - before_room_full_of_typewriters
         - before_binary_tree
@@ -667,6 +687,7 @@ regions:
         any:
           - item: lost_ctrl_key
           - item: hammer_of_problem_solving
+      ability_check_dc: 19
       exits:
         - before_computer_ram
         - before_trapeze
@@ -676,6 +697,7 @@ regions:
       unrandomized_item: pack_rat
       requires:
         rat_count: 25
+      ability_check_dc: 18
       exits:
         - before_copyright_mouse
 
@@ -684,6 +706,7 @@ regions:
       unrandomized_item: pack_rat
       requires:
         rat_count: 25
+      ability_check_dc: 18
       exits:
         - before_blue_colored_screen_interface
 
@@ -694,6 +717,7 @@ regions:
         any:
           - item: blue_turtle_shell
           - item: banana_peel
+      ability_check_dc: 18
       exits:
         - before_broken_down_bus
 
@@ -704,6 +728,7 @@ regions:
         any:
           - item: masterful_longsword
           - item: macguffin
+      ability_check_dc: 18
       exits:
         - before_overweight_boulder
 
@@ -712,6 +737,7 @@ regions:
       unrandomized_item: pack_rat
       requires:
         item: computer_rat
+      ability_check_dc: 18
       exits:
         - before_daring_adventurer
         - before_kart_races
@@ -730,7 +756,7 @@ regions:
       unrandomized_item: rat_pack
       requires:
         rat_count: 10
-      ability_check_dc: 17
+      ability_check_dc: 16
       exits:
         - before_captured_goldfish
 
@@ -739,7 +765,7 @@ regions:
       unrandomized_item: pack_rat
       requires:
         item: chef_rat
-      ability_check_dc: 14
+      ability_check_dc: 15
       exits:
         - after_restaurant
 
@@ -748,7 +774,7 @@ regions:
       unrandomized_item: pack_rat
       requires:
         item: pie_rat
-      ability_check_dc: 14
+      ability_check_dc: 15
       exits:
         - after_pirate_bake_sale
 
@@ -759,7 +785,7 @@ regions:
         any:
           - item: pizza_rat
           - item: ninja_rat
-      ability_check_dc: 12
+      ability_check_dc: 13
       exits:
         - before_restaurant
 
@@ -770,7 +796,7 @@ regions:
         any:
           - item: premium_can_of_prawn_food
           - item: priceless_antique
-      ability_check_dc: 12
+      ability_check_dc: 13
       exits:
         - before_pirate_bake_sale
 
@@ -789,20 +815,20 @@ regions:
     after_minotaur_labyrinth:
       name_template: 'After Minotaur Labyrinth #{n}'
       unrandomized_items:
-        filler: 4
+        key:
+          - mongoose_in_a_combat_spacecraft
+        filler: 3
         useful_nonprogression: 2
-      ability_check_dc: 1
+      ability_check_dc: 26
       exits:
         - snakes_on_a_planet
 
     after_space_opera:
       name_template: 'After Space Opera #{n}'
       unrandomized_items:
-        key:
-          - mongoose_in_a_combat_spacecraft
-        filler: 4
+        filler: 5
         useful_nonprogression: 2
-      ability_check_dc: 1
+      ability_check_dc: 26
       exits:
         - snakes_on_a_planet
 
@@ -814,7 +840,7 @@ regions:
           - moon_shaped_like_a_butt
         filler: 1
         useful_nonprogression: 1
-      ability_check_dc: 1
+      ability_check_dc: 30
       exits:
         - asteroid_with_pants
 
@@ -823,7 +849,7 @@ regions:
       unrandomized_items:
         filler: 4
         useful_nonprogression: 2
-      ability_check_dc: 1
+      ability_check_dc: 25
       exits:
         - space_opera
 
@@ -835,7 +861,7 @@ regions:
           - lab_rat
         filler: 1
         useful_nonprogression: 2
-      ability_check_dc: 1
+      ability_check_dc: 25
       exits:
         - minotaur_labyrinth
 
@@ -846,7 +872,7 @@ regions:
           - foreign_coin
         filler: 1
         useful_nonprogression: 2
-      ability_check_dc: 1
+      ability_check_dc: 28
       exits:
         - alien_vending_machine
 
@@ -857,7 +883,7 @@ regions:
           - playing_with_fire_for_dummies
         filler: 4
         useful_nonprogression: 2
-      ability_check_dc: 1
+      ability_check_dc: 28
       exits:
         - frozen_assets
 
@@ -866,7 +892,7 @@ regions:
       unrandomized_items:
         filler: 4
         useful_nonprogression: 3
-      ability_check_dc: 1
+      ability_check_dc: 25
       exits:
         - seal_of_fortune
 
@@ -875,7 +901,7 @@ regions:
       unrandomized_items:
         filler: 4
         useful_nonprogression: 3
-      ability_check_dc: 1
+      ability_check_dc: 25
       exits:
         - seal_of_fortune
 
@@ -887,7 +913,7 @@ regions:
           - ziggu_rat
         filler: 2
         useful_nonprogression: 2
-      ability_check_dc: 1
+      ability_check_dc: 25
       exits:
         - homeless_mummy
 
@@ -896,7 +922,7 @@ regions:
       unrandomized_items:
         filler: 4
         useful_nonprogression: 2
-      ability_check_dc: 1
+      ability_check_dc: 25
       exits:
         - stalled_rocket_get_out_and_push
 
@@ -907,7 +933,7 @@ regions:
           - quantum_sugar_cube
         filler: 16
         useful_nonprogression: 8
-      ability_check_dc: 1
+      ability_check_dc: 24
       exits:
         - roboclop_the_robot_war_horse
 
@@ -921,7 +947,7 @@ regions:
           - pile_of_scrap_metal_in_the_shape_of_a_rocket_ship
         filler: 16
         useful_nonprogression: 8
-      ability_check_dc: 1
+      ability_check_dc: 23
       exits:
         - makeshift_rocket_ship
 
@@ -932,7 +958,7 @@ regions:
           - virtual_key
         filler: 4
         useful_nonprogression: 2
-      ability_check_dc: 1
+      ability_check_dc: 22
       exits:
         - secret_cache
 
@@ -943,7 +969,7 @@ regions:
           - map_of_the_entire_internet
         filler: 4
         useful_nonprogression: 2
-      ability_check_dc: 1
+      ability_check_dc: 22
       exits:
         - secret_cache
 
@@ -955,7 +981,7 @@ regions:
           - notorious_r_a_t
         filler: 2
         useful_nonprogression: 2
-      ability_check_dc: 1
+      ability_check_dc: 21
       exits:
         - rat_rap_battle
 
@@ -967,7 +993,7 @@ regions:
           - forklift_certification
         filler: 2
         useful_nonprogression: 2
-      ability_check_dc: 1
+      ability_check_dc: 21
       exits:
         - stack_of_crates
 
@@ -978,7 +1004,7 @@ regions:
           - childs_first_hand_axe
         filler: 2
         useful_nonprogression: 2
-      ability_check_dc: 1
+      ability_check_dc: 20
       exits:
         - binary_tree
 
@@ -987,7 +1013,7 @@ regions:
       unrandomized_items:
         filler: 4
         useful_nonprogression: 2
-      ability_check_dc: 1
+      ability_check_dc: 25
       exits:
         - room_full_of_typewriters
 
@@ -998,7 +1024,7 @@ regions:
           - acro_rat
         filler: 3
         useful_nonprogression: 2
-      ability_check_dc: 1
+      ability_check_dc: 25
       exits:
         - trapeze
 
@@ -1009,7 +1035,7 @@ regions:
           - artificial_grass
         filler: 4
         useful_nonprogression: 2
-      ability_check_dc: 1
+      ability_check_dc: 20
       exits:
         - computer_ram
 
@@ -1021,7 +1047,7 @@ regions:
           - legally_binding_contract
         filler: 4
         useful_nonprogression: 2
-      ability_check_dc: 1
+      ability_check_dc: 19
       exits:
         - copyright_mouse
 
@@ -1033,7 +1059,7 @@ regions:
           - hammer_of_problem_solving
         filler: 1
         useful_nonprogression: 2
-      ability_check_dc: 1
+      ability_check_dc: 19
       exits:
         - blue_colored_screen_interface
 
@@ -1042,7 +1068,7 @@ regions:
       unrandomized_items:
         filler: 4
         useful_nonprogression: 2
-      ability_check_dc: 1
+      ability_check_dc: 18
       exits:
         - broken_down_bus
 
@@ -1051,7 +1077,7 @@ regions:
       unrandomized_items:
         filler: 4
         useful_nonprogression: 2
-      ability_check_dc: 1
+      ability_check_dc: 18
       exits:
         - overweight_boulder
 
@@ -1063,7 +1089,7 @@ regions:
           - banana_peel
         filler: 4
         useful_nonprogression: 2
-      ability_check_dc: 1
+      ability_check_dc: 18
       exits:
         - kart_races
 
@@ -1075,7 +1101,7 @@ regions:
           - macguffin
         filler: 4
         useful_nonprogression: 2
-      ability_check_dc: 1
+      ability_check_dc: 18
       exits:
         - daring_adventurer
 
@@ -1086,7 +1112,7 @@ regions:
           - computer_rat
         filler: 14
         useful_nonprogression: 2
-      ability_check_dc: 1
+      ability_check_dc: 17
       exits:
         - computer_interface
 
@@ -1097,7 +1123,7 @@ regions:
           - giant_novelty_scissors
         useful_nonprogression: 2
         filler: 4
-      ability_check_dc: 18
+      ability_check_dc: 16
       exits:
         - captured_goldfish
 
@@ -1106,7 +1132,7 @@ regions:
       unrandomized_items:
         useful_nonprogression: 16
         filler: 15
-      ability_check_dc: 16
+      ability_check_dc: 15
       exits:
         - bowling_ball_door
 
@@ -1115,7 +1141,7 @@ regions:
       unrandomized_items:
         useful_nonprogression: 8
         filler: 6
-      ability_check_dc: 16
+      ability_check_dc: 15
       exits:
         - bowling_ball_door
 
@@ -1174,6 +1200,6 @@ regions:
             count: 5
         useful_nonprogression: 5
         filler: 16
-      ability_check_dc: 10
+      ability_check_dc: 11
       exits:
         - basketball

@@ -40,7 +40,7 @@ public sealed class GameTests
     [Test]
     public void FirstAttemptsShouldMakeSense()
     {
-        Prng.State seed = EnsureSeedProducesInitialD20Sequence(12999128, [9, 14, 19, 10, 14]);
+        Prng.State seed = EnsureSeedProducesInitialD20Sequence(4383381, [10, 15, 20, 11, 15]);
         Prng.State prngState = seed;
 
         Game game = new(seed);
@@ -156,9 +156,13 @@ public sealed class GameTests
     [Test]
     public void UnluckyAuraShouldReduceModifier()
     {
+        // give it enough rats to get a +1 modifier so that we can see a natural 20 fail.
         Prng.State seed = EnsureSeedProducesInitialD20Sequence(2242996, [14, 19, 20, 14, 15]);
         Game game = new(seed);
-        game.ReceiveItems([.. Enumerable.Repeat(s_singleAuraItems["unlucky"], 4)]);
+        game.ReceiveItems([
+            .. Enumerable.Repeat(s_singleAuraItems["unlucky"], 4),
+            .. Enumerable.Repeat(s_normalRat, 3),
+        ]);
 
         // normally, a 14 as your first roll should pass, but with Unlucky it's not enough. the 19
         // also fails because -5 from the aura and -5 from the second attempt. even a natural 20
@@ -346,7 +350,7 @@ public sealed class GameTests
     [Test]
     public void StyleFactorShouldImproveModifier()
     {
-        Prng.State seed = EnsureSeedProducesInitialD20Sequence(80387, [5, 10]);
+        Prng.State seed = EnsureSeedProducesInitialD20Sequence(81622, [6, 11]);
         Game game = new(seed);
         game.ReceiveItems([.. Enumerable.Repeat(s_singleAuraItems["stylish"], 2)]);
 
@@ -862,7 +866,7 @@ public sealed class GameTests
         }
 
         ulong result = box.Seed!.Value;
-        TestContext.Out.WriteLine($"ulong seed = {nameof(EnsureSeedProducesInitialD20Sequence)}({result}, [{string.Join(", ", Rolls(result, stackalloc int[cnt]).ToArray())}]);");
+        TestContext.Out.WriteLine($"Prng.State seed = {nameof(EnsureSeedProducesInitialD20Sequence)}({result}, [{string.Join(", ", Rolls(result, stackalloc int[cnt]).ToArray())}]);");
         return result;
 
         static void Search(object? obj)

@@ -452,6 +452,8 @@ public abstract record RegionDefinitionModel
 {
     public required string Key { get; init; }
 
+    public required int AbilityCheckDC { get; init; }
+
     public required ImmutableArray<RegionExitDefinitionModel> Exits { get; init; }
 
     public required ImmutableArray<LocationDefinitionModel> Locations { get; init; }
@@ -500,10 +502,12 @@ public sealed record LandmarkRegionDefinitionModel : RegionDefinitionModel
     {
         YamlNode[] exits = map.TryGetValue("exits", out YamlNode[]? exitsOrNull) ? exitsOrNull : [];
         GameRequirement requirement = GameRequirement.DeserializeFrom(map["requires"]);
+        int abilityCheckDC = map["ability_check_dc"].To<int>();
         return new()
         {
             Key = key,
             Requirement = requirement,
+            AbilityCheckDC = abilityCheckDC,
             Exits = [.. exits.Select(RegionExitDefinitionModel.DeserializeFrom)],
             Locations =
             [
@@ -513,7 +517,7 @@ public sealed record LandmarkRegionDefinitionModel : RegionDefinitionModel
                     Name = map["name"].To<string>(),
                     FlavorText = map.TryGetValue("flavor_text", out string? flavorText) ? flavorText : null,
                     UnrandomizedItem = items.ProgressionItems.GetValueOrDefault(map["unrandomized_item"].To<string>()),
-                    AbilityCheckDC = map.TryGetValue("ability_check_dc", out int abilityCheckDC) ? abilityCheckDC : 1,
+                    AbilityCheckDC = abilityCheckDC,
                     RewardIsFixed = map.TryGetValue("reward_is_fixed", out bool rewardIsFixed) && rewardIsFixed,
                 },
             ],
@@ -571,14 +575,11 @@ public sealed record FillerRegionDefinitionModel : RegionDefinitionModel
             }
         }
 
-        if (!map.TryGetValue("ability_check_dc", out int abilityCheckDC))
-        {
-            abilityCheckDC = 1;
-        }
-
+        int abilityCheckDC = map["ability_check_dc"].To<int>();
         return new()
         {
             Key = key,
+            AbilityCheckDC = abilityCheckDC,
             Exits = [.. ((YamlSequenceNode)map["exits"]).Select(RegionExitDefinitionModel.DeserializeFrom)],
             Locations = [.. unrandomizedItems.Select((item, n) => new LocationDefinitionModel
             {
