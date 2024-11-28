@@ -1,14 +1,20 @@
+using System.Collections;
 using System.Collections.Frozen;
 using System.Collections.Immutable;
 using System.Diagnostics;
 using System.Runtime.InteropServices;
 using System.Text;
+using System.Text.Json;
+using System.Text.Json.Serialization;
 
 using Autopelago.BespokeMultiworld;
 
 using Serilog;
 
 namespace Autopelago;
+
+[JsonSerializable(typeof(Prng.State))]
+public sealed partial class PrngStateSerializerContext : JsonSerializerContext;
 
 public static class DataCollector
 {
@@ -36,6 +42,7 @@ public static class DataCollector
         {
             multiworldSeeds[i] = state;
             Prng.LongJump(ref state);
+            Log.Information("Seed #{SeedNum} = {Seed}", i, JsonSerializer.Serialize(multiworldSeeds[i], PrngStateSerializerContext.Default.State));
         }
 
         await Parallel.ForAsync(0, multiworldSeeds.Length, cancellationToken, async (i, cancellationToken2) =>
@@ -49,12 +56,86 @@ public static class DataCollector
 
         ImmutableArray<LocationAttemptTraceEvent>[] locationAttempts = new ImmutableArray<LocationAttemptTraceEvent>[checked(numSeeds * numSlotsPerSeed * numRunsPerSeed)];
         ImmutableArray<MovementTraceEvent>[] movements = new ImmutableArray<MovementTraceEvent>[locationAttempts.Length];
-        Lock lck = new();
-        int done = 0;
-        int maxLineLength = 0;
-        long lastReport = Stopwatch.GetTimestamp();
-        TimeSpan reportInterval = TimeSpan.FromMilliseconds(250);
+        TimeSpan reportInterval = TimeSpan.FromMilliseconds(400);
         long startTimestamp = Stopwatch.GetTimestamp();
+        int[] completed = new int[numSeeds];
+        CancellationTokenSource cancelReports = new();
+        Task reportTask = Task.Run(() =>
+        {
+            TaskCompletionSource tcs = new(TaskCreationOptions.RunContinuationsAsynchronously);
+            new Thread(RunReport) { IsBackground = true, Priority = ThreadPriority.Highest }.Start();
+            return tcs.Task;
+            void RunReport()
+            {
+                try
+                {
+                    BitArray remaining = new(numSeeds, true);
+                    int lastLineLength = 0;
+                    StringBuilder remainingSeedsMessage = new();
+                    while (!cancelReports.IsCancellationRequested)
+                    {
+                        Thread.Sleep(reportInterval);
+                        int done = 0;
+                        int reportedNum = 0;
+                        for (int i = 0; i < remaining.Length; i++)
+                        {
+                            if (!remaining[i])
+                            {
+                                done += numRunsPerSeed;
+                                continue;
+                            }
+
+                            int cmp = Volatile.Read(in completed[i]);
+                            done += cmp;
+                            if (cmp < numRunsPerSeed)
+                            {
+                                if (++reportedNum < 10)
+                                {
+                                    remainingSeedsMessage.Append($"#{i}, ");
+                                }
+
+                                if (reportedNum == 10)
+                                {
+                                    remainingSeedsMessage.Append("(more?)...  ");
+                                }
+
+                                continue;
+                            }
+
+                            if (lastLineLength > 0)
+                            {
+                                Console.Write("\r".PadRight(lastLineLength));
+                                Console.CursorLeft = 0;
+                            }
+
+                            Log.Information("Seed #{Num} is complete.", i);
+                            lastLineLength = 0;
+                            remaining[i] = false;
+                        }
+
+                        TimeSpan elapsed = Stopwatch.GetElapsedTime(startTimestamp);
+                        TimeSpan estimatedRemaining = done > 0
+                            ? ((numSeeds * numRunsPerSeed) - done) * (elapsed / done)
+                            : TimeSpan.FromHours(10);
+                        remainingSeedsMessage.Length = Math.Max(0, remainingSeedsMessage.Length - 2);
+                        string msg = $"\rFinished {done} run(s) after {elapsed.FormatMyWay()}, meaning about {estimatedRemaining.FormatMyWay()} left. Seeds remaining: {remainingSeedsMessage}";
+                        remainingSeedsMessage.Clear();
+                        Console.Write(msg.PadRight(lastLineLength));
+                        lastLineLength = msg.Length;
+                    }
+
+                    tcs.TrySetResult();
+                }
+                catch (OperationCanceledException ex)
+                {
+                    tcs.TrySetCanceled(ex.CancellationToken);
+                }
+                catch (Exception ex)
+                {
+                    tcs.TrySetException(ex);
+                }
+            }
+        }, cancelReports.Token);
         Parallel.For(0, numSeeds * numRunsPerSeed, new ParallelOptions { CancellationToken = cancellationToken }, (ij, loopState) =>
         {
             if (loopState.ShouldExitCurrentIteration)
@@ -64,7 +145,7 @@ public static class DataCollector
 
             try
             {
-                int i = Math.DivRem(ij, numRunsPerSeed, out int j);
+                int i = Math.DivRem(ij, numSeeds, out int j);
                 Prng.State multiworldPrngState = multiworldSeeds[i];
                 World[] slotsMutable = new World[allSpoilerData[i].Length];
                 for (int k = 0; k < numSlotsPerSeed; k++)
@@ -82,22 +163,7 @@ public static class DataCollector
                     movements[(i * numRunsPerSeed * numSlotsPerSeed) + (j * numSlotsPerSeed) + k] = [.. slots[k].Instrumentation.Movements];
                 }
 
-                int doneHere = Interlocked.Increment(ref done);
-                if (Stopwatch.GetElapsedTime(lastReport) > reportInterval)
-                {
-                    lock (lck)
-                    {
-                        if (Stopwatch.GetElapsedTime(lastReport) > reportInterval)
-                        {
-                            TimeSpan elapsed = Stopwatch.GetElapsedTime(startTimestamp);
-                            TimeSpan estimatedRemaining = ((numSeeds * numRunsPerSeed) - doneHere) * (elapsed / doneHere);
-                            string message = $"\rFinished #{doneHere} after {elapsed.FormatMyWay()}, meaning about {estimatedRemaining.FormatMyWay()} left".PadRight(maxLineLength);
-                            maxLineLength = Math.Max(maxLineLength, message.Length);
-                            Console.Write(message);
-                            lastReport = Stopwatch.GetTimestamp();
-                        }
-                    }
-                }
+                Interlocked.Increment(ref completed[i]);
             }
             catch (Exception ex)
             {
@@ -106,10 +172,13 @@ public static class DataCollector
             }
         });
 
-        if (done > 0)
+        await cancelReports.CancelAsync();
+        try
         {
-            TimeSpan elapsed = Stopwatch.GetElapsedTime(startTimestamp);
-            Console.WriteLine($"\rFinished #{done} after {elapsed.FormatMyWay()}".PadRight(maxLineLength));
+            await reportTask;
+        }
+        catch (OperationCanceledException)
+        {
         }
 
         await outMovements.WriteLineAsync("SeedNumber,IterationNumber,SlotNumber,StepNumber,FromRegion,FromN,ToRegion,ToN,Reason");
