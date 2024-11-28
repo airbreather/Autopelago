@@ -145,7 +145,7 @@ public static class DataCollector
 
             try
             {
-                int i = Math.DivRem(ij, numSeeds, out int j);
+                int i = Math.DivRem(ij, numRunsPerSeed, out int j);
                 Prng.State multiworldPrngState = multiworldSeeds[i];
                 World[] slotsMutable = new World[allSpoilerData[i].Length];
                 for (int k = 0; k < numSlotsPerSeed; k++)
@@ -182,7 +182,7 @@ public static class DataCollector
         }
 
         await outMovements.WriteLineAsync("SeedNumber,IterationNumber,SlotNumber,StepNumber,FromRegion,FromN,ToRegion,ToN,Reason");
-        await outLocationAttempts.WriteLineAsync("SeedNumber,IterationNumber,SlotNumber,StepNumber,Region,N,AbilityCheckDC,Roll,RatCount,Auras");
+        await outLocationAttempts.WriteLineAsync("SeedNumber,IterationNumber,SlotNumber,StepNumber,Region,N,AbilityCheckDC,MercyModifier,Roll,RatCount,Auras");
         for (int i = 0; i < numSeeds; i++)
         {
             for (int j = 0; j < numRunsPerSeed; j++)
@@ -200,7 +200,7 @@ public static class DataCollector
                             (locationAttempt.HasLucky ? 1 : 0) << 0 |
                             (locationAttempt.HasUnlucky ? 1 : 0) << 1 |
                             (locationAttempt.HasStylish ? 1 : 0) << 2;
-                        await outLocationAttempts.WriteLineAsync($"{i},{j},{k},{locationAttempt.StepNumber},{locationAttempt.Location.Key.RegionKey},{locationAttempt.Location.Key.N},{locationAttempt.AbilityCheckDC},{locationAttempt.Roll},{locationAttempt.RatCount},{auras}");
+                        await outLocationAttempts.WriteLineAsync($"{i},{j},{k},{locationAttempt.StepNumber},{locationAttempt.Location.Key.RegionKey},{locationAttempt.Location.Key.N},{locationAttempt.AbilityCheckDC},{locationAttempt.MercyModifier},{locationAttempt.Roll},{locationAttempt.RatCount},{auras}");
                     }
                 }
             }

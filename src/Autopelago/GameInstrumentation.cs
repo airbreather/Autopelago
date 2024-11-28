@@ -53,6 +53,8 @@ public sealed record LocationAttemptTraceEvent
 
     public required byte RatCount { get; init; }
 
+    public required byte MercyModifier { get; init; }
+
     public required byte AbilityCheckDC { get; init; }
 }
 
@@ -92,7 +94,7 @@ public sealed class GameInstrumentation
         });
     }
 
-    public void TraceLocationAttempt(LocationDefinitionModel location, byte roll, bool hasLucky, bool hasUnlucky, bool hasStylish, byte ratCount, byte abilityCheckDC)
+    public void TraceLocationAttempt(LocationDefinitionModel location, byte roll, bool hasLucky, bool hasUnlucky, bool hasStylish, byte ratCount, byte abilityCheckDC, byte mercyModifier)
     {
         _locationAttempts.Add(new()
         {
@@ -104,6 +106,7 @@ public sealed class GameInstrumentation
             HasStylish = hasStylish,
             RatCount = ratCount,
             AbilityCheckDC = abilityCheckDC,
+            MercyModifier = mercyModifier,
         });
     }
 }

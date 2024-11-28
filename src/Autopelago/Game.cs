@@ -476,9 +476,10 @@ public sealed class Game
                 }
             }
 
-            if (!moved && StartledCounter == 0 && !CheckedLocations[CurrentLocation.Key])
+            if (!moved && StartledCounter == 0 && !_checkedLocations![CurrentLocation.Key])
             {
-                int immediateDiceModifier = diceModifier + MercyModifier;
+                int immediateMercyModifier = MercyModifier;
+                int immediateDiceModifier = diceModifier + immediateMercyModifier;
                 bool hasLucky = false;
                 bool hasUnlucky = false;
                 bool hasStylish = StyleFactor > 0;
@@ -513,11 +514,19 @@ public sealed class Game
                     success = true;
                 }
 
-                _instrumentation?.TraceLocationAttempt(CurrentLocation, d20, hasLucky, hasUnlucky, hasStylish, (byte)RatCount, (byte)CurrentLocation.AbilityCheckDC);
-                isFirstCheck = false;
+                if (d20 != 0)
+                {
+                    if (isFirstCheck && !success)
+                    {
+                        failedFirstCheck = true;
+                    }
+
+                    isFirstCheck = false;
+                }
+
+                _instrumentation?.TraceLocationAttempt(CurrentLocation, d20, hasLucky, hasUnlucky, hasStylish, (byte)RatCount, (byte)CurrentLocation.AbilityCheckDC, (byte)immediateMercyModifier);
                 if (!success)
                 {
-                    failedFirstCheck = isFirstCheck;
                     continue;
                 }
             }
