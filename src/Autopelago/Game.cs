@@ -166,6 +166,50 @@ public sealed class Game
         }
     }
 
+    public int RollModifierFromRats
+    {
+        get
+        {
+            // diminishing returns
+            int additionalRats = RatCount;
+            int rolling = 0;
+
+            // +1 for every 3 rats up to the first 12
+            if (additionalRats <= 12)
+            {
+                rolling += additionalRats / 3;
+                return rolling;
+            }
+
+            rolling += 4;
+            additionalRats -= 12;
+
+            // beyond that, +1 for every 5 rats up to the next 15
+            if (additionalRats <= 15)
+            {
+                rolling += additionalRats / 5;
+                return rolling;
+            }
+
+            rolling += 3;
+            additionalRats -= 15;
+
+            // beyond that, +1 for every 7 rats up to the next 14
+            if (additionalRats <= 14)
+            {
+                rolling += additionalRats / 7;
+                return rolling;
+            }
+
+            rolling += 2;
+            additionalRats -= 14;
+
+            // everything else is +1 for every 8 rats.
+            rolling += additionalRats / 8;
+            return rolling;
+        }
+    }
+
     public AuraData AuraData
     {
         get
@@ -358,7 +402,7 @@ public sealed class Game
             DistractionCounter -= 1;
         }
 
-        int diceModifier = RatCount / 3;
+        int diceModifier = RollModifierFromRats;
         List<LocationVector> movementLog = [];
 
         // "Startled" has its own separate code to figure out the route to take.

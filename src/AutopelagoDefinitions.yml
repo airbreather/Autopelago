@@ -173,6 +173,8 @@ items:
     - ['Cup of Fancy Leaf Water', [energized]]
     - ['Microwave Full of Brownies', [well_fed]]
     - ['Dreihander', [confident]]
+    - ['A Reasonably Priced Textbook', [smart]]
+    - ['Sandwich that is Literally One Mile Tall', [well_fed, well_fed, well_fed, well_fed, well_fed, well_fed, distracted]]
 
 
 
@@ -548,7 +550,7 @@ regions:
 
     homeless_mummy:
       name: 'Homeless Mummy'
-      unrandomized_item: pack_rat
+      unrandomized_item: free_vowel
       requires:
         any:
           - item: ziggu_rat
@@ -560,7 +562,7 @@ regions:
 
     stalled_rocket_get_out_and_push:
       name: 'Stalled Rocket! (Get Out and Push)'
-      unrandomized_item: pack_rat
+      unrandomized_item: constellation_prize
       requires:
         rat_count: 40
       exits:
@@ -862,10 +864,8 @@ regions:
     after_homeless_mummy:
       name_template: 'After Homeless Mummy #{n}'
       unrandomized_items:
-        key:
-          - free_vowel
         filler: 4
-        useful_nonprogression: 2
+        useful_nonprogression: 3
       ability_check_dc: 1
       exits:
         - seal_of_fortune
@@ -873,10 +873,8 @@ regions:
     after_stalled_rocket_get_out_and_push:
       name_template: 'After Stalled Rocket! (Get Out and Push) #{n}'
       unrandomized_items:
-        key:
-          - constellation_prize
         filler: 4
-        useful_nonprogression: 2
+        useful_nonprogression: 3
       ability_check_dc: 1
       exits:
         - seal_of_fortune
