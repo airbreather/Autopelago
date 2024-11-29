@@ -56,6 +56,8 @@ public sealed record LocationVector
 
 public sealed class Game
 {
+    private readonly Lock? _lock;
+
     private readonly GameInstrumentation? _instrumentation;
 
     private readonly List<LocationVector> _prevMovementLog =
@@ -88,6 +90,7 @@ public sealed class Game
     {
         _prngState = prngState;
         _instrumentation = instrumentation;
+        _lock = instrumentation is null ? new() : null;
         PreviousStepMovementLog = _prevMovementLog.AsReadOnly();
     }
 
@@ -141,6 +144,7 @@ public sealed class Game
     {
         get
         {
+            using var _ = EnterLockScope();
             EnsureStarted();
             return _spoilerData!;
         }
@@ -167,6 +171,7 @@ public sealed class Game
     {
         get
         {
+            using var _ = EnterLockScope();
             EnsureStarted();
             return _ratCount ??= _receivedItems!
                 .DefaultIfEmpty()
@@ -184,6 +189,7 @@ public sealed class Game
                 throw new InvalidOperationException("Game has not started yet.");
             }
 
+            using var _ = EnterLockScope();
             return new()
             {
                 FoodFactor = FoodFactor,
@@ -272,6 +278,7 @@ public sealed class Game
             throw new InvalidOperationException("Checked locations have already been initialized.");
         }
 
+        using var _ = EnterLockScope();
         _checkedLocations = new();
         foreach (LocationDefinitionModel location in checkedLocations)
         {
@@ -286,6 +293,7 @@ public sealed class Game
             throw new InvalidOperationException("Received items have already been initialized.");
         }
 
+        using var _ = EnterLockScope();
         _receivedItems = [.. receivedItems];
         _ratCount = null;
     }
@@ -297,6 +305,7 @@ public sealed class Game
             throw new InvalidOperationException("Spoiler data has already been initialized.");
         }
 
+        using var _ = EnterLockScope();
         _spoilerData = spoilerData;
     }
 
@@ -307,6 +316,7 @@ public sealed class Game
             throw new InvalidOperationException("Aura data has already been initialized.");
         }
 
+        using var _ = EnterLockScope();
         FoodFactor = auraData.FoodFactor;
         LuckFactor = auraData.LuckFactor;
         EnergyFactor = auraData.EnergyFactor;
@@ -329,6 +339,7 @@ public sealed class Game
 
     public AddPriorityLocationResult? AddPriorityLocation(LocationDefinitionModel toPrioritize)
     {
+        using var _ = EnterLockScope();
         if (_priorityLocations.Contains(toPrioritize))
         {
             return AddPriorityLocationResult.AlreadyPrioritized;
@@ -344,6 +355,7 @@ public sealed class Game
 
     public LocationDefinitionModel? RemovePriorityLocation(string locationName)
     {
+        using var _ = EnterLockScope();
         int index = _priorityLocations.FindIndex(
             l => l.Name.Equals(locationName, StringComparison.InvariantCultureIgnoreCase));
         if (index < 0)
@@ -358,12 +370,19 @@ public sealed class Game
 
     public IEnumerable<LocationDefinitionModel> CalculateRoute(LocationDefinitionModel fromLocation, LocationDefinitionModel toLocation)
     {
+        using var _ = EnterLockScope();
         EnsureStarted();
         return _routeCalculator!.GetPath(fromLocation, toLocation) ?? [];
     }
 
     public void EnsureStarted()
     {
+        if (HasStarted)
+        {
+            return;
+        }
+
+        using var _ = EnterLockScope();
         if (HasStarted)
         {
             return;
@@ -384,6 +403,12 @@ public sealed class Game
     public void Advance()
     {
         EnsureStarted();
+        if (IsCompleted)
+        {
+            return;
+        }
+
+        using var _ = EnterLockScope();
         if (IsCompleted)
         {
             return;
@@ -596,6 +621,7 @@ public sealed class Game
     public void CheckLocations(ImmutableArray<LocationDefinitionModel> newLocations)
     {
         EnsureStarted();
+        using var _ = EnterLockScope();
         foreach (LocationDefinitionModel location in newLocations)
         {
             _checkedLocations!.MarkChecked(location);
@@ -610,6 +636,7 @@ public sealed class Game
             return;
         }
 
+        using var _ = EnterLockScope();
         int foodMod = 0;
         int energyFactorMod = 0;
         int luckFactorMod = 0;
@@ -773,5 +800,10 @@ public sealed class Game
 
         reason = TargetLocationReason.NowhereUsefulToMove;
         return CurrentLocation;
+    }
+
+    private Lock.Scope EnterLockScope()
+    {
+        return _lock is null ? default : _lock.EnterScope();
     }
 }

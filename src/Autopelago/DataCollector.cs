@@ -34,6 +34,7 @@ public static class DataCollector
         scienceDir = scienceDir.Replace("$HOME", Environment.GetFolderPath(Environment.SpecialFolder.UserProfile));
         Compressor compressor = new(10);
         compressor.SetParameter(ZSTD_cParameter.ZSTD_c_nbWorkers, Environment.ProcessorCount);
+        Directory.CreateDirectory(Path.GetDirectoryName(PlaythroughGenerator.Paths.ResultFile(scienceDir))!);
         await using StreamWriter outLocationAttempts = new(new CompressionStream(new FileStream(PlaythroughGenerator.Paths.ResultFile(scienceDir), s_create), compressor, preserveCompressor: false, leaveOpen: false), Encoding.UTF8);
 
         Prng.State state = seed;
