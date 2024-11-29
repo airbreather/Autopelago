@@ -1,4 +1,5 @@
 use anyhow::Error;
+use bitvec::vec::BitVec;
 use clap::Parser;
 use csv::Reader;
 use serde::{Deserialize, Serialize};
@@ -14,10 +15,10 @@ use std::process::ExitCode;
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::LazyLock;
 use std::thread::spawn;
-use bitvec::vec::BitVec;
 use string_interner::backend::StringBackend;
 use string_interner::symbol::SymbolU16;
 use string_interner::StringInterner;
+use zstd::Decoder;
 
 #[derive(Default)]
 struct Progress {
@@ -438,13 +439,13 @@ fn main() -> Result<ExitCode, Error> {
 
     // run movements
     let movements_handle = spawn(|| {
-        let movements = BufReader::new(File::open(args.movements_path).unwrap());
+        let movements = BufReader::new(Decoder::new(File::open(args.movements_path).unwrap()).unwrap());
         read_movements(movements).unwrap()
     });
 
     // run location attempts
     let location_attempts_handle = spawn(|| {
-        let location_attempts = BufReader::new(File::open(args.location_attempts_path).unwrap());
+        let location_attempts = BufReader::new(Decoder::new(File::open(args.location_attempts_path).unwrap()).unwrap());
         read_location_attempts(location_attempts).unwrap()
     });
 

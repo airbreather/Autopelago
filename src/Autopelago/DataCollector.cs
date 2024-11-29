@@ -11,6 +11,9 @@ using Autopelago.BespokeMultiworld;
 
 using Serilog;
 
+using ZstdSharp;
+using ZstdSharp.Unsafe;
+
 namespace Autopelago;
 
 [JsonSerializable(typeof(Prng.State))]
@@ -30,9 +33,13 @@ public static class DataCollector
     {
         scienceDir = scienceDir.Replace("$HOME", Environment.GetFolderPath(Environment.SpecialFolder.UserProfile));
         Directory.CreateDirectory(Path.GetDirectoryName(PlaythroughGenerator.Paths.ResultFileForMovements(scienceDir))!);
-        await using StreamWriter outMovements = new(PlaythroughGenerator.Paths.ResultFileForMovements(scienceDir), Encoding.UTF8, s_create);
+        Compressor compressor1 = new(10);
+        compressor1.SetParameter(ZSTD_cParameter.ZSTD_c_nbWorkers, Environment.ProcessorCount);
+        await using StreamWriter outMovements = new(new CompressionStream(new FileStream(PlaythroughGenerator.Paths.ResultFileForMovements(scienceDir), s_create), compressor1, preserveCompressor: false, leaveOpen: false), Encoding.UTF8);
         Directory.CreateDirectory(Path.GetDirectoryName(PlaythroughGenerator.Paths.ResultFileForLocationAttempts(scienceDir))!);
-        await using StreamWriter outLocationAttempts = new(PlaythroughGenerator.Paths.ResultFileForLocationAttempts(scienceDir), Encoding.UTF8, s_create);
+        Compressor compressor2 = new(10);
+        compressor2.SetParameter(ZSTD_cParameter.ZSTD_c_nbWorkers, Environment.ProcessorCount);
+        await using StreamWriter outLocationAttempts = new(new CompressionStream(new FileStream(PlaythroughGenerator.Paths.ResultFileForLocationAttempts(scienceDir), s_create), compressor2, preserveCompressor: false, leaveOpen: false), Encoding.UTF8);
 
         Prng.State state = seed;
         Prng.State[] multiworldSeeds = new Prng.State[numSeeds];
