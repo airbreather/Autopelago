@@ -2,7 +2,7 @@ using System.Runtime.InteropServices;
 
 namespace Autopelago;
 
-[StructLayout(LayoutKind.Auto, Pack = 0)]
+[StructLayout(LayoutKind.Auto, Pack = 1)]
 public struct SmallBitArray
 {
     private readonly byte _length;
