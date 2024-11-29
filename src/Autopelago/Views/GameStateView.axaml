@@ -177,7 +177,7 @@
                         <TextBlock Margin="5,0,0,0" Grid.Row="5" Grid.Column="2" Classes="meter-label" Text="{Binding DistractionCounter^}" />
 
                         <TextBlock Grid.Row="6" Grid.Column="0" Classes="meter-label" Text="STT:" />
-                        <ProgressBar Grid.Row="6" Grid.Column="1" Minimum="0" Maximum="4" Value="{Binding StartledCounter^}" />
+                        <ProgressBar Grid.Row="6" Grid.Column="1" Minimum="0" Maximum="3" Value="{Binding StartledCounter^}" />
                         <TextBlock Margin="5,0,0,0" Grid.Row="6" Grid.Column="2" Classes="meter-label" Text="{Binding StartledCounter^}" />
 
                         <TextBlock Grid.Row="7" Grid.Column="0" Classes="meter-label" Text="CNF:" />
