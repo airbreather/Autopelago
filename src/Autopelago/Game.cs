@@ -273,12 +273,12 @@ public sealed class Game
 
     public void InitializeCheckedLocations(IEnumerable<LocationDefinitionModel> checkedLocations)
     {
+        using var _ = EnterLockScope();
         if (_checkedLocations is not null)
         {
             throw new InvalidOperationException("Checked locations have already been initialized.");
         }
 
-        using var _ = EnterLockScope();
         _checkedLocations = new();
         foreach (LocationDefinitionModel location in checkedLocations)
         {
@@ -288,35 +288,35 @@ public sealed class Game
 
     public void InitializeReceivedItems(IEnumerable<ItemDefinitionModel> receivedItems)
     {
+        using var _ = EnterLockScope();
         if (_receivedItems is not null)
         {
             throw new InvalidOperationException("Received items have already been initialized.");
         }
 
-        using var _ = EnterLockScope();
         _receivedItems = [.. receivedItems];
         _ratCount = null;
     }
 
     public void InitializeSpoilerData(FrozenDictionary<ArchipelagoItemFlags, FrozenSet<LocationKey>> spoilerData)
     {
+        using var _ = EnterLockScope();
         if (_spoilerData is not null)
         {
             throw new InvalidOperationException("Spoiler data has already been initialized.");
         }
 
-        using var _ = EnterLockScope();
         _spoilerData = spoilerData;
     }
 
     public void InitializeAuraData(AuraData auraData)
     {
+        using var _ = EnterLockScope();
         if (_initializedAuraData)
         {
             throw new InvalidOperationException("Aura data has already been initialized.");
         }
 
-        using var _ = EnterLockScope();
         FoodFactor = auraData.FoodFactor;
         LuckFactor = auraData.LuckFactor;
         EnergyFactor = auraData.EnergyFactor;
