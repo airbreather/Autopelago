@@ -59,8 +59,7 @@ public static class DataCollector
         ImmutableArray<LocationAttemptTraceEvent>[] locationAttempts = new ImmutableArray<LocationAttemptTraceEvent>[checked(numSeeds * numSlotsPerSeed * numRunsPerSeed)];
         TimeSpan reportInterval = TimeSpan.FromMilliseconds(400);
         long startTimestamp = Stopwatch.GetTimestamp();
-        int[] completed = new int[numSeeds];
-        int inProgress = 0;
+        int[] completed = new int[numSeeds * 1024];
         CancellationTokenSource cancelReports = new();
         Task reportTask = Task.Run(() =>
         {
@@ -87,7 +86,7 @@ public static class DataCollector
                                 continue;
                             }
 
-                            int cmp = Volatile.Read(in completed[i]);
+                            int cmp = Volatile.Read(in completed[i * 1024]);
                             done += cmp;
                             if (cmp < numRunsPerSeed)
                             {
@@ -120,7 +119,7 @@ public static class DataCollector
                             ? ((numSeeds * numRunsPerSeed) - done) * (elapsed / done)
                             : TimeSpan.FromHours(10);
                         remainingSeedsMessage.Length = Math.Max(0, remainingSeedsMessage.Length - 2);
-                        string msg = $"\r{elapsed.FormatMyWay()}, done {done}, prog {Volatile.Read(in inProgress)}, rem {estimatedRemaining.FormatMyWay()} to finish: {remainingSeedsMessage}";
+                        string msg = $"\r{elapsed.FormatMyWay()}, done {done}, rem {estimatedRemaining.FormatMyWay()} to finish: {remainingSeedsMessage}";
                         remainingSeedsMessage.Clear();
                         Console.Write(msg.PadRight(lastLineLength));
                         lastLineLength = msg.Length;
@@ -145,7 +144,6 @@ public static class DataCollector
                 return;
             }
 
-            Interlocked.Increment(ref inProgress);
             try
             {
                 int i = Math.DivRem(ij, numRunsPerSeed, out int j);
@@ -165,16 +163,12 @@ public static class DataCollector
                     locationAttempts[(i * numRunsPerSeed * numSlotsPerSeed) + (j * numSlotsPerSeed) + k] = [.. slots[k].Instrumentation.Attempts];
                 }
 
-                Interlocked.Increment(ref completed[i]);
+                Interlocked.Increment(ref completed[i * 1024]);
             }
             catch (Exception ex)
             {
                 loopState.Stop();
                 Log.Fatal(ex, "Error occurred while trying to run.");
-            }
-            finally
-            {
-                Interlocked.Decrement(ref inProgress);
             }
         });
 
