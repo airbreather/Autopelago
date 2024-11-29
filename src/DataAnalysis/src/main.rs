@@ -14,6 +14,7 @@ use std::process::ExitCode;
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::LazyLock;
 use std::thread::spawn;
+use bitvec::vec::BitVec;
 use string_interner::backend::StringBackend;
 use string_interner::symbol::SymbolU16;
 use string_interner::StringInterner;
@@ -85,6 +86,10 @@ struct ProcessedMovements {
 }
 
 fn read_movements<R: Read>(movements: R) -> Result<ProcessedMovements, Error> {
+    let mut prev_seed_number = u16::MAX;
+    let mut prev_iteration_number = u16::MAX;
+    let mut prev_slot_number = u16::MAX;
+    let mut run_index = usize::MAX;
     let mut rdr: Reader<R> = Reader::from_reader(movements);
     let mut total_movements = 0usize;
     let mut movements_while_startled = 0usize;
@@ -94,6 +99,10 @@ fn read_movements<R: Read>(movements: R) -> Result<ProcessedMovements, Error> {
     for result in rdr.deserialize() {
         let record: Movement = result?;
         total_movements += 1;
+        if (prev_seed_number, prev_iteration_number, prev_slot_number) != (record.seed_number, record.iteration_number, record.slot_number) {
+            run_index += 1;
+            (prev_seed_number, prev_iteration_number, prev_slot_number) = (record.seed_number, record.iteration_number, record.slot_number);
+        }
         let movement_entries_this_step = event_map
             .entry(record.seed_number).or_insert(HashMap::new())
             .entry(record.iteration_number).or_insert(HashMap::new())
@@ -108,9 +117,10 @@ fn read_movements<R: Read>(movements: R) -> Result<ProcessedMovements, Error> {
         }
         *times_moved_to_location.entry(movement_entry.to).or_insert(0usize) += 1;
         movement_entries_this_step.push(movement_entry);
-        STATUS_LINE.movement_runs_done.store((record.seed_number as usize * 1000) + (record.iteration_number as usize * 25) + record.slot_number as usize + 1, Ordering::Relaxed);
+        STATUS_LINE.movement_runs_done.store(run_index, Ordering::Relaxed);
         STATUS_LINE.total_movements.fetch_add(1, Ordering::Relaxed);
     }
+    STATUS_LINE.movement_runs_done.store(run_index + 1, Ordering::Relaxed);
 
     let mut total_steps = 0usize;
     let mut steps_spent_startled = 0usize;
@@ -181,6 +191,7 @@ fn read_movements<R: Read>(movements: R) -> Result<ProcessedMovements, Error> {
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "PascalCase")]
 struct LocationAttempt {
+    // SeedNumber,IterationNumber,SlotNumber,StepNumber,Region,N,AbilityCheckDC,RatCount,HasLucky,HasUnlucky,HasStylish,Roll,Success
     seed_number: u16,
     iteration_number: u16,
     slot_number: u16,
@@ -188,16 +199,23 @@ struct LocationAttempt {
     region: String,
     n: u8,
     rat_count: u8,
-    auras: u8,
+    mercy_modifier: u8,
+    has_lucky: u8,
+    has_unlucky: u8,
+    has_stylish: u8,
+    success: u8,
 }
 
 #[derive(Default)]
 struct LocationAttemptAccumulator {
     step_number: Vec<u16>,
     rat_count: Vec<u16>,
+    mercy_modifier: Vec<u16>,
+    attempted_during: BitVec,
     lucky: usize,
     unlucky: usize,
     stylish: usize,
+    success: usize,
 }
 
 #[derive(Serialize)]
@@ -217,6 +235,14 @@ fn get_mut_at_with_extend<T>(v: &mut Vec<T>, index: usize) -> &mut T where T: De
     }
 
     v.get_mut(index).unwrap()
+}
+
+fn set_at_with_extend(v: &mut BitVec, index: usize) {
+    while index >= v.len() {
+        v.push(false)
+    }
+
+    v.set(index, true);
 }
 
 impl Statistics {
@@ -287,6 +313,9 @@ impl Statistics {
 struct LocationAttemptSummary {
     step_number: Statistics,
     rat_count: Statistics,
+    mercy_modifier: Statistics,
+    runs_attempted: u64,
+    success_proportion: f64,
     lucky_proportion: f64,
     unlucky_proportion: f64,
     stylish_proportion: f64,
@@ -302,16 +331,23 @@ struct ProcessedLocationAttempts {
 impl LocationAttemptSummary {
     fn summarize(accumulator: &mut LocationAttemptAccumulator) -> Self {
         Self {
+            success_proportion: accumulator.success as f64 / accumulator.step_number.len() as f64,
             lucky_proportion: accumulator.lucky as f64 / accumulator.step_number.len() as f64,
             unlucky_proportion: accumulator.unlucky as f64 / accumulator.step_number.len() as f64,
             stylish_proportion: accumulator.stylish as f64 / accumulator.step_number.len() as f64,
+            runs_attempted: accumulator.attempted_during.count_ones() as u64,
             step_number: Statistics::of(&mut accumulator.step_number),
             rat_count: Statistics::of(&mut accumulator.rat_count),
+            mercy_modifier: Statistics::of(&mut accumulator.mercy_modifier),
         }
     }
 }
 
 fn read_location_attempts<R: Read>(location_attempts: R) -> Result<ProcessedLocationAttempts, Error> {
+    let mut prev_seed_number = u16::MAX;
+    let mut prev_iteration_number = u16::MAX;
+    let mut prev_slot_number = u16::MAX;
+    let mut run_index = usize::MAX;
     let mut rdr: Reader<R> = Reader::from_reader(location_attempts);
     let mut total_attempts = 0usize;
     let mut interner = StringInterner::<StringBackend<SymbolU16>>::new();
@@ -320,13 +356,20 @@ fn read_location_attempts<R: Read>(location_attempts: R) -> Result<ProcessedLoca
     for result in rdr.deserialize() {
         let record: LocationAttempt = result?;
         total_attempts += 1;
+        if (prev_seed_number, prev_iteration_number, prev_slot_number) != (record.seed_number, record.iteration_number, record.slot_number) {
+            run_index += 1;
+            (prev_seed_number, prev_iteration_number, prev_slot_number) = (record.seed_number, record.iteration_number, record.slot_number);
+        }
         let region_accumulator = region_accumulators
             .entry(interner.get_or_intern(&record.region)).or_insert(LocationAttemptAccumulator::default());
         region_accumulator.step_number.push(record.step_number);
         region_accumulator.rat_count.push(record.rat_count as u16);
-        region_accumulator.lucky += ((record.auras & (1 << 0)) >> 0) as usize;
-        region_accumulator.unlucky += ((record.auras & (1 << 1)) >> 1) as usize;
-        region_accumulator.stylish += ((record.auras & (1 << 2)) >> 2) as usize;
+        region_accumulator.mercy_modifier.push(record.mercy_modifier as u16);
+        set_at_with_extend(&mut region_accumulator.attempted_during, run_index);
+        region_accumulator.success += record.success as usize;
+        region_accumulator.lucky += record.has_lucky as usize;
+        region_accumulator.unlucky += record.has_unlucky as usize;
+        region_accumulator.stylish += record.has_stylish as usize;
 
         let region_location_accumulator =
             get_mut_at_with_extend(
@@ -337,12 +380,17 @@ fn read_location_attempts<R: Read>(location_attempts: R) -> Result<ProcessedLoca
             );
         region_location_accumulator.step_number.push(record.step_number);
         region_location_accumulator.rat_count.push(record.rat_count as u16);
-        region_location_accumulator.lucky += ((record.auras & (1 << 0)) >> 0) as usize;
-        region_location_accumulator.unlucky += ((record.auras & (1 << 1)) >> 1) as usize;
-        region_location_accumulator.stylish += ((record.auras & (1 << 2)) >> 2) as usize;
-        STATUS_LINE.location_attempt_runs_done.store((record.seed_number as usize * 1000) + (record.iteration_number as usize * 25) + record.slot_number as usize + 1, Ordering::Relaxed);
+        region_location_accumulator.mercy_modifier.push(record.mercy_modifier as u16);
+        set_at_with_extend(&mut region_location_accumulator.attempted_during, run_index);
+        region_location_accumulator.success += record.success as usize;
+        region_location_accumulator.lucky += record.has_lucky as usize;
+        region_location_accumulator.unlucky += record.has_unlucky as usize;
+        region_location_accumulator.stylish += record.has_stylish as usize;
+        STATUS_LINE.location_attempt_runs_done.store(run_index, Ordering::Relaxed);
         STATUS_LINE.total_location_attempts.fetch_add(1, Ordering::Relaxed);
     }
+
+    STATUS_LINE.location_attempt_runs_done.store(run_index + 1, Ordering::Relaxed);
 
     Ok(ProcessedLocationAttempts {
         total_attempts,
@@ -372,6 +420,9 @@ struct Args {
 
     #[arg(index = 3)]
     results_path: PathBuf,
+
+    #[arg(long)]
+    force: bool,
 }
 
 static STATUS_LINE: LazyLock<StatusLine<Progress>> = LazyLock::new(|| StatusLine::new(Progress::default()));
@@ -379,7 +430,11 @@ static STATUS_LINE: LazyLock<StatusLine<Progress>> = LazyLock::new(|| StatusLine
 fn main() -> Result<ExitCode, Error> {
     let args = Args::parse();
     let definitions_file = include_bytes!("../../AutopelagoDefinitions.yml");
-    let results_file = File::create_new(args.results_path)?;
+    let results_file = if args.force {
+        File::create(args.results_path)
+    } else {
+        File::create_new(args.results_path)
+    }?;
 
     // run movements
     let movements_handle = spawn(|| {

@@ -158,12 +158,13 @@ public sealed class Game
 
     public bool HasConfidence { get; private set; }
 
+    private int? _ratCount;
     public int RatCount
     {
         get
         {
             EnsureStarted();
-            return _receivedItems!
+            return _ratCount ??= _receivedItems!
                 .DefaultIfEmpty()
                 .Sum(i => i?.RatCount.GetValueOrDefault())
                 .GetValueOrDefault();
@@ -202,49 +203,57 @@ public sealed class Game
 
     public bool IsCompleted => CurrentLocation == GameDefinitions.Instance.GoalLocation;
 
-    public int PermanentRollModifier
+    public int PermanentRollModifier => GetPermanentRollModifier(RatCount);
+    public static int GetPermanentRollModifier(int ratCount)
     {
-        get
+        // diminishing returns
+        int rolling = 0;
+
+        // +1 for every 3 rats up to the first 12
+        if (ratCount <= 12)
         {
-            int ratCount = RatCount;
-
-            // diminishing returns
-            int rolling = 0;
-
-            // +1 for every 3 rats up to the first 12
-            if (ratCount <= 12)
-            {
-                rolling += ratCount / 3;
-                return rolling;
-            }
-
-            rolling += 4;
-            ratCount -= 12;
-
-            // beyond that, +1 for every 5 rats up to the next 15
-            if (ratCount <= 15)
-            {
-                rolling += ratCount / 5;
-                return rolling;
-            }
-
-            rolling += 3;
-            ratCount -= 15;
-
-            // beyond that, +1 for every 7 rats up to the next 14
-            if (ratCount <= 14)
-            {
-                rolling += ratCount / 7;
-                return rolling;
-            }
-
-            rolling += 2;
-            ratCount -= 14;
-
-            // everything else is +1 for every 8 rats.
-            rolling += ratCount / 8;
+            rolling += ratCount / 3;
             return rolling;
         }
+
+        rolling += 4;
+        ratCount -= 12;
+
+        // beyond that, +1 for every 5 rats up to the next 15
+        if (ratCount <= 15)
+        {
+            rolling += ratCount / 5;
+            return rolling;
+        }
+
+        rolling += 3;
+        ratCount -= 15;
+
+        // beyond that, +1 for every 7 rats up to the next 14
+        if (ratCount <= 14)
+        {
+            rolling += ratCount / 7;
+            return rolling;
+        }
+
+        rolling += 2;
+        ratCount -= 14;
+
+        // everything else is +1 for every 8 rats.
+        rolling += ratCount / 8;
+        return rolling;
+    }
+
+    public static sbyte ModifyRoll(byte d20, int ratCount, int mercy, int multi, bool hasUnlucky, bool hasStylish)
+    {
+        return checked((sbyte)(
+            d20 +
+            GetPermanentRollModifier(ratCount) +
+            mercy +
+            (multi * -5) +
+            (hasUnlucky ? -5 : 0) +
+            (hasStylish ? 5 : 0)
+        ));
     }
 
     public void ArbitrarilyModifyState<T>(Expression<Func<Game, T>> prop, T value)
@@ -276,6 +285,7 @@ public sealed class Game
         }
 
         _receivedItems = [.. receivedItems];
+        _ratCount = null;
     }
 
     public void InitializeSpoilerData(FrozenDictionary<ArchipelagoItemFlags, FrozenSet<LocationKey>> spoilerData)
@@ -365,6 +375,7 @@ public sealed class Game
 
         _checkedLocations ??= new();
         _receivedItems ??= [];
+        _ratCount = null;
         _spoilerData ??= GameDefinitions.Instance.LocationsByName.Values
             .Where(l => l.UnrandomizedItem is not null)
             .GroupBy(l => l.UnrandomizedItem!.ArchipelagoFlags, l => l.Key)
@@ -411,7 +422,7 @@ public sealed class Game
             DistractionCounter -= 1;
         }
 
-        int diceModifier = PermanentRollModifier;
+        int multi = 0;
         List<LocationVector> movementLog = [];
 
         // "Startled" has its own separate code to figure out the route to take.
@@ -478,17 +489,12 @@ public sealed class Game
 
             if (!moved && StartledCounter == 0 && !_checkedLocations![CurrentLocation.Key])
             {
-                int immediateMercyModifier = MercyModifier;
-                int immediateDiceModifier = diceModifier + immediateMercyModifier;
-                bool hasLucky = false;
                 bool hasUnlucky = false;
-                bool hasStylish = StyleFactor > 0;
-                diceModifier -= 5;
-
+                bool hasLucky = false;
+                bool hasStylish = false;
                 switch (LuckFactor)
                 {
                     case < 0:
-                        immediateDiceModifier -= 5;
                         LuckFactor += 1;
                         hasUnlucky = true;
                         break;
@@ -499,23 +505,26 @@ public sealed class Game
                         break;
                 }
 
-                if (hasStylish && !hasLucky)
+                if (StyleFactor > 0 && !hasLucky)
                 {
-                    immediateDiceModifier += 5;
                     StyleFactor -= 1;
+                    hasStylish = true;
                 }
 
-                byte d20 = 0;
-                bool success = false;
-                if (hasLucky || ((d20 = (byte)Prng.NextD20(ref _prngState)) + immediateDiceModifier >= CurrentLocation.AbilityCheckDC))
+                byte roll = 0;
+                sbyte modifiedRoll = 0;
+                bool success = hasLucky;
+                int immediateMercyModifier = MercyModifier;
+                if (!success)
                 {
-                    _checkedLocations!.MarkChecked(CurrentLocation);
-                    MercyModifier = 0;
-                    success = true;
-                }
-
-                if (d20 != 0)
-                {
+                    modifiedRoll = ModifyRoll(
+                        d20: roll = Prng.NextD20(ref _prngState),
+                        ratCount: RatCount,
+                        mercy: immediateMercyModifier,
+                        multi: multi++,
+                        hasUnlucky: hasUnlucky,
+                        hasStylish: hasStylish);
+                    success = modifiedRoll >= CurrentLocation.AbilityCheckDC;
                     if (isFirstCheck && !success)
                     {
                         failedFirstCheck = true;
@@ -524,7 +533,14 @@ public sealed class Game
                     isFirstCheck = false;
                 }
 
-                _instrumentation?.TraceLocationAttempt(CurrentLocation, d20, hasLucky, hasUnlucky, hasStylish, (byte)RatCount, (byte)CurrentLocation.AbilityCheckDC, (byte)immediateMercyModifier);
+                if (success)
+                {
+                    _checkedLocations!.MarkChecked(CurrentLocation);
+                    MercyModifier = 0;
+                    success = true;
+                }
+
+                _instrumentation?.TraceLocationAttempt(CurrentLocation, roll, modifiedRoll, hasLucky, hasUnlucky, hasStylish, (byte)RatCount, (byte)CurrentLocation.AbilityCheckDC, (byte)immediateMercyModifier, success);
                 if (!success)
                 {
                     continue;
@@ -694,6 +710,7 @@ public sealed class Game
         }
 
         _receivedItems!.AddRange(newItems);
+        _ratCount = null;
         FoodFactor += foodMod * 5;
         EnergyFactor += energyFactorMod * 5;
         LuckFactor += luckFactorMod;

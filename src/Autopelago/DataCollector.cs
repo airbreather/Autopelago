@@ -59,6 +59,7 @@ public static class DataCollector
         TimeSpan reportInterval = TimeSpan.FromMilliseconds(400);
         long startTimestamp = Stopwatch.GetTimestamp();
         int[] completed = new int[numSeeds];
+        int inProgress = 0;
         CancellationTokenSource cancelReports = new();
         Task reportTask = Task.Run(() =>
         {
@@ -118,7 +119,7 @@ public static class DataCollector
                             ? ((numSeeds * numRunsPerSeed) - done) * (elapsed / done)
                             : TimeSpan.FromHours(10);
                         remainingSeedsMessage.Length = Math.Max(0, remainingSeedsMessage.Length - 2);
-                        string msg = $"\rFinished {done} run(s) after {elapsed.FormatMyWay()}, meaning about {estimatedRemaining.FormatMyWay()} left. Seeds remaining: {remainingSeedsMessage}";
+                        string msg = $"\r{elapsed.FormatMyWay()}, done {done}, prog {Volatile.Read(in inProgress)}, rem {estimatedRemaining.FormatMyWay()} to finish: {remainingSeedsMessage}";
                         remainingSeedsMessage.Clear();
                         Console.Write(msg.PadRight(lastLineLength));
                         lastLineLength = msg.Length;
@@ -143,6 +144,7 @@ public static class DataCollector
                 return;
             }
 
+            Interlocked.Increment(ref inProgress);
             try
             {
                 int i = Math.DivRem(ij, numRunsPerSeed, out int j);
@@ -170,6 +172,10 @@ public static class DataCollector
                 loopState.Stop();
                 Log.Fatal(ex, "Error occurred while trying to run.");
             }
+            finally
+            {
+                Interlocked.Decrement(ref inProgress);
+            }
         });
 
         await cancelReports.CancelAsync();
@@ -182,25 +188,21 @@ public static class DataCollector
         }
 
         await outMovements.WriteLineAsync("SeedNumber,IterationNumber,SlotNumber,StepNumber,FromRegion,FromN,ToRegion,ToN,Reason");
-        await outLocationAttempts.WriteLineAsync("SeedNumber,IterationNumber,SlotNumber,StepNumber,Region,N,AbilityCheckDC,MercyModifier,Roll,RatCount,Auras");
+        await outLocationAttempts.WriteLineAsync("SeedNumber,IterationNumber,SlotNumber,StepNumber,Region,N,AbilityCheckDC,RatCount,MercyModifier,HasLucky,HasUnlucky,HasStylish,Roll,Success");
         for (int i = 0; i < numSeeds; i++)
         {
             for (int j = 0; j < numRunsPerSeed; j++)
             {
                 for (int k = 0; k < numSlotsPerSeed; k++)
                 {
-                    foreach (MovementTraceEvent movement in movements[(i * numRunsPerSeed * numSlotsPerSeed) + (j * numSlotsPerSeed) + k])
+                    foreach (MovementTraceEvent m in movements[(i * numRunsPerSeed * numSlotsPerSeed) + (j * numSlotsPerSeed) + k])
                     {
-                        await outMovements.WriteLineAsync($"{i},{j},{k},{movement.StepNumber},{movement.From.Key.RegionKey},{movement.From.Key.N},{movement.To.Key.RegionKey},{movement.To.Key.N},{(byte)movement.Reason}");
+                        await outMovements.WriteLineAsync($"{i},{j},{k},{m.StepNumber},{m.From.Key.RegionKey},{m.From.Key.N},{m.To.Key.RegionKey},{m.To.Key.N},{(byte)m.Reason}");
                     }
 
-                    foreach (LocationAttemptTraceEvent locationAttempt in locationAttempts[(i * numRunsPerSeed * numSlotsPerSeed) + (j * numSlotsPerSeed) + k])
+                    foreach (LocationAttemptTraceEvent l in locationAttempts[(i * numRunsPerSeed * numSlotsPerSeed) + (j * numSlotsPerSeed) + k])
                     {
-                        int auras =
-                            (locationAttempt.HasLucky ? 1 : 0) << 0 |
-                            (locationAttempt.HasUnlucky ? 1 : 0) << 1 |
-                            (locationAttempt.HasStylish ? 1 : 0) << 2;
-                        await outLocationAttempts.WriteLineAsync($"{i},{j},{k},{locationAttempt.StepNumber},{locationAttempt.Location.Key.RegionKey},{locationAttempt.Location.Key.N},{locationAttempt.AbilityCheckDC},{locationAttempt.MercyModifier},{locationAttempt.Roll},{locationAttempt.RatCount},{auras}");
+                        await outLocationAttempts.WriteLineAsync($"{i},{j},{k},{l.StepNumber},{l.Location.Key.RegionKey},{l.Location.Key.N},{l.AbilityCheckDC},{l.RatCount},{l.MercyModifier},{(l.HasLucky ? 1 : 0)},{(l.HasUnlucky ? 1 : 0)},{(l.HasStylish ? 1 : 0)},{l.D20},{(l.Success ? 1 : 0)}");
                     }
                 }
             }

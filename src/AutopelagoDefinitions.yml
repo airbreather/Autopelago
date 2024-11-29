@@ -493,7 +493,7 @@ regions:
       reward_is_fixed: yes
       requires:
         item: mongoose_in_a_combat_spacecraft
-      ability_check_dc: 26
+      ability_check_dc: 23
       exits:
         - moon_comma_the
 
@@ -504,7 +504,7 @@ regions:
         any:
           - item: asteroid_belt
           - item: moon_shaped_like_a_butt
-      ability_check_dc: 30
+      ability_check_dc: 26
       exits: []
 
     minotaur_labyrinth:
@@ -514,7 +514,7 @@ regions:
         any:
           - item: red_matador_cape
           - item: lab_rat
-      ability_check_dc: 25
+      ability_check_dc: 23
       exits:
         - before_asteroid_with_pants
         - after_minotaur_labyrinth
@@ -524,7 +524,7 @@ regions:
       unrandomized_item: pack_rat
       requires:
         rat_count: 49
-      ability_check_dc: 24
+      ability_check_dc: 20
       exits:
         - after_space_opera
 
@@ -535,7 +535,7 @@ regions:
         any:
           - item: constellation_prize
           - item: free_vowel
-      ability_check_dc: 25
+      ability_check_dc: 22
       exits:
         - before_minotaur_labyrinth
         - before_space_opera
@@ -545,7 +545,7 @@ regions:
       unrandomized_item: pack_rat
       requires:
         item: foreign_coin
-      ability_check_dc: 28
+      ability_check_dc: 24
       exits: []
 
     frozen_assets:
@@ -553,7 +553,7 @@ regions:
       unrandomized_item: pack_rat
       requires:
         item: playing_with_fire_for_dummies
-      ability_check_dc: 28
+      ability_check_dc: 24
       exits: []
 
     homeless_mummy:
@@ -563,7 +563,7 @@ regions:
         any:
           - item: ziggu_rat
           - item: pharaoh_not_anti_mummy_spray
-      ability_check_dc: 25
+      ability_check_dc: 22
       exits:
         - before_frozen_assets
         - before_alien_vending_machine
@@ -574,7 +574,7 @@ regions:
       unrandomized_item: constellation_prize
       requires:
         rat_count: 40
-      ability_check_dc: 25
+      ability_check_dc: 22
       exits:
         - after_stalled_rocket_get_out_and_push
 
@@ -806,7 +806,7 @@ regions:
       unrandomized_item: pack_rat
       requires:
         rat_count: 5
-      ability_check_dc: 12
+      ability_check_dc: 11
       exits:
         - before_prawn_stars
         - before_angry_turtles
@@ -840,7 +840,7 @@ regions:
           - moon_shaped_like_a_butt
         filler: 1
         useful_nonprogression: 1
-      ability_check_dc: 30
+      ability_check_dc: 26
       exits:
         - asteroid_with_pants
 
@@ -872,7 +872,7 @@ regions:
           - foreign_coin
         filler: 1
         useful_nonprogression: 2
-      ability_check_dc: 28
+      ability_check_dc: 25
       exits:
         - alien_vending_machine
 
@@ -883,7 +883,7 @@ regions:
           - playing_with_fire_for_dummies
         filler: 4
         useful_nonprogression: 2
-      ability_check_dc: 28
+      ability_check_dc: 25
       exits:
         - frozen_assets
 
@@ -1013,7 +1013,7 @@ regions:
       unrandomized_items:
         filler: 4
         useful_nonprogression: 2
-      ability_check_dc: 25
+      ability_check_dc: 20
       exits:
         - room_full_of_typewriters
 
@@ -1024,7 +1024,7 @@ regions:
           - acro_rat
         filler: 3
         useful_nonprogression: 2
-      ability_check_dc: 25
+      ability_check_dc: 20
       exits:
         - trapeze
 
@@ -1200,6 +1200,6 @@ regions:
             count: 5
         useful_nonprogression: 5
         filler: 16
-      ability_check_dc: 11
+      ability_check_dc: 8
       exits:
         - basketball

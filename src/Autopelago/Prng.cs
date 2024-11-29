@@ -54,9 +54,9 @@ public static class Prng
         return result;
     }
 
-    public static int NextD20(ref State s)
+    public static byte NextD20(ref State s)
     {
-        return ((int)Math.Floor(NextDouble(ref s) * 20)) + 1;
+        return (byte)(((int)Math.Floor(NextDouble(ref s) * 20)) + 1);
     }
 
     public static double NextDouble(ref State s)

@@ -40,7 +40,8 @@ public sealed class GameTests
     [Test]
     public void FirstAttemptsShouldMakeSense()
     {
-        Prng.State seed = EnsureSeedProducesInitialD20Sequence(4383381, [10, 15, 20, 11, 15]);
+        ulong seedNum = SearchForPrngSeed(5, s => s is [9, 14, 19, 10, 14]);
+        Prng.State seed = EnsureSeedProducesInitialD20Sequence(seedNum, [9, 14, 19, 10, 14]);
         Prng.State prngState = seed;
 
         Game game = new(seed);
@@ -158,13 +159,7 @@ public sealed class GameTests
     {
         Prng.State seed = EnsureSeedProducesInitialD20Sequence(1673567, [14, 19, 20, 13, 15]);
         Game game = new(seed);
-        game.ReceiveItems([
-            .. Enumerable.Repeat(s_singleAuraItems["unlucky"], 4),
-
-            // give it enough rats to get a +1 modifier so that we can see a natural 20 fail after
-            // it would have succeeded
-            .. Enumerable.Repeat(s_normalRat, 3),
-        ]);
+        game.ReceiveItems([.. Enumerable.Repeat(s_singleAuraItems["unlucky"], 4)]);
 
         // normally, a 14 as your first roll should pass, but with Unlucky it's not enough. the 19
         // also fails because -5 from the aura and -5 from the second attempt. even a natural 20

@@ -6,6 +6,7 @@ edition = "2021"
 [dependencies]
 anyhow = { version = "1.0.93", features = ["backtrace"] }
 bitflags = { version = "2.6.0", features = ["serde"] }
+bitvec = "1.0.1"
 clap = { version = "4.5.21", features = ["derive", "unicode", "wrap_help"] }
 csv = "1.3.1"
 serde = { version = "1.0.215", features = ["derive"] }
