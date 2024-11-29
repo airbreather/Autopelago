@@ -576,7 +576,9 @@ public sealed record FillerRegionDefinitionModel : RegionDefinitionModel
         }
 
         ImmutableArray<RegionExitDefinitionModel> exits = [.. ((YamlSequenceNode)map["exits"]).Select(RegionExitDefinitionModel.DeserializeFrom)];
-        int abilityCheckDC = exits.Max(e => landmarkRegions[e.RegionKey].AbilityCheckDC) - 1;
+        int abilityCheckDC = map.Children.TryGetValue("ability_check_dc", out YamlNode? abilityCheckDCNode)
+            ? abilityCheckDCNode.To<int>()
+            : exits.Max(e => landmarkRegions[e.RegionKey].AbilityCheckDC) - 1;
         return new()
         {
             Key = key,

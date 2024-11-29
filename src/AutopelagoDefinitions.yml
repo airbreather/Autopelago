@@ -838,6 +838,7 @@ regions:
           - moon_shaped_like_a_butt
         filler: 1
         useful_nonprogression: 1
+      ability_check_dc: 23
       exits:
         - asteroid_with_pants
 
@@ -867,6 +868,7 @@ regions:
           - foreign_coin
         filler: 1
         useful_nonprogression: 2
+      ability_check_dc: 23
       exits:
         - alien_vending_machine
 
@@ -877,6 +879,7 @@ regions:
           - playing_with_fire_for_dummies
         filler: 4
         useful_nonprogression: 2
+      ability_check_dc: 23
       exits:
         - frozen_assets
 
@@ -995,6 +998,7 @@ regions:
       unrandomized_items:
         filler: 4
         useful_nonprogression: 2
+      ability_check_dc: 20
       exits:
         - room_full_of_typewriters
 
@@ -1005,6 +1009,7 @@ regions:
           - acro_rat
         filler: 3
         useful_nonprogression: 2
+      ability_check_dc: 20
       exits:
         - trapeze
 
