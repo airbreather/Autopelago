@@ -10,7 +10,7 @@ public sealed record CheckedLocations
         GameDefinitions.Instance.AllRegions
             .ToDictionary(r => r.Key, r => new SmallBitArray(r.Value.Locations.Length));
 
-    private readonly List<LocationDefinitionModel> _order = [];
+    private readonly List<LocationDefinitionModel> _order = new(GameDefinitions.Instance.LocationsByName.Count);
 
     public CheckedLocations()
     {

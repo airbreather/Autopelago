@@ -56,9 +56,18 @@ public sealed record LocationVector
 
 public sealed class Game
 {
-    private readonly Lock _lock = new();
-
     private readonly GameInstrumentation? _instrumentation;
+
+    private readonly List<LocationVector> _prevMovementLog =
+    [
+        new()
+        {
+            PreviousLocation = GameDefinitions.Instance.StartLocation,
+            CurrentLocation = GameDefinitions.Instance.StartLocation,
+        },
+    ];
+
+    private readonly List<LocationVector> _movementLog = [];
 
     private int _actionBalanceAfterPreviousStep;
 
@@ -79,15 +88,10 @@ public sealed class Game
     {
         _prngState = prngState;
         _instrumentation = instrumentation;
+        PreviousStepMovementLog = _prevMovementLog.AsReadOnly();
     }
 
-    public ImmutableArray<LocationVector> PreviousStepMovementLog { get; private set; } = [
-        new()
-        {
-            PreviousLocation = GameDefinitions.Instance.StartLocation,
-            CurrentLocation = GameDefinitions.Instance.StartLocation,
-        },
-    ];
+    public ReadOnlyCollection<LocationVector> PreviousStepMovementLog { get; }
 
     public LocationDefinitionModel CurrentLocation { get; private set; } = GameDefinitions.Instance.StartLocation;
 
@@ -263,7 +267,6 @@ public sealed class Game
 
     public void InitializeCheckedLocations(IEnumerable<LocationDefinitionModel> checkedLocations)
     {
-        using Lock.Scope _ = _lock.EnterScope();
         if (_checkedLocations is not null)
         {
             throw new InvalidOperationException("Checked locations have already been initialized.");
@@ -278,7 +281,6 @@ public sealed class Game
 
     public void InitializeReceivedItems(IEnumerable<ItemDefinitionModel> receivedItems)
     {
-        using Lock.Scope _ = _lock.EnterScope();
         if (_receivedItems is not null)
         {
             throw new InvalidOperationException("Received items have already been initialized.");
@@ -290,7 +292,6 @@ public sealed class Game
 
     public void InitializeSpoilerData(FrozenDictionary<ArchipelagoItemFlags, FrozenSet<LocationKey>> spoilerData)
     {
-        using Lock.Scope _ = _lock.EnterScope();
         if (_spoilerData is not null)
         {
             throw new InvalidOperationException("Spoiler data has already been initialized.");
@@ -301,7 +302,6 @@ public sealed class Game
 
     public void InitializeAuraData(AuraData auraData)
     {
-        using Lock.Scope _ = _lock.EnterScope();
         if (_initializedAuraData)
         {
             throw new InvalidOperationException("Aura data has already been initialized.");
@@ -329,7 +329,6 @@ public sealed class Game
 
     public AddPriorityLocationResult? AddPriorityLocation(LocationDefinitionModel toPrioritize)
     {
-        using Lock.Scope _ = _lock.EnterScope();
         if (_priorityLocations.Contains(toPrioritize))
         {
             return AddPriorityLocationResult.AlreadyPrioritized;
@@ -345,7 +344,6 @@ public sealed class Game
 
     public LocationDefinitionModel? RemovePriorityLocation(string locationName)
     {
-        using Lock.Scope _ = _lock.EnterScope();
         int index = _priorityLocations.FindIndex(
             l => l.Name.Equals(locationName, StringComparison.InvariantCultureIgnoreCase));
         if (index < 0)
@@ -360,21 +358,19 @@ public sealed class Game
 
     public IEnumerable<LocationDefinitionModel> CalculateRoute(LocationDefinitionModel fromLocation, LocationDefinitionModel toLocation)
     {
-        using Lock.Scope _ = _lock.EnterScope();
         EnsureStarted();
         return _routeCalculator!.GetPath(fromLocation, toLocation) ?? [];
     }
 
     public void EnsureStarted()
     {
-        using Lock.Scope _ = _lock.EnterScope();
         if (HasStarted)
         {
             return;
         }
 
         _checkedLocations ??= new();
-        _receivedItems ??= [];
+        _receivedItems ??= new(GameDefinitions.Instance.AllItems.Length);
         _ratCount = null;
         _spoilerData ??= GameDefinitions.Instance.LocationsByName.Values
             .Where(l => l.UnrandomizedItem is not null)
@@ -387,7 +383,6 @@ public sealed class Game
 
     public void Advance()
     {
-        using Lock.Scope _ = _lock.EnterScope();
         EnsureStarted();
         if (IsCompleted)
         {
@@ -423,7 +418,6 @@ public sealed class Game
         }
 
         int multi = 0;
-        List<LocationVector> movementLog = [];
 
         // "Startled" has its own separate code to figure out the route to take.
         using IEnumerator<LocationDefinitionModel>? startledPath = actionBalance > 0 && StartledCounter > 0
@@ -464,7 +458,7 @@ public sealed class Game
                 {
                     if (startledPath?.MoveNext() == true)
                     {
-                        movementLog.Add(new()
+                        _movementLog.Add(new()
                         {
                             PreviousLocation = CurrentLocation,
                             CurrentLocation = startledPath.Current,
@@ -473,14 +467,14 @@ public sealed class Game
                     else
                     {
                         _targetLocationPathEnumerator!.MoveNext();
-                        movementLog.Add(new()
+                        _movementLog.Add(new()
                         {
                             PreviousLocation = CurrentLocation,
                             CurrentLocation = _targetLocationPathEnumerator.Current,
                         });
                     }
 
-                    CurrentLocation = movementLog[^1].CurrentLocation;
+                    CurrentLocation = _movementLog[^1].CurrentLocation;
                     moved = true;
                 }
             }
@@ -510,12 +504,11 @@ public sealed class Game
                 }
 
                 byte roll = 0;
-                sbyte modifiedRoll = 0;
                 bool success = hasLucky;
                 int immediateMercyModifier = MercyModifier;
                 if (!success)
                 {
-                    modifiedRoll = ModifyRoll(
+                    sbyte modifiedRoll = ModifyRoll(
                         d20: roll = Prng.NextD20(ref _prngState),
                         mercy: immediateMercyModifier,
                         multi: multi++,
@@ -580,16 +573,17 @@ public sealed class Game
             UpdateTargetLocation();
         }
 
-        if (movementLog.Count == 0)
+        if (_movementLog.Count == 0)
         {
-            if (PreviousStepMovementLog.Length > 1)
+            if (_prevMovementLog.Count > 1)
             {
-                PreviousStepMovementLog = [PreviousStepMovementLog[^1]];
+                _prevMovementLog.RemoveRange(0, _prevMovementLog.Count - 1);
             }
         }
         else
         {
-            PreviousStepMovementLog = [.. movementLog];
+            _prevMovementLog.Clear();
+            _prevMovementLog.AddRange(_movementLog);
         }
 
         _actionBalanceAfterPreviousStep = actionBalance;
@@ -601,7 +595,6 @@ public sealed class Game
 
     public void CheckLocations(ImmutableArray<LocationDefinitionModel> newLocations)
     {
-        using Lock.Scope _ = _lock.EnterScope();
         EnsureStarted();
         foreach (LocationDefinitionModel location in newLocations)
         {
@@ -611,7 +604,6 @@ public sealed class Game
 
     public void ReceiveItems(ReadOnlySpan<ItemDefinitionModel> newItems)
     {
-        using Lock.Scope _ = _lock.EnterScope();
         EnsureStarted();
         if (newItems.IsEmpty)
         {
@@ -715,6 +707,10 @@ public sealed class Game
         StyleFactor += stylishMod * 2;
         DistractionCounter += distractedMod;
         StartledCounter += startledMod;
+
+        // Startled is extremely punishing. after a big release, it can be very annoying to just sit
+        // there and wait for too many turns in a row.
+        StartledCounter = Math.Min(StartledCounter, 3);
     }
 
     private bool UpdateTargetLocation()

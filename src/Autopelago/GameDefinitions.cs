@@ -51,9 +51,9 @@ public sealed record GameDefinitions
 
     public required FrozenDictionary<string, LocationDefinitionModel> LocationsByNameCaseInsensitive { get; init; }
 
-    public required FrozenDictionary<LocationDefinitionModel, ImmutableArray<(LocationDefinitionModel Location, Direction Direction)>> ConnectedLocations { get; init; }
+    public required FrozenDictionary<LocationKey, ImmutableArray<(LocationDefinitionModel Location, Direction Direction)>> ConnectedLocations { get; init; }
 
-    public required FrozenDictionary<RegionDefinitionModel, ImmutableArray<(RegionDefinitionModel Region, Direction Direction)>> ConnectedRegions { get; init; }
+    public required FrozenDictionary<string, ImmutableArray<(RegionDefinitionModel Region, Direction Direction)>> ConnectedRegions { get; init; }
 
     public required FrozenDictionary<ArchipelagoItemFlags, ImmutableArray<ItemDefinitionModel>> NonGameSpecificItemsByFlags { get; init; }
 
@@ -385,9 +385,9 @@ public sealed record RegionDefinitionsModel
 
     public required FrozenDictionary<string, FillerRegionDefinitionModel> FillerRegions { get; init; }
 
-    public required FrozenDictionary<LocationDefinitionModel, ImmutableArray<(LocationDefinitionModel Location, Direction Direction)>> ConnectedLocations { get; init; }
+    public required FrozenDictionary<LocationKey, ImmutableArray<(LocationDefinitionModel Location, Direction Direction)>> ConnectedLocations { get; init; }
 
-    public required FrozenDictionary<RegionDefinitionModel, ImmutableArray<(RegionDefinitionModel Region, Direction Direction)>> ConnectedRegions { get; init; }
+    public required FrozenDictionary<string, ImmutableArray<(RegionDefinitionModel Region, Direction Direction)>> ConnectedRegions { get; init; }
 
     public static RegionDefinitionsModel DeserializeFrom(YamlMappingNode map, ItemDefinitionsModel items)
     {
@@ -411,8 +411,8 @@ public sealed record RegionDefinitionsModel
             allRegions.Add(key, value);
         }
 
-        Dictionary<LocationDefinitionModel, List<(LocationDefinitionModel Location, Direction Direction)>> connectedLocations = [];
-        Dictionary<RegionDefinitionModel, HashSet<(RegionDefinitionModel Region, Direction Direction)>> connectedRegions = [];
+        Dictionary<LocationKey, List<(LocationDefinitionModel Location, Direction Direction)>> connectedLocations = [];
+        Dictionary<string, HashSet<(RegionDefinitionModel Region, Direction Direction)>> connectedRegions = [];
         Queue<(LocationDefinitionModel? Prev, RegionDefinitionModel Curr)> regionsQueue = [];
         regionsQueue.Enqueue((null, allRegions["Menu"]));
         while (regionsQueue.TryDequeue(out (LocationDefinitionModel? Prev, RegionDefinitionModel Curr) tup))
@@ -422,8 +422,8 @@ public sealed record RegionDefinitionsModel
             {
                 if (prev is not null)
                 {
-                    (CollectionsMarshal.GetValueRefOrAddDefault(connectedLocations, prev, out _) ??= []).Add((next, Direction.TowardsGoal));
-                    (CollectionsMarshal.GetValueRefOrAddDefault(connectedLocations, next, out _) ??= []).Add((prev, Direction.TowardsStart));
+                    (CollectionsMarshal.GetValueRefOrAddDefault(connectedLocations, prev.Key, out _) ??= []).Add((next, Direction.TowardsGoal));
+                    (CollectionsMarshal.GetValueRefOrAddDefault(connectedLocations, next.Key, out _) ??= []).Add((prev, Direction.TowardsStart));
                 }
 
                 prev = next;
@@ -432,8 +432,8 @@ public sealed record RegionDefinitionsModel
             foreach (RegionExitDefinitionModel exit in curr.Exits)
             {
                 regionsQueue.Enqueue((prev, allRegions[exit.RegionKey]));
-                (CollectionsMarshal.GetValueRefOrAddDefault(connectedRegions, curr, out _) ??= []).Add((allRegions[exit.RegionKey], Direction.TowardsGoal));
-                (CollectionsMarshal.GetValueRefOrAddDefault(connectedRegions, allRegions[exit.RegionKey], out _) ??= []).Add((curr, Direction.TowardsStart));
+                (CollectionsMarshal.GetValueRefOrAddDefault(connectedRegions, curr.Key, out _) ??= []).Add((allRegions[exit.RegionKey], Direction.TowardsGoal));
+                (CollectionsMarshal.GetValueRefOrAddDefault(connectedRegions, allRegions[exit.RegionKey].Key, out _) ??= []).Add((curr, Direction.TowardsStart));
             }
         }
 

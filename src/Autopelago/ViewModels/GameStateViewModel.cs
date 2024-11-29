@@ -1,5 +1,6 @@
 using System.Collections.Frozen;
 using System.Collections.Immutable;
+using System.Collections.ObjectModel;
 using System.Reactive;
 using System.Reactive.Disposables;
 using System.Reactive.Linq;
@@ -137,8 +138,8 @@ public sealed class GameStateViewModel : ViewModelBase, IDisposable
         _subscriptions.Add(movementLogs0.Connect());
         IObservable<LocationVector> SpaceOut(Game gameState)
         {
-            ImmutableArray<LocationVector> locations = gameState.PreviousStepMovementLog;
-            if (locations.Length < 2)
+            ReadOnlyCollection<LocationVector> locations = gameState.PreviousStepMovementLog;
+            if (locations.Count < 2)
             {
                 return locations.ToObservable();
             }
@@ -146,7 +147,7 @@ public sealed class GameStateViewModel : ViewModelBase, IDisposable
             return Observable.Create<LocationVector>(async (obs, cancellationToken) =>
             {
                 obs.OnNext(locations[0]);
-                for (int i = 1; i < locations.Length; i++)
+                for (int i = 1; i < locations.Count; i++)
                 {
                     await Task.Delay(MovementAnimationTime, cancellationToken);
                     obs.OnNext(locations[i]);
