@@ -406,7 +406,7 @@ public sealed record RegionDefinitionsModel
         foreach ((YamlNode keyNode, YamlNode valueNode) in (YamlMappingNode)map["fillers"])
         {
             string key = keyNode.To<string>();
-            FillerRegionDefinitionModel value = FillerRegionDefinitionModel.DeserializeFrom(key, (YamlMappingNode)valueNode, items);
+            FillerRegionDefinitionModel value = FillerRegionDefinitionModel.DeserializeFrom(key, (YamlMappingNode)valueNode, items, landmarkRegions);
             fillerRegions.Add(key, value);
             allRegions.Add(key, value);
         }
@@ -527,7 +527,7 @@ public sealed record LandmarkRegionDefinitionModel : RegionDefinitionModel
 
 public sealed record FillerRegionDefinitionModel : RegionDefinitionModel
 {
-    public static FillerRegionDefinitionModel DeserializeFrom(string key, YamlMappingNode map, ItemDefinitionsModel items)
+    public static FillerRegionDefinitionModel DeserializeFrom(string key, YamlMappingNode map, ItemDefinitionsModel items, Dictionary<string, LandmarkRegionDefinitionModel> landmarkRegions)
     {
         Dictionary<ArchipelagoItemFlags, string> keyMap = new()
         {
@@ -575,12 +575,13 @@ public sealed record FillerRegionDefinitionModel : RegionDefinitionModel
             }
         }
 
-        int abilityCheckDC = map["ability_check_dc"].To<int>();
+        ImmutableArray<RegionExitDefinitionModel> exits = [.. ((YamlSequenceNode)map["exits"]).Select(RegionExitDefinitionModel.DeserializeFrom)];
+        int abilityCheckDC = exits.Max(e => landmarkRegions[e.RegionKey].AbilityCheckDC) - 1;
         return new()
         {
             Key = key,
             AbilityCheckDC = abilityCheckDC,
-            Exits = [.. ((YamlSequenceNode)map["exits"]).Select(RegionExitDefinitionModel.DeserializeFrom)],
+            Exits = exits,
             Locations = [.. unrandomizedItems.Select((item, n) => new LocationDefinitionModel
             {
                 Key = LocationKey.For(key, n),

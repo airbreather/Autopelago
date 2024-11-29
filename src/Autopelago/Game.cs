@@ -244,11 +244,11 @@ public sealed class Game
         return rolling;
     }
 
-    public static sbyte ModifyRoll(byte d20, int ratCount, int mercy, int multi, bool hasUnlucky, bool hasStylish)
+    private sbyte ModifyRoll(byte d20, int mercy, int multi, bool hasUnlucky, bool hasStylish)
     {
         return checked((sbyte)(
             d20 +
-            GetPermanentRollModifier(ratCount) +
+            PermanentRollModifier +
             mercy +
             (multi * -5) +
             (hasUnlucky ? -5 : 0) +
@@ -394,7 +394,7 @@ public sealed class Game
             return;
         }
 
-        bool failedFirstCheck = false;
+        bool bumpMercyModifierForNextTime = false;
         bool isFirstCheck = true;
         int actionBalance = 3 + _actionBalanceAfterPreviousStep;
         switch (FoodFactor)
@@ -519,7 +519,6 @@ public sealed class Game
                 {
                     modifiedRoll = ModifyRoll(
                         d20: roll = Prng.NextD20(ref _prngState),
-                        ratCount: RatCount,
                         mercy: immediateMercyModifier,
                         multi: multi++,
                         hasUnlucky: hasUnlucky,
@@ -527,7 +526,7 @@ public sealed class Game
                     success = modifiedRoll >= CurrentLocation.AbilityCheckDC;
                     if (isFirstCheck && !success)
                     {
-                        failedFirstCheck = true;
+                        bumpMercyModifierForNextTime = true;
                     }
 
                     isFirstCheck = false;
@@ -537,6 +536,7 @@ public sealed class Game
                 {
                     _checkedLocations!.MarkChecked(CurrentLocation);
                     MercyModifier = 0;
+                    bumpMercyModifierForNextTime = false;
                     success = true;
                 }
 
@@ -595,7 +595,7 @@ public sealed class Game
         }
 
         _actionBalanceAfterPreviousStep = actionBalance;
-        if (failedFirstCheck)
+        if (bumpMercyModifierForNextTime)
         {
             ++MercyModifier;
         }

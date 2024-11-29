@@ -40,8 +40,7 @@ public sealed class GameTests
     [Test]
     public void FirstAttemptsShouldMakeSense()
     {
-        ulong seedNum = SearchForPrngSeed(5, s => s is [9, 14, 19, 10, 14]);
-        Prng.State seed = EnsureSeedProducesInitialD20Sequence(seedNum, [9, 14, 19, 10, 14]);
+        Prng.State seed = EnsureSeedProducesInitialD20Sequence(56061, [8, 13, 18, 9, 13]);
         Prng.State prngState = seed;
 
         Game game = new(seed);
@@ -56,11 +55,11 @@ public sealed class GameTests
         {
             Assert.That(game.CheckedLocations, Is.Empty);
             Assert.That(game.PrngState, Is.EqualTo(prngState));
+            Assert.That(game.MercyModifier, Is.EqualTo(1));
         });
 
-        // the next attempt should succeed, despite only rolling 1 higher than the first roll of the
-        // previous step (and a few points lower than the subsequent rolls of that step), because of
-        // the cumulative penalty that gets applied to attempts after the first.
+        // the next attempt should succeed despite rolling the same as the previous step because the
+        // cumulative penalty has worn off and the mercy modifier adds +1.
         _ = Prng.NextD20(ref prngState);
         _ = Prng.NextD20(ref prngState);
 
@@ -157,21 +156,33 @@ public sealed class GameTests
     [Test]
     public void UnluckyAuraShouldReduceModifier()
     {
-        Prng.State seed = EnsureSeedProducesInitialD20Sequence(1673567, [14, 19, 20, 13, 15]);
+        Prng.State seed = EnsureSeedProducesInitialD20Sequence(1070077, [13, 18, 20, 12, 13]);
         Game game = new(seed);
         game.ReceiveItems([.. Enumerable.Repeat(s_singleAuraItems["unlucky"], 4)]);
 
-        // normally, a 14 as your first roll should pass, but with Unlucky it's not enough. the 19
+        // normally, a 13 as your first roll should pass, but with Unlucky it's not enough. the 18
         // also fails because -5 from the aura and -5 from the second attempt. even a natural 20
         // can't save you from a -15, so this first Advance call should utterly fail.
         game.Advance();
-        Assert.That(game.CheckedLocations, Is.Empty);
+        Assert.Multiple(() =>
+        {
+            Assert.That(game.CheckedLocations, Is.Empty);
 
-        // the 13 burns the final Unlucky buff, so following it up with a 15 overcomes the mere -5
-        // from trying a second time on the same Advance call as well as the mercy modifier that was
-        // granted when we failed our first check on the previous step.
+            // remember, after the first roll fails on a turn and no subsequent rolls pass during
+            // that same turn, then the next turn's rolls get +1.
+            Assert.That(game.MercyModifier, Is.EqualTo(1));
+        });
+
+        // the 12+1 burns the final Unlucky buff, so following it up with 13+1 overcomes the mere -5
+        // from trying a second time on the same Advance call.
         game.Advance();
-        Assert.That(game.CheckedLocations, Has.Count.EqualTo(1));
+        Assert.Multiple(() =>
+        {
+            Assert.That(game.CheckedLocations, Has.Count.EqualTo(1));
+
+            // our first roll failed, but then a roll passed, so this modifier should be reset.
+            Assert.That(game.MercyModifier, Is.Zero);
+        });
     }
 
     [Test]
@@ -571,7 +582,7 @@ public sealed class GameTests
     [Test]
     public void LongMovesShouldBeAccelerated()
     {
-        if (s_startRegion.Locations.Length != 18)
+        if (s_startRegion.Locations.Length < 25)
         {
             Assert.Inconclusive("This test is particularly sensitive to changes in the number of locations in the start region. Please re-evaluate.");
         }
@@ -582,66 +593,19 @@ public sealed class GameTests
         game.ArbitrarilyModifyState(g => g.CurrentLocation, GameDefinitions.Instance.StartLocation);
         game.ArbitrarilyModifyState(g => g.TargetLocation, s_basketball);
 
-        // the start region isn't big enough for the test as it was originally written, so cheat a
-        // little bit and steal a bunch of movements from the rat.
-        game.ReceiveItems([.. Enumerable.Repeat(s_singleAuraItems["sluggish"], 20)]);
+        game.ReceiveItems([s_singleAuraItems["energized"]]);
         game.Advance();
         Assert.Multiple(() =>
         {
             Assert.That(
                 game.PreviousStepMovementLog.Select(v => v.PreviousLocation),
-                Is.EqualTo(s_startRegion.Locations[..6]));
+                Is.EqualTo(s_startRegion.Locations[..24]));
             Assert.That(
                 game.PreviousStepMovementLog.Select(v => v.CurrentLocation),
-                Is.EqualTo(s_startRegion.Locations[1..7]));
+                Is.EqualTo(s_startRegion.Locations[1..25]));
             Assert.That(
                 game.CurrentLocation,
                 Is.EqualTo(game.PreviousStepMovementLog[^1].CurrentLocation));
-        });
-        game.Advance();
-        Assert.Multiple(() =>
-        {
-            Assert.That(
-                game.PreviousStepMovementLog.Select(v => v.PreviousLocation),
-                Is.EqualTo(s_startRegion.Locations[6..9]));
-            Assert.That(
-                game.PreviousStepMovementLog.Select(v => v.CurrentLocation),
-                Is.EqualTo(s_startRegion.Locations[7..10]));
-            Assert.That(
-                game.CurrentLocation,
-                Is.EqualTo(game.PreviousStepMovementLog[^1].CurrentLocation));
-        });
-        game.Advance();
-        Assert.Multiple(() =>
-        {
-            Assert.That(
-                game.PreviousStepMovementLog.Select(v => v.PreviousLocation),
-                Is.EqualTo(s_startRegion.Locations[9..15]));
-            Assert.That(
-                game.PreviousStepMovementLog.Select(v => v.CurrentLocation),
-                Is.EqualTo(s_startRegion.Locations[10..16]));
-            Assert.That(
-                game.CurrentLocation,
-                Is.EqualTo(game.PreviousStepMovementLog[^1].CurrentLocation));
-        });
-        game.ArbitrarilyModifyState(g => g.EnergyFactor, 0);
-        game.Advance();
-        Assert.Multiple(() =>
-        {
-            ImmutableArray<LocationDefinitionModel> expectedCurrentLocationSequence = [
-                .. s_startRegion.Locations[16..],
-                s_basketball,
-            ];
-            Assert.That(
-                game.PreviousStepMovementLog.Select(v => v.PreviousLocation),
-                Is.EqualTo(s_startRegion.Locations[15..]));
-            Assert.That(
-                game.PreviousStepMovementLog.Select(v => v.CurrentLocation),
-                Is.EqualTo(expectedCurrentLocationSequence));
-            Assert.That(
-                game.CurrentLocation,
-                Is.EqualTo(game.PreviousStepMovementLog[^1].CurrentLocation));
-            Assert.That(game.CheckedLocations.Order, Contains.Item(s_basketball));
         });
     }
 
