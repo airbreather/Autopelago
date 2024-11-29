@@ -51,9 +51,9 @@ public sealed record GameDefinitions
 
     public required FrozenDictionary<string, LocationDefinitionModel> LocationsByNameCaseInsensitive { get; init; }
 
-    public required FrozenDictionary<LocationDefinitionModel, ImmutableArray<(LocationDefinitionModel Location, Direction Direction)>> ConnectedLocations { get; init; }
+    public required FrozenDictionary<LocationKey, ImmutableArray<(LocationDefinitionModel Location, Direction Direction)>> ConnectedLocations { get; init; }
 
-    public required FrozenDictionary<RegionDefinitionModel, ImmutableArray<(RegionDefinitionModel Region, Direction Direction)>> ConnectedRegions { get; init; }
+    public required FrozenDictionary<string, ImmutableArray<(RegionDefinitionModel Region, Direction Direction)>> ConnectedRegions { get; init; }
 
     public required FrozenDictionary<ArchipelagoItemFlags, ImmutableArray<ItemDefinitionModel>> NonGameSpecificItemsByFlags { get; init; }
 
@@ -385,9 +385,9 @@ public sealed record RegionDefinitionsModel
 
     public required FrozenDictionary<string, FillerRegionDefinitionModel> FillerRegions { get; init; }
 
-    public required FrozenDictionary<LocationDefinitionModel, ImmutableArray<(LocationDefinitionModel Location, Direction Direction)>> ConnectedLocations { get; init; }
+    public required FrozenDictionary<LocationKey, ImmutableArray<(LocationDefinitionModel Location, Direction Direction)>> ConnectedLocations { get; init; }
 
-    public required FrozenDictionary<RegionDefinitionModel, ImmutableArray<(RegionDefinitionModel Region, Direction Direction)>> ConnectedRegions { get; init; }
+    public required FrozenDictionary<string, ImmutableArray<(RegionDefinitionModel Region, Direction Direction)>> ConnectedRegions { get; init; }
 
     public static RegionDefinitionsModel DeserializeFrom(YamlMappingNode map, ItemDefinitionsModel items)
     {
@@ -406,13 +406,13 @@ public sealed record RegionDefinitionsModel
         foreach ((YamlNode keyNode, YamlNode valueNode) in (YamlMappingNode)map["fillers"])
         {
             string key = keyNode.To<string>();
-            FillerRegionDefinitionModel value = FillerRegionDefinitionModel.DeserializeFrom(key, (YamlMappingNode)valueNode, items);
+            FillerRegionDefinitionModel value = FillerRegionDefinitionModel.DeserializeFrom(key, (YamlMappingNode)valueNode, items, landmarkRegions);
             fillerRegions.Add(key, value);
             allRegions.Add(key, value);
         }
 
-        Dictionary<LocationDefinitionModel, List<(LocationDefinitionModel Location, Direction Direction)>> connectedLocations = [];
-        Dictionary<RegionDefinitionModel, HashSet<(RegionDefinitionModel Region, Direction Direction)>> connectedRegions = [];
+        Dictionary<LocationKey, List<(LocationDefinitionModel Location, Direction Direction)>> connectedLocations = [];
+        Dictionary<string, HashSet<(RegionDefinitionModel Region, Direction Direction)>> connectedRegions = [];
         Queue<(LocationDefinitionModel? Prev, RegionDefinitionModel Curr)> regionsQueue = [];
         regionsQueue.Enqueue((null, allRegions["Menu"]));
         while (regionsQueue.TryDequeue(out (LocationDefinitionModel? Prev, RegionDefinitionModel Curr) tup))
@@ -422,8 +422,8 @@ public sealed record RegionDefinitionsModel
             {
                 if (prev is not null)
                 {
-                    (CollectionsMarshal.GetValueRefOrAddDefault(connectedLocations, prev, out _) ??= []).Add((next, Direction.TowardsGoal));
-                    (CollectionsMarshal.GetValueRefOrAddDefault(connectedLocations, next, out _) ??= []).Add((prev, Direction.TowardsStart));
+                    (CollectionsMarshal.GetValueRefOrAddDefault(connectedLocations, prev.Key, out _) ??= []).Add((next, Direction.TowardsGoal));
+                    (CollectionsMarshal.GetValueRefOrAddDefault(connectedLocations, next.Key, out _) ??= []).Add((prev, Direction.TowardsStart));
                 }
 
                 prev = next;
@@ -432,8 +432,8 @@ public sealed record RegionDefinitionsModel
             foreach (RegionExitDefinitionModel exit in curr.Exits)
             {
                 regionsQueue.Enqueue((prev, allRegions[exit.RegionKey]));
-                (CollectionsMarshal.GetValueRefOrAddDefault(connectedRegions, curr, out _) ??= []).Add((allRegions[exit.RegionKey], Direction.TowardsGoal));
-                (CollectionsMarshal.GetValueRefOrAddDefault(connectedRegions, allRegions[exit.RegionKey], out _) ??= []).Add((curr, Direction.TowardsStart));
+                (CollectionsMarshal.GetValueRefOrAddDefault(connectedRegions, curr.Key, out _) ??= []).Add((allRegions[exit.RegionKey], Direction.TowardsGoal));
+                (CollectionsMarshal.GetValueRefOrAddDefault(connectedRegions, allRegions[exit.RegionKey].Key, out _) ??= []).Add((curr, Direction.TowardsStart));
             }
         }
 
@@ -451,6 +451,8 @@ public sealed record RegionDefinitionsModel
 public abstract record RegionDefinitionModel
 {
     public required string Key { get; init; }
+
+    public required int AbilityCheckDC { get; init; }
 
     public required ImmutableArray<RegionExitDefinitionModel> Exits { get; init; }
 
@@ -500,10 +502,12 @@ public sealed record LandmarkRegionDefinitionModel : RegionDefinitionModel
     {
         YamlNode[] exits = map.TryGetValue("exits", out YamlNode[]? exitsOrNull) ? exitsOrNull : [];
         GameRequirement requirement = GameRequirement.DeserializeFrom(map["requires"]);
+        int abilityCheckDC = map["ability_check_dc"].To<int>();
         return new()
         {
             Key = key,
             Requirement = requirement,
+            AbilityCheckDC = abilityCheckDC,
             Exits = [.. exits.Select(RegionExitDefinitionModel.DeserializeFrom)],
             Locations =
             [
@@ -513,7 +517,7 @@ public sealed record LandmarkRegionDefinitionModel : RegionDefinitionModel
                     Name = map["name"].To<string>(),
                     FlavorText = map.TryGetValue("flavor_text", out string? flavorText) ? flavorText : null,
                     UnrandomizedItem = items.ProgressionItems.GetValueOrDefault(map["unrandomized_item"].To<string>()),
-                    AbilityCheckDC = map.TryGetValue("ability_check_dc", out int abilityCheckDC) ? abilityCheckDC : 1,
+                    AbilityCheckDC = abilityCheckDC,
                     RewardIsFixed = map.TryGetValue("reward_is_fixed", out bool rewardIsFixed) && rewardIsFixed,
                 },
             ],
@@ -523,7 +527,7 @@ public sealed record LandmarkRegionDefinitionModel : RegionDefinitionModel
 
 public sealed record FillerRegionDefinitionModel : RegionDefinitionModel
 {
-    public static FillerRegionDefinitionModel DeserializeFrom(string key, YamlMappingNode map, ItemDefinitionsModel items)
+    public static FillerRegionDefinitionModel DeserializeFrom(string key, YamlMappingNode map, ItemDefinitionsModel items, Dictionary<string, LandmarkRegionDefinitionModel> landmarkRegions)
     {
         Dictionary<ArchipelagoItemFlags, string> keyMap = new()
         {
@@ -571,15 +575,15 @@ public sealed record FillerRegionDefinitionModel : RegionDefinitionModel
             }
         }
 
-        if (!map.TryGetValue("ability_check_dc", out int abilityCheckDC))
-        {
-            abilityCheckDC = 1;
-        }
-
+        ImmutableArray<RegionExitDefinitionModel> exits = [.. ((YamlSequenceNode)map["exits"]).Select(RegionExitDefinitionModel.DeserializeFrom)];
+        int abilityCheckDC = map.Children.TryGetValue("ability_check_dc", out YamlNode? abilityCheckDCNode)
+            ? abilityCheckDCNode.To<int>()
+            : exits.Max(e => landmarkRegions[e.RegionKey].AbilityCheckDC) - 1;
         return new()
         {
             Key = key,
-            Exits = [.. ((YamlSequenceNode)map["exits"]).Select(RegionExitDefinitionModel.DeserializeFrom)],
+            AbilityCheckDC = abilityCheckDC,
+            Exits = exits,
             Locations = [.. unrandomizedItems.Select((item, n) => new LocationDefinitionModel
             {
                 Key = LocationKey.For(key, n),

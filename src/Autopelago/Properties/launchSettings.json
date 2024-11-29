@@ -4,6 +4,16 @@
     "run": {
       "commandName": "Project",
       "dotnetRunMessages": true
+    },
+    "science": {
+      "commandName": "Project",
+      "commandLineArgs": "g $HOME/SCIENCE 100 4 15 8675309",
+      "dotnetRunMessages": true
+    },
+    "big-science": {
+      "commandName": "Project",
+      "commandLineArgs": "g $HOME/SCIENCE 1000 25 40 8675309",
+      "dotnetRunMessages": true
     }
   }
 }

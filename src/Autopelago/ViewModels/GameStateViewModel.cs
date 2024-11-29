@@ -1,5 +1,6 @@
 using System.Collections.Frozen;
 using System.Collections.Immutable;
+using System.Collections.ObjectModel;
 using System.Reactive;
 using System.Reactive.Disposables;
 using System.Reactive.Linq;
@@ -107,9 +108,9 @@ public sealed class GameStateViewModel : ViewModelBase, IDisposable
         HasConfidence = provider.CurrentGameState
             .Select(g => g.HasConfidence);
         MovingToSmart = provider.CurrentGameState
-            .Select(g => g.TargetLocationReason == TargetLocationReason.PriorityPriority && g.SpoilerData[g.TargetLocation] == ArchipelagoItemFlags.LogicalAdvancement);
+            .Select(g => g.TargetLocationReason == TargetLocationReason.PriorityPriority && g.SpoilerData[ArchipelagoItemFlags.LogicalAdvancement].Contains(g.TargetLocation.Key));
         MovingToConspiratorial = provider.CurrentGameState
-            .Select(g => g.TargetLocationReason == TargetLocationReason.PriorityPriority && g.SpoilerData[g.TargetLocation] == ArchipelagoItemFlags.Trap);
+            .Select(g => g.TargetLocationReason == TargetLocationReason.PriorityPriority && g.SpoilerData[ArchipelagoItemFlags.Trap].Contains(g.TargetLocation.Key));
 
         CurrentLocation = provider.CurrentGameState
             .Select(v => v.CurrentLocation);
@@ -137,8 +138,8 @@ public sealed class GameStateViewModel : ViewModelBase, IDisposable
         _subscriptions.Add(movementLogs0.Connect());
         IObservable<LocationVector> SpaceOut(Game gameState)
         {
-            ImmutableArray<LocationVector> locations = gameState.PreviousStepMovementLog;
-            if (locations.Length < 2)
+            ReadOnlyCollection<LocationVector> locations = gameState.PreviousStepMovementLog;
+            if (locations.Count < 2)
             {
                 return locations.ToObservable();
             }
@@ -146,7 +147,7 @@ public sealed class GameStateViewModel : ViewModelBase, IDisposable
             return Observable.Create<LocationVector>(async (obs, cancellationToken) =>
             {
                 obs.OnNext(locations[0]);
-                for (int i = 1; i < locations.Length; i++)
+                for (int i = 1; i < locations.Count; i++)
                 {
                     await Task.Delay(MovementAnimationTime, cancellationToken);
                     obs.OnNext(locations[i]);
@@ -214,7 +215,7 @@ public sealed class GameStateViewModel : ViewModelBase, IDisposable
             .Where(g => g.CheckedLocations.Count > lastCheckedLocationsCount || (g.IsCompleted && !wasCompleted))
             .Subscribe(g =>
             {
-                foreach (LocationDefinitionModel location in g.CheckedLocations.Skip(lastCheckedLocationsCount))
+                foreach (LocationDefinitionModel location in g.CheckedLocations.Order.Skip(lastCheckedLocationsCount))
                 {
                     if (landmarkRegionsLookup.TryGetValue(location.Key.RegionKey, out LandmarkRegionViewModel? landmarkViewModel))
                     {

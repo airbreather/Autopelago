@@ -9,6 +9,7 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "src", "src", "{9ED842B4-B7C
 	ProjectSection(SolutionItems) = preProject
 		src\.globalconfig = src\.globalconfig
 		src\Directory.Build.props = src\Directory.Build.props
+		src\AutopelagoDefinitions.yml = src\AutopelagoDefinitions.yml
 	EndProjectSection
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "tests", "tests", "{5A51FB37-5CB2-4F96-8573-660B36A6C445}"

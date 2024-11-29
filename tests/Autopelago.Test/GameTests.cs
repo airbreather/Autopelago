@@ -40,7 +40,7 @@ public sealed class GameTests
     [Test]
     public void FirstAttemptsShouldMakeSense()
     {
-        Prng.State seed = EnsureSeedProducesInitialD20Sequence(12999128, [9, 14, 19, 10, 14]);
+        Prng.State seed = EnsureSeedProducesInitialD20Sequence(56061, [8, 13, 18, 9, 13]);
         Prng.State prngState = seed;
 
         Game game = new(seed);
@@ -55,18 +55,18 @@ public sealed class GameTests
         {
             Assert.That(game.CheckedLocations, Is.Empty);
             Assert.That(game.PrngState, Is.EqualTo(prngState));
+            Assert.That(game.MercyModifier, Is.EqualTo(1));
         });
 
-        // the next attempt should succeed, despite only rolling 1 higher than the first roll of the
-        // previous step (and a few points lower than the subsequent rolls of that step), because of
-        // the cumulative penalty that gets applied to attempts after the first.
+        // the next attempt should succeed despite rolling the same as the previous step because the
+        // cumulative penalty has worn off and the mercy modifier adds +1.
         _ = Prng.NextD20(ref prngState);
         _ = Prng.NextD20(ref prngState);
 
         game.Advance();
         Assert.Multiple(() =>
         {
-            Assert.That(game.CheckedLocations.FirstOrDefault(), Is.EqualTo(s_startLocation));
+            Assert.That(game.CheckedLocations.Order.FirstOrDefault(), Is.EqualTo(s_startLocation));
             Assert.That(game.TargetLocation, Is.EqualTo(s_startRegion.Locations[1]));
 
             // because they succeeded on their first attempt, they have just enough actions to reach and
@@ -86,7 +86,7 @@ public sealed class GameTests
         game.ArbitrarilyModifyState(g => g.CurrentLocation, s_startRegion.Locations[^1]);
         game.ArbitrarilyModifyState(g => g.TargetLocation, s_startRegion.Locations[^1]);
         game.Advance();
-        Assert.That(game.CheckedLocations, ratCount < 5 ? Does.Not.Contain(s_basketball) : Contains.Item(s_basketball));
+        Assert.That(game.CheckedLocations.Order, ratCount < 5 ? Does.Not.Contain(s_basketball) : Contains.Item(s_basketball));
     }
 
     [Test]
@@ -126,7 +126,7 @@ public sealed class GameTests
                 break;
             }
 
-            foreach (LocationDefinitionModel newCheckedLocation in game.CheckedLocations.Skip(prevCheckedLocationsCount))
+            foreach (LocationDefinitionModel newCheckedLocation in game.CheckedLocations.Order.Skip(prevCheckedLocationsCount))
             {
                 newReceivedItems.Add(newCheckedLocation.UnrandomizedItem!);
             }
@@ -156,20 +156,33 @@ public sealed class GameTests
     [Test]
     public void UnluckyAuraShouldReduceModifier()
     {
-        Prng.State seed = EnsureSeedProducesInitialD20Sequence(2242996, [14, 19, 20, 14, 15]);
+        Prng.State seed = EnsureSeedProducesInitialD20Sequence(1070077, [13, 18, 20, 12, 13]);
         Game game = new(seed);
         game.ReceiveItems([.. Enumerable.Repeat(s_singleAuraItems["unlucky"], 4)]);
 
-        // normally, a 14 as your first roll should pass, but with Unlucky it's not enough. the 19
+        // normally, a 13 as your first roll should pass, but with Unlucky it's not enough. the 18
         // also fails because -5 from the aura and -5 from the second attempt. even a natural 20
         // can't save you from a -15, so this first Advance call should utterly fail.
         game.Advance();
-        Assert.That(game.CheckedLocations, Is.Empty);
+        Assert.Multiple(() =>
+        {
+            Assert.That(game.CheckedLocations, Is.Empty);
 
-        // the 14 burns the final Unlucky buff, so following it up with a 15 overcomes the mere -5
+            // remember, after the first roll fails on a turn and no subsequent rolls pass during
+            // that same turn, then the next turn's rolls get +1.
+            Assert.That(game.MercyModifier, Is.EqualTo(1));
+        });
+
+        // the 12+1 burns the final Unlucky buff, so following it up with 13+1 overcomes the mere -5
         // from trying a second time on the same Advance call.
         game.Advance();
-        Assert.That(game.CheckedLocations, Has.Count.EqualTo(1));
+        Assert.Multiple(() =>
+        {
+            Assert.That(game.CheckedLocations, Has.Count.EqualTo(1));
+
+            // our first roll failed, but then a roll passed, so this modifier should be reset.
+            Assert.That(game.MercyModifier, Is.Zero);
+        });
     }
 
     [Test]
@@ -346,7 +359,7 @@ public sealed class GameTests
     [Test]
     public void StyleFactorShouldImproveModifier()
     {
-        Prng.State seed = EnsureSeedProducesInitialD20Sequence(80387, [5, 10]);
+        Prng.State seed = EnsureSeedProducesInitialD20Sequence(81622, [6, 11]);
         Game game = new(seed);
         game.ReceiveItems([.. Enumerable.Repeat(s_singleAuraItems["stylish"], 2)]);
 
@@ -393,7 +406,7 @@ public sealed class GameTests
             game.ArbitrarilyModifyState(g => g.PrngState, s_highRolls);
             game.Advance();
             Assert.That(game.TargetLocation.Region, Is.InstanceOf<LandmarkRegionDefinitionModel>());
-            foreach (LocationDefinitionModel checkedLocation in game.CheckedLocations)
+            foreach (LocationDefinitionModel checkedLocation in game.CheckedLocations.Order)
             {
                 if (fixedRewardsGranted.Add(checkedLocation.Key) && checkedLocation is { RewardIsFixed: true, UnrandomizedItem: { } unrandomizedItem })
                 {
@@ -519,7 +532,7 @@ public sealed class GameTests
             "conspiratorial" => ArchipelagoItemFlags.Trap,
             _ => throw null!,
         };
-        FrozenDictionary<LocationDefinitionModel, ArchipelagoItemFlags> spoilerData = CreateSpoiler([
+        FrozenDictionary<ArchipelagoItemFlags, FrozenSet<LocationKey>> spoilerData = CreateSpoiler([
             (GameDefinitions.Instance.StartLocation, targetFlags),
             (s_beforePrawnStars.Locations[0], targetFlags),
             (s_beforePrawnStars.Locations[^1], targetFlags),
@@ -569,7 +582,7 @@ public sealed class GameTests
     [Test]
     public void LongMovesShouldBeAccelerated()
     {
-        if (s_startRegion.Locations.Length != 18)
+        if (s_startRegion.Locations.Length < 25)
         {
             Assert.Inconclusive("This test is particularly sensitive to changes in the number of locations in the start region. Please re-evaluate.");
         }
@@ -580,66 +593,19 @@ public sealed class GameTests
         game.ArbitrarilyModifyState(g => g.CurrentLocation, GameDefinitions.Instance.StartLocation);
         game.ArbitrarilyModifyState(g => g.TargetLocation, s_basketball);
 
-        // the start region isn't big enough for the test as it was originally written, so cheat a
-        // little bit and steal a bunch of movements from the rat.
-        game.ReceiveItems([.. Enumerable.Repeat(s_singleAuraItems["sluggish"], 20)]);
+        game.ReceiveItems([s_singleAuraItems["energized"]]);
         game.Advance();
         Assert.Multiple(() =>
         {
             Assert.That(
                 game.PreviousStepMovementLog.Select(v => v.PreviousLocation),
-                Is.EqualTo(s_startRegion.Locations[..6]));
+                Is.EqualTo(s_startRegion.Locations[..24]));
             Assert.That(
                 game.PreviousStepMovementLog.Select(v => v.CurrentLocation),
-                Is.EqualTo(s_startRegion.Locations[1..7]));
+                Is.EqualTo(s_startRegion.Locations[1..25]));
             Assert.That(
                 game.CurrentLocation,
                 Is.EqualTo(game.PreviousStepMovementLog[^1].CurrentLocation));
-        });
-        game.Advance();
-        Assert.Multiple(() =>
-        {
-            Assert.That(
-                game.PreviousStepMovementLog.Select(v => v.PreviousLocation),
-                Is.EqualTo(s_startRegion.Locations[6..9]));
-            Assert.That(
-                game.PreviousStepMovementLog.Select(v => v.CurrentLocation),
-                Is.EqualTo(s_startRegion.Locations[7..10]));
-            Assert.That(
-                game.CurrentLocation,
-                Is.EqualTo(game.PreviousStepMovementLog[^1].CurrentLocation));
-        });
-        game.Advance();
-        Assert.Multiple(() =>
-        {
-            Assert.That(
-                game.PreviousStepMovementLog.Select(v => v.PreviousLocation),
-                Is.EqualTo(s_startRegion.Locations[9..15]));
-            Assert.That(
-                game.PreviousStepMovementLog.Select(v => v.CurrentLocation),
-                Is.EqualTo(s_startRegion.Locations[10..16]));
-            Assert.That(
-                game.CurrentLocation,
-                Is.EqualTo(game.PreviousStepMovementLog[^1].CurrentLocation));
-        });
-        game.ArbitrarilyModifyState(g => g.EnergyFactor, 0);
-        game.Advance();
-        Assert.Multiple(() =>
-        {
-            ImmutableArray<LocationDefinitionModel> expectedCurrentLocationSequence = [
-                .. s_startRegion.Locations[16..],
-                s_basketball,
-            ];
-            Assert.That(
-                game.PreviousStepMovementLog.Select(v => v.PreviousLocation),
-                Is.EqualTo(s_startRegion.Locations[15..]));
-            Assert.That(
-                game.PreviousStepMovementLog.Select(v => v.CurrentLocation),
-                Is.EqualTo(expectedCurrentLocationSequence));
-            Assert.That(
-                game.CurrentLocation,
-                Is.EqualTo(game.PreviousStepMovementLog[^1].CurrentLocation));
-            Assert.That(game.CheckedLocations, Contains.Item(s_basketball));
         });
     }
 
@@ -780,15 +746,17 @@ public sealed class GameTests
         }
     }
 
-    private static FrozenDictionary<LocationDefinitionModel, ArchipelagoItemFlags> CreateSpoiler(ReadOnlySpan<(LocationDefinitionModel Location, ArchipelagoItemFlags Flags)> defined)
+    private static FrozenDictionary<ArchipelagoItemFlags, FrozenSet<LocationKey>> CreateSpoiler(ReadOnlySpan<(LocationDefinitionModel Location, ArchipelagoItemFlags Flags)> defined)
     {
-        Dictionary<LocationDefinitionModel, ArchipelagoItemFlags> result = GameDefinitions.Instance.LocationsByName.Values.ToDictionary(l => l, _ => ArchipelagoItemFlags.None);
+        Dictionary<LocationKey, ArchipelagoItemFlags> result = GameDefinitions.Instance.LocationsByName.Values.ToDictionary(l => l.Key, _ => ArchipelagoItemFlags.None);
         foreach ((LocationDefinitionModel location, ArchipelagoItemFlags flags) in defined)
         {
-            result[location] = flags;
+            result[location.Key] = flags;
         }
 
-        return result.ToFrozenDictionary();
+        return result
+            .GroupBy(kvp => kvp.Value, kvp => kvp.Key)
+            .ToFrozenDictionary(grp => grp.Key, grp => grp.ToFrozenSet());
     }
 
     private static Prng.State EnsureSeedProducesInitialD20Sequence(ulong seed, ReadOnlySpan<int> exactVals)
@@ -860,7 +828,7 @@ public sealed class GameTests
         }
 
         ulong result = box.Seed!.Value;
-        TestContext.Out.WriteLine($"ulong seed = {nameof(EnsureSeedProducesInitialD20Sequence)}({result}, [{string.Join(", ", Rolls(result, stackalloc int[cnt]).ToArray())}]);");
+        TestContext.Out.WriteLine($"Prng.State seed = {nameof(EnsureSeedProducesInitialD20Sequence)}({result}, [{string.Join(", ", Rolls(result, stackalloc int[cnt]).ToArray())}]);");
         return result;
 
         static void Search(object? obj)

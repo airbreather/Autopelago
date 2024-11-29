@@ -9,6 +9,8 @@
     <AvaloniaUseCompiledBindingsByDefault>true</AvaloniaUseCompiledBindingsByDefault>
     <RuntimeIdentifiers>win-x64;linux-x64;osx-x64</RuntimeIdentifiers>
     <ApplicationIcon>Assets/Images/Autopelago.ico</ApplicationIcon>
+
+    <LangVersion>preview</LangVersion>
   </PropertyGroup>
 
   <PropertyGroup Label="Publish options" Condition=" '$(_IsPublishing)' == 'true' ">
@@ -42,7 +44,7 @@
 
   <ItemGroup>
     <AvaloniaResource Include="Assets\**" />
-    <EmbeddedResource Include="AutopelagoDefinitions.yml" LogicalName="AutopelagoDefinitions.yml" />
+    <EmbeddedResource Include="$(ProjectDir)../AutopelagoDefinitions.yml" LogicalName="AutopelagoDefinitions.yml" />
   </ItemGroup>
 
 </Project>
