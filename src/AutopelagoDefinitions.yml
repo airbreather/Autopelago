@@ -481,6 +481,7 @@ regions:
   landmarks:
     moon_comma_the:
       name: 'Moon, The'
+      flavor_text: 'I hope there''s enough of it to go around...'
       unrandomized_item: Victory
       reward_is_fixed: yes
       requires:
@@ -489,6 +490,7 @@ regions:
 
     snakes_on_a_planet:
       name: 'Snakes on a Planet'
+      flavor_text: 'Actually, I don''t mind all these snakes. It''s the plane I''m after.'
       unrandomized_item: blackbird
       reward_is_fixed: yes
       requires:
@@ -499,6 +501,7 @@ regions:
 
     asteroid_with_pants:
       name: 'Asteroid with Pants'
+      flavor_text: 'Don''t you hate it when your pants are a million sizes too big?'
       unrandomized_item: pack_rat
       requires:
         any:
@@ -509,6 +512,7 @@ regions:
 
     minotaur_labyrinth:
       name: 'Minotaur Labyrinth'
+      flavor_text: 'No worries, minotaur, we get lost in mazes all the time!'
       unrandomized_item: pack_rat
       requires:
         any:
@@ -521,6 +525,7 @@ regions:
 
     space_opera:
       name: 'Space Opera'
+      flavor_text: 'It''s not over until the supermassive black hole sings!'
       unrandomized_item: pack_rat
       requires:
         rat_count: 49
@@ -530,6 +535,7 @@ regions:
 
     seal_of_fortune:
       name: 'Seal of Fortune'
+      flavor_text: 'Should I pick knowledge and understanding of the limitless secrets of the universe, or... door number 2?'
       unrandomized_item: pack_rat
       requires:
         any:
@@ -542,6 +548,7 @@ regions:
 
     alien_vending_machine:
       name: 'Alien Vending Machine'
+      flavor_text: 'Surprisingly, the aliens have all the same soda brands as us!'
       unrandomized_item: pack_rat
       requires:
         item: foreign_coin
@@ -550,6 +557,7 @@ regions:
 
     frozen_assets:
       name: 'Frozen Assets'
+      flavor_text: 'Frost-benefit analysis says to keep some of it on ice.'
       unrandomized_item: pack_rat
       requires:
         item: playing_with_fire_for_dummies
@@ -558,6 +566,7 @@ regions:
 
     homeless_mummy:
       name: 'Homeless Mummy'
+      flavor_text: 'Those pyramid schemes will ruin you...'
       unrandomized_item: free_vowel
       requires:
         any:
@@ -570,7 +579,8 @@ regions:
         - after_homeless_mummy
 
     stalled_rocket_get_out_and_push:
-      name: 'Stalled Rocket! (Get Out and Push)'
+      name: 'Stalled Rocket'
+      flavor_text: 'Blast it! Someone will have to get out and push...'
       unrandomized_item: constellation_prize
       requires:
         rat_count: 40
@@ -580,6 +590,7 @@ regions:
 
     roboclop_the_robot_war_horse:
       name: 'Robo-Clop: The Robot War Horse'
+      flavor_text: 'Ever since the operation, he''s been a bit un-STABLE.'
       unrandomized_item: pack_rat
       requires:
         item: quantum_sugar_cube
@@ -590,6 +601,7 @@ regions:
 
     makeshift_rocket_ship:
       name: 'Makeshift Rocket Ship'
+      flavor_text: 'It''s actually WAY easier than brain surgery.'
       unrandomized_item: pack_rat
       requires:
         any_two:
@@ -603,6 +615,7 @@ regions:
 
     secret_cache:
       name: 'Secret Cache'
+      flavor_text: 'How secret can it be if it''s on my map right here?'
       unrandomized_item: pack_rat
       requires:
         any:
@@ -614,6 +627,7 @@ regions:
 
     rat_rap_battle:
       name: 'Rat Rap Battle'
+      flavor_text: 'Do they REALLY spit fire? That sounds dangerous...'
       unrandomized_item: pack_rat
       requires:
         any:
@@ -625,6 +639,7 @@ regions:
 
     stack_of_crates:
       name: 'Stack of Crates'
+      flavor_text: 'What do you mean, "just walk around them"?'
       unrandomized_item: pack_rat
       requires:
         any:
@@ -636,6 +651,7 @@ regions:
 
     binary_tree:
       name: 'Binary Tree'
+      flavor_text: 'The branches here are full of juicy pairs.'
       unrandomized_item: pack_rat
       requires:
         item: childs_first_hand_axe
@@ -645,6 +661,7 @@ regions:
 
     room_full_of_typewriters:
       name: 'Room Full of Typewriters'
+      flavor_text: 'I''m sure this room has a lot of KEY items!'
       unrandomized_item: pack_rat
       requires:
         rat_count: 37
@@ -653,6 +670,7 @@ regions:
 
     trapeze:
       name: 'Trapeze'
+      flavor_text: 'Let''s dino-SOAR to victory!'
       unrandomized_item: pack_rat
       requires:
         item: acro_rat
@@ -661,6 +679,7 @@ regions:
 
     computer_ram:
       name: 'Computer Ram'
+      flavor_text: 'Short-term memory, long-term damage.'
       unrandomized_item: pack_rat
       requires:
         item: artificial_grass
@@ -670,6 +689,7 @@ regions:
 
     copyright_mouse:
       name: 'Copyright Mouse'
+      flavor_text: 'The locations depicted in this game are entirely fictitious. Any similarity to real-world names or properties is entirely coincidental.'
       unrandomized_item: pack_rat
       requires:
         any:
@@ -682,6 +702,7 @@ regions:
 
     blue_colored_screen_interface:
       name: 'Blue-Colored Screen Interface'
+      flavor_text: 'It works just fine on my machine...'
       unrandomized_item: pack_rat
       requires:
         any:
@@ -694,6 +715,7 @@ regions:
 
     broken_down_bus:
       name: 'Broken-Down Bus'
+      flavor_text: 'The driver made an error and crashed, and now it''s blocking traffic!'
       unrandomized_item: pack_rat
       requires:
         rat_count: 25
@@ -703,6 +725,7 @@ regions:
 
     overweight_boulder:
       name: 'Overweight Boulder'
+      flavor_text: 'Aww, it''s not overweight. It''s just big-stoned.'
       unrandomized_item: pack_rat
       requires:
         rat_count: 25
@@ -712,6 +735,7 @@ regions:
 
     kart_races:
       name: 'Kart Races'
+      flavor_text: 'One of the more dangerous rat races out there.'
       unrandomized_item: pack_rat
       requires:
         any:
@@ -723,6 +747,7 @@ regions:
 
     daring_adventurer:
       name: 'Daring Adventurer'
+      flavor_text: 'A kid with a sword. The mortal enemy of a rat.'
       unrandomized_item: pack_rat
       requires:
         any:
@@ -734,6 +759,7 @@ regions:
 
     computer_interface:
       name: 'Computer Interface'
+      flavor_text: 'It would take quite the hack rat to crack this code!'
       unrandomized_item: pack_rat
       requires:
         item: computer_rat
@@ -744,6 +770,7 @@ regions:
 
     captured_goldfish:
       name: 'Captured Goldfish'
+      flavor_text: 'Fell for it. Hook, line, and sinker.'
       unrandomized_item: pack_rat
       requires:
         item: giant_novelty_scissors
@@ -753,6 +780,7 @@ regions:
 
     bowling_ball_door:
       name: 'Bowling Ball Door'
+      flavor_text: 'Another gutter, another ball.'
       unrandomized_item: rat_pack
       requires:
         rat_count: 10
@@ -762,6 +790,7 @@ regions:
 
     restaurant:
       name: 'Restaurant'
+      flavor_text: 'It''s surprisingly accommodating, considering...'
       unrandomized_item: pack_rat
       requires:
         item: chef_rat
@@ -771,6 +800,7 @@ regions:
 
     pirate_bake_sale:
       name: 'Pirate Bake Sale'
+      flavor_text: 'Better than being stranded on a DESSERTed island!'
       unrandomized_item: pack_rat
       requires:
         item: pie_rat
@@ -780,6 +810,7 @@ regions:
 
     angry_turtles:
       name: 'Angry Turtles'
+      flavor_text: 'Blocking this pipe is so NOT cowabunga, dude!'
       unrandomized_item: pack_rat
       requires:
         any:
@@ -791,6 +822,7 @@ regions:
 
     prawn_stars:
       name: 'Prawn Stars'
+      flavor_text: 'It''s not shellfish. It''s just business.'
       unrandomized_item: pack_rat
       requires:
         any:

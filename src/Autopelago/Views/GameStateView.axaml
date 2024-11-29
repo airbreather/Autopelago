@@ -243,18 +243,21 @@
                                                 </Border>
 
                                                 <Border Margin="0,5,0,0" Padding="4" Classes="tracker-box item">
-                                                    <Grid ColumnDefinitions="Auto,*">
+                                                    <Grid ColumnDefinitions="Auto,*" RowDefinitions="*, Auto">
                                                         <!-- Note: coordinates are NOT scaled like everything else on the map. -->
-                                                        <Image Height="64" Width="64" Source="{Binding SaturatedImage, Mode=OneWay}" />
-                                                        <DockPanel Margin="5,0,0,0" Grid.Column="1">
-                                                            <TextBlock Margin="0,5,0,0"
-                                                                       DockPanel.Dock="Bottom"
-                                                                       Classes="tooltip small"
-                                                                       Text="{Binding Location.FlavorText, StringFormat='“{0}”', Mode=OneTime}"
-                                                                       IsVisible="{Binding Location.FlavorText, Mode=OneTime, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
-                                                            <ContentControl Classes="tooltip big"
-                                                                            Content="{Binding GameRequirementToolTipSource, Mode=OneWay}" />
-                                                        </DockPanel>
+                                                        <Image Height="64" Width="64" VerticalAlignment="Top" Source="{Binding SaturatedImage, Mode=OneWay}" />
+                                                        <ContentControl Margin="5,0,0,0"
+                                                                        Grid.Row="0"
+                                                                        Grid.Column="1"
+                                                                        Classes="tooltip big"
+                                                                        Content="{Binding GameRequirementToolTipSource, Mode=OneWay}" />
+                                                        <TextBlock Margin="0,15,0,0"
+                                                                   Grid.Row="1"
+                                                                   Grid.Column="0"
+                                                                   Grid.ColumnSpan="2"
+                                                                   Classes="tooltip small"
+                                                                   Text="{Binding Location.FlavorText, StringFormat='“{0}”', Mode=OneTime}"
+                                                                   IsVisible="{Binding Location.FlavorText, Mode=OneTime, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
                                                     </Grid>
                                                 </Border>
                                             </StackPanel>
