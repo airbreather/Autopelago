@@ -11,13 +11,6 @@ internal static class Program
     [STAThread]
     private static int Main(string[] args)
     {
-        Log.Logger = new LoggerConfiguration()
-            .WriteTo.Console()
-            .Enrich.FromLogContext()
-            .CreateLogger();
-
-        // get this built right away. errors here can be really annoying otherwise.
-        GameDefinitions defs = GameDefinitions.Instance;
         if (args.FirstOrDefault() == "g")
         {
             if (args.Length != 6)
@@ -26,12 +19,34 @@ internal static class Program
                 return 1;
             }
 
+            Log.Logger = new LoggerConfiguration()
+                .WriteTo.Console()
+                .Enrich.FromLogContext()
+                .CreateLogger();
+
             Task.Run(async () => await DataCollector.RunAsync(args[1], int.Parse(args[2]), int.Parse(args[3]), int.Parse(args[4]), Prng.State.Start(ulong.Parse(args[5])), default)).GetAwaiter().GetResult();
             return 0;
         }
 
-        return BuildAvaloniaApp()
-            .StartWithClassicDesktopLifetime(args);
+        Log.Logger = new LoggerConfiguration()
+            .WriteTo.Async(
+                within => within.Console(),
+                blockWhenFull: true
+            )
+            .Enrich.FromLogContext()
+            .CreateLogger();
+
+        // get this built right away. errors here can be really annoying otherwise.
+        GameDefinitions defs = GameDefinitions.Instance;
+        try
+        {
+            return BuildAvaloniaApp()
+                .StartWithClassicDesktopLifetime(args);
+        }
+        finally
+        {
+            Log.CloseAndFlush();
+        }
     }
 
     // Avalonia configuration, don't remove; also used by visual designer.
