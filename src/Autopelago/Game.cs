@@ -736,8 +736,9 @@ public sealed class Game
         StartledCounter += startledMod;
 
         // Startled is extremely punishing. after a big release, it can be very annoying to just sit
-        // there and wait for too many turns in a row.
+        // there and wait for too many turns in a row. same concept applies to Distracted.
         StartledCounter = Math.Min(StartledCounter, 3);
+        DistractionCounter = Math.Min(DistractionCounter, 3);
     }
 
     private bool UpdateTargetLocation()

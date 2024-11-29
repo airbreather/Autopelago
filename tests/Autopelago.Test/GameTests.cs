@@ -1,7 +1,6 @@
 using System.Buffers;
 using System.Buffers.Text;
 using System.Collections.Frozen;
-using System.Collections.Immutable;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 
@@ -333,16 +332,14 @@ public sealed class GameTests
     {
         Game game = new(s_highRolls);
 
-        game.ReceiveItems([
-            .. Enumerable.Repeat(s_singleAuraItems["distracted"], 5),
+        // distraction should also burn through your food factor.
+        game.ReceiveItems([.. Enumerable.Repeat(s_singleAuraItems["well_fed"], 1)]);
 
-            // distraction should also burn through your food factor.
-            .. Enumerable.Repeat(s_singleAuraItems["well_fed"], 1),
-        ]);
-
+        // counter won't go above 3, so get a distraction before each round
         for (int i = 0; i < 5; i++)
         {
             // 0 actions
+            game.ReceiveItems([s_singleAuraItems["distracted"]]);
             game.Advance();
         }
 

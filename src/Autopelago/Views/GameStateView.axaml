@@ -173,7 +173,7 @@
                         <TextBlock Margin="5,0,0,0" Grid.Row="4" Grid.Column="2" Classes="meter-label" Text="{Binding StyleFactor^}" />
 
                         <TextBlock Grid.Row="5" Grid.Column="0" Classes="meter-label" Text="DIS:" />
-                        <ProgressBar Grid.Row="5" Grid.Column="1" Minimum="0" Maximum="4" Value="{Binding DistractionCounter^}" />
+                        <ProgressBar Grid.Row="5" Grid.Column="1" Minimum="0" Maximum="3" Value="{Binding DistractionCounter^}" />
                         <TextBlock Margin="5,0,0,0" Grid.Row="5" Grid.Column="2" Classes="meter-label" Text="{Binding DistractionCounter^}" />
 
                         <TextBlock Grid.Row="6" Grid.Column="0" Classes="meter-label" Text="STT:" />
