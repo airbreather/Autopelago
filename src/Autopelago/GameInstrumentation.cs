@@ -1,3 +1,4 @@
+using System.Collections.Concurrent;
 using System.Collections.Frozen;
 using System.Collections.Immutable;
 using System.Collections.ObjectModel;
@@ -135,15 +136,23 @@ public struct LocationAttemptTraceEvent
     }
 }
 
-public sealed class GameInstrumentation
+public sealed class GameInstrumentation : IDisposable
 {
-    private readonly List<LocationAttemptTraceEvent> _locationAttempts = [];
+    private static readonly ConcurrentBag<List<LocationAttemptTraceEvent>> s_pool = [];
+
+    private readonly List<LocationAttemptTraceEvent> _locationAttempts = s_pool.TryTake(out List<LocationAttemptTraceEvent>? locationAttempts) ? locationAttempts : [];
 
     private int _stepNumber;
 
     public GameInstrumentation()
     {
         Attempts = _locationAttempts.AsReadOnly();
+    }
+
+    public void Dispose()
+    {
+        _locationAttempts.Clear();
+        s_pool.Add(_locationAttempts);
     }
 
     public int StepNumber => _stepNumber;

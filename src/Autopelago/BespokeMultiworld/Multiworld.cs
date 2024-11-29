@@ -4,13 +4,21 @@ using System.Runtime.InteropServices;
 
 namespace Autopelago.BespokeMultiworld;
 
-public sealed class Multiworld
+public sealed class Multiworld : IDisposable
 {
     public required ImmutableArray<World> Slots { get; init; }
 
     public required ImmutableArray<FrozenDictionary<LocationKey, WorldItem>> FullSpoilerData { get; init; }
 
     public required ImmutableArray<FrozenDictionary<ArchipelagoItemFlags, FrozenSet<LocationKey>>> PartialSpoilerData { get; init; }
+
+    public void Dispose()
+    {
+        foreach (World slot in Slots)
+        {
+            slot.Dispose();
+        }
+    }
 
     public void Run()
     {

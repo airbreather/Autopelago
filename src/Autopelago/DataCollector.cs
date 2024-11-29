@@ -157,7 +157,7 @@ public static class DataCollector
                 }
 
                 ImmutableArray<World> slots = ImmutableCollectionsMarshal.AsImmutableArray(slotsMutable);
-                Multiworld multiworld = new() { Slots = slots, FullSpoilerData = allSpoilerData[i], PartialSpoilerData = partialSpoilerData[i], };
+                using Multiworld multiworld = new() { Slots = slots, FullSpoilerData = allSpoilerData[i], PartialSpoilerData = partialSpoilerData[i], };
 
                 multiworld.Run();
                 for (int k = 0; k < numSlotsPerSeed; k++)
