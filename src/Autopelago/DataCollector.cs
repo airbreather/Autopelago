@@ -32,14 +32,9 @@ public static class DataCollector
     public static async Task RunAsync(string scienceDir, int numSeeds, int numSlotsPerSeed, int numRunsPerSeed, Prng.State seed, CancellationToken cancellationToken)
     {
         scienceDir = scienceDir.Replace("$HOME", Environment.GetFolderPath(Environment.SpecialFolder.UserProfile));
-        Directory.CreateDirectory(Path.GetDirectoryName(PlaythroughGenerator.Paths.ResultFileForMovements(scienceDir))!);
-        Compressor compressor1 = new(10);
-        compressor1.SetParameter(ZSTD_cParameter.ZSTD_c_nbWorkers, Environment.ProcessorCount);
-        await using StreamWriter outMovements = new(new CompressionStream(new FileStream(PlaythroughGenerator.Paths.ResultFileForMovements(scienceDir), s_create), compressor1, preserveCompressor: false, leaveOpen: false), Encoding.UTF8);
-        Directory.CreateDirectory(Path.GetDirectoryName(PlaythroughGenerator.Paths.ResultFileForLocationAttempts(scienceDir))!);
-        Compressor compressor2 = new(10);
-        compressor2.SetParameter(ZSTD_cParameter.ZSTD_c_nbWorkers, Environment.ProcessorCount);
-        await using StreamWriter outLocationAttempts = new(new CompressionStream(new FileStream(PlaythroughGenerator.Paths.ResultFileForLocationAttempts(scienceDir), s_create), compressor2, preserveCompressor: false, leaveOpen: false), Encoding.UTF8);
+        Compressor compressor = new(10);
+        compressor.SetParameter(ZSTD_cParameter.ZSTD_c_nbWorkers, Environment.ProcessorCount);
+        await using StreamWriter outLocationAttempts = new(new CompressionStream(new FileStream(PlaythroughGenerator.Paths.ResultFile(scienceDir), s_create), compressor, preserveCompressor: false, leaveOpen: false), Encoding.UTF8);
 
         Prng.State state = seed;
         Prng.State[] multiworldSeeds = new Prng.State[numSeeds];
@@ -62,7 +57,6 @@ public static class DataCollector
         });
 
         ImmutableArray<LocationAttemptTraceEvent>[] locationAttempts = new ImmutableArray<LocationAttemptTraceEvent>[checked(numSeeds * numSlotsPerSeed * numRunsPerSeed)];
-        ImmutableArray<MovementTraceEvent>[] movements = new ImmutableArray<MovementTraceEvent>[locationAttempts.Length];
         TimeSpan reportInterval = TimeSpan.FromMilliseconds(400);
         long startTimestamp = Stopwatch.GetTimestamp();
         int[] completed = new int[numSeeds];
@@ -168,8 +162,7 @@ public static class DataCollector
                 multiworld.Run();
                 for (int k = 0; k < numSlotsPerSeed; k++)
                 {
-                    locationAttempts[(i * numRunsPerSeed * numSlotsPerSeed) + (j * numSlotsPerSeed) + k] = [.. slots[k].Instrumentation.LocationAttempts];
-                    movements[(i * numRunsPerSeed * numSlotsPerSeed) + (j * numSlotsPerSeed) + k] = [.. slots[k].Instrumentation.Movements];
+                    locationAttempts[(i * numRunsPerSeed * numSlotsPerSeed) + (j * numSlotsPerSeed) + k] = [.. slots[k].Instrumentation.Attempts];
                 }
 
                 Interlocked.Increment(ref completed[i]);
@@ -194,7 +187,6 @@ public static class DataCollector
         {
         }
 
-        await outMovements.WriteLineAsync("SeedNumber,IterationNumber,SlotNumber,StepNumber,FromRegion,FromN,ToRegion,ToN,Reason");
         await outLocationAttempts.WriteLineAsync("SeedNumber,IterationNumber,SlotNumber,StepNumber,Region,N,AbilityCheckDC,RatCount,MercyModifier,HasLucky,HasUnlucky,HasStylish,Roll,Success");
         for (int i = 0; i < numSeeds; i++)
         {
@@ -202,11 +194,6 @@ public static class DataCollector
             {
                 for (int k = 0; k < numSlotsPerSeed; k++)
                 {
-                    foreach (MovementTraceEvent m in movements[(i * numRunsPerSeed * numSlotsPerSeed) + (j * numSlotsPerSeed) + k])
-                    {
-                        await outMovements.WriteLineAsync($"{i},{j},{k},{m.StepNumber},{m.From.Key.RegionKey},{m.From.Key.N},{m.To.Key.RegionKey},{m.To.Key.N},{(byte)m.Reason}");
-                    }
-
                     foreach (LocationAttemptTraceEvent l in locationAttempts[(i * numRunsPerSeed * numSlotsPerSeed) + (j * numSlotsPerSeed) + k])
                     {
                         await outLocationAttempts.WriteLineAsync($"{i},{j},{k},{l.StepNumber},{l.Location.Key.RegionKey},{l.Location.Key.N},{l.AbilityCheckDC},{l.RatCount},{l.MercyModifier},{(l.HasLucky ? 1 : 0)},{(l.HasUnlucky ? 1 : 0)},{(l.HasStylish ? 1 : 0)},{l.D20},{(l.Success ? 1 : 0)}");

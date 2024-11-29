@@ -482,8 +482,6 @@ public sealed class Game
 
                     CurrentLocation = movementLog[^1].CurrentLocation;
                     moved = true;
-
-                    _instrumentation?.TraceMovement(movementLog[^1].PreviousLocation, movementLog[^1].CurrentLocation, TargetLocationReason);
                 }
             }
 
@@ -540,7 +538,7 @@ public sealed class Game
                     success = true;
                 }
 
-                _instrumentation?.TraceLocationAttempt(CurrentLocation, roll, modifiedRoll, hasLucky, hasUnlucky, hasStylish, (byte)RatCount, (byte)CurrentLocation.AbilityCheckDC, (byte)immediateMercyModifier, success);
+                _instrumentation?.TraceLocationAttempt(CurrentLocation, roll, hasLucky, hasUnlucky, hasStylish, (byte)RatCount, (byte)CurrentLocation.AbilityCheckDC, (byte)immediateMercyModifier, success);
                 if (!success)
                 {
                     continue;

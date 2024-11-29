@@ -3,7 +3,6 @@ use bitvec::vec::BitVec;
 use clap::Parser;
 use csv::Reader;
 use serde::{Deserialize, Serialize};
-use serde_repr::Deserialize_repr;
 use status_line::StatusLine;
 use std::cmp::{max, min};
 use std::collections::HashMap;
@@ -14,7 +13,6 @@ use std::path::PathBuf;
 use std::process::ExitCode;
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::LazyLock;
-use std::thread::spawn;
 use string_interner::backend::StringBackend;
 use string_interner::symbol::SymbolU16;
 use string_interner::StringInterner;
@@ -22,9 +20,7 @@ use zstd::Decoder;
 
 #[derive(Default)]
 struct Progress {
-    movement_runs_done: AtomicUsize,
     location_attempt_runs_done: AtomicUsize,
-    total_movements: AtomicUsize,
     total_location_attempts: AtomicUsize,
 }
 
@@ -32,161 +28,11 @@ impl Display for Progress {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         write!(
             f,
-            "runs_m= {} | moves= {} | runs_l= {} | attempts= {}",
-            self.movement_runs_done.fetch_or(0, Ordering::Relaxed),
-            self.total_movements.fetch_or(0, Ordering::Relaxed),
+            "runs= {} | attempts= {}",
             self.location_attempt_runs_done.fetch_or(0, Ordering::Relaxed),
             self.total_location_attempts.fetch_or(0, Ordering::Relaxed),
         )
     }
-}
-
-#[derive(Debug, Deserialize_repr, Eq, PartialEq)]
-#[repr(u8)]
-enum MoveReason {
-    GameNotStarted = 0,
-    NowhereUsefulToMove = 1,
-    ClosestReachableUnchecked = 2,
-    Priority = 3,
-    PriorityPriority = 4,
-    GoMode = 5,
-    Startled = 6,
-}
-
-#[derive(Debug, Deserialize)]
-#[serde(rename_all = "PascalCase")]
-struct Movement {
-    seed_number: u16,
-    iteration_number: u16,
-    slot_number: u16,
-    step_number: u16,
-    to_region: String,
-    to_n: u8,
-    reason: MoveReason,
-}
-
-#[derive(Copy, Clone, Debug, Hash, Eq, PartialEq)]
-struct LocationKey {
-    region_key: SymbolU16,
-    n: u8,
-}
-
-struct MovementEntry{
-    to: LocationKey,
-    reason: MoveReason,
-}
-
-#[derive(Serialize)]
-struct ProcessedMovements {
-    total_steps: usize,
-    total_movements: usize,
-    steps_spent_startled: usize,
-    movements_while_startled: usize,
-    times_moved_to_region_locations: HashMap<String, Vec<usize>>,
-    steps_ended_at_region_locations: HashMap<String, Vec<usize>>,
-}
-
-fn read_movements<R: Read>(movements: R) -> Result<ProcessedMovements, Error> {
-    let mut prev_seed_number = u16::MAX;
-    let mut prev_iteration_number = u16::MAX;
-    let mut prev_slot_number = u16::MAX;
-    let mut run_index = usize::MAX;
-    let mut rdr: Reader<R> = Reader::from_reader(movements);
-    let mut total_movements = 0usize;
-    let mut movements_while_startled = 0usize;
-    let mut times_moved_to_location = HashMap::new();
-    let mut interner = StringInterner::<StringBackend<SymbolU16>>::new();
-    let mut event_map: HashMap<u16, HashMap<u16, HashMap<u16, HashMap<u16, Vec<MovementEntry>>>>> = HashMap::new();
-    for result in rdr.deserialize() {
-        let record: Movement = result?;
-        total_movements += 1;
-        if (prev_seed_number, prev_iteration_number, prev_slot_number) != (record.seed_number, record.iteration_number, record.slot_number) {
-            run_index += 1;
-            (prev_seed_number, prev_iteration_number, prev_slot_number) = (record.seed_number, record.iteration_number, record.slot_number);
-        }
-        let movement_entries_this_step = event_map
-            .entry(record.seed_number).or_insert(HashMap::new())
-            .entry(record.iteration_number).or_insert(HashMap::new())
-            .entry(record.slot_number).or_insert(HashMap::new())
-            .entry(record.step_number).or_insert(Vec::new());
-        let movement_entry = MovementEntry {
-            to: LocationKey { region_key: interner.get_or_intern(record.to_region), n: record.to_n },
-            reason: record.reason,
-        };
-        if movement_entry.reason == MoveReason::Startled {
-            movements_while_startled += 1;
-        }
-        *times_moved_to_location.entry(movement_entry.to).or_insert(0usize) += 1;
-        movement_entries_this_step.push(movement_entry);
-        STATUS_LINE.movement_runs_done.store(run_index, Ordering::Relaxed);
-        STATUS_LINE.total_movements.fetch_add(1, Ordering::Relaxed);
-    }
-    STATUS_LINE.movement_runs_done.store(run_index + 1, Ordering::Relaxed);
-
-    let mut total_steps = 0usize;
-    let mut steps_spent_startled = 0usize;
-    let mut steps_ended_at_location = HashMap::new();
-    for iterations in event_map.values() {
-        for slots in iterations.values() {
-            for steps in slots.values() {
-                let max_step = *steps.keys().max().unwrap();
-                total_steps += max_step as usize + 1;
-                let mut step = 0u16;
-                let mut prev_end = LocationKey {
-                    region_key: interner.get_or_intern("Menu"),
-                    n: 0,
-                };
-                while step <= max_step {
-                    let (curr_end, startled) = match steps.get(&step) {
-                        None => (prev_end, false),
-                        Some(step_records) => {
-                            let last_record = step_records.last().unwrap();
-                            (last_record.to, last_record.reason == MoveReason::Startled)
-                        }
-                    };
-                    *steps_ended_at_location.entry(curr_end).or_insert(0) += 1;
-                    if startled {
-                        steps_spent_startled += 1;
-                    }
-                    step += 1;
-                    prev_end = curr_end;
-                }
-            }
-        }
-    }
-
-    let mut times_moved_to_region_locations = HashMap::new();
-    for (k, v) in times_moved_to_location {
-        (*times_moved_to_region_locations.entry(k.region_key).or_insert(Vec::new()))
-            .push((k.n, v));
-    }
-
-    for v in times_moved_to_region_locations.values_mut() {
-        v.sort_by_key(|e| e.0);
-    }
-
-    let mut steps_ended_at_region_locations = HashMap::new();
-    for (k, v) in steps_ended_at_location {
-        (*steps_ended_at_region_locations.entry(k.region_key).or_insert(Vec::new()))
-            .push((k.n, v));
-    }
-
-    for v in steps_ended_at_region_locations.values_mut() {
-        v.sort_by_key(|e| e.0);
-    }
-
-    Ok(ProcessedMovements {
-        total_steps,
-        total_movements,
-        steps_spent_startled,
-        movements_while_startled,
-        times_moved_to_region_locations:
-            HashMap::from_iter(times_moved_to_region_locations.iter()
-                .map(|(k, v)| (String::from(interner.resolve(*k).unwrap()), v.iter().map(|e| e.1).collect()))),
-        steps_ended_at_region_locations:
-            HashMap::from_iter(steps_ended_at_region_locations.iter()
-                .map(|(k, v)| (String::from(interner.resolve(*k).unwrap()), v.iter().map(|e| e.1).collect()))),
-    })
 }
 
 #[derive(Debug, Deserialize)]
@@ -405,21 +251,12 @@ fn read_location_attempts<R: Read>(location_attempts: R) -> Result<ProcessedLoca
     })
 }
 
-#[derive(Serialize)]
-struct FinalResult {
-    movements: ProcessedMovements,
-    location_attempts: ProcessedLocationAttempts,
-}
-
 #[derive(Parser)]
 struct Args {
     #[arg(index = 1)]
-    movements_path: PathBuf,
-
-    #[arg(index = 2)]
     location_attempts_path: PathBuf,
 
-    #[arg(index = 3)]
+    #[arg(index = 2)]
     results_path: PathBuf,
 
     #[arg(long)]
@@ -437,22 +274,9 @@ fn main() -> Result<ExitCode, Error> {
         File::create_new(args.results_path)
     }?;
 
-    // run movements
-    let movements_handle = spawn(|| {
-        let movements = BufReader::new(Decoder::new(File::open(args.movements_path).unwrap()).unwrap());
-        read_movements(movements).unwrap()
-    });
-
     // run location attempts
-    let location_attempts_handle = spawn(|| {
-        let location_attempts = BufReader::new(Decoder::new(File::open(args.location_attempts_path).unwrap()).unwrap());
-        read_location_attempts(location_attempts).unwrap()
-    });
-
-    let result = FinalResult {
-        movements: movements_handle.join().unwrap(),
-        location_attempts: location_attempts_handle.join().unwrap(),
-    };
+    let location_attempts = BufReader::new(Decoder::new(File::open(args.location_attempts_path)?)?);
+    let result = read_location_attempts(location_attempts)?;
     serde_json::to_writer_pretty(results_file, &result)?;
     println!("{}", **STATUS_LINE);
 

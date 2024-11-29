@@ -144,9 +144,7 @@ public static partial class PlaythroughGenerator
 
         public static string ArchipelagoSource(string scienceDir) => Path.Combine(scienceDir, "static", "Archipelago");
 
-        public static string ResultFileForLocationAttempts(string scienceDir) => Path.Combine(scienceDir, "output", "tables", "location-attempts.csv");
-
-        public static string ResultFileForMovements(string scienceDir) => Path.Combine(scienceDir, "output", "tables", "movements.csv");
+        public static string ResultFile(string scienceDir) => Path.Combine(scienceDir, "output", "tables", "location-attempts.csv");
 
         public static string ZipFilePattern => "AP_*.zip";
 

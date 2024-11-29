@@ -5,17 +5,6 @@ using System.Runtime.InteropServices;
 
 namespace Autopelago;
 
-public sealed record MovementTraceEvent
-{
-    public required int StepNumber { get; init; }
-
-    public required LocationDefinitionModel From { get; init; }
-
-    public required LocationDefinitionModel To { get; init; }
-
-    public required TargetLocationReason Reason { get; init; }
-}
-
 [StructLayout(LayoutKind.Auto, Pack = 1)]
 public struct LocationAttemptTraceEvent
 {
@@ -148,41 +137,25 @@ public struct LocationAttemptTraceEvent
 
 public sealed class GameInstrumentation
 {
-    private readonly List<MovementTraceEvent> _movements = [];
-
     private readonly List<LocationAttemptTraceEvent> _locationAttempts = [];
 
     private int _stepNumber;
 
     public GameInstrumentation()
     {
-        Movements = _movements.AsReadOnly();
-        LocationAttempts = _locationAttempts.AsReadOnly();
+        Attempts = _locationAttempts.AsReadOnly();
     }
 
     public int StepNumber => _stepNumber;
 
-    public ReadOnlyCollection<MovementTraceEvent> Movements { get; }
-
-    public ReadOnlyCollection<LocationAttemptTraceEvent> LocationAttempts { get; }
+    public ReadOnlyCollection<LocationAttemptTraceEvent> Attempts { get; }
 
     public void NextStep()
     {
         _stepNumber++;
     }
 
-    public void TraceMovement(LocationDefinitionModel from, LocationDefinitionModel to, TargetLocationReason reason)
-    {
-        _movements.Add(new()
-        {
-            StepNumber = _stepNumber,
-            From = from,
-            To = to,
-            Reason = reason,
-        });
-    }
-
-    public void TraceLocationAttempt(LocationDefinitionModel location, byte roll, sbyte modifiedRoll, bool hasLucky, bool hasUnlucky, bool hasStylish, byte ratCount, byte abilityCheckDC, byte mercyModifier, bool success)
+    public void TraceLocationAttempt(LocationDefinitionModel location, byte roll, bool hasLucky, bool hasUnlucky, bool hasStylish, byte ratCount, byte abilityCheckDC, byte mercyModifier, bool success)
     {
         _locationAttempts.Add(new()
         {
