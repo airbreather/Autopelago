@@ -414,6 +414,7 @@ public sealed class Game
             return;
         }
 
+        _movementLog.Clear();
         bool bumpMercyModifierForNextTime = false;
         bool isFirstCheck = true;
         int actionBalance = 3 + _actionBalanceAfterPreviousStep;
@@ -553,7 +554,6 @@ public sealed class Game
                     _checkedLocations!.MarkChecked(CurrentLocation);
                     MercyModifier = 0;
                     bumpMercyModifierForNextTime = false;
-                    success = true;
                 }
 
                 _instrumentation?.TraceLocationAttempt(CurrentLocation, roll, hasLucky, hasUnlucky, hasStylish, (byte)RatCount, (byte)CurrentLocation.AbilityCheckDC, (byte)immediateMercyModifier, success);
@@ -620,8 +620,8 @@ public sealed class Game
 
     public void CheckLocations(ImmutableArray<LocationDefinitionModel> newLocations)
     {
-        EnsureStarted();
         using Lock.Scope _ = EnterLockScope();
+        EnsureStarted();
         foreach (LocationDefinitionModel location in newLocations)
         {
             _checkedLocations!.MarkChecked(location);
@@ -630,13 +630,13 @@ public sealed class Game
 
     public void ReceiveItems(ReadOnlySpan<ItemDefinitionModel> newItems)
     {
-        EnsureStarted();
         if (newItems.IsEmpty)
         {
             return;
         }
 
         using Lock.Scope _ = EnterLockScope();
+        EnsureStarted();
         int foodMod = 0;
         int energyFactorMod = 0;
         int luckFactorMod = 0;
