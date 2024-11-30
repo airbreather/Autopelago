@@ -4,9 +4,9 @@ using System.Collections.ObjectModel;
 using System.Reactive;
 using System.Reactive.Disposables;
 using System.Reactive.Linq;
-using System.Reactive.Subjects;
 
 using Avalonia;
+using Avalonia.Controls;
 using Avalonia.ReactiveUI;
 
 using ReactiveUI;
@@ -55,10 +55,13 @@ public sealed class GameStateViewModel : ViewModelBase, IDisposable
     {
         PlayPauseCommand = ReactiveCommand.Create(provider.TogglePause);
 
+        TimeSpan frameTime = Design.IsDesignMode
+            ? TimeSpan.FromHours(1)
+            : TimeSpan.FromMilliseconds(500);
         _subscriptions.Add(provider.Paused
             .Select(paused => paused
                 ? Observable.Never<long>()
-                : Observable.Interval(TimeSpan.FromMilliseconds(500), AvaloniaScheduler.Instance)
+                : Observable.Interval(frameTime, AvaloniaScheduler.Instance)
             ).Switch()
             .Subscribe(_ =>
             {
@@ -88,6 +91,12 @@ public sealed class GameStateViewModel : ViewModelBase, IDisposable
         FrozenDictionary<LocationKey, FillerLocationViewModel> fillerLocationLookup = GameDefinitions.Instance.FillerRegions.Values
             .SelectMany(r => new FillerRegionViewModel(r).Locations)
             .ToFrozenDictionary(l => l.Model.Key);
+
+        FrozenDictionary<LocationKey, Point> locationPointLookup = GameDefinitions.Instance.LocationsByKey
+            .ToFrozenDictionary(kvp => kvp.Key, kvp => landmarkRegionsLookup.TryGetValue(kvp.Key.RegionKey, out LandmarkRegionViewModel? landmark)
+                ? landmark.CanvasLocation
+                : fillerLocationLookup[kvp.Key].Point);
+
         FillerLocations = [.. fillerLocationLookup.Values];
 
         _subscriptions.Add(provider.Paused
@@ -187,7 +196,7 @@ public sealed class GameStateViewModel : ViewModelBase, IDisposable
                     Point[] pathPoints =
                     [
                         .. g.CalculateRoute(g.CurrentLocation, g.TargetLocation)
-                            .Select(l => GetPoint(l) + FillerRegionViewModel.ToCenter),
+                            .Select(l => locationPointLookup[l.Key] + FillerRegionViewModel.ToCenter),
                     ];
                     if (!CurrentPathPoints.SequenceEqual(pathPoints))
                     {
@@ -200,14 +209,31 @@ public sealed class GameStateViewModel : ViewModelBase, IDisposable
                     prevTargetLocationKey = g.TargetLocation.Key;
                 }
 
-                TargetPoint = GetPoint(g.TargetLocation) + FillerRegionViewModel.ToCenter;
+                TargetPoint = locationPointLookup[g.TargetLocation.Key] + FillerRegionViewModel.ToCenter;
             }));
 
-        IConnectableObservable<LocationVector> movementLogs0 = provider.CurrentGameState
+        _subscriptions.Add(provider.CurrentGameState
             .Select(SpaceOut)
             .Switch()
-            .Publish();
-        _subscriptions.Add(movementLogs0.Connect());
+            .Subscribe(v =>
+            {
+                Point previousPoint = locationPointLookup[v.PreviousLocation.Key];
+                CurrentPoint = locationPointLookup[v.CurrentLocation.Key];
+                double trueAngle = previousPoint == CurrentPoint
+                    ? 0
+                    : Math.Atan2(CurrentPoint.Y - previousPoint.Y, CurrentPoint.X - previousPoint.X) * 180 / Math.PI;
+
+                if (Math.Abs(trueAngle) < 90)
+                {
+                    RelativeAngle = trueAngle;
+                    ScaleX = 1;
+                }
+                else
+                {
+                    RelativeAngle = trueAngle - 180;
+                    ScaleX = -1;
+                }
+            }));
         IObservable<LocationVector> SpaceOut(Game gameState)
         {
             ReadOnlyCollection<LocationVector> locations = gameState.PreviousStepMovementLog;
@@ -225,39 +251,6 @@ public sealed class GameStateViewModel : ViewModelBase, IDisposable
                     obs.OnNext(locations[i]);
                 }
             });
-        }
-
-        IConnectableObservable<LocationVector> movementLogs = movementLogs0
-            .Replay(1);
-        _subscriptions.Add(movementLogs.Connect());
-
-        CurrentPoint = movementLogs
-            .Select(v => GetPoint(v.CurrentLocation));
-
-        IObservable<double> trueAngle = movementLogs
-            .Select(v => GetTrueAngle(GetPoint(v.PreviousLocation), GetPoint(v.CurrentLocation)));
-
-        RelativeAngle = trueAngle
-            .Select(angle => Math.Abs(angle) < 90 ? angle : angle - 180);
-
-        ScaleX = trueAngle
-            .Select(angle => Math.Abs(angle) < 90 ? (double)1 : -1);
-
-        Point GetPoint(LocationDefinitionModel location)
-        {
-            return landmarkRegionsLookup.TryGetValue(location.Region.Key, out LandmarkRegionViewModel? landmark)
-                ? landmark.CanvasLocation
-                : fillerLocationLookup[location.Key].Point;
-        }
-
-        double GetTrueAngle(Point prev, Point curr)
-        {
-            if (prev == curr)
-            {
-                return 0;
-            }
-
-            return Math.Atan2(curr.Y - prev.Y, curr.X - prev.X) * 180 / Math.PI;
         }
     }
 
@@ -286,7 +279,8 @@ public sealed class GameStateViewModel : ViewModelBase, IDisposable
     [Reactive]
     public LocationDefinitionModel CurrentLocation { get; private set; } = GameDefinitions.Instance.StartLocation;
 
-    public IObservable<Point> CurrentPoint { get; }
+    [Reactive]
+    public Point CurrentPoint { get; private set; }
 
     [Reactive]
     public LocationDefinitionModel TargetLocation { get; private set; } = GameDefinitions.Instance.StartLocation;
@@ -294,9 +288,11 @@ public sealed class GameStateViewModel : ViewModelBase, IDisposable
     [Reactive]
     public Point TargetPoint { get; private set; }
 
-    public IObservable<double> RelativeAngle { get; }
+    [Reactive]
+    public double RelativeAngle { get; private set; }
 
-    public IObservable<double> ScaleX { get; }
+    [Reactive]
+    public double ScaleX { get; private set; }
 
     [Reactive]
     public int FoodFactor { get; private set; }

@@ -353,10 +353,10 @@
                                         <Image Classes="player"
                                                Classes.notPaused="{Binding !Paused}"
                                                PointerMoved="OnPointerMovedOverControlWithToolTip"
-                                               Width="16" Canvas.Left="{Binding CurrentPoint^.X, Mode=OneWay}"
-                                               Height="16" Canvas.Top="{Binding CurrentPoint^.Y, Mode=OneWay}"
+                                               Width="16" Canvas.Left="{Binding CurrentPoint.X, Mode=OneWay}"
+                                               Height="16" Canvas.Top="{Binding CurrentPoint.Y, Mode=OneWay}"
                                                Source="/Assets/Images/pack_rat.webp"
-                                               my:PlayerWiggleProperties.TargetAngle="{Binding RelativeAngle^}"
+                                               my:PlayerWiggleProperties.TargetAngle="{Binding RelativeAngle}"
                                                ToolTip.ToolTipOpening="OnPlayerToolTipOpening"
                                                PointerPressed="OnPlayerClicked">
                                             <Image.RenderTransform>
@@ -366,7 +366,7 @@
                                               would break!
                                               -->
                                               <TransformGroup>
-                                                <ScaleTransform ScaleX="{Binding ScaleX^}" />
+                                                <ScaleTransform ScaleX="{Binding ScaleX}" />
                                                 <RotateTransform />
                                               </TransformGroup>
                                             </Image.RenderTransform>
@@ -405,22 +405,22 @@
                                         <TextBlock Text="eek!"
                                                    FontSize="3.5"
                                                    IsVisible="{Binding StartledCounter, Converter={StaticResource NonZeroConverter}}"
-                                                   Canvas.Left="{Binding CurrentPoint^.X, Mode=OneWay}"
-                                                   Canvas.Top="{Binding CurrentPoint^.Y, Mode=OneWay}"
+                                                   Canvas.Left="{Binding CurrentPoint.X, Mode=OneWay}"
+                                                   Canvas.Top="{Binding CurrentPoint.Y, Mode=OneWay}"
                                                    RenderTransform="translate(2px, -3px)" />
                                         <materialIcons:MaterialIcon Kind="Antenna"
                                                                     Width="6"
                                                                     Height="6"
                                                                     IsVisible="{Binding MovingToConspiratorial}"
-                                                                    Canvas.Left="{Binding CurrentPoint^.X, Mode=OneWay}"
-                                                                    Canvas.Top="{Binding CurrentPoint^.Y, Mode=OneWay}"
+                                                                    Canvas.Left="{Binding CurrentPoint.X, Mode=OneWay}"
+                                                                    Canvas.Top="{Binding CurrentPoint.Y, Mode=OneWay}"
                                                                     RenderTransform="translate(5px, -3px)" />
                                         <materialIcons:MaterialIcon Kind="LightbulbDimmer10"
                                                                     Width="6"
                                                                     Height="6"
                                                                     IsVisible="{Binding MovingToSmart}"
-                                                                    Canvas.Left="{Binding CurrentPoint^.X, Mode=OneWay}"
-                                                                    Canvas.Top="{Binding CurrentPoint^.Y, Mode=OneWay}"
+                                                                    Canvas.Left="{Binding CurrentPoint.X, Mode=OneWay}"
+                                                                    Canvas.Top="{Binding CurrentPoint.Y, Mode=OneWay}"
                                                                     RenderTransform="translate(5px, -3px)" />
                                     </Canvas>
                                 </Panel>
