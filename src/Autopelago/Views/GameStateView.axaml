@@ -101,7 +101,7 @@
                 <DropShadowEffect OffsetX="2.8" OffsetY="2.8" Opacity="0.8" />
             </Setter>
         </Style>
-        <Style Selector="Polyline.toTargetLocation">
+        <Style Selector="Polyline.toTargetLocation[IsVisible=true]">
             <Style.Animations>
                 <Animation Duration="0:0:1"
                            IterationCount="Infinite">
@@ -389,8 +389,8 @@
                                                     <Image Height="64" Width="64" Source="/Assets/Images/pack_rat.webp" />
                                                     <Grid Margin="5,0,0,0" Grid.Column="1"
                                                           Classes="tooltip big"
-                                                          Grid.RowDefinitions="Auto,Auto,*,Auto"
-                                                          Grid.ColumnDefinitions="Auto,*">
+                                                          RowDefinitions="Auto,Auto,*,Auto"
+                                                          ColumnDefinitions="Auto,*">
                                                       <TextBlock Grid.Row="0" Grid.Column="0" Margin="5,0,0,0" VerticalAlignment="Center" Text="●" />
                                                       <TextBlock Grid.Row="0" Grid.Column="1" Margin="2,0,0,0" Text="{Binding CurrentLocation.Name, StringFormat='At \'{0}\'.'}" />
                                                       <TextBlock Grid.Row="1" Grid.Column="0" Margin="5,10,0,0" VerticalAlignment="Center" Text="●" />

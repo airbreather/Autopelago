@@ -71,7 +71,6 @@ public sealed class GameStateViewModel : ViewModelBase, IDisposable
                 }
             }));
 
-        FrozenSet<string> progressionItemNames = GameDefinitions.Instance.ProgressionItems.Values.Select(i => i.Name).ToFrozenSet();
         FrozenDictionary<string, CollectableItemViewModel> progressionItemInPanelLookup = ProgressionItemsInPanel.ToFrozenDictionary(i => i.Model.Name);
         FrozenDictionary<string, LandmarkRegionViewModel> landmarkRegionsLookup = LandmarkRegions.ToFrozenDictionary(l => l.RegionKey);
         FrozenDictionary<string, ImmutableArray<GameRequirementToolTipViewModel>> toolTipsByItem = (
@@ -106,8 +105,6 @@ public sealed class GameStateViewModel : ViewModelBase, IDisposable
         int prevReceivedItemsCount = 0;
         int prevCheckedLocationsCount = 0;
         bool wasCompleted = false;
-        LocationKey prevCurrentLocationKey = LocationKey.For("unreachable");
-        LocationKey prevTargetLocationKey = LocationKey.For("unreachable");
         _subscriptions.Add(provider.CurrentGameState
             .ObserveOn(AvaloniaScheduler.Instance)
             .Subscribe(g =>
@@ -142,15 +139,8 @@ public sealed class GameStateViewModel : ViewModelBase, IDisposable
                     }
                 }
 
-                bool receivedAdditionalProgressionItems = false;
                 foreach (ItemDefinitionModel item in g.ReceivedItems.Skip(prevReceivedItemsCount))
                 {
-                    if (!progressionItemNames.Contains(item.Name))
-                    {
-                        continue;
-                    }
-
-                    receivedAdditionalProgressionItems = true;
                     if (!progressionItemInPanelLookup.TryGetValue(item.Name, out CollectableItemViewModel? viewModel))
                     {
                         continue;
@@ -190,26 +180,31 @@ public sealed class GameStateViewModel : ViewModelBase, IDisposable
                 }
 
                 wasCompleted = g.IsCompleted;
+                TargetPoint = locationPointLookup[g.TargetLocation.Key] + FillerRegionViewModel.ToCenter;
+            }));
 
-                if (receivedAdditionalProgressionItems || g.CurrentLocation.Key != prevCurrentLocationKey || g.TargetLocation.Key != prevTargetLocationKey)
+        _subscriptions.Add(provider.CurrentGameState
+            .CombineLatest(this.ObservableForProperty(x => x.PlayerIsActivated))
+            .Subscribe(chg =>
+            {
+                if (!chg.Second.Value)
                 {
-                    Point[] pathPoints =
-                    [
-                        .. g.CalculateRoute(g.CurrentLocation, g.TargetLocation)
-                            .Select(l => locationPointLookup[l.Key] + FillerRegionViewModel.ToCenter),
-                    ];
-                    if (!CurrentPathPoints.SequenceEqual(pathPoints))
-                    {
-                        CurrentPathPoints.Clear();
-                        CurrentPathPoints.EnsureCapacity(pathPoints.Length);
-                        CurrentPathPoints.AddRange(pathPoints);
-                    }
-
-                    prevCurrentLocationKey = g.CurrentLocation.Key;
-                    prevTargetLocationKey = g.TargetLocation.Key;
+                    CurrentPathPoints.Clear();
+                    return;
                 }
 
-                TargetPoint = locationPointLookup[g.TargetLocation.Key] + FillerRegionViewModel.ToCenter;
+                Game g = chg.First;
+                Point[] pathPoints =
+                [
+                    .. g.CalculateRoute(g.CurrentLocation, g.TargetLocation)
+                        .Select(l => locationPointLookup[l.Key] + FillerRegionViewModel.ToCenter),
+                ];
+                if (!CurrentPathPoints.SequenceEqual(pathPoints))
+                {
+                    CurrentPathPoints.Clear();
+                    CurrentPathPoints.EnsureCapacity(pathPoints.Length);
+                    CurrentPathPoints.AddRange(pathPoints);
+                }
             }));
 
         _subscriptions.Add(provider.CurrentGameState
