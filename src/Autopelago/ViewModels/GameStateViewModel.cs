@@ -7,7 +7,6 @@ using System.Reactive.Linq;
 using System.Reactive.Subjects;
 
 using Avalonia;
-using Avalonia.Media;
 using Avalonia.ReactiveUI;
 
 using ReactiveUI;
@@ -69,6 +68,8 @@ public sealed class GameStateViewModel : ViewModelBase, IDisposable
                 }
             }));
 
+        FrozenSet<string> progressionItemNames = GameDefinitions.Instance.ProgressionItems.Values.Select(i => i.Name).ToFrozenSet();
+        FrozenDictionary<string, CollectableItemViewModel> progressionItemInPanelLookup = ProgressionItemsInPanel.ToFrozenDictionary(i => i.Model.Name);
         FrozenDictionary<string, LandmarkRegionViewModel> landmarkRegionsLookup = LandmarkRegions.ToFrozenDictionary(l => l.RegionKey);
         FrozenDictionary<string, ImmutableArray<GameRequirementToolTipViewModel>> toolTipsByItem = (
             from loc in LandmarkRegions
@@ -89,47 +90,118 @@ public sealed class GameStateViewModel : ViewModelBase, IDisposable
             .ToFrozenDictionary(l => l.Model.Key);
         FillerLocations = [.. fillerLocationLookup.Values];
 
-        Paused = provider.Paused;
+        _subscriptions.Add(provider.Paused
+            .Subscribe(paused => Paused = paused));
 
-        RatCount = provider.CurrentGameState
-            .Select(g => g.RatCount);
-        FoodFactor = provider.CurrentGameState
-            .Select(g => g.FoodFactor);
-        EnergyFactor = provider.CurrentGameState
-            .Select(g => g.EnergyFactor);
-        LuckFactor = provider.CurrentGameState
-            .Select(g => g.LuckFactor);
-        StyleFactor = provider.CurrentGameState
-            .Select(g => g.StyleFactor);
-        DistractionCounter = provider.CurrentGameState
-            .Select(g => g.DistractionCounter);
-        StartledCounter = provider.CurrentGameState
-            .Select(g => g.StartledCounter);
-        HasConfidence = provider.CurrentGameState
-            .Select(g => g.HasConfidence);
-        MovingToSmart = provider.CurrentGameState
-            .Select(g => g.TargetLocationReason == TargetLocationReason.PriorityPriority && g.SpoilerData[ArchipelagoItemFlags.LogicalAdvancement].Contains(g.TargetLocation.Key));
-        MovingToConspiratorial = provider.CurrentGameState
-            .Select(g => g.TargetLocationReason == TargetLocationReason.PriorityPriority && g.SpoilerData[ArchipelagoItemFlags.Trap].Contains(g.TargetLocation.Key));
+        int prevRatCount = 0;
+        int prevReceivedItemsCount = 0;
+        int prevCheckedLocationsCount = 0;
+        bool wasCompleted = false;
+        LocationKey prevCurrentLocationKey = LocationKey.For("unreachable");
+        LocationKey prevTargetLocationKey = LocationKey.For("unreachable");
+        _subscriptions.Add(provider.CurrentGameState
+            .ObserveOn(AvaloniaScheduler.Instance)
+            .Subscribe(g =>
+            {
+                RatCount = g.RatCount;
+                FoodFactor = g.FoodFactor;
+                EnergyFactor = g.EnergyFactor;
+                LuckFactor = g.LuckFactor;
+                StyleFactor = g.StyleFactor;
+                DistractionCounter = g.DistractionCounter;
+                StartledCounter = g.StartledCounter;
+                HasConfidence = g.HasConfidence;
+                if (g.TargetLocationReason == TargetLocationReason.PriorityPriority)
+                {
+                    MovingToSmart = g.SpoilerData[ArchipelagoItemFlags.LogicalAdvancement].Contains(g.TargetLocation.Key);
+                    MovingToConspiratorial = g.SpoilerData[ArchipelagoItemFlags.Trap].Contains(g.TargetLocation.Key);
+                }
+                else
+                {
+                    MovingToSmart = false;
+                    MovingToConspiratorial = false;
+                }
 
-        CurrentLocation = provider.CurrentGameState
-            .Select(v => v.CurrentLocation);
+                CurrentLocation = g.CurrentLocation;
+                TargetLocation = g.TargetLocation;
+                if (g.RatCount != prevRatCount)
+                {
+                    prevRatCount = g.RatCount;
+                    foreach ((int ratCountThreshold, GameRequirementToolTipViewModel toolTip) in ratCountToolTips)
+                    {
+                        toolTip.Satisfied = prevRatCount >= ratCountThreshold;
+                    }
+                }
 
-        TargetLocation = provider.CurrentGameState
-            .Select(g => g.TargetLocation);
+                bool receivedAdditionalProgressionItems = false;
+                foreach (ItemDefinitionModel item in g.ReceivedItems.Skip(prevReceivedItemsCount))
+                {
+                    if (!progressionItemNames.Contains(item.Name))
+                    {
+                        continue;
+                    }
 
-        CurrentPath = provider.CurrentGameState
-            .DistinctUntilChanged(g => (g.CurrentLocation, g.TargetLocation, g.ReceivedItems.Count(i => i.ArchipelagoFlags == ArchipelagoItemFlags.LogicalAdvancement)))
-            .Select(g =>
-                new PolylineGeometry(
-                    g.CalculateRoute(g.CurrentLocation, g.TargetLocation)
-                        .Select(l => GetPoint(l) + FillerRegionViewModel.ToCenter),
-                    false
-                )
-            );
+                    receivedAdditionalProgressionItems = true;
+                    if (!progressionItemInPanelLookup.TryGetValue(item.Name, out CollectableItemViewModel? viewModel))
+                    {
+                        continue;
+                    }
 
-        TargetPoint = provider.CurrentGameState
-            .Select(g => GetPoint(g.TargetLocation) + FillerRegionViewModel.ToCenter);
+                    viewModel.Collected = true;
+                    if (!toolTipsByItem.TryGetValue(viewModel.ItemKey, out ImmutableArray<GameRequirementToolTipViewModel> tooltips))
+                    {
+                        continue;
+                    }
+
+                    foreach (GameRequirementToolTipViewModel tooltip in tooltips)
+                    {
+                        tooltip.Satisfied = true;
+                    }
+                }
+
+                prevReceivedItemsCount = g.ReceivedItems.Count;
+
+                foreach (LocationDefinitionModel location in g.CheckedLocations.Order.Skip(prevCheckedLocationsCount))
+                {
+                    if (landmarkRegionsLookup.TryGetValue(location.Key.RegionKey, out LandmarkRegionViewModel? landmarkViewModel))
+                    {
+                        landmarkViewModel.Checked = true;
+                    }
+                    else if (fillerLocationLookup.TryGetValue(location.Key, out FillerLocationViewModel? fillerViewModel))
+                    {
+                        fillerViewModel.Checked = true;
+                    }
+                }
+
+                prevCheckedLocationsCount = g.CheckedLocations.Count;
+
+                if (g.IsCompleted && !wasCompleted && landmarkRegionsLookup.TryGetValue(GameDefinitions.Instance.GoalRegion.Key, out LandmarkRegionViewModel? goalViewModel))
+                {
+                    goalViewModel.Checked = true;
+                }
+
+                wasCompleted = g.IsCompleted;
+
+                if (receivedAdditionalProgressionItems || g.CurrentLocation.Key != prevCurrentLocationKey || g.TargetLocation.Key != prevTargetLocationKey)
+                {
+                    Point[] pathPoints =
+                    [
+                        .. g.CalculateRoute(g.CurrentLocation, g.TargetLocation)
+                            .Select(l => GetPoint(l) + FillerRegionViewModel.ToCenter),
+                    ];
+                    if (!CurrentPathPoints.SequenceEqual(pathPoints))
+                    {
+                        CurrentPathPoints.Clear();
+                        CurrentPathPoints.EnsureCapacity(pathPoints.Length);
+                        CurrentPathPoints.AddRange(pathPoints);
+                    }
+
+                    prevCurrentLocationKey = g.CurrentLocation.Key;
+                    prevTargetLocationKey = g.TargetLocation.Key;
+                }
+
+                TargetPoint = GetPoint(g.TargetLocation) + FillerRegionViewModel.ToCenter;
+            }));
 
         IConnectableObservable<LocationVector> movementLogs0 = provider.CurrentGameState
             .Select(SpaceOut)
@@ -171,71 +243,6 @@ public sealed class GameStateViewModel : ViewModelBase, IDisposable
         ScaleX = trueAngle
             .Select(angle => Math.Abs(angle) < 90 ? (double)1 : -1);
 
-        _subscriptions.Add(provider.CurrentGameState
-            .DistinctUntilChanged(g => g.RatCount)
-            .Subscribe(g =>
-            {
-                foreach ((int ratCountThreshold, GameRequirementToolTipViewModel toolTip) in ratCountToolTips)
-                {
-                    toolTip.Satisfied = g.RatCount >= ratCountThreshold;
-                }
-            }));
-
-        FrozenDictionary<ItemDefinitionModel, CollectableItemViewModel> collectableItemsByModel = ProgressionItems.ToFrozenDictionary(i => i.Model);
-        int lastReceivedItemsCount = 0;
-        _subscriptions.Add(provider.CurrentGameState
-            .Where(g => g.ReceivedItems.Count > lastReceivedItemsCount)
-            .Subscribe(g =>
-            {
-                foreach (ItemDefinitionModel item in g.ReceivedItems.Skip(lastReceivedItemsCount))
-                {
-                    if (!collectableItemsByModel.TryGetValue(item, out CollectableItemViewModel? viewModel))
-                    {
-                        continue;
-                    }
-
-                    viewModel.Collected = true;
-                    if (!toolTipsByItem.TryGetValue(viewModel.ItemKey, out ImmutableArray<GameRequirementToolTipViewModel> tooltips))
-                    {
-                        continue;
-                    }
-
-                    foreach (GameRequirementToolTipViewModel tooltip in tooltips)
-                    {
-                        tooltip.Satisfied = true;
-                    }
-                }
-
-                lastReceivedItemsCount = g.ReceivedItems.Count;
-            }));
-
-        int lastCheckedLocationsCount = 0;
-        bool wasCompleted = false;
-        _subscriptions.Add(provider.CurrentGameState
-            .Where(g => g.CheckedLocations.Count > lastCheckedLocationsCount || (g.IsCompleted && !wasCompleted))
-            .Subscribe(g =>
-            {
-                foreach (LocationDefinitionModel location in g.CheckedLocations.Order.Skip(lastCheckedLocationsCount))
-                {
-                    if (landmarkRegionsLookup.TryGetValue(location.Key.RegionKey, out LandmarkRegionViewModel? landmarkViewModel))
-                    {
-                        landmarkViewModel.Checked = true;
-                    }
-                    else if (fillerLocationLookup.TryGetValue(location.Key, out FillerLocationViewModel? fillerViewModel))
-                    {
-                        fillerViewModel.Checked = true;
-                    }
-                }
-
-                if (g.IsCompleted && !wasCompleted && landmarkRegionsLookup.TryGetValue(GameDefinitions.Instance.GoalRegion.Key, out LandmarkRegionViewModel? goalViewModel))
-                {
-                    goalViewModel.Checked = true;
-                }
-
-                lastCheckedLocationsCount = g.CheckedLocations.Count;
-                wasCompleted = g.IsCompleted;
-            }));
-
         Point GetPoint(LocationDefinitionModel location)
         {
             return landmarkRegionsLookup.TryGetValue(location.Region.Key, out LandmarkRegionViewModel? landmark)
@@ -270,41 +277,55 @@ public sealed class GameStateViewModel : ViewModelBase, IDisposable
     [Reactive]
     public bool PlayerIsActivated { get; set; }
 
-    public IObservable<bool> Paused { get; }
+    [Reactive]
+    public bool Paused { get; private set; }
 
-    public IObservable<int> RatCount { get; }
+    [Reactive]
+    public int RatCount { get; private set; }
 
-    public IObservable<LocationDefinitionModel> CurrentLocation { get; }
+    [Reactive]
+    public LocationDefinitionModel CurrentLocation { get; private set; } = GameDefinitions.Instance.StartLocation;
 
     public IObservable<Point> CurrentPoint { get; }
 
-    public IObservable<LocationDefinitionModel> TargetLocation { get; }
+    [Reactive]
+    public LocationDefinitionModel TargetLocation { get; private set; } = GameDefinitions.Instance.StartLocation;
 
-    public IObservable<Point> TargetPoint { get; }
+    [Reactive]
+    public Point TargetPoint { get; private set; }
 
     public IObservable<double> RelativeAngle { get; }
 
     public IObservable<double> ScaleX { get; }
 
-    public IObservable<int> FoodFactor { get; }
+    [Reactive]
+    public int FoodFactor { get; private set; }
 
-    public IObservable<int> LuckFactor { get; }
+    [Reactive]
+    public int EnergyFactor { get; private set; }
 
-    public IObservable<int> EnergyFactor { get; }
+    [Reactive]
+    public int LuckFactor { get; private set; }
 
-    public IObservable<int> StyleFactor { get; }
+    [Reactive]
+    public int StyleFactor { get; private set; }
 
-    public IObservable<int> DistractionCounter { get; }
+    [Reactive]
+    public int DistractionCounter { get; private set; }
 
-    public IObservable<int> StartledCounter { get; }
+    [Reactive]
+    public int StartledCounter { get; private set; }
 
-    public IObservable<bool> HasConfidence { get; }
+    [Reactive]
+    public bool HasConfidence { get; private set; }
 
-    public IObservable<bool> MovingToSmart { get; }
+    [Reactive]
+    public bool MovingToSmart { get; private set; }
 
-    public IObservable<bool> MovingToConspiratorial { get; }
+    [Reactive]
+    public bool MovingToConspiratorial { get; private set; }
 
-    public IObservable<PolylineGeometry> CurrentPath { get; }
+    public Points CurrentPathPoints { get; } = [];
 
     public required ReactiveCommand<Unit, Unit> BackToMainMenuCommand { get; init; }
 
@@ -312,7 +333,7 @@ public sealed class GameStateViewModel : ViewModelBase, IDisposable
 
     public ImmutableArray<FillerLocationViewModel> FillerLocations { get; }
 
-    public ImmutableArray<CollectableItemViewModel> ProgressionItems { get; } =
+    public ImmutableArray<CollectableItemViewModel> ProgressionItemsInPanel { get; } =
     [
         .. GameDefinitions.Instance.ProgressionItems.Keys
             .Where(itemKey => !s_hiddenProgressionItems.Contains(itemKey))
