@@ -1,6 +1,6 @@
 using Avalonia;
 using Avalonia.ReactiveUI;
-using Avalonia.Svg.Skia;
+using Avalonia.Svg;
 
 using Serilog;
 
@@ -53,7 +53,7 @@ internal static class Program
     public static AppBuilder BuildAvaloniaApp()
     {
         GC.KeepAlive(typeof(SvgImageExtension).Assembly);
-        GC.KeepAlive(typeof(Avalonia.Svg.Skia.Svg).Assembly);
+        GC.KeepAlive(typeof(Avalonia.Svg.Svg).Assembly);
         return AppBuilder.Configure<App>()
             .UsePlatformDetect()
             .WithInterFont()
