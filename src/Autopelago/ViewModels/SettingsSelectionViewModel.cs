@@ -4,7 +4,7 @@ using System.Reactive.Disposables;
 using System.Text.RegularExpressions;
 
 using ReactiveUI;
-using ReactiveUI.Fody.Helpers;
+using ReactiveUI.SourceGenerators;
 
 namespace Autopelago.ViewModels;
 
@@ -12,9 +12,25 @@ public sealed partial class SettingsSelectionViewModel : ViewModelBase, IDisposa
 {
     private readonly CompositeDisposable _subscriptions = [];
 
+    private readonly IObservable<bool> _canConnect;
+
+    [Reactive] private string _host = "archipelago.gg";
+
+    [Reactive] private decimal? _port = ushort.MaxValue;
+
+    [Reactive(SetModifier = AccessModifier.Private)] private bool _userCanEditPort;
+
+    [Reactive] private string _slot = "";
+
+    [Reactive] private string _password = "";
+
+    [Reactive] private decimal _minStepSeconds = 60;
+
+    [Reactive] private decimal _maxStepSeconds = 90;
+
     public SettingsSelectionViewModel()
     {
-        IObservable<bool> canConnect = this.WhenAnyValue(
+        _canConnect = this.WhenAnyValue(
             x => x.Host, x => x.Port, x => x.Slot, x => x.MinStepSeconds, x => x.MaxStepSeconds,
             (host, port, slot, minStepSeconds, maxStepSeconds) =>
                 !string.IsNullOrWhiteSpace(host) &&
@@ -23,7 +39,6 @@ public sealed partial class SettingsSelectionViewModel : ViewModelBase, IDisposa
                 !string.IsNullOrWhiteSpace(slot) &&
                 minStepSeconds > 0 &&
                 maxStepSeconds >= minStepSeconds);
-        ConnectCommand = ReactiveCommand.Create(() => SettingsModel, canConnect);
 
         _subscriptions.Add(this
             .WhenAnyValue(x => x.Host)
@@ -47,29 +62,6 @@ public sealed partial class SettingsSelectionViewModel : ViewModelBase, IDisposa
     {
         _subscriptions.Dispose();
     }
-
-    public ReactiveCommand<Unit, Settings> ConnectCommand { get; }
-
-    [Reactive]
-    public string Host { get; set; } = "archipelago.gg";
-
-    [Reactive]
-    public decimal? Port { get; set; } = ushort.MaxValue;
-
-    [Reactive]
-    public bool UserCanEditPort { get; private set; }
-
-    [Reactive]
-    public string Slot { get; set; } = "";
-
-    [Reactive]
-    public string Password { get; set; } = "";
-
-    [Reactive]
-    public decimal MinStepSeconds { get; set; } = 60;
-
-    [Reactive]
-    public decimal MaxStepSeconds { get; set; } = 90;
 
     public Settings SettingsModel
     {
@@ -95,4 +87,10 @@ public sealed partial class SettingsSelectionViewModel : ViewModelBase, IDisposa
 
     [GeneratedRegex(@"\:(?<port>\d+)$", RegexOptions.Compiled | RegexOptions.ExplicitCapture | RegexOptions.NonBacktracking | RegexOptions.CultureInvariant)]
     private static partial Regex HasPortRegex();
+
+    [ReactiveCommand(CanExecute = nameof(_canConnect))]
+    private Settings Connect(Unit unit)
+    {
+        return SettingsModel;
+    }
 }

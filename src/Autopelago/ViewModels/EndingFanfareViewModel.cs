@@ -5,15 +5,17 @@ using Avalonia.Media.Imaging;
 using Avalonia.ReactiveUI;
 
 using ReactiveUI;
-using ReactiveUI.Fody.Helpers;
+using ReactiveUI.SourceGenerators;
 
 namespace Autopelago.ViewModels;
 
-public sealed class EndingFanfareViewModel : ViewModelBase, IDisposable
+public sealed partial class EndingFanfareViewModel : ViewModelBase, IDisposable
 {
     private readonly Bitmap[] _frames = LandmarkRegionViewModel.ReadFrames(GameDefinitions.Instance.GoalRegion.Key, false).Saturated;
 
     private readonly IDisposable _frameInterval;
+
+    [Reactive(SetModifier = AccessModifier.Private)] private Bitmap? _image;
 
     private long _frameNum;
 
@@ -31,9 +33,6 @@ public sealed class EndingFanfareViewModel : ViewModelBase, IDisposable
             frame.Dispose();
         }
     }
-
-    [Reactive]
-    public Bitmap? Image { get; private set; }
 
     public required ReactiveCommand<Unit, Unit> BackToMapCommand { get; init; }
 }

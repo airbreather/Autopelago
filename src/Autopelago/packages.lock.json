@@ -96,14 +96,13 @@
           "Material.Icons": "2.1.10"
         }
       },
-      "ReactiveUI.Fody": {
+      "ReactiveUI.SourceGenerators": {
         "type": "Direct",
-        "requested": "[19.5.41, )",
-        "resolved": "19.5.41",
-        "contentHash": "bh6OH1WsSHf/ryUVaPnI6LWl1+lrCvq4L/AoHpzPXCKxtR4p0ogPVONnkq0jYgSQ55x7YNCVkthBKeb6uUSbpg==",
+        "requested": "[2.0.17, )",
+        "resolved": "2.0.17",
+        "contentHash": "Ky+j1NpaYE/aLeXfur7DtXeVExGkzLltSbARZKmxAawDeFzWvaxh7DElw58x+If1hHF7ap7Z5oeYhP+QwBYzIQ==",
         "dependencies": {
-          "Fody": "6.8.0",
-          "ReactiveUI": "19.5.41"
+          "ReactiveUI.SourceGenerators.Analyzers.CodeFixes": "2.0.17"
         }
       },
       "Serilog": {
@@ -246,11 +245,6 @@
         "resolved": "4.2.3",
         "contentHash": "SyeAfu2wL5247sipJoPUzQfjiwQtfSd8hN4IbgoyVcDx4PP6Dud4znwPRibWQzLtTlUxYYcbf5f4p+EfFC7KtQ=="
       },
-      "Fody": {
-        "type": "Transitive",
-        "resolved": "6.8.0",
-        "contentHash": "hfZ/f8Mezt8aTkgv9nsvFdYoQ809/AqwsJlOGOPYIfBcG2aAIG3v3ex9d8ZqQuFYyMoucjRg4eKy3VleeGodKQ=="
-      },
       "HarfBuzzSharp": {
         "type": "Transitive",
         "resolved": "7.3.0.3",
@@ -307,6 +301,11 @@
           "Splat": "15.1.1",
           "System.ComponentModel.Annotations": "5.0.0"
         }
+      },
+      "ReactiveUI.SourceGenerators.Analyzers.CodeFixes": {
+        "type": "Transitive",
+        "resolved": "2.0.17",
+        "contentHash": "JQViRedH8Q0c62TKtq6dovpJhH+R3UlsmQddZw0kEhoxuBEBkfchtHhzqZCWyGCzwz0sgv1QFJu6rpA6QqItkw=="
       },
       "ShimSkiaSharp": {
         "type": "Transitive",

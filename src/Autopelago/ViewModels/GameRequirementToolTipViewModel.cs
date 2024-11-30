@@ -2,13 +2,15 @@ using System.Collections.Immutable;
 using System.Reactive.Disposables;
 
 using ReactiveUI;
-using ReactiveUI.Fody.Helpers;
+using ReactiveUI.SourceGenerators;
 
 namespace Autopelago.ViewModels;
 
-public sealed class GameRequirementToolTipViewModel : ViewModelBase, IDisposable
+public sealed partial class GameRequirementToolTipViewModel : ViewModelBase, IDisposable
 {
     private readonly CompositeDisposable _subscription = [];
+
+    [Reactive] private bool _satisfied;
 
     public GameRequirementToolTipViewModel(GameRequirement req)
     {
@@ -74,9 +76,6 @@ public sealed class GameRequirementToolTipViewModel : ViewModelBase, IDisposable
     }
 
     public GameRequirement Model { get; }
-
-    [Reactive]
-    public bool Satisfied { get; set; }
 
     public object? HeaderContent { get; }
 

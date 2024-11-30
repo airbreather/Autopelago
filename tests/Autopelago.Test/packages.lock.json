@@ -208,11 +208,6 @@
         "resolved": "4.2.3",
         "contentHash": "SyeAfu2wL5247sipJoPUzQfjiwQtfSd8hN4IbgoyVcDx4PP6Dud4znwPRibWQzLtTlUxYYcbf5f4p+EfFC7KtQ=="
       },
-      "Fody": {
-        "type": "Transitive",
-        "resolved": "6.8.0",
-        "contentHash": "hfZ/f8Mezt8aTkgv9nsvFdYoQ809/AqwsJlOGOPYIfBcG2aAIG3v3ex9d8ZqQuFYyMoucjRg4eKy3VleeGodKQ=="
-      },
       "HarfBuzzSharp": {
         "type": "Transitive",
         "resolved": "7.3.0.3",
@@ -312,15 +307,6 @@
           "DynamicData": "8.4.1",
           "Splat": "15.1.1",
           "System.ComponentModel.Annotations": "5.0.0"
-        }
-      },
-      "ReactiveUI.Fody": {
-        "type": "Transitive",
-        "resolved": "19.5.41",
-        "contentHash": "bh6OH1WsSHf/ryUVaPnI6LWl1+lrCvq4L/AoHpzPXCKxtR4p0ogPVONnkq0jYgSQ55x7YNCVkthBKeb6uUSbpg==",
-        "dependencies": {
-          "Fody": "6.8.0",
-          "ReactiveUI": "19.5.41"
         }
       },
       "Serilog": {
@@ -453,7 +439,6 @@
           "Avalonia.Themes.Fluent": "[11.2.2, )",
           "Libuv": "[1.10.0, )",
           "Material.Icons.Avalonia": "[2.1.10, )",
-          "ReactiveUI.Fody": "[19.5.41, )",
           "Serilog": "[4.1.0, )",
           "Serilog.Sinks.Async": "[2.1.0, )",
           "Serilog.Sinks.Console": "[6.0.0, )",

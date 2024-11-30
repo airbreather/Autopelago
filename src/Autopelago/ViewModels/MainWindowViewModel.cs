@@ -2,15 +2,17 @@ using System.Reactive;
 using System.Reactive.Subjects;
 
 using ReactiveUI;
-using ReactiveUI.Fody.Helpers;
+using ReactiveUI.SourceGenerators;
 
 namespace Autopelago.ViewModels;
 
-public sealed class MainWindowViewModel : ViewModelBase, IDisposable
+public sealed partial class MainWindowViewModel : ViewModelBase, IDisposable
 {
     private readonly Subject<Unit> _shouldSaveSettings = new();
 
     private readonly IDisposable _connectCommandSubscription;
+
+    [Reactive] private ViewModelBase _contentViewModel;
 
     public MainWindowViewModel()
     {
@@ -74,7 +76,4 @@ public sealed class MainWindowViewModel : ViewModelBase, IDisposable
     public ErrorViewModel Error { get; }
 
     public EndingFanfareViewModel EndingFanfare { get; }
-
-    [Reactive]
-    public ViewModelBase ContentViewModel { get; set; }
 }

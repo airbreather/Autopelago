@@ -5,13 +5,13 @@ using Avalonia.Media.Imaging;
 using Avalonia.Platform;
 
 using ReactiveUI;
-using ReactiveUI.Fody.Helpers;
+using ReactiveUI.SourceGenerators;
 
 using SkiaSharp;
 
 namespace Autopelago.ViewModels;
 
-public sealed class LandmarkRegionViewModel : ViewModelBase, IDisposable
+public sealed partial class LandmarkRegionViewModel : ViewModelBase, IDisposable
 {
     private static readonly Vector s_toCenter = new Vector(16, 16) / 2;
 
@@ -63,6 +63,18 @@ public sealed class LandmarkRegionViewModel : ViewModelBase, IDisposable
     private readonly Bitmap[] _saturated;
 
     private readonly Bitmap[] _desaturated;
+
+    [Reactive(SetModifier = AccessModifier.Private)] private Bitmap? _image;
+
+    [Reactive(SetModifier = AccessModifier.Private)] private Bitmap? _saturatedImage;
+
+    [Reactive(SetModifier = AccessModifier.Private)] private Bitmap? _questImage;
+
+    [Reactive] private bool _available;
+
+    [Reactive] private bool _checked;
+
+    [Reactive(SetModifier = AccessModifier.Private)] private long _frameCounter;
 
     public LandmarkRegionViewModel(string regionKey)
     {
@@ -119,24 +131,6 @@ public sealed class LandmarkRegionViewModel : ViewModelBase, IDisposable
     public GameRequirementToolTipViewModel GameRequirementToolTipSource { get; }
 
     public Point CanvasLocation { get; }
-
-    [Reactive]
-    public Bitmap? Image { get; private set; }
-
-    [Reactive]
-    public Bitmap? SaturatedImage { get; private set; }
-
-    [Reactive]
-    public Bitmap? QuestImage { get; private set; }
-
-    [Reactive]
-    public bool Available { get; set; }
-
-    [Reactive]
-    public bool Checked { get; set; }
-
-    [Reactive]
-    internal long FrameCounter { get; private set; }
 
     internal void NextFrame()
     {

@@ -1,14 +1,13 @@
 using System.Reactive;
 
 using ReactiveUI;
-using ReactiveUI.Fody.Helpers;
+using ReactiveUI.SourceGenerators;
 
 namespace Autopelago.ViewModels;
 
-public sealed class ErrorViewModel : ViewModelBase
+public sealed partial class ErrorViewModel : ViewModelBase
 {
-    public required ReactiveCommand<Unit, Unit> BackToMainMenuCommand { get; init; }
+    [Reactive] private string? _message;
 
-    [Reactive]
-    public string? Message { get; set; }
+    public required ReactiveCommand<Unit, Unit> BackToMainMenuCommand { get; init; }
 }

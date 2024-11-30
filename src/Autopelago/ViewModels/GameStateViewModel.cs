@@ -10,11 +10,11 @@ using Avalonia.Controls;
 using Avalonia.ReactiveUI;
 
 using ReactiveUI;
-using ReactiveUI.Fody.Helpers;
+using ReactiveUI.SourceGenerators;
 
 namespace Autopelago.ViewModels;
 
-public sealed class GameStateViewModel : ViewModelBase, IDisposable
+public sealed partial class GameStateViewModel : ViewModelBase, IDisposable
 {
     private static readonly FrozenSet<string> s_hiddenProgressionItems = new[]
     {
@@ -45,6 +45,46 @@ public sealed class GameStateViewModel : ViewModelBase, IDisposable
     private static readonly FrozenDictionary<string, int> s_progressionItemSortOrder = ProgressionItemSortOrder();
 
     private readonly CompositeDisposable _subscriptions = [];
+
+    [Reactive] private string _slotName = "";
+
+    [Reactive] private string _ratThought = s_ratThoughts[0];
+
+    [Reactive] private bool _playerIsActivated;
+
+    [Reactive(SetModifier = AccessModifier.Private)] private bool _paused;
+
+    [Reactive(SetModifier = AccessModifier.Private)] private int _ratCount;
+
+    [Reactive(SetModifier = AccessModifier.Private)] private LocationDefinitionModel _currentLocation = GameDefinitions.Instance.StartLocation;
+
+    [Reactive(SetModifier = AccessModifier.Private)] private Point _currentPoint;
+
+    [Reactive(SetModifier = AccessModifier.Private)] private LocationDefinitionModel _targetLocation = GameDefinitions.Instance.StartLocation;
+
+    [Reactive(SetModifier = AccessModifier.Private)] private Point _targetPoint;
+
+    [Reactive(SetModifier = AccessModifier.Private)] private double _relativeAngle;
+
+    [Reactive(SetModifier = AccessModifier.Private)] private double _scaleX;
+
+    [Reactive(SetModifier = AccessModifier.Private)] private int _foodFactor;
+
+    [Reactive(SetModifier = AccessModifier.Private)] private int _energyFactor;
+
+    [Reactive(SetModifier = AccessModifier.Private)] private int _luckFactor;
+
+    [Reactive(SetModifier = AccessModifier.Private)] private int _styleFactor;
+
+    [Reactive(SetModifier = AccessModifier.Private)] private int _distractionCounter;
+
+    [Reactive(SetModifier = AccessModifier.Private)] private int _startledCounter;
+
+    [Reactive(SetModifier = AccessModifier.Private)] private bool _hasConfidence;
+
+    [Reactive(SetModifier = AccessModifier.Private)] private bool _movingToSmart;
+
+    [Reactive(SetModifier = AccessModifier.Private)] private bool _movingToConspiratorial;
 
     public GameStateViewModel()
         : this(new(Settings.ForDesigner))
@@ -254,66 +294,6 @@ public sealed class GameStateViewModel : ViewModelBase, IDisposable
     }
 
     public static TimeSpan MovementAnimationTime { get; } = TimeSpan.FromSeconds(0.1);
-
-    [Reactive]
-    public string SlotName { get; set; } = "";
-
-    [Reactive]
-    public string RatThought { get; set; } = s_ratThoughts[0];
-
-    [Reactive]
-    public bool PlayerIsActivated { get; set; }
-
-    [Reactive]
-    public bool Paused { get; private set; }
-
-    [Reactive]
-    public int RatCount { get; private set; }
-
-    [Reactive]
-    public LocationDefinitionModel CurrentLocation { get; private set; } = GameDefinitions.Instance.StartLocation;
-
-    [Reactive]
-    public Point CurrentPoint { get; private set; }
-
-    [Reactive]
-    public LocationDefinitionModel TargetLocation { get; private set; } = GameDefinitions.Instance.StartLocation;
-
-    [Reactive]
-    public Point TargetPoint { get; private set; }
-
-    [Reactive]
-    public double RelativeAngle { get; private set; }
-
-    [Reactive]
-    public double ScaleX { get; private set; }
-
-    [Reactive]
-    public int FoodFactor { get; private set; }
-
-    [Reactive]
-    public int EnergyFactor { get; private set; }
-
-    [Reactive]
-    public int LuckFactor { get; private set; }
-
-    [Reactive]
-    public int StyleFactor { get; private set; }
-
-    [Reactive]
-    public int DistractionCounter { get; private set; }
-
-    [Reactive]
-    public int StartledCounter { get; private set; }
-
-    [Reactive]
-    public bool HasConfidence { get; private set; }
-
-    [Reactive]
-    public bool MovingToSmart { get; private set; }
-
-    [Reactive]
-    public bool MovingToConspiratorial { get; private set; }
 
     public Points CurrentPathPoints { get; } = [];
 

@@ -1,11 +1,13 @@
 using Avalonia;
 
-using ReactiveUI.Fody.Helpers;
+using ReactiveUI.SourceGenerators;
 
 namespace Autopelago.ViewModels;
 
-public sealed class FillerLocationViewModel : ViewModelBase
+public sealed partial class FillerLocationViewModel : ViewModelBase
 {
+    [Reactive] private bool _checked;
+
     public FillerLocationViewModel(LocationDefinitionModel model, Point point)
     {
         Model = model;
@@ -18,7 +20,4 @@ public sealed class FillerLocationViewModel : ViewModelBase
     public Point Point { get; }
 
     public Point PointWhenRenderingDot { get; }
-
-    [Reactive]
-    public bool Checked { get; set; }
 }

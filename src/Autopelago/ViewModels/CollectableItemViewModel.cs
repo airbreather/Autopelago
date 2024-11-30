@@ -2,19 +2,23 @@ using Avalonia.Media.Imaging;
 using Avalonia.Platform;
 
 using ReactiveUI;
-using ReactiveUI.Fody.Helpers;
+using ReactiveUI.SourceGenerators;
 
 using SkiaSharp;
 
 namespace Autopelago.ViewModels;
 
-public sealed class CollectableItemViewModel : ViewModelBase, IDisposable
+public sealed partial class CollectableItemViewModel : ViewModelBase, IDisposable
 {
     private readonly IDisposable _updateImageSubscription;
 
     private readonly Bitmap _saturatedImage;
 
     private readonly Bitmap _desaturatedImage;
+
+    [Reactive] private bool _collected;
+
+    [Reactive] private Bitmap? _image;
 
     public CollectableItemViewModel(string itemKey)
     {
@@ -48,10 +52,4 @@ public sealed class CollectableItemViewModel : ViewModelBase, IDisposable
     public string ItemKey { get; }
 
     public ItemDefinitionModel Model { get; }
-
-    [Reactive]
-    public bool Collected { get; set; }
-
-    [Reactive]
-    public Bitmap? Image { get; set; }
 }
