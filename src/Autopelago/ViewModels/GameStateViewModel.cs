@@ -94,6 +94,11 @@ public sealed partial class GameStateViewModel : ViewModelBase, IDisposable
     public GameStateViewModel(GameStateObservableProvider provider)
     {
         PlayPauseCommand = ReactiveCommand.Create(provider.TogglePause);
+        if (Design.IsDesignMode)
+        {
+            // ain't nobody got time for dat
+            provider.TogglePause();
+        }
 
         (BitmapPair yellowQuestImage, BitmapPair grayQuestImage) = LandmarkRegionViewModel.CreateQuestImages();
         _disposables.Add(yellowQuestImage);

@@ -41,10 +41,18 @@ public sealed class GameStateObservableProvider
         {
             Game g = new(Prng.State.Start());
 
+            bool paused = false;
+            _paused.Subscribe(p => paused = p);
+
             int prevCheckedLocationsCount = 0;
-            Observable.Interval(TimeSpan.FromSeconds(1), AvaloniaScheduler.Instance)
+            Observable.Interval(TimeSpan.FromSeconds(10), AvaloniaScheduler.Instance)
                 .Subscribe(_ =>
                 {
+                    if (paused)
+                    {
+                        return;
+                    }
+
                     g.Advance();
                     g.ReceiveItems([
                         .. g.CheckedLocations
