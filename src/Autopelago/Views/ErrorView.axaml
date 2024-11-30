@@ -4,7 +4,7 @@
     xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
     xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
     xmlns:reactiveUi="http://reactiveui.net"
-    xmlns:viewModels="clr-namespace:Autopelago.ViewModels"
+    xmlns:viewModels="using:Autopelago.ViewModels"
     FontFamily="fonts:Inter#Inter, $Default"
     mc:Ignorable="d" d:DesignWidth="800" d:DesignHeight="450"
     x:Class="Autopelago.Views.ErrorView"

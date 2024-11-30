@@ -1,4 +1,5 @@
 using System.Collections.Frozen;
+using System.Reactive.Disposables;
 
 using Avalonia;
 using Avalonia.Media.Imaging;
@@ -11,11 +12,41 @@ using SkiaSharp;
 
 namespace Autopelago.ViewModels;
 
+public sealed partial class BitmapPair : ViewModelBase, IDisposable
+{
+    [Reactive(SetModifier = AccessModifier.Private)] private bool _showA;
+
+    public BitmapPair(Bitmap a, Bitmap b)
+    {
+        A = a;
+        B = b;
+    }
+
+    public void Dispose()
+    {
+        A.Dispose();
+        if (!ReferenceEquals(A, B))
+        {
+            B.Dispose();
+        }
+    }
+
+    public Bitmap A { get; }
+
+    public Bitmap B { get; }
+
+    public void NextFrame()
+    {
+        if (!ReferenceEquals(A, B))
+        {
+            ShowA = !_showA;
+        }
+    }
+}
+
 public sealed partial class LandmarkRegionViewModel : ViewModelBase, IDisposable
 {
     private static readonly Vector s_toCenter = new Vector(16, 16) / 2;
-
-    private static readonly Lazy<(Bitmap[] Yellow, Bitmap[] Gray)> s_questFrames = new(() => (ReadFrames("yellow_quest", false).Saturated, ReadFrames("gray_quest", false).Saturated));
 
     private static readonly FrozenDictionary<string, Point> s_canvasLocations = new[]
     {
@@ -54,29 +85,19 @@ public sealed partial class LandmarkRegionViewModel : ViewModelBase, IDisposable
         KeyValuePair.Create("moon_comma_the", new Point(284, 319)),
     }.ToFrozenDictionary();
 
-    private readonly IDisposable _clearAvailableSubscription;
-
-    private readonly IDisposable _updateImagesSubscription;
-
-    private readonly IDisposable _watchToolTipsSubscription;
-
-    private readonly Bitmap[] _saturated;
-
-    private readonly Bitmap[] _desaturated;
-
-    [Reactive(SetModifier = AccessModifier.Private)] private Bitmap? _image;
-
-    [Reactive(SetModifier = AccessModifier.Private)] private Bitmap? _saturatedImage;
-
-    [Reactive(SetModifier = AccessModifier.Private)] private Bitmap? _questImage;
-
-    [Reactive] private bool _available;
+    private readonly CompositeDisposable _disposables = [];
 
     [Reactive] private bool _checked;
 
-    [Reactive(SetModifier = AccessModifier.Private)] private long _frameCounter;
+    [Reactive(SetModifier = AccessModifier.Private)] private bool _showSaturatedImage;
 
-    public LandmarkRegionViewModel(string regionKey)
+    [Reactive(SetModifier = AccessModifier.Private)] private bool _showDesaturatedImage = true;
+
+    [Reactive(SetModifier = AccessModifier.Private)] private bool _showYellowQuestImage;
+
+    [Reactive(SetModifier = AccessModifier.Private)] private bool _showGrayQuestImage = true;
+
+    public LandmarkRegionViewModel(string regionKey, BitmapPair yellowQuestImages, BitmapPair grayQuestImages)
     {
         RegionKey = regionKey;
         Region = GameDefinitions.Instance.LandmarkRegions[regionKey];
@@ -84,42 +105,44 @@ public sealed partial class LandmarkRegionViewModel : ViewModelBase, IDisposable
         GameRequirementToolTipSource = new(Region.Requirement);
         CanvasLocation = s_canvasLocations[regionKey] - s_toCenter;
 
-        (_saturated, Bitmap[]? desaturated) = ReadFrames(regionKey, true);
-        _desaturated = desaturated!;
-        (Bitmap[] yellowQuestFrames, Bitmap[] grayQuestFrames) = s_questFrames.Value;
+        YellowQuestImages = yellowQuestImages;
+        GrayQuestImages = grayQuestImages;
+        (SaturatedImages, DesaturatedImages) = ReadFrames(regionKey);
+        _disposables.Add(SaturatedImages);
+        _disposables.Add(DesaturatedImages);
 
-        _clearAvailableSubscription = this
-            .WhenAnyValue(x => x.Checked)
-            .Subscribe(isChecked => Available &= !isChecked);
-
-        _updateImagesSubscription = this
-            .WhenAnyValue(x => x.FrameCounter, x => x.Checked, x => x.Available, (frameCounter, isChecked, isAvailable) => (frameCounter, isChecked, isAvailable))
-            .Subscribe(curr =>
+        IDisposable whenRequirementSatisfied;
+        _disposables.Add(whenRequirementSatisfied = GameRequirementToolTipSource.ObservableForProperty(x => x.Satisfied)
+            .Subscribe(satisfied =>
             {
-                Image = (curr.isChecked ? _saturated : _desaturated)[curr.frameCounter & 1];
-                SaturatedImage = _saturated[curr.frameCounter & 1];
-                QuestImage = curr.isChecked ? null : (curr.isAvailable ? yellowQuestFrames : grayQuestFrames)[curr.frameCounter & 1];
-            });
+                if (_checked)
+                {
+                    return;
+                }
 
-        _watchToolTipsSubscription = GameRequirementToolTipSource
-            .WhenAnyValue(x => x.Satisfied)
-            .Subscribe(satisfied => Available = satisfied && !Checked);
+                ShowYellowQuestImage = satisfied.Value;
+                ShowGrayQuestImage = !satisfied.Value;
+            }));
+
+        _disposables.Add(this.ObservableForProperty(x => x.Checked)
+            .Subscribe(isChecked =>
+            {
+                if (!isChecked.Value)
+                {
+                    return;
+                }
+
+                whenRequirementSatisfied.Dispose();
+                ShowSaturatedImage = true;
+                ShowDesaturatedImage = false;
+                ShowYellowQuestImage = false;
+                ShowGrayQuestImage = false;
+            }));
     }
 
     public void Dispose()
     {
-        _clearAvailableSubscription.Dispose();
-        _updateImagesSubscription.Dispose();
-        _watchToolTipsSubscription.Dispose();
-        foreach (Bitmap saturated in _saturated)
-        {
-            saturated.Dispose();
-        }
-
-        foreach (Bitmap desaturated in _desaturated)
-        {
-            desaturated.Dispose();
-        }
+        _disposables.Dispose();
     }
 
     public string RegionKey { get; }
@@ -132,19 +155,39 @@ public sealed partial class LandmarkRegionViewModel : ViewModelBase, IDisposable
 
     public Point CanvasLocation { get; }
 
-    internal void NextFrame()
+    public BitmapPair SaturatedImages { get; }
+
+    public BitmapPair DesaturatedImages { get; }
+
+    public BitmapPair YellowQuestImages { get; }
+
+    public BitmapPair GrayQuestImages { get; }
+
+    public void NextFrame()
     {
-        ++FrameCounter;
+        SaturatedImages.NextFrame();
+        DesaturatedImages.NextFrame();
+
+        if (!_checked)
+        {
+            YellowQuestImages.NextFrame();
+            GrayQuestImages.NextFrame();
+        }
     }
 
-    internal static (Bitmap[] Saturated, Bitmap[]? Desaturated) ReadFrames(string regionKey, bool andDesaturated)
+    public static (BitmapPair Saturated, BitmapPair Desaturated) CreateQuestImages()
+    {
+        return (ReadFrames("yellow_quest").Saturated, ReadFrames("gray_quest").Saturated);
+    }
+
+    internal static (BitmapPair Saturated, BitmapPair Desaturated) ReadFrames(string regionKey)
     {
         using Stream data = AssetLoader.Open(new($"avares://Autopelago/Assets/Images/{regionKey}.webp"));
         using SKCodec codec = SKCodec.Create(data);
         SKImageInfo imageInfo = codec.Info;
         SKCodecFrameInfo[] frameInfo = codec.FrameInfo;
         Bitmap[] saturated = new Bitmap[2];
-        Bitmap[]? desaturated = andDesaturated ? new Bitmap[2] : null;
+        Bitmap[] desaturated = new Bitmap[2];
         if (frameInfo.Length is not (0 or 2))
         {
             throw new NotSupportedException("These were all supposed to be 1- or 2-frame images.");
@@ -166,10 +209,7 @@ public sealed partial class LandmarkRegionViewModel : ViewModelBase, IDisposable
             encoded.SaveTo(ms);
             ms.Position = 0;
             saturated[i] = new(ms);
-            if (desaturated is not null)
-            {
-                desaturated[i] = ToDesaturated(bmp);
-            }
+            desaturated[i] = ToDesaturated(bmp);
         }
 
         if (frameInfo.Length == 0)
@@ -183,12 +223,9 @@ public sealed partial class LandmarkRegionViewModel : ViewModelBase, IDisposable
             encoded.SaveTo(ms);
             ms.Position = 0;
             saturated[0] = saturated[1] = new(ms);
-            if (desaturated is not null)
-            {
-                desaturated[0] = desaturated[1] = ToDesaturated(bmp);
-            }
+            desaturated[0] = desaturated[1] = ToDesaturated(bmp);
         }
 
-        return (saturated, desaturated);
+        return (new(saturated[0], saturated[1]), new(desaturated[0], desaturated[1]));
     }
 }

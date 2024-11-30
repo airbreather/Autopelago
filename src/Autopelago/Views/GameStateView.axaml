@@ -3,10 +3,11 @@
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
     xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
     xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
-    xmlns:my="clr-namespace:Autopelago"
-    xmlns:viewModels="clr-namespace:Autopelago.ViewModels"
+    xmlns:my="using:Autopelago"
+    xmlns:viewModels="using:Autopelago.ViewModels"
     xmlns:reactiveUi="http://reactiveui.net"
-    xmlns:materialIcons="clr-namespace:Material.Icons.Avalonia;assembly=Material.Icons.Avalonia"
+    xmlns:materialIcons="using:Material.Icons.Avalonia"
+    xmlns:views="clr-namespace:Autopelago.Views"
     Classes="GamerFont"
     mc:Ignorable="d" d:DesignWidth="950" d:DesignHeight="450"
     x:Class="Autopelago.Views.GameStateView"
@@ -96,7 +97,7 @@
                 <Setter Property="Fill" Value="Gray" />
             </Style>
         </Style>
-        <Style Selector="Image.landmark">
+        <Style Selector="views|BitmapPairView.landmark">
             <Setter Property="Effect">
                 <DropShadowEffect OffsetX="2.8" OffsetY="2.8" Opacity="0.8" />
             </Setter>
@@ -183,6 +184,9 @@
                         <TextBlock Grid.Row="7" Grid.Column="0" Classes="meter-label" Text="CNF:" />
                         <ProgressBar Grid.Row="7" Grid.Column="1" IsIndeterminate="{Binding HasConfidence}" />
                         <TextBlock Margin="5,0,0,0" Grid.Row="7" Grid.Column="2" Classes="meter-label" Text="{Binding HasConfidence, Converter={StaticResource YNConverter}}" />
+
+                        <!-- Ensure that the tooltip shows no matter where your mouse ended up. -->
+                        <Rectangle Grid.Row="0" Grid.Column="0" Grid.RowSpan="8" Grid.ColumnSpan="3" Fill="#00FFFFFF" />
                     </Grid>
                 </Border>
 
@@ -245,7 +249,8 @@
                                                 <Border Margin="0,5,0,0" Padding="4" Classes="tracker-box item">
                                                     <Grid ColumnDefinitions="Auto,*" RowDefinitions="*, Auto">
                                                         <!-- Note: coordinates are NOT scaled like everything else on the map. -->
-                                                        <Image Height="64" Width="64" VerticalAlignment="Top" Source="{Binding SaturatedImage, Mode=OneWay}" />
+                                                        <views:BitmapPairView VerticalAlignment="Top" Height="64" Width="64"
+                                                                              ViewModel="{Binding SaturatedImages}" />
                                                         <ContentControl Margin="5,0,0,0"
                                                                         Grid.Row="0"
                                                                         Grid.Column="1"
@@ -306,12 +311,15 @@
                                         </ItemsControl.Styles>
                                         <ItemsControl.ItemTemplate>
                                             <DataTemplate>
-                                                <Grid ToolTip.VerticalOffset="0" PointerMoved="OnPointerMovedOverControlWithToolTip">
+                                                <Panel ToolTip.VerticalOffset="0" PointerMoved="OnPointerMovedOverControlWithToolTip">
                                                     <ToolTip.Tip>
                                                         <ContentControl Content="{Binding .}" ContentTemplate="{StaticResource LandmarkToolTipDataTemplate}" />
                                                     </ToolTip.Tip>
-                                                    <Image Classes="landmark" Height="16" Width="16" Source="{Binding Image, Mode=OneWay}" />
-                                                </Grid>
+                                                    <views:BitmapPairView Classes="landmark" Height="16" Width="16"
+                                                                          ViewModel="{Binding SaturatedImages}" IsVisible="{Binding ShowSaturatedImage}" />
+                                                    <views:BitmapPairView Classes="landmark" Height="16" Width="16"
+                                                                          ViewModel="{Binding DesaturatedImages}" IsVisible="{Binding ShowDesaturatedImage}" />
+                                                </Panel>
                                             </DataTemplate>
                                         </ItemsControl.ItemTemplate>
                                     </ItemsControl>
@@ -329,16 +337,20 @@
                                         </ItemsControl.Styles>
                                         <ItemsControl.ItemTemplate>
                                             <DataTemplate>
-                                                <Image Height="12" Width="12" Source="{Binding QuestImage, Mode=OneWay}"
-                                                       ToolTip.VerticalOffset="0" PointerMoved="OnPointerMovedOverControlWithToolTip">
+                                                <Panel ToolTip.VerticalOffset="0" PointerMoved="OnPointerMovedOverControlWithToolTip">
                                                     <ToolTip.Tip>
                                                         <ContentControl Content="{Binding .}" ContentTemplate="{StaticResource LandmarkToolTipDataTemplate}" />
                                                     </ToolTip.Tip>
 
-                                                    <Image.RenderTransform>
+                                                    <Panel.RenderTransform>
                                                         <TranslateTransform Y="-13" X="2" />
-                                                    </Image.RenderTransform>
-                                                </Image>
+                                                    </Panel.RenderTransform>
+
+                                                    <views:BitmapPairView Height="12" Width="12"
+                                                                          ViewModel="{Binding YellowQuestImages}" IsVisible="{Binding ShowYellowQuestImage}" />
+                                                    <views:BitmapPairView Height="12" Width="12"
+                                                                          ViewModel="{Binding GrayQuestImages}" IsVisible="{Binding ShowGrayQuestImage}" />
+                                                </Panel>
                                             </DataTemplate>
                                         </ItemsControl.ItemTemplate>
                                     </ItemsControl>

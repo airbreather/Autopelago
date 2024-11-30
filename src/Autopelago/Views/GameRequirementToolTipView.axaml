@@ -1,7 +1,7 @@
 <reactiveUi:ReactiveUserControl
     xmlns="https://github.com/avaloniaui"
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-    xmlns:viewModels="clr-namespace:Autopelago.ViewModels"
+    xmlns:viewModels="using:Autopelago.ViewModels"
     xmlns:reactiveUi="http://reactiveui.net"
     x:Class="Autopelago.Views.GameRequirementToolTipView"
     x:DataType="viewModels:GameRequirementToolTipViewModel"

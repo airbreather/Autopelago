@@ -1,9 +1,9 @@
 <Application
     xmlns="https://github.com/avaloniaui"
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-    xmlns:materialIcons="clr-namespace:Material.Icons.Avalonia;assembly=Material.Icons.Avalonia"
-    xmlns:autopelago="clr-namespace:Autopelago"
-    xmlns:converters="clr-namespace:Autopelago.Converters"
+    xmlns:materialIcons="using:Material.Icons.Avalonia"
+    xmlns:autopelago="using:Autopelago"
+    xmlns:converters="using:Autopelago.Converters"
     x:Class="Autopelago.App"
     RequestedThemeVariant="Dark">
 
