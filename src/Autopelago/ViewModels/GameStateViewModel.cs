@@ -202,7 +202,6 @@ public sealed class GameStateViewModel : ViewModelBase, IDisposable
                 if (!CurrentPathPoints.SequenceEqual(pathPoints))
                 {
                     CurrentPathPoints.Clear();
-                    CurrentPathPoints.EnsureCapacity(pathPoints.Length);
                     CurrentPathPoints.AddRange(pathPoints);
                 }
             }));
