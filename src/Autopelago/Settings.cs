@@ -10,8 +10,8 @@ public sealed record Settings
         Port = 38281,
         Slot = "",
         Password = "",
-        MinStepSeconds = 30,
-        MaxStepSeconds = 60,
+        MinStepSeconds = 20,
+        MaxStepSeconds = 30,
         RatChat = true,
     };
 

@@ -24,9 +24,9 @@ public sealed partial class SettingsSelectionViewModel : ViewModelBase, IDisposa
 
     [Reactive] private string _password = "";
 
-    [Reactive] private decimal _minStepSeconds = 60;
+    [Reactive] private decimal _minStepSeconds = 20;
 
-    [Reactive] private decimal _maxStepSeconds = 90;
+    [Reactive] private decimal _maxStepSeconds = 30;
 
     [Reactive] private bool _ratChat = true;
 
