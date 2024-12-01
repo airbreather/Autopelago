@@ -101,7 +101,7 @@ public sealed class GameStateObservableProvider
         ArchipelagoConnection connection = new(_settings);
         using ClientWebSocket socket = await connection.ConnectAsync(cancellationToken);
 
-        ArchipelagoPacketProvider packets = new();
+        ArchipelagoPacketProvider packets = new(_settings);
 
         // set up to receive the game and the context from the initialization process.
         GameInitializer gameInitializer = new(_settings, _unhandledException.AsObserver());

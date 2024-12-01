@@ -28,6 +28,8 @@ public sealed partial class SettingsSelectionViewModel : ViewModelBase, IDisposa
 
     [Reactive] private decimal _maxStepSeconds = 90;
 
+    [Reactive] private bool _ratChat = true;
+
     public SettingsSelectionViewModel()
     {
         _canConnect = this.WhenAnyValue(
@@ -73,6 +75,7 @@ public sealed partial class SettingsSelectionViewModel : ViewModelBase, IDisposa
             Password = Password,
             MinStepSeconds = MinStepSeconds,
             MaxStepSeconds = MaxStepSeconds,
+            RatChat = RatChat,
         };
         set
         {
@@ -82,6 +85,7 @@ public sealed partial class SettingsSelectionViewModel : ViewModelBase, IDisposa
             Password = value.Password;
             MinStepSeconds = value.MinStepSeconds;
             MaxStepSeconds = value.MaxStepSeconds;
+            RatChat = value.RatChat;
         }
     }
 

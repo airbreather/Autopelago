@@ -15,7 +15,7 @@
         <viewModels:SettingsSelectionViewModel />
     </Design.DataContext>
 
-    <Grid RowDefinitions="Auto,Auto,Auto,Auto,Auto,Auto" IsSharedSizeScope="True">
+    <Grid Margin="5" RowDefinitions="Auto,Auto,Auto,Auto,Auto,Auto,Auto" IsSharedSizeScope="True">
         <Grid.ColumnDefinitions>
             <ColumnDefinition Width="Auto" SharedSizeGroup="Henry" />
             <ColumnDefinition Width="*" />
@@ -51,7 +51,11 @@
             </Grid>
         </Border>
 
-        <Button Margin="0,5,0,0" Grid.Row="5" Grid.Column="0" Grid.ColumnSpan="2"
+        <CheckBox Margin="0,5,0,0" Grid.Row="5" Grid.Column="0" Grid.ColumnSpan="2" IsChecked="{Binding RatChat}">
+            Send messages using Archipelago chat
+        </CheckBox>
+
+        <Button Margin="0,5,0,0" Grid.Row="6" Grid.Column="0" Grid.ColumnSpan="2"
                 HorizontalAlignment="Stretch" HorizontalContentAlignment="Center"
                 IsDefault="True" Command="{Binding ConnectCommand}">
             <TextBlock Text="Connect" />

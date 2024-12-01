@@ -28,9 +28,16 @@ public sealed class ArchipelagoPacketProvider
 
     private readonly List<ArchipelagoPacketModel> _bufferedPackets = [];
 
+    private readonly Settings _settings;
+
     private ClientWebSocket? _socket;
 
     private CancellationToken _cancellationToken;
+
+    public ArchipelagoPacketProvider(Settings settings)
+    {
+        _settings = settings;
+    }
 
     public async ValueTask<IDisposable> RegisterHandlerAsync(ArchipelagoPacketHandler handler)
     {
@@ -144,6 +151,15 @@ public sealed class ArchipelagoPacketProvider
         if (_socket is not { } socket)
         {
             throw new InvalidOperationException("Not running!");
+        }
+
+        if (!_settings.RatChat)
+        {
+            packets = packets.RemoveAll(packet => packet is SayPacketModel);
+            if (packets.IsEmpty)
+            {
+                return;
+            }
         }
 
         byte[] bytes = JsonSerializer.SerializeToUtf8Bytes(packets, s_packetsTypeInfo);
