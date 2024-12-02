@@ -52,7 +52,7 @@ public sealed partial class GameStateViewModel : ViewModelBase, IDisposable
 
     [Reactive] private bool _playerIsActivated;
 
-    [Reactive(SetModifier = AccessModifier.Private)] private bool _paused;
+    [Reactive] private bool _paused;
 
     [Reactive(SetModifier = AccessModifier.Private)] private int _ratCount;
 
@@ -93,12 +93,15 @@ public sealed partial class GameStateViewModel : ViewModelBase, IDisposable
 
     public GameStateViewModel(GameStateObservableProvider provider)
     {
-        PlayPauseCommand = ReactiveCommand.Create(provider.TogglePause);
         if (Design.IsDesignMode)
         {
             // ain't nobody got time for dat
-            provider.TogglePause();
+            _paused = true;
+            provider.SetPaused(true);
         }
+
+        _disposables.Add(this.ObservableForProperty(x => x.Paused)
+            .Subscribe(paused => provider.SetPaused(paused.Value)));
 
         (BitmapPair yellowQuestImage, BitmapPair grayQuestImage) = LandmarkRegionViewModel.CreateQuestImages();
         _disposables.Add(yellowQuestImage);
@@ -314,8 +317,6 @@ public sealed partial class GameStateViewModel : ViewModelBase, IDisposable
     public Points CurrentPathPoints { get; } = [];
 
     public required ReactiveCommand<Unit, Unit> BackToMainMenuCommand { get; init; }
-
-    public ReactiveCommand<Unit, Unit> PlayPauseCommand { get; }
 
     public ImmutableArray<FillerLocationViewModel> FillerLocations { get; }
 

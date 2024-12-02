@@ -468,7 +468,7 @@ public sealed class RouteCalculator
         CollectionsMarshal.GetValueRefOrAddDefault(_visitedLocations, currentLocation.Key.RegionKey, out _)[currentLocation.Key.N] = true;
         while (q.TryDequeue(out LocationDefinitionModel? loc))
         {
-            if (spoilerData.Contains(loc.Key))
+            if (spoilerData.Contains(loc.Key) && !_game.CheckedLocations[loc.Key])
             {
                 yield return loc;
             }

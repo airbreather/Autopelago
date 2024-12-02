@@ -41,14 +41,11 @@ public sealed class GameStateObservableProvider
         {
             Game g = new(Prng.State.Start());
 
-            bool paused = false;
-            _paused.Subscribe(p => paused = p);
-
             int prevCheckedLocationsCount = 0;
             Observable.Interval(TimeSpan.FromSeconds(10), AvaloniaScheduler.Instance)
                 .Subscribe(_ =>
                 {
-                    if (paused)
+                    if (_paused.Value)
                     {
                         return;
                     }
@@ -75,9 +72,9 @@ public sealed class GameStateObservableProvider
 
     public IObservable<bool> Paused { get; }
 
-    public void TogglePause()
+    public void SetPaused(bool paused)
     {
-        _paused.OnNext(!_paused.Value);
+        _paused.OnNext(paused);
     }
 
     public async void RunAsync(CancellationToken cancellationToken)
