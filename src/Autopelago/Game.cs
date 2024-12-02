@@ -618,14 +618,19 @@ public sealed class Game
         }
     }
 
-    public void CheckLocations(ImmutableArray<LocationDefinitionModel> newLocations)
+    public void CheckLocations(ReadOnlySpan<LocationDefinitionModel> newLocations)
     {
         using Lock.Scope _ = EnterLockScope();
         EnsureStarted();
+        HashSet<LocationKey> keys = new(newLocations.Length);
         foreach (LocationDefinitionModel location in newLocations)
         {
             _checkedLocations!.MarkChecked(location);
+            keys.Add(location.Key);
         }
+
+        _priorityLocations.RemoveAll(l => keys.Contains(l.Key));
+        _priorityPriorityLocations.RemoveAll(l => keys.Contains(l.Key));
     }
 
     public void ReceiveItems(ReadOnlySpan<ItemDefinitionModel> newItems)

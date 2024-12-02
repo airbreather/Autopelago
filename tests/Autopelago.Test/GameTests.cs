@@ -521,6 +521,7 @@ public sealed class GameTests
     }
 
     [Test]
+    [Property("Regression", 100)]
     public void SmartShouldResolveToNearestReachableIfPossible([Values("smart", "conspiratorial")] string aura)
     {
         ArchipelagoItemFlags targetFlags = aura switch
@@ -555,6 +556,12 @@ public sealed class GameTests
         {
             GameDefinitions.Instance.StartLocation,
         }));
+
+        // #100: it also shouldn't re-prioritize the same location after it's been checked.
+        game.CheckLocations([GameDefinitions.Instance.StartLocation]);
+        Assert.That(game.PriorityPriorityLocations, Is.Empty);
+        game.ReceiveItems([s_singleAuraItems[aura]]);
+        Assert.That(game.PriorityPriorityLocations, Is.Empty);
     }
 
     [Test]

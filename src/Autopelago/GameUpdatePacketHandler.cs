@@ -84,7 +84,7 @@ public sealed class GameUpdatePacketHandler : ArchipelagoPacketHandler, IDisposa
         if (roomUpdate.CheckedLocations is { } checkedLocations)
         {
             Game game = _gameUpdates.Value;
-            game.CheckLocations(ImmutableArray.CreateRange(checkedLocations, (location, locationsReverseMapping) => locationsReverseMapping[location], _contextUpdates.Value.LocationsById));
+            game.CheckLocations(ImmutableArray.CreateRange(checkedLocations, (location, locationsReverseMapping) => locationsReverseMapping[location], _contextUpdates.Value.LocationsById).AsSpan());
             _gameUpdates.OnNext(game);
         }
     }
