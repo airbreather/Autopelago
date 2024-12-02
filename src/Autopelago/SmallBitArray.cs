@@ -11,7 +11,7 @@ public struct SmallBitArray
 
     public SmallBitArray(int length)
     {
-        ArgumentOutOfRangeException.ThrowIfGreaterThan((uint)length, 127u);
+        ArgumentOutOfRangeException.ThrowIfGreaterThan((uint)length, 128u);
         _length = (byte)length;
     }
 
