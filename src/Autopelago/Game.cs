@@ -396,6 +396,7 @@ public sealed partial class Game
             .ToFrozenDictionary(grp => grp.Key, grp => grp.ToFrozenSet());
         _initializedAuraData = true;
         HasStarted = true;
+        RecalculateClearable();
     }
 
     public void Advance()
@@ -550,6 +551,7 @@ public sealed partial class Game
                 if (success)
                 {
                     _checkedLocations!.MarkChecked(CurrentLocation);
+                    _clearableLandmarks.Remove(CurrentLocation.Key.RegionKey);
                     MercyModifier = 0;
                     bumpMercyModifierForNextTime = false;
                 }
@@ -625,6 +627,7 @@ public sealed partial class Game
         {
             _checkedLocations!.MarkChecked(location);
             keys.Add(location.Key);
+            _clearableLandmarks.Remove(location.Key.RegionKey);
         }
 
         _priorityLocations.RemoveAll(l => keys.Contains(l.Key));
@@ -640,6 +643,7 @@ public sealed partial class Game
 
         using Lock.Scope _ = EnterLockScope();
         EnsureStarted();
+        bool recalculateAccess = false;
         int foodMod = 0;
         int energyFactorMod = 0;
         int luckFactorMod = 0;
@@ -648,6 +652,8 @@ public sealed partial class Game
         int startledMod = 0;
         foreach (ItemDefinitionModel newItem in newItems)
         {
+            recalculateAccess |= GameDefinitions.Instance.ProgressionItemNames.Contains(newItem.Name);
+
             // "confidence" takes place right away: it could apply to another item in the batch.
             bool addConfidence = false;
             bool subtractConfidence = false;
@@ -742,6 +748,10 @@ public sealed partial class Game
         // there and wait for too many turns in a row. same concept applies to Distracted.
         StartledCounter = Math.Min(StartledCounter, 3);
         DistractionCounter = Math.Min(DistractionCounter, 3);
+        if (recalculateAccess)
+        {
+            RecalculateClearable();
+        }
     }
 
     private Lock.Scope EnterLockScope()

@@ -1,6 +1,5 @@
 using System.Collections.Frozen;
 using System.Collections.Immutable;
-using System.Collections.ObjectModel;
 using System.Runtime.InteropServices;
 
 namespace Autopelago;
@@ -10,10 +9,6 @@ public sealed partial class Game
     private readonly HashSet<string> _clearableLandmarks = new(GameDefinitions.Instance.LandmarkRegions.Count);
 
     private readonly HashSet<string> _checkableRegions = new(GameDefinitions.Instance.AllRegions.Count) { GameDefinitions.Instance.StartRegion.Key };
-
-    private int _lastReceivedItemsCount;
-
-    private int _lastCheckedLocationsCount;
 
     private bool UpdateTargetLocation()
     {
@@ -62,7 +57,7 @@ public sealed partial class Game
                 continue;
             }
 
-            TargetLocation = path.Prepend(CurrentLocation).FirstOrDefault(p => p.Region is LandmarkRegionDefinitionModel && !CheckedLocations[p]) ?? priorityLocation;;
+            TargetLocation = path.Prepend(CurrentLocation).FirstOrDefault(p => p.Region is LandmarkRegionDefinitionModel && !CheckedLocations[p]) ?? priorityLocation;
             return TargetLocationReason.Priority;
         }
 
@@ -94,8 +89,6 @@ public sealed partial class Game
 
     private LocationDefinitionModel? FindClosestUncheckedLocation(LocationDefinitionModel currentLocation, bool relyOnMercyFactor)
     {
-        RecalculateAccessibility();
-
         // quick short-circuit: often, this will get called while we're already standing on exactly
         // the closest unchecked location (perhaps because we failed at clearing it). let's optimize
         // for that case here, even though it should not affect correctness.
@@ -270,8 +263,6 @@ public sealed partial class Game
     private readonly Queue<ImmutableList<(RegionDefinitionModel Region, Direction? Direction)>> _qqq = new(GameDefinitions.Instance.AllRegions.Count);
     private IEnumerable<LocationDefinitionModel> GetStartledPath(LocationDefinitionModel currentLocation)
     {
-        RecalculateAccessibility();
-
         if (currentLocation.Key.RegionKey == GameDefinitions.Instance.StartRegion.Key)
         {
             // trivial.
@@ -392,7 +383,6 @@ public sealed partial class Game
                 .Select(n => currentRegionLocations[currentLocationKey.N + n]);
         }
 
-        RecalculateAccessibility();
         if (targetLocation.Region is LandmarkRegionDefinitionModel landmark &&
             !_checkedLocations![landmark.Key][0] &&
             !_clearableLandmarks.Contains(landmark.Key))
@@ -499,8 +489,6 @@ public sealed partial class Game
     private readonly Dictionary<string, SmallBitArray> _visitedLocations = GameDefinitions.Instance.AllRegions.Values.ToDictionary(r => r.Key, r => new SmallBitArray(r.Locations.Length));
     private IEnumerable<LocationDefinitionModel> GetClosestLocationsWithItemFlags(LocationDefinitionModel currentLocation, ArchipelagoItemFlags flags)
     {
-        RecalculateAccessibility();
-
         FrozenSet<LocationKey> spoilerData = _spoilerData![flags];
 
         // TODO: optimize this, it's getting late.
@@ -530,26 +518,6 @@ public sealed partial class Game
                     q.Enqueue(connectedLocation);
                 }
             }
-        }
-    }
-
-    private void RecalculateAccessibility()
-    {
-        while (_lastReceivedItemsCount < _receivedItems!.Count)
-        {
-            if (GameDefinitions.Instance.ProgressionItemNames.Contains(_receivedItems[_lastReceivedItemsCount++].Name))
-            {
-                RecalculateClearable();
-                break;
-            }
-        }
-
-        _lastReceivedItemsCount = _receivedItems.Count;
-
-        ReadOnlyCollection<LocationDefinitionModel> checkedLocationsOrder = _checkedLocations!.Order;
-        while (_lastCheckedLocationsCount < _checkedLocations.Count)
-        {
-            _clearableLandmarks.Remove(checkedLocationsOrder[_lastCheckedLocationsCount++].Key.RegionKey);
         }
     }
 
