@@ -17,7 +17,7 @@ public sealed partial class Game
         TargetLocationReason = MoveBestTargetLocation();
         if (!_everCalculatedPathToTarget)
         {
-            foreach (LocationDefinitionModel l in GetPath(CurrentLocation, TargetLocation, TargetLocationReason == TargetLocationReason.Startled)!)
+            foreach (LocationDefinitionModel l in GetPath(CurrentLocation, TargetLocation)!)
             {
                 _pathToTarget.Enqueue(l);
             }
@@ -31,7 +31,7 @@ public sealed partial class Game
         }
 
         _pathToTarget.Clear();
-        foreach (LocationDefinitionModel l in GetPath(CurrentLocation, TargetLocation, TargetLocationReason == TargetLocationReason.Startled)!)
+        foreach (LocationDefinitionModel l in GetPath(CurrentLocation, TargetLocation)!)
         {
             _pathToTarget.Enqueue(l);
         }
@@ -282,14 +282,16 @@ public sealed partial class Game
     private IEnumerable<LocationDefinitionModel>? _prevPath;
     private LocationKey _currentLocationForPrevPath = LocationKey.For("nonexistent");
     private LocationKey _targetLocationForPrevPath = LocationKey.For("nonexistent");
+    private bool _startledForPrevPath;
 
-    private IEnumerable<LocationDefinitionModel>? GetPath(LocationDefinitionModel currentLocation, LocationDefinitionModel targetLocation, bool startled = false)
+    private IEnumerable<LocationDefinitionModel>? GetPath(LocationDefinitionModel currentLocation, LocationDefinitionModel targetLocation)
     {
-        if ((_currentLocationForPrevPath, _targetLocationForPrevPath, TargetLocationReason == TargetLocationReason.Startled) != (currentLocation.Key, targetLocation.Key, startled))
+        if ((_currentLocationForPrevPath, _targetLocationForPrevPath, _startledForPrevPath) != (currentLocation.Key, targetLocation.Key, TargetLocationReason == TargetLocationReason.Startled))
         {
             _currentLocationForPrevPath = currentLocation.Key;
             _targetLocationForPrevPath = targetLocation.Key;
-            _prevPath = GetPathCore(currentLocation, targetLocation, startled);
+            _startledForPrevPath = TargetLocationReason == TargetLocationReason.Startled;
+            _prevPath = GetPathCore(currentLocation, targetLocation, _startledForPrevPath);
         }
 
         return _prevPath;
