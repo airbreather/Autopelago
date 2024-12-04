@@ -17,7 +17,7 @@ public sealed partial class Game
         TargetLocationReason = MoveBestTargetLocation();
         if (!_everCalculatedPathToTarget)
         {
-            foreach (LocationDefinitionModel l in GetPath(CurrentLocation, TargetLocation)!)
+            foreach (LocationDefinitionModel l in GetPath(CurrentLocation, TargetLocation, TargetLocationReason == TargetLocationReason.Startled)!)
             {
                 _pathToTarget.Enqueue(l);
             }
@@ -31,7 +31,7 @@ public sealed partial class Game
         }
 
         _pathToTarget.Clear();
-        foreach (LocationDefinitionModel l in GetPath(CurrentLocation, TargetLocation)!)
+        foreach (LocationDefinitionModel l in GetPath(CurrentLocation, TargetLocation, TargetLocationReason == TargetLocationReason.Startled)!)
         {
             _pathToTarget.Enqueue(l);
         }
@@ -270,84 +270,6 @@ public sealed partial class Game
             : null;
     }
 
-    private readonly Queue<ImmutableList<(RegionDefinitionModel Region, Direction? Direction)>> _qqq = new(GameDefinitions.Instance.AllRegions.Count);
-    private IEnumerable<LocationDefinitionModel> GetStartledPath(LocationDefinitionModel currentLocation)
-    {
-        if (currentLocation.Key.RegionKey == GameDefinitions.Instance.StartRegion.Key)
-        {
-            // trivial.
-            for (int i = currentLocation.Key.N - 1; i >= 0; --i)
-            {
-                yield return GameDefinitions.Instance.LocationsByKey[currentLocation.Key with { N = i }];
-            }
-
-            yield break;
-        }
-
-        // here's the thing about "Startled". I think it's technically possible that a simple BFS by
-        // just the regions (regardless of the number of locations in each) is not guaranteed to
-        // yield a shortest path to the start. but that doesn't matter. the player is spooked. they
-        // aren't necessarily making the best decisions at the time either. so I'm going to cheat:
-        // find a shortest path by number of regions, then yield the locations along that path. it's
-        // absolutely not worth the extra complication to do any better than that.
-        _qqq.Clear();
-        _visitedRegions.Clear();
-        _qqq.Enqueue([(currentLocation.Region, null)]);
-        _visitedRegions.Add(currentLocation.Key.RegionKey);
-        while (_qqq.TryDequeue(out ImmutableList<(RegionDefinitionModel Region, Direction? Direction)>? regionPath))
-        {
-            foreach ((RegionDefinitionModel connectedRegion, Direction direction) in GameDefinitions.Instance.ConnectedRegions[regionPath[^1].Region.Key])
-            {
-                if (!GameDefinitions.Instance.FillerRegions.ContainsKey(connectedRegion.Key) &&
-                    !_checkedLocations![connectedRegion.Key][0])
-                {
-                    continue;
-                }
-
-                if (connectedRegion.Key == GameDefinitions.Instance.StartRegion.Key)
-                {
-                    // found it. follow the path from the current region. it starts off a little
-                    // complicated because we probably start in the middle.
-                    ImmutableArray<LocationDefinitionModel> startRegionLocations = currentLocation.Region.Locations;
-                    switch (regionPath.ElementAtOrDefault(1).Direction ?? direction)
-                    {
-                        case Direction.TowardsGoal:
-                            for (int i = currentLocation.Key.N + 1; i < startRegionLocations.Length; i++)
-                            {
-                                yield return startRegionLocations[i];
-                            }
-
-                            break;
-
-                        default:
-                            for (int i = currentLocation.Key.N - 1; i >= 0; --i)
-                            {
-                                yield return startRegionLocations[i];
-                            }
-
-                            break;
-                    }
-
-                    // OK, now just yield all the full regions all the way through.
-                    foreach ((RegionDefinitionModel nextRegion, Direction? nextDirection) in regionPath.Skip(1).Append((connectedRegion, direction)))
-                    {
-                        foreach (LocationDefinitionModel loc in nextDirection == Direction.TowardsGoal ? nextRegion.Locations : nextRegion.Locations.Reverse())
-                        {
-                            yield return loc;
-                        }
-                    }
-
-                    yield break;
-                }
-
-                if (_visitedRegions.Add(connectedRegion.Key))
-                {
-                    _qqq.Enqueue(regionPath.Add((connectedRegion, direction)));
-                }
-            }
-        }
-    }
-
     private bool CanReachGoal()
     {
         return !_hardLockedRegions.Contains(GameDefinitions.Instance.GoalRegion.Key);
@@ -361,19 +283,23 @@ public sealed partial class Game
     private LocationKey _currentLocationForPrevPath = LocationKey.For("nonexistent");
     private LocationKey _targetLocationForPrevPath = LocationKey.For("nonexistent");
 
-    private IEnumerable<LocationDefinitionModel>? GetPath(LocationDefinitionModel currentLocation, LocationDefinitionModel targetLocation)
+    private IEnumerable<LocationDefinitionModel>? GetPath(LocationDefinitionModel currentLocation, LocationDefinitionModel targetLocation, bool startled = false)
     {
-        if ((_currentLocationForPrevPath, _targetLocationForPrevPath) != (currentLocation.Key, targetLocation.Key))
+        if ((_currentLocationForPrevPath, _targetLocationForPrevPath, TargetLocationReason == TargetLocationReason.Startled) != (currentLocation.Key, targetLocation.Key, startled))
         {
             _currentLocationForPrevPath = currentLocation.Key;
             _targetLocationForPrevPath = targetLocation.Key;
-            _prevPath = GetPathCore(currentLocation, targetLocation);
+            _prevPath = GetPathCore(currentLocation, targetLocation, startled);
         }
 
         return _prevPath;
     }
-    private IEnumerable<LocationDefinitionModel>? GetPathCore(LocationDefinitionModel currentLocation, LocationDefinitionModel targetLocation)
+
+    private IEnumerable<LocationDefinitionModel>? GetPathCore(LocationDefinitionModel currentLocation, LocationDefinitionModel targetLocation, bool startled)
     {
+        HashSet<string> lockedRegions = startled
+            ? _softLockedRegions
+            : _hardLockedRegions;
         if (currentLocation.Key.RegionKey == targetLocation.Key.RegionKey)
         {
             LocationKey currentLocationKey = currentLocation.Key;
@@ -393,7 +319,7 @@ public sealed partial class Game
                 .Select(n => currentRegionLocations[currentLocationKey.N + n]);
         }
 
-        if (_hardLockedRegions.Contains(targetLocation.Key.RegionKey))
+        if (lockedRegions.Contains(targetLocation.Key.RegionKey))
         {
             return null;
         }
@@ -402,7 +328,7 @@ public sealed partial class Game
         _prev.Clear();
         foreach ((RegionDefinitionModel connectedRegion, Direction direction) in GameDefinitions.Instance.ConnectedRegions[currentLocation.Region.Key])
         {
-            if (!_hardLockedRegions.Contains(connectedRegion.Key))
+            if (!lockedRegions.Contains(connectedRegion.Key))
             {
                 _q.Enqueue((connectedRegion, direction));
                 _prev.Add(connectedRegion.Key, (currentLocation.Region, direction));
@@ -418,7 +344,7 @@ public sealed partial class Game
                 {
                     if (nextConnectedRegion.Key != currentLocation.Key.RegionKey &&
                         _prev.TryAdd(nextConnectedRegion.Key, (connectedRegion, nextDirection)) &&
-                        !_hardLockedRegions.Contains(nextConnectedRegion.Key))
+                        !lockedRegions.Contains(nextConnectedRegion.Key))
                     {
                         _q.Enqueue((nextConnectedRegion, nextDirection));
                     }

@@ -446,11 +446,6 @@ public sealed partial class Game
         }
 
         int multi = 0;
-
-        // "Startled" has its own separate code to figure out the route to take.
-        using IEnumerator<LocationDefinitionModel>? startledPath = actionBalance > 0 && StartledCounter > 0
-            ? GetStartledPath(CurrentLocation).GetEnumerator()
-            : null;
         while (actionBalance > 0 && !IsCompleted)
         {
             --actionBalance;
@@ -484,22 +479,11 @@ public sealed partial class Game
                 // same in dense areas.
                 for (int i = 0; i < 3 && CurrentLocation != TargetLocation; i++)
                 {
-                    if (startledPath?.MoveNext() == true)
+                    _movementLog.Add(new()
                     {
-                        _movementLog.Add(new()
-                        {
-                            PreviousLocation = CurrentLocation,
-                            CurrentLocation = startledPath.Current,
-                        });
-                    }
-                    else
-                    {
-                        _movementLog.Add(new()
-                        {
-                            PreviousLocation = CurrentLocation,
-                            CurrentLocation = _pathToTarget.Dequeue(),
-                        });
-                    }
+                        PreviousLocation = CurrentLocation,
+                        CurrentLocation = _pathToTarget.Dequeue(),
+                    });
 
                     CurrentLocation = _movementLog[^1].CurrentLocation;
                     moved = true;
