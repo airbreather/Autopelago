@@ -27,7 +27,9 @@ public sealed record GameDefinitions
 
     public required ImmutableArray<ItemDefinitionModel> AllItems { get; init; }
 
-    public required FrozenDictionary<string, ItemDefinitionModel> ProgressionItems { get; init; }
+    public required FrozenDictionary<string, ItemDefinitionModel> ProgressionItemsByItemKey { get; init; }
+
+    public required FrozenSet<string> ProgressionItemNames { get; init; }
 
     public required FrozenDictionary<string, RegionDefinitionModel> AllRegions { get; init; }
 
@@ -79,7 +81,8 @@ public sealed record GameDefinitions
         {
             PackRat = items.PackRat,
             AllItems = items.AllItems,
-            ProgressionItems = items.ProgressionItems,
+            ProgressionItemsByItemKey = items.ProgressionItemsByItemKey,
+            ProgressionItemNames = [.. items.ProgressionItemsByItemKey.Values.Select(i => i.Name)],
             ItemsByName = items.AllItems.ToFrozenDictionary(i => i.Name),
 
             AllRegions = regions.AllRegions,
@@ -123,7 +126,7 @@ public sealed record ItemDefinitionsModel
 
     public required ImmutableArray<ItemDefinitionModel> AllItems { get; init; }
 
-    public required FrozenDictionary<string, ItemDefinitionModel> ProgressionItems { get; init; }
+    public required FrozenDictionary<string, ItemDefinitionModel> ProgressionItemsByItemKey { get; init; }
 
     public static ItemDefinitionsModel DeserializeFrom(YamlMappingNode itemsMap, YamlMappingNode locationsMap)
     {
@@ -214,7 +217,7 @@ public sealed record ItemDefinitionsModel
         {
             PackRat = packRat,
             AllItems = [.. allItems],
-            ProgressionItems = keyedItems.ToFrozenDictionary(),
+            ProgressionItemsByItemKey = keyedItems.ToFrozenDictionary(),
         };
     }
 
@@ -516,7 +519,7 @@ public sealed record LandmarkRegionDefinitionModel : RegionDefinitionModel
                     Key = LocationKey.For(key),
                     Name = map["name"].To<string>(),
                     FlavorText = map.TryGetValue("flavor_text", out string? flavorText) ? flavorText : null,
-                    UnrandomizedItem = items.ProgressionItems.GetValueOrDefault(map["unrandomized_item"].To<string>()),
+                    UnrandomizedItem = items.ProgressionItemsByItemKey.GetValueOrDefault(map["unrandomized_item"].To<string>()),
                     AbilityCheckDC = abilityCheckDC,
                     RewardIsFixed = map.TryGetValue("reward_is_fixed", out bool rewardIsFixed) && rewardIsFixed,
                 },
@@ -552,7 +555,7 @@ public sealed record FillerRegionDefinitionModel : RegionDefinitionModel
                     foreach (YamlNode itemRefNode in (YamlSequenceNode)valueNode)
                     {
                         ItemRefModel itemRef = ItemRefModel.DeserializeFrom(itemRefNode);
-                        ItemDefinitionModel item = items.ProgressionItems[itemRef.Key];
+                        ItemDefinitionModel item = items.ProgressionItemsByItemKey[itemRef.Key];
                         for (int i = 0; i < itemRef.ItemCount; i++)
                         {
                             unrandomizedItems.Add(item);
@@ -849,7 +852,7 @@ public sealed record ReceivedItemRequirement : GameRequirement
 
     public override bool Satisfied(IReadOnlyCollection<ItemDefinitionModel> receivedItems)
     {
-        return receivedItems.Contains(GameDefinitions.Instance.ProgressionItems[ItemKey]);
+        return receivedItems.Contains(GameDefinitions.Instance.ProgressionItemsByItemKey[ItemKey]);
     }
 
     public override void VisitItemKeys(Action<string> onItemKey)

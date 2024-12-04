@@ -23,9 +23,9 @@ public sealed class GameTests
 
     private static readonly RegionDefinitionModel s_beforePrawnStars = GameDefinitions.Instance.AllRegions["before_prawn_stars"];
 
-    private static readonly ItemDefinitionModel s_pizzaRat = GameDefinitions.Instance.ProgressionItems["pizza_rat"];
+    private static readonly ItemDefinitionModel s_pizzaRat = GameDefinitions.Instance.ProgressionItemsByItemKey["pizza_rat"];
 
-    private static readonly ItemDefinitionModel s_premiumCanOfPrawnFood = GameDefinitions.Instance.ProgressionItems["premium_can_of_prawn_food"];
+    private static readonly ItemDefinitionModel s_premiumCanOfPrawnFood = GameDefinitions.Instance.ProgressionItemsByItemKey["premium_can_of_prawn_food"];
 
     private static readonly Prng.State s_highRolls = EnsureSeedProducesInitialD20Sequence("ZcuBXfRkZixzx/eQAL1UiHpMG3kLbaDksoajUfxCis8="u8, [20, 20, 20, 20, 20, 20, 20, 20, 20, 20, 20]);
 
@@ -376,7 +376,7 @@ public sealed class GameTests
         Game game = new(s_lowRolls);
 
         // give it all randomized items except the last one.
-        ItemDefinitionModel finalRandomizedItem = GameDefinitions.Instance.ProgressionItems["mongoose_in_a_combat_spacecraft"];
+        ItemDefinitionModel finalRandomizedItem = GameDefinitions.Instance.ProgressionItemsByItemKey["mongoose_in_a_combat_spacecraft"];
         game.ReceiveItems([
             .. GameDefinitions.Instance.LocationsByKey.Values
                 .Where(l => l is { RewardIsFixed: false, UnrandomizedItem: not null })

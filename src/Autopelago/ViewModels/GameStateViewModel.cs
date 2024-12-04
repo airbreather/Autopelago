@@ -322,7 +322,7 @@ public sealed partial class GameStateViewModel : ViewModelBase, IDisposable
 
     public ImmutableArray<CollectableItemViewModel> ProgressionItemsInPanel { get; } =
     [
-        .. GameDefinitions.Instance.ProgressionItems.Keys
+        .. GameDefinitions.Instance.ProgressionItemsByItemKey.Keys
             .Where(itemKey => !s_hiddenProgressionItems.Contains(itemKey))
             .OrderBy(itemKey => s_progressionItemSortOrder[itemKey])
             .Select(key => new CollectableItemViewModel(key)),

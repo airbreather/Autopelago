@@ -7,14 +7,6 @@ namespace Autopelago;
 
 public sealed partial class Game
 {
-    private static readonly FrozenSet<ItemDefinitionModel> s_progressionItems = [.. GameDefinitions.Instance.ProgressionItems.Values];
-
-    private readonly FrozenDictionary<string, FillerRegionDefinitionModel> _fillerRegions = GameDefinitions.Instance.FillerRegions;
-
-    private readonly FrozenDictionary<string, LandmarkRegionDefinitionModel> _landmarkRegions = GameDefinitions.Instance.LandmarkRegions;
-
-    private readonly FrozenDictionary<string, ImmutableArray<(RegionDefinitionModel Region, Direction Direction)>> _connectedRegions = GameDefinitions.Instance.ConnectedRegions;
-
     private readonly HashSet<string> _clearableLandmarks = new(GameDefinitions.Instance.LandmarkRegions.Count);
 
     private readonly HashSet<string> _checkableRegions = new(GameDefinitions.Instance.AllRegions.Count) { GameDefinitions.Instance.StartRegion.Key };
@@ -115,9 +107,9 @@ public sealed partial class Game
         _pq.Clear();
         _visitedRegions.Clear();
         _visitedRegions.Add(currentLocation.Key.RegionKey);
-        foreach ((RegionDefinitionModel connectedRegion, Direction direction) in _connectedRegions[currentLocation.Key.RegionKey])
+        foreach ((RegionDefinitionModel connectedRegion, Direction direction) in GameDefinitions.Instance.ConnectedRegions[currentLocation.Key.RegionKey])
         {
-            if (_fillerRegions.ContainsKey(connectedRegion.Key) ||
+            if (GameDefinitions.Instance.FillerRegions.ContainsKey(connectedRegion.Key) ||
                 _checkedLocations![connectedRegion.Key][0] ||
                 _clearableLandmarks.Contains(connectedRegion.Key))
             {
@@ -174,7 +166,7 @@ public sealed partial class Game
             // the exact details of how far we will need to walk through the current region to get
             // to the next one will depend on the direction we face when entering the next region.
             ++extraDistance;
-            foreach ((RegionDefinitionModel nextConnectedRegion, Direction nextDirection) in _connectedRegions[connectedRegion.Key])
+            foreach ((RegionDefinitionModel nextConnectedRegion, Direction nextDirection) in GameDefinitions.Instance.ConnectedRegions[connectedRegion.Key])
             {
                 // at the time of writing, we technically don't need this to be conditional: only
                 // landmark regions can connect to more than one other region in a given direction,
@@ -200,7 +192,7 @@ public sealed partial class Game
                 }
 
                 if (_visitedRegions.Add(nextConnectedRegion.Key) &&
-                    (_fillerRegions.ContainsKey(nextConnectedRegion.Key) ||
+                    (GameDefinitions.Instance.FillerRegions.ContainsKey(nextConnectedRegion.Key) ||
                      _checkedLocations![nextConnectedRegion.Key][0] ||
                      _clearableLandmarks.Contains(nextConnectedRegion.Key)))
                 {
@@ -242,9 +234,9 @@ public sealed partial class Game
         _visitedRegions.Add(currentLocation.Key.RegionKey);
         while (_qqq.TryDequeue(out ImmutableList<(RegionDefinitionModel Region, Direction? Direction)>? regionPath))
         {
-            foreach ((RegionDefinitionModel connectedRegion, Direction direction) in _connectedRegions[regionPath[^1].Region.Key])
+            foreach ((RegionDefinitionModel connectedRegion, Direction direction) in GameDefinitions.Instance.ConnectedRegions[regionPath[^1].Region.Key])
             {
-                if (!_fillerRegions.ContainsKey(connectedRegion.Key) &&
+                if (!GameDefinitions.Instance.FillerRegions.ContainsKey(connectedRegion.Key) &&
                     !_checkedLocations![connectedRegion.Key][0])
                 {
                     continue;
@@ -349,9 +341,9 @@ public sealed partial class Game
 
         _q.Clear();
         _prev.Clear();
-        foreach ((RegionDefinitionModel connectedRegion, Direction direction) in _connectedRegions[currentLocation.Region.Key])
+        foreach ((RegionDefinitionModel connectedRegion, Direction direction) in GameDefinitions.Instance.ConnectedRegions[currentLocation.Region.Key])
         {
-            if (_fillerRegions.ContainsKey(connectedRegion.Key) ||
+            if (GameDefinitions.Instance.FillerRegions.ContainsKey(connectedRegion.Key) ||
                 _checkedLocations![connectedRegion.Key][0] ||
                 _clearableLandmarks.Contains(connectedRegion.Key))
             {
@@ -365,11 +357,11 @@ public sealed partial class Game
             (RegionDefinitionModel connectedRegion, _) = tup;
             if (connectedRegion.Key != targetLocation.Key.RegionKey)
             {
-                foreach ((RegionDefinitionModel nextConnectedRegion, Direction nextDirection) in _connectedRegions[connectedRegion.Key])
+                foreach ((RegionDefinitionModel nextConnectedRegion, Direction nextDirection) in GameDefinitions.Instance.ConnectedRegions[connectedRegion.Key])
                 {
                     if (nextConnectedRegion.Key != currentLocation.Key.RegionKey &&
                         _prev.TryAdd(nextConnectedRegion.Key, (connectedRegion, nextDirection)) &&
-                        (_fillerRegions.ContainsKey(nextConnectedRegion.Key) ||
+                        (GameDefinitions.Instance.FillerRegions.ContainsKey(nextConnectedRegion.Key) ||
                          _checkedLocations![nextConnectedRegion.Key][0] ||
                          _clearableLandmarks.Contains(nextConnectedRegion.Key)))
                     {
@@ -469,7 +461,7 @@ public sealed partial class Game
             foreach ((LocationDefinitionModel connectedLocation, _) in GameDefinitions.Instance.ConnectedLocations[loc.Key])
             {
                 if (!_visitedLocations[connectedLocation.Key.RegionKey][connectedLocation.Key.N] &&
-                    (_fillerRegions.ContainsKey(connectedLocation.Key.RegionKey) ||
+                    (GameDefinitions.Instance.FillerRegions.ContainsKey(connectedLocation.Key.RegionKey) ||
                      _checkedLocations![connectedLocation.Key.RegionKey][0] ||
                      _clearableLandmarks.Contains(connectedLocation.Key.RegionKey)))
                 {
@@ -484,7 +476,7 @@ public sealed partial class Game
     {
         while (_lastReceivedItemsCount < _receivedItems!.Count)
         {
-            if (s_progressionItems.Contains(_receivedItems[_lastReceivedItemsCount++]))
+            if (GameDefinitions.Instance.ProgressionItemNames.Contains(_receivedItems[_lastReceivedItemsCount++].Name))
             {
                 RecalculateClearable();
                 break;
@@ -517,7 +509,7 @@ public sealed partial class Game
                 _checkableRegions.Add(region.Key);
             }
 
-            if (_landmarkRegions.TryGetValue(region.Key, out LandmarkRegionDefinitionModel? landmark) &&
+            if (GameDefinitions.Instance.LandmarkRegions.TryGetValue(region.Key, out LandmarkRegionDefinitionModel? landmark) &&
                 !_checkedLocations![region.Key][0] &&
                 !_clearableLandmarks.Contains(region.Key))
             {
@@ -533,7 +525,7 @@ public sealed partial class Game
                 }
             }
 
-            foreach ((RegionDefinitionModel connectedRegion, _) in _connectedRegions[region.Key])
+            foreach ((RegionDefinitionModel connectedRegion, _) in GameDefinitions.Instance.ConnectedRegions[region.Key])
             {
                 if (_visitedRegions.Add(connectedRegion.Key))
                 {
