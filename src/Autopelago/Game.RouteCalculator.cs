@@ -15,17 +15,7 @@ public sealed partial class Game
     {
         LocationDefinitionModel prevTargetLocation = TargetLocation;
         TargetLocationReason = MoveBestTargetLocation();
-        if (!_everCalculatedPathToTarget)
-        {
-            foreach (LocationDefinitionModel l in GetPath(CurrentLocation, TargetLocation)!)
-            {
-                _pathToTarget.Enqueue(l);
-            }
-
-            _everCalculatedPathToTarget = true;
-        }
-
-        if (TargetLocation == prevTargetLocation)
+        if (TargetLocation == prevTargetLocation && _everCalculatedPathToTarget)
         {
             return false;
         }
@@ -36,7 +26,8 @@ public sealed partial class Game
             _pathToTarget.Enqueue(l);
         }
 
-        return true;
+        _everCalculatedPathToTarget = true;
+        return TargetLocation != prevTargetLocation;
     }
 
     private TargetLocationReason MoveBestTargetLocation()
