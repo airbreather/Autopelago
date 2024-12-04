@@ -425,7 +425,7 @@ public sealed class GameTests
         Assert.That(game.TargetLocation.Key, Is.EqualTo(new LocationKey { RegionKey = "Menu", N = 0 }));
 
         // prioritize Prawn Stars
-        game.AddPriorityLocation(prawnStars);
+        Assert.That(game.AddPriorityLocation(prawnStars), Is.EqualTo(AddPriorityLocationResult.AddedUnreachable));
         game.Advance();
 
         // should NOT be targeting Prawn Stars now, because we can't reach it out the gate.
@@ -435,7 +435,8 @@ public sealed class GameTests
         game = new(s_lowRolls);
         game.InitializeCheckedLocations([s_basketball]);
         game.InitializeReceivedItems([.. Enumerable.Range(0, 5).Select(_ => s_normalRat), s_premiumCanOfPrawnFood]);
-        game.AddPriorityLocation(prawnStars);
+        Assert.That(game.AddPriorityLocation(prawnStars), Is.EqualTo(AddPriorityLocationResult.AddedReachable));
+        Assert.That(game.AddPriorityLocation(prawnStars), Is.EqualTo(AddPriorityLocationResult.AlreadyPrioritized));
 
         game.Advance();
 

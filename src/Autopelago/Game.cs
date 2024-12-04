@@ -347,11 +347,9 @@ public sealed partial class Game
         }
 
         _priorityLocations.Add(toPrioritize);
-        return CanReach(toPrioritize) switch
-        {
-            false => AddPriorityLocationResult.AddedUnreachable,
-            _ => AddPriorityLocationResult.AddedReachable,
-        };
+        return _hardLockedRegions.Contains(toPrioritize.Key.RegionKey)
+            ? AddPriorityLocationResult.AddedUnreachable
+            : AddPriorityLocationResult.AddedReachable;
     }
 
     public LocationDefinitionModel? RemovePriorityLocation(string locationName)

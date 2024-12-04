@@ -38,22 +38,48 @@ public sealed partial class Game
             return TargetLocationReason.Startled;
         }
 
-        foreach ((LocationDefinitionModel l, int i) in _priorityPriorityLocations.Concat(_priorityLocations).Prepend(GameDefinitions.Instance.GoalLocation).Select((l, i) => (l, i)))
+        TargetLocationReason result = default;
+        LocationDefinitionModel? ultimateTargetLocation = null;
+        if (!_hardLockedRegions.Contains(GameDefinitions.Instance.GoalRegion.Key))
         {
-            if (GetPath(CurrentLocation, l) is not { } path)
+            ultimateTargetLocation = GameDefinitions.Instance.GoalLocation;
+            result = TargetLocationReason.GoMode;
+        }
+
+        if (ultimateTargetLocation is null)
+        {
+            foreach (LocationDefinitionModel l in _priorityPriorityLocations)
             {
-                continue;
+                if (!_hardLockedRegions.Contains(l.Key.RegionKey))
+                {
+                    ultimateTargetLocation = l;
+                    result = TargetLocationReason.PriorityPriority;
+                    break;
+                }
             }
 
-            TargetLocation = path.Prepend(CurrentLocation).FirstOrDefault(p => p.Region is LandmarkRegionDefinitionModel && !CheckedLocations[p]) ?? l;
-            if (i == 0)
+            if (ultimateTargetLocation is null)
             {
-                return TargetLocationReason.GoMode;
+                foreach (LocationDefinitionModel l in _priorityLocations)
+                {
+                    if (!_hardLockedRegions.Contains(l.Key.RegionKey))
+                    {
+                        ultimateTargetLocation = l;
+                        result = TargetLocationReason.Priority;
+                        break;
+                    }
+                }
             }
+        }
 
-            return i <= _priorityPriorityLocations.Count
-                ? TargetLocationReason.PriorityPriority
-                : TargetLocationReason.Priority;
+        if (ultimateTargetLocation is not null)
+        {
+            TargetLocation = GetPath(CurrentLocation, ultimateTargetLocation)!
+                .Where(l => !GameDefinitions.Instance.FillerRegions.ContainsKey(l.Key.RegionKey))
+                .Prepend(CurrentLocation)
+                .FirstOrDefault(l => GameDefinitions.Instance.LandmarkRegions.ContainsKey(l.Key.RegionKey) && _softLockedRegions.Contains(l.Key.RegionKey))
+                ?? ultimateTargetLocation;
+            return result;
         }
 
         if (FindClosestUncheckedLocation(CurrentLocation) is { } closestReachableUnchecked)
@@ -64,12 +90,6 @@ public sealed partial class Game
 
         TargetLocation = CurrentLocation;
         return TargetLocationReason.NowhereUsefulToMove;
-    }
-
-    private bool CanReach(LocationDefinitionModel location)
-    {
-        // TODO: optimize. this isn't speed-critical, and I'd rather release quickly.
-        return GetPath(GameDefinitions.Instance.StartLocation, location) is not null;
     }
 
     private readonly PriorityQueue<(RegionDefinitionModel Region, Direction Direction), int> _pq = new(GameDefinitions.Instance.AllRegions.Count);
