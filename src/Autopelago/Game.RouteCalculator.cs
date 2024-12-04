@@ -38,32 +38,22 @@ public sealed partial class Game
             return TargetLocationReason.Startled;
         }
 
-        if (CanReachGoal() && GetPath(CurrentLocation, GameDefinitions.Instance.GoalLocation) is { } path0)
+        foreach ((LocationDefinitionModel l, int i) in _priorityPriorityLocations.Concat(_priorityLocations).Prepend(GameDefinitions.Instance.GoalLocation).Select((l, i) => (l, i)))
         {
-            TargetLocation = path0.Prepend(CurrentLocation).FirstOrDefault(p => p.Region is LandmarkRegionDefinitionModel && !CheckedLocations[p]) ?? GameDefinitions.Instance.GoalLocation;
-            return TargetLocationReason.GoMode;
-        }
-
-        foreach (LocationDefinitionModel priorityPriorityLocation in _priorityPriorityLocations)
-        {
-            if (GetPath(CurrentLocation, priorityPriorityLocation) is not { } path)
+            if (GetPath(CurrentLocation, l) is not { } path)
             {
                 continue;
             }
 
-            TargetLocation = path.Prepend(CurrentLocation).FirstOrDefault(p => p.Region is LandmarkRegionDefinitionModel && !CheckedLocations[p]) ?? priorityPriorityLocation;
-            return TargetLocationReason.PriorityPriority;
-        }
-
-        foreach (LocationDefinitionModel priorityLocation in _priorityLocations)
-        {
-            if (GetPath(CurrentLocation, priorityLocation) is not { } path)
+            TargetLocation = path.Prepend(CurrentLocation).FirstOrDefault(p => p.Region is LandmarkRegionDefinitionModel && !CheckedLocations[p]) ?? l;
+            if (i == 0)
             {
-                continue;
+                return TargetLocationReason.GoMode;
             }
 
-            TargetLocation = path.Prepend(CurrentLocation).FirstOrDefault(p => p.Region is LandmarkRegionDefinitionModel && !CheckedLocations[p]) ?? priorityLocation;
-            return TargetLocationReason.Priority;
+            return i <= _priorityPriorityLocations.Count
+                ? TargetLocationReason.PriorityPriority
+                : TargetLocationReason.Priority;
         }
 
         if (FindClosestUncheckedLocation(CurrentLocation) is { } closestReachableUnchecked)
@@ -252,11 +242,6 @@ public sealed partial class Game
         return bestLocationKey is LocationKey finalResultKey
             ? GameDefinitions.Instance.LocationsByKey[finalResultKey]
             : null;
-    }
-
-    private bool CanReachGoal()
-    {
-        return !_hardLockedRegions.Contains(GameDefinitions.Instance.GoalRegion.Key);
     }
 
     private readonly Queue<(RegionDefinitionModel Region, Direction Direction)> _q = new(GameDefinitions.Instance.AllRegions.Count);
