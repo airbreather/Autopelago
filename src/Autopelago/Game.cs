@@ -86,6 +86,9 @@ public sealed partial class Game
 
     public Game(Prng.State prngState, GameInstrumentation? instrumentation)
     {
+        _hardLockedRegions.Remove(GameDefinitions.Instance.StartRegion.Key);
+        _softLockedRegions.Remove(GameDefinitions.Instance.StartRegion.Key);
+
         _prngState = prngState;
         _instrumentation = instrumentation;
         _lock = instrumentation is null ? new() : null;
@@ -550,7 +553,7 @@ public sealed partial class Game
                 if (success)
                 {
                     _checkedLocations!.MarkChecked(CurrentLocation);
-                    _clearableLandmarks.Remove(CurrentLocation.Key.RegionKey);
+                    _softLockedRegions.Remove(CurrentLocation.Key.RegionKey);
                     MercyModifier = 0;
                     bumpMercyModifierForNextTime = false;
                 }
@@ -626,7 +629,7 @@ public sealed partial class Game
         {
             _checkedLocations!.MarkChecked(location);
             keys.Add(location.Key);
-            _clearableLandmarks.Remove(location.Key.RegionKey);
+            _softLockedRegions.Remove(CurrentLocation.Key.RegionKey);
         }
 
         _priorityLocations.RemoveAll(l => keys.Contains(l.Key));
