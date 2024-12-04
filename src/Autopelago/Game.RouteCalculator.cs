@@ -96,13 +96,6 @@ public sealed partial class Game
 
     private LocationDefinitionModel? FindClosestUncheckedLocation(LocationDefinitionModel currentLocation)
     {
-        return
-            FindClosestUncheckedLocation(currentLocation, false) ??
-            FindClosestUncheckedLocation(currentLocation, true);
-    }
-
-    private LocationDefinitionModel? FindClosestUncheckedLocation(LocationDefinitionModel currentLocation, bool relyOnMercyFactor)
-    {
         // quick short-circuit: often, this will get called while we're already standing on exactly
         // the closest unchecked location (perhaps because we failed at clearing it). let's optimize
         // for that case here, even though it should not affect correctness.
