@@ -15,6 +15,67 @@ public sealed partial class Game
 
     private int _lastCheckedLocationsCount;
 
+    private bool UpdateTargetLocation()
+    {
+        LocationDefinitionModel prevTargetLocation = TargetLocation;
+        TargetLocationReason = MoveBestTargetLocation();
+        _targetLocationPathEnumerator ??= GetPath(CurrentLocation, TargetLocation)!.GetEnumerator();
+        if (TargetLocation == prevTargetLocation)
+        {
+            return false;
+        }
+
+        using IEnumerator<LocationDefinitionModel> _ = _targetLocationPathEnumerator;
+        _targetLocationPathEnumerator = GetPath(CurrentLocation, TargetLocation)!.GetEnumerator();
+        return true;
+    }
+
+    private TargetLocationReason MoveBestTargetLocation()
+    {
+        if (StartledCounter > 0)
+        {
+            TargetLocation = GameDefinitions.Instance.StartLocation;
+            return TargetLocationReason.Startled;
+        }
+
+        if (CanReachGoal() && GetPath(CurrentLocation, GameDefinitions.Instance.GoalLocation) is { } path0)
+        {
+            TargetLocation = path0.Prepend(CurrentLocation).FirstOrDefault(p => p.Region is LandmarkRegionDefinitionModel && !CheckedLocations[p]) ?? GameDefinitions.Instance.GoalLocation;
+            return TargetLocationReason.GoMode;
+        }
+
+        foreach (LocationDefinitionModel priorityPriorityLocation in _priorityPriorityLocations)
+        {
+            if (GetPath(CurrentLocation, priorityPriorityLocation) is not { } path)
+            {
+                continue;
+            }
+
+            TargetLocation = path.Prepend(CurrentLocation).FirstOrDefault(p => p.Region is LandmarkRegionDefinitionModel && !CheckedLocations[p]) ?? priorityPriorityLocation;
+            return TargetLocationReason.PriorityPriority;
+        }
+
+        foreach (LocationDefinitionModel priorityLocation in _priorityLocations)
+        {
+            if (GetPath(CurrentLocation, priorityLocation) is not { } path)
+            {
+                continue;
+            }
+
+            TargetLocation = path.Prepend(CurrentLocation).FirstOrDefault(p => p.Region is LandmarkRegionDefinitionModel && !CheckedLocations[p]) ?? priorityLocation;;
+            return TargetLocationReason.Priority;
+        }
+
+        if (FindClosestUncheckedLocation(CurrentLocation) is { } closestReachableUnchecked)
+        {
+            TargetLocation = closestReachableUnchecked;
+            return TargetLocationReason.ClosestReachableUnchecked;
+        }
+
+        TargetLocation = CurrentLocation;
+        return TargetLocationReason.NowhereUsefulToMove;
+    }
+
     private bool CanReach(LocationDefinitionModel location)
     {
         // TODO: optimize. this isn't speed-critical, and I'd rather release quickly.

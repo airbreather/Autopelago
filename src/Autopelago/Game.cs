@@ -744,68 +744,6 @@ public sealed partial class Game
         DistractionCounter = Math.Min(DistractionCounter, 3);
     }
 
-    private bool UpdateTargetLocation()
-    {
-        LocationDefinitionModel prevTargetLocation = TargetLocation;
-        TargetLocation = BestTargetLocation(out TargetLocationReason bestTargetLocationReason);
-        TargetLocationReason = bestTargetLocationReason;
-        _targetLocationPathEnumerator ??= GetPath(CurrentLocation, TargetLocation)!.GetEnumerator();
-        if (TargetLocation == prevTargetLocation)
-        {
-            return false;
-        }
-
-        using IEnumerator<LocationDefinitionModel> _ = _targetLocationPathEnumerator;
-        _targetLocationPathEnumerator = GetPath(CurrentLocation, TargetLocation)!.GetEnumerator();
-        return true;
-    }
-
-    private LocationDefinitionModel BestTargetLocation(out TargetLocationReason reason)
-    {
-        if (StartledCounter > 0)
-        {
-            reason = TargetLocationReason.Startled;
-            return GameDefinitions.Instance.StartLocation;
-        }
-
-        if (CanReachGoal() && GetPath(CurrentLocation, GameDefinitions.Instance.GoalLocation) is { } path0)
-        {
-            reason = TargetLocationReason.GoMode;
-            return path0.Prepend(CurrentLocation).FirstOrDefault(p => p.Region is LandmarkRegionDefinitionModel && !CheckedLocations[p]) ?? GameDefinitions.Instance.GoalLocation;
-        }
-
-        foreach (LocationDefinitionModel priorityPriorityLocation in _priorityPriorityLocations)
-        {
-            if (GetPath(CurrentLocation, priorityPriorityLocation) is not { } path)
-            {
-                continue;
-            }
-
-            reason = TargetLocationReason.PriorityPriority;
-            return path.Prepend(CurrentLocation).FirstOrDefault(p => p.Region is LandmarkRegionDefinitionModel && !CheckedLocations[p]) ?? priorityPriorityLocation;
-        }
-
-        foreach (LocationDefinitionModel priorityLocation in _priorityLocations)
-        {
-            if (GetPath(CurrentLocation, priorityLocation) is not { } path)
-            {
-                continue;
-            }
-
-            reason = TargetLocationReason.Priority;
-            return path.Prepend(CurrentLocation).FirstOrDefault(p => p.Region is LandmarkRegionDefinitionModel && !CheckedLocations[p]) ?? priorityLocation;
-        }
-
-        if (FindClosestUncheckedLocation(CurrentLocation) is { } closestReachableUnchecked)
-        {
-            reason = TargetLocationReason.ClosestReachableUnchecked;
-            return closestReachableUnchecked;
-        }
-
-        reason = TargetLocationReason.NowhereUsefulToMove;
-        return CurrentLocation;
-    }
-
     private Lock.Scope EnterLockScope()
     {
         return _lock is null ? default : _lock.EnterScope();
