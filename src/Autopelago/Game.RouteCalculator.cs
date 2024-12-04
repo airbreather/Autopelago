@@ -10,18 +10,32 @@ public sealed partial class Game
 
     private readonly HashSet<string> _checkableRegions = new(GameDefinitions.Instance.AllRegions.Count) { GameDefinitions.Instance.StartRegion.Key };
 
+    private bool _everCalculatedPathToTarget;
     private bool UpdateTargetLocation()
     {
         LocationDefinitionModel prevTargetLocation = TargetLocation;
         TargetLocationReason = MoveBestTargetLocation();
-        _targetLocationPathEnumerator ??= GetPath(CurrentLocation, TargetLocation)!.GetEnumerator();
+        if (!_everCalculatedPathToTarget)
+        {
+            foreach (LocationDefinitionModel l in GetPath(CurrentLocation, TargetLocation)!)
+            {
+                _pathToTarget.Enqueue(l);
+            }
+
+            _everCalculatedPathToTarget = true;
+        }
+
         if (TargetLocation == prevTargetLocation)
         {
             return false;
         }
 
-        using IEnumerator<LocationDefinitionModel> _ = _targetLocationPathEnumerator;
-        _targetLocationPathEnumerator = GetPath(CurrentLocation, TargetLocation)!.GetEnumerator();
+        _pathToTarget.Clear();
+        foreach (LocationDefinitionModel l in GetPath(CurrentLocation, TargetLocation)!)
+        {
+            _pathToTarget.Enqueue(l);
+        }
+
         return true;
     }
 

@@ -71,11 +71,11 @@ public sealed partial class Game
 
     private readonly List<LocationVector> _movementLog = [];
 
+    private readonly Queue<LocationDefinitionModel> _pathToTarget = [];
+
     private int _actionBalanceAfterPreviousStep;
 
     private bool _initializedAuraData;
-
-    private IEnumerator<LocationDefinitionModel>? _targetLocationPathEnumerator;
 
     private FrozenDictionary<ArchipelagoItemFlags, FrozenSet<LocationKey>>? _spoilerData;
 
@@ -491,11 +491,10 @@ public sealed partial class Game
                     }
                     else
                     {
-                        _targetLocationPathEnumerator!.MoveNext();
                         _movementLog.Add(new()
                         {
                             PreviousLocation = CurrentLocation,
-                            CurrentLocation = _targetLocationPathEnumerator.Current,
+                            CurrentLocation = _pathToTarget.Dequeue(),
                         });
                     }
 
