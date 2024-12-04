@@ -107,7 +107,7 @@ public sealed partial class Game
         // the closest unchecked location (perhaps because we failed at clearing it). let's optimize
         // for that case here, even though it should not affect correctness.
         SmallBitArray checkedLocationsInCurrentRegion = _checkedLocations![currentLocation.Key.RegionKey];
-        if (!checkedLocationsInCurrentRegion[currentLocation.Key.N] && (relyOnMercyFactor || _checkableRegions.Contains(currentLocation.Key.RegionKey)))
+        if (!checkedLocationsInCurrentRegion[currentLocation.Key.N])
         {
             return currentLocation;
         }
@@ -123,7 +123,7 @@ public sealed partial class Game
         // closest unchecked location will either be in that same filler region, one of the (up to)
         // two adjacent landmark regions, or far enough away that there's an entire filler region's
         // worth of checked locations between the two.
-        if (!checkedLocationsInCurrentRegion.HasAllSet && (relyOnMercyFactor || _checkableRegions.Contains(currentLocation.Key.RegionKey)))
+        if (!checkedLocationsInCurrentRegion.HasAllSet)
         {
             // this won't necessarily be the final answer, but it will be a solid upper bound.
             for (int i = currentLocation.Key.N + 1; i < checkedLocationsInCurrentRegion.Length; i++)
