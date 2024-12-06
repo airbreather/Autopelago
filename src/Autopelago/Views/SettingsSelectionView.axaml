@@ -15,23 +15,9 @@
         <viewModels:SettingsSelectionViewModel />
     </Design.DataContext>
 
-    <SplitView Margin="5" IsPaneOpen="{Binding PlayerTokenSelectorOpen}" PanePlacement="Right">
-        <SplitView.Pane>
-            <Button HorizontalContentAlignment="Center" VerticalContentAlignment="Center"
-                    Command="{Binding TogglePlayerTokenSelectorCommand}">
-                <TextBlock TextWrapping="WrapWithOverflow" TextTrimming="CharacterEllipsis">hey its me ur text block</TextBlock>
-            </Button>
-        </SplitView.Pane>
-        <Grid IsSharedSizeScope="True">
-            <Grid.RowDefinitions>
-                <RowDefinition Height="Auto" />
-                <RowDefinition Height="Auto" />
-                <RowDefinition Height="Auto" />
-                <RowDefinition Height="Auto" />
-                <RowDefinition Height="Auto" />
-                <RowDefinition Height="Auto" />
-                <RowDefinition Height="Auto" />
-            </Grid.RowDefinitions>
+    <SplitView Margin="5" IsPaneOpen="{Binding PlayerTokenSelectorOpen}" PanePlacement="Right"
+               Pane="{Binding PlayerToken}" DisplayMode="Inline">
+        <Grid RowDefinitions="Auto,Auto,Auto,Auto,Auto,Auto,Auto" IsSharedSizeScope="True">
             <Grid.ColumnDefinitions>
                 <ColumnDefinition Width="Auto" SharedSizeGroup="Henry" />
                 <ColumnDefinition Width="*" />

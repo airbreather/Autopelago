@@ -60,7 +60,14 @@ public sealed partial class SettingsSelectionViewModel : ViewModelBase, IDisposa
                     ? port
                     : 65535;
             }));
+
+        PlayerToken = new()
+        {
+            ClosePaneCommand = TogglePlayerTokenSelectorCommand,
+        };
     }
+
+    public PlayerTokenViewModel PlayerToken { get; }
 
     public void Dispose()
     {

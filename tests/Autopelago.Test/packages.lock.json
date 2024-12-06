@@ -431,6 +431,7 @@
         "type": "Project",
         "dependencies": {
           "Avalonia": "[11.2.2, )",
+          "Avalonia.Controls.ColorPicker": "[11.2.2, )",
           "Avalonia.Desktop": "[11.2.2, )",
           "Avalonia.Diagnostics": "[11.2.2, )",
           "Avalonia.Fonts.Inter": "[11.2.2, )",
