@@ -63,7 +63,7 @@ public partial class LandmarksView : ReactiveUserControl<GameStateViewModel>
 }
 
 [StructLayout(LayoutKind.Auto)]
-public readonly record struct LandmarkState
+public record struct LandmarkState
 {
     private static readonly Size s_size = new(16, 16);
 
@@ -71,24 +71,67 @@ public readonly record struct LandmarkState
 
     private static readonly Vector s_toQ = new(2, -13);
 
+    private QuestProgress _lastKnownQuestProgress;
+
     public required LandmarkRegionViewModel Landmark { get; init; }
 
-    public Rect Bounds => new(Landmark.CanvasLocation, s_size);
+    public readonly Rect Bounds => new(Landmark.CanvasLocation, s_size);
 
-    public Rect? QBounds => (Landmark.ShowGrayQuestImage || Landmark.ShowYellowQuestImage)
-        ? new(Landmark.CanvasLocation + s_toQ, s_qSize)
-        : null;
+    public readonly Rect QBounds => new(Landmark.CanvasLocation + s_toQ, s_qSize);
 
-    public void RenderBig(SKCanvas canvas, bool showA)
+    public bool CheckProgress()
     {
-        switch ((Landmark.ShowGrayQuestImage, Landmark.ShowYellowQuestImage))
+        if (_lastKnownQuestProgress >= QuestProgress.Unlocked)
         {
-            case (true, _):
-                canvas.DrawImage(showA ? Landmark.GrayQuestImages.AImage : Landmark.GrayQuestImages.BImage, ToSKRect(QBounds.GetValueOrDefault()));
+            return false;
+        }
+
+        if ((_lastKnownQuestProgress == QuestProgress.Unlockable && Landmark.Checked) ||
+            (_lastKnownQuestProgress == QuestProgress.Locked && Landmark.ShowYellowQuestImage))
+        {
+            ++_lastKnownQuestProgress;
+            return true;
+        }
+
+        return false;
+    }
+
+    public ReadOnlySpan<Rect> RectsToInvalidateBig(Span<Rect> rects)
+    {
+        rects[0] = Bounds;
+        if (_lastKnownQuestProgress == QuestProgress.ErasedMarker)
+        {
+            return rects[..1];
+        }
+
+        rects[1] = QBounds;
+        if (Landmark.Checked)
+        {
+            // merely invalidating it erases the marker, so this is the one thing we can do in here.
+            _lastKnownQuestProgress = QuestProgress.ErasedMarker;
+        }
+
+        return rects;
+    }
+
+    public readonly void RenderAlone(SKCanvas canvas, Size size, bool showA)
+    {
+        canvas.DrawImage(showA ? Landmark.SaturatedImages.AImage : Landmark.SaturatedImages.BImage, ToSKRect(new(size)));
+    }
+
+    public readonly void RenderBig(SKCanvas canvas, bool showA)
+    {
+        switch ((Landmark.Checked, Landmark.ShowGrayQuestImage, Landmark.ShowYellowQuestImage))
+        {
+            case (true, _, _):
                 break;
 
-            case (_, true):
-                canvas.DrawImage(showA ? Landmark.YellowQuestImages.AImage : Landmark.YellowQuestImages.BImage, ToSKRect(QBounds.GetValueOrDefault()));
+            case (_, true, _):
+                canvas.DrawImage(showA ? Landmark.GrayQuestImages.AImage : Landmark.GrayQuestImages.BImage, ToSKRect(QBounds));
+                break;
+
+            case (_, _, true):
+                canvas.DrawImage(showA ? Landmark.YellowQuestImages.AImage : Landmark.YellowQuestImages.BImage, ToSKRect(QBounds));
                 break;
         }
 
@@ -104,14 +147,17 @@ public readonly record struct LandmarkState
         }
     }
 
-    public void RenderAlone(SKCanvas canvas, Size size, bool showA)
-    {
-        canvas.DrawImage(showA ? Landmark.SaturatedImages.AImage : Landmark.SaturatedImages.BImage, ToSKRect(new(size)));
-    }
-
     private static SKRect ToSKRect(Rect rect)
     {
         return new((float)rect.Left, (float)rect.Top, (float)rect.Right, (float)rect.Bottom);
+    }
+
+    private enum QuestProgress : byte
+    {
+        Locked,
+        Unlockable,
+        Unlocked,
+        ErasedMarker,
     }
 }
 
@@ -208,26 +254,34 @@ public sealed class LandmarksVisualHandler : CompositionCustomVisualHandler
             return;
         }
 
+        bool tickFrame = false;
         if (CompositionNow - _lastUpdate > TimeSpan.FromMilliseconds(500))
         {
             _showA = !_showA;
             if (_size.HasValue)
             {
                 Invalidate();
+                _lastUpdate = CompositionNow;
+                return;
             }
-            else
-            {
-                foreach (LandmarkState landmarkState in _landmarkStates)
-                {
-                    if (landmarkState.QBounds is Rect qBounds)
-                    {
-                        Invalidate(qBounds);
-                    }
 
-                    Invalidate(landmarkState.Bounds);
+            tickFrame = true;
+        }
+
+        Span<Rect> buf = stackalloc Rect[2];
+        foreach (ref LandmarkState landmarkState in _landmarkStates.AsSpan())
+        {
+            if (landmarkState.CheckProgress() || tickFrame)
+            {
+                foreach (Rect toInvalidate in landmarkState.RectsToInvalidateBig(buf))
+                {
+                    Invalidate(toInvalidate);
                 }
             }
+        }
 
+        if (tickFrame)
+        {
             _lastUpdate = CompositionNow;
         }
     }
