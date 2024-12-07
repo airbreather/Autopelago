@@ -97,7 +97,7 @@
                 <Setter Property="Fill" Value="Gray" />
             </Style>
         </Style>
-        <Style Selector="views|BitmapPairView.landmark">
+        <Style Selector="views|SingleLandmarkRegionView.landmark">
             <Setter Property="Effect">
                 <DropShadowEffect OffsetX="2.8" OffsetY="2.8" Opacity="0.8" />
             </Setter>
@@ -249,8 +249,8 @@
                                                 <Border Margin="0,5,0,0" Padding="4" Classes="tracker-box item">
                                                     <Grid ColumnDefinitions="Auto,*" RowDefinitions="*, Auto">
                                                         <!-- Note: coordinates are NOT scaled like everything else on the map. -->
-                                                        <views:BitmapPairView VerticalAlignment="Top" Height="64" Width="64"
-                                                                              ViewModel="{Binding SaturatedImages}" />
+                                                        <views:SingleLandmarkRegionView VerticalAlignment="Top" Height="64" Width="64"
+                                                                                        ViewModel="{Binding .}" />
                                                         <ContentControl Margin="5,0,0,0"
                                                                         Grid.Row="0"
                                                                         Grid.Column="1"

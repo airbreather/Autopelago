@@ -21,7 +21,7 @@
             <TextBlock FontSize="40">
                 u win.
             </TextBlock>
-            <views:BitmapPairView Height="30" Width="30" ViewModel="{Binding Frames, Mode=OneTime}" />
+            <views:SingleLandmarkRegionView Height="30" Width="30" ViewModel="{Binding MoonCommaThe}" />
         </StackPanel>
 
         <Button Grid.Row="2"

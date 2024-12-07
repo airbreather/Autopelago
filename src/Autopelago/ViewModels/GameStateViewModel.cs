@@ -100,36 +100,15 @@ public sealed partial class GameStateViewModel : ViewModelBase, IDisposable
             provider.SetPaused(true);
         }
 
-        _disposables.Add(this.ObservableForProperty(x => x.Paused)
-            .Subscribe(paused => provider.SetPaused(paused.Value)));
+        this.ObservableForProperty(x => x.Paused)
+            .Subscribe(paused => provider.SetPaused(paused.Value))
+            .DisposeWith(_disposables);
 
-        (BitmapPair yellowQuestImage, BitmapPair grayQuestImage) = LandmarkRegionViewModel.CreateQuestImages();
-        _disposables.Add(yellowQuestImage);
-        _disposables.Add(grayQuestImage);
         LandmarkRegions =
         [
             .. GameDefinitions.Instance.LandmarkRegions.Keys
-                .Select(key => new LandmarkRegionViewModel(key, yellowQuestImage, grayQuestImage)),
+                .Select(key => new LandmarkRegionViewModel(key)),
         ];
-
-        TimeSpan frameTime = Design.IsDesignMode
-            ? TimeSpan.FromHours(1)
-            : TimeSpan.FromMilliseconds(500);
-        _disposables.Add(provider.Paused
-            .Select(paused => paused
-                ? Observable.Never<long>()
-                : Observable.Interval(frameTime, AvaloniaScheduler.Instance)
-            ).Switch()
-            .StartWith(0)
-            .Subscribe(_ =>
-            {
-                yellowQuestImage.NextFrame();
-                grayQuestImage.NextFrame();
-                foreach (LandmarkRegionViewModel landmark in LandmarkRegions)
-                {
-                    landmark.NextFrame();
-                }
-            }));
 
         FrozenDictionary<string, CollectableItemViewModel> progressionItemInPanelLookup = ProgressionItemsInPanel.ToFrozenDictionary(i => i.Model.Name);
         FrozenDictionary<string, LandmarkRegionViewModel> landmarkRegionsLookup = LandmarkRegions.ToFrozenDictionary(l => l.RegionKey);
@@ -165,7 +144,7 @@ public sealed partial class GameStateViewModel : ViewModelBase, IDisposable
         int prevReceivedItemsCount = 0;
         int prevCheckedLocationsCount = 0;
         bool wasCompleted = false;
-        _disposables.Add(provider.CurrentGameState
+        provider.CurrentGameState
             .ObserveOn(AvaloniaScheduler.Instance)
             .Subscribe(g =>
             {
@@ -241,9 +220,10 @@ public sealed partial class GameStateViewModel : ViewModelBase, IDisposable
 
                 wasCompleted = g.IsCompleted;
                 TargetPoint = locationPointLookup[g.TargetLocation.Key] + FillerRegionViewModel.ToCenter;
-            }));
+            })
+            .DisposeWith(_disposables);
 
-        _disposables.Add(provider.CurrentGameState
+        provider.CurrentGameState
             .CombineLatest(this.ObservableForProperty(x => x.PlayerIsActivated))
             .Subscribe(chg =>
             {
@@ -264,9 +244,10 @@ public sealed partial class GameStateViewModel : ViewModelBase, IDisposable
                     CurrentPathPoints.Clear();
                     CurrentPathPoints.AddRange(pathPoints);
                 }
-            }));
+            })
+            .DisposeWith(_disposables);
 
-        _disposables.Add(provider.CurrentGameState
+        provider.CurrentGameState
             .Select(SpaceOut)
             .Switch()
             .Subscribe(v =>
@@ -287,7 +268,8 @@ public sealed partial class GameStateViewModel : ViewModelBase, IDisposable
                     RelativeAngle = trueAngle - 180;
                     ScaleX = -1;
                 }
-            }));
+            })
+            .DisposeWith(_disposables);
         IObservable<LocationVector> SpaceOut(Game gameState)
         {
             ReadOnlyCollection<LocationVector> locations = gameState.PreviousStepMovementLog;

@@ -1,3 +1,4 @@
+using System.Collections.Immutable;
 using System.Reactive.Disposables;
 using System.Reactive.Linq;
 using System.Runtime.InteropServices;
@@ -19,10 +20,6 @@ namespace Autopelago.Views;
 
 public partial class LandmarksView : ReactiveUserControl<GameStateViewModel>
 {
-    private static readonly object s_pauseMessage = new();
-
-    private static readonly object s_resumeMessage = new();
-
     private readonly CompositeDisposable _disposables = [];
 
     private CompositionCustomVisual? _customVisual;
@@ -47,166 +44,191 @@ public partial class LandmarksView : ReactiveUserControl<GameStateViewModel>
             return;
         }
 
-        _customVisual = compositor.CreateCustomVisual(new CustomVisualHandler());
+        _customVisual = compositor.CreateCustomVisual(new LandmarksVisualHandler());
         _customVisual.Size = new(Width, Height);
-        _customVisual.ClipToBounds = false;
         ElementComposition.SetElementChildVisual(this, _customVisual);
         IObservable<GameStateViewModel> viewModelChanges = this.ObservableForProperty(x => x.ViewModel, skipInitial: false)
             .Where(v => v.Value is not null)
             .Select(v => v.Value!);
 
         viewModelChanges
-            .Subscribe(v => _customVisual.SendHandlerMessage(v))
+            .Subscribe(v => _customVisual.SendHandlerMessage(v.LandmarkRegions))
             .DisposeWith(_disposables);
         viewModelChanges
             .Select(v => v.ObservableForProperty(x => x.Paused, skipInitial: false))
             .Switch()
-            .Subscribe(v => _customVisual.SendHandlerMessage(v.Value ? s_pauseMessage : s_resumeMessage))
+            .Subscribe(v => _customVisual.SendHandlerMessage(v.Value ? LandmarksVisualHandler.PauseMessage : LandmarksVisualHandler.ResumeMessage))
             .DisposeWith(_disposables);
     }
+}
 
-    [StructLayout(LayoutKind.Auto)]
-    private readonly record struct LandmarkState
+[StructLayout(LayoutKind.Auto)]
+public readonly record struct LandmarkState
+{
+    private static readonly Size s_size = new(16, 16);
+
+    private static readonly Size s_qSize = new(12, 12);
+
+    private static readonly Vector s_toQ = new(2, -13);
+
+    public required LandmarkRegionViewModel Landmark { get; init; }
+
+    public Rect Bounds => new(Landmark.CanvasLocation, s_size);
+
+    public Rect? QBounds => (Landmark.ShowGrayQuestImage || Landmark.ShowYellowQuestImage)
+        ? new(Landmark.CanvasLocation + s_toQ, s_qSize)
+        : null;
+
+    public void RenderBig(SKCanvas canvas, bool showA)
     {
-        public required int Index { get; init; }
-
-        public required SKImage SKImageA { get; init; }
-
-        public required SKImage SKImageB { get; init; }
-
-        public required SKImage SKQImageA { get; init; }
-
-        public required SKImage SKQImageB { get; init; }
-
-        private readonly Rect _bounds;
-
-        public required Rect Bounds
+        switch ((Landmark.ShowGrayQuestImage, Landmark.ShowYellowQuestImage))
         {
-            get => _bounds;
-            init => _bounds = value;
+            case (true, _):
+                canvas.DrawImage(showA ? Landmark.GrayQuestImages.AImage : Landmark.GrayQuestImages.BImage, ToSKRect(QBounds.GetValueOrDefault()));
+                break;
+
+            case (_, true):
+                canvas.DrawImage(showA ? Landmark.YellowQuestImages.AImage : Landmark.YellowQuestImages.BImage, ToSKRect(QBounds.GetValueOrDefault()));
+                break;
         }
 
-        private readonly Rect _qBounds;
-        public required Rect QBounds
+        switch ((Landmark.ShowDesaturatedImage, Landmark.ShowSaturatedImage))
         {
-            get => _qBounds;
-            init => _qBounds = value;
-        }
+            case (true, _):
+                canvas.DrawImage(showA ? Landmark.DesaturatedImages.AImage : Landmark.DesaturatedImages.BImage, ToSKRect(Bounds));
+                break;
 
-        public SKRect SKBounds => ToSKRect(in _bounds);
-
-        public SKRect SKQBounds => ToSKRect(in _qBounds);
-
-        private static SKRect ToSKRect(in Rect rect)
-        {
-            return new((float)rect.Left, (float)rect.Top, (float)rect.Right, (float)rect.Bottom);
+            case (_, true):
+                canvas.DrawImage(showA ? Landmark.SaturatedImages.AImage : Landmark.SaturatedImages.BImage, ToSKRect(Bounds));
+                break;
         }
     }
 
-    private sealed class CustomVisualHandler : CompositionCustomVisualHandler
+    public void RenderAlone(SKCanvas canvas, Size size, bool showA)
     {
-        private static readonly BitmapPair s_emptyImagePair = CreateEmptyImagePair();
+        canvas.DrawImage(showA ? Landmark.SaturatedImages.AImage : Landmark.SaturatedImages.BImage, ToSKRect(new(size)));
+    }
 
-        private LandmarkState[]? _landmarkStates;
+    private static SKRect ToSKRect(Rect rect)
+    {
+        return new((float)rect.Left, (float)rect.Top, (float)rect.Right, (float)rect.Bottom);
+    }
+}
 
-        private TimeSpan _lastUpdate;
+public sealed class LandmarksVisualHandler : CompositionCustomVisualHandler
+{
+    public static readonly object PauseMessage = new();
 
-        private bool _showA = true;
+    public static readonly object ResumeMessage = new();
 
-        private TimeSpan? _pausedAt;
+    private LandmarkState[] _landmarkStates = [];
 
-        public override void OnRender(ImmediateDrawingContext drawingContext)
+    private Size? _size;
+
+    private bool _initialized;
+
+    private TimeSpan _lastUpdate;
+
+    private bool _showA = true;
+
+    private TimeSpan? _pausedAt;
+
+    public override void OnRender(ImmediateDrawingContext drawingContext)
+    {
+        if (!_initialized || drawingContext.TryGetFeature(typeof(ISkiaSharpApiLeaseFeature)) is not ISkiaSharpApiLeaseFeature skia)
         {
-            if (drawingContext.TryGetFeature(typeof(ISkiaSharpApiLeaseFeature)) is not ISkiaSharpApiLeaseFeature skia ||
-                _landmarkStates is not { } landmarkStates)
-            {
-                return;
-            }
-
-            using ISkiaSharpApiLease l = skia.Lease();
-            SKCanvas canvas = l.SkCanvas;
-
-            foreach (LandmarkState landmarkState in landmarkStates)
-            {
-                canvas.DrawImage(_showA ? landmarkState.SKQImageA : landmarkState.SKQImageB, landmarkState.SKQBounds);
-                canvas.DrawImage(_showA ? landmarkState.SKImageA : landmarkState.SKImageB, landmarkState.SKBounds);
-            }
+            return;
         }
 
-        public override void OnMessage(object message)
+        using ISkiaSharpApiLease l = skia.Lease();
+        SKCanvas canvas = l.SkCanvas;
+
+        if (_size is Size aloneSize)
         {
-            if (message == s_pauseMessage)
+            foreach (LandmarkState landmarkState in _landmarkStates)
             {
-                _pausedAt = CompositionNow;
-                return;
+                landmarkState.RenderAlone(canvas, aloneSize, _showA);
             }
-
-            if (message == s_resumeMessage)
+        }
+        else
+        {
+            foreach (LandmarkState landmarkState in _landmarkStates)
             {
-                if (_pausedAt is TimeSpan pausedAt)
-                {
-                    _lastUpdate += CompositionNow - pausedAt;
-                }
-
-                _pausedAt = null;
-                return;
+                landmarkState.RenderBig(canvas, _showA);
             }
+        }
+    }
 
-            if (message is not GameStateViewModel viewModel)
-            {
-                return;
-            }
-
-            LandmarkState[] bounds = _landmarkStates = new LandmarkState[viewModel.LandmarkRegions.Length];
-            Size size = new(16, 16);
-            Size qSize = new(12, 12);
-            Vector toQ = new(2, -13);
-            for (int i = 0; i < bounds.Length; i++)
-            {
-                LandmarkRegionViewModel landmark = viewModel.LandmarkRegions[i];
-                bounds[i] = new()
-                {
-                    Index = i,
-                    Bounds = new(landmark.CanvasLocation, size),
-                    QBounds = new(landmark.CanvasLocation + toQ, qSize),
-                    SKImageA = (landmark.ShowSaturatedImage ? landmark.SaturatedImages : landmark.DesaturatedImages).AImage,
-                    SKImageB = (landmark.ShowSaturatedImage ? landmark.SaturatedImages : landmark.DesaturatedImages).BImage,
-                    SKQImageA = (landmark.ShowYellowQuestImage ? landmark.YellowQuestImages : landmark.ShowGrayQuestImage ? landmark.GrayQuestImages : s_emptyImagePair).AImage,
-                    SKQImageB = (landmark.ShowYellowQuestImage ? landmark.YellowQuestImages : landmark.ShowGrayQuestImage ? landmark.GrayQuestImages : s_emptyImagePair).BImage,
-                };
-            }
-
-            RegisterForNextAnimationFrameUpdate();
-            _lastUpdate = CompositionNow;
+    public override void OnMessage(object message)
+    {
+        if (message == PauseMessage)
+        {
+            _pausedAt = CompositionNow;
+            return;
         }
 
-        public override void OnAnimationFrameUpdate()
+        if (message == ResumeMessage)
         {
-            RegisterForNextAnimationFrameUpdate();
-            if (_landmarkStates is not { } landmarkStates || _pausedAt.HasValue)
+            if (_pausedAt is TimeSpan pausedAt)
             {
-                return;
+                _lastUpdate += CompositionNow - pausedAt;
             }
 
-            if (CompositionNow - _lastUpdate > TimeSpan.FromMilliseconds(500))
+            _pausedAt = null;
+            return;
+        }
+
+        if (message is Size size)
+        {
+            _size = size;
+            return;
+        }
+
+        if (message is not ImmutableArray<LandmarkRegionViewModel> landmarks)
+        {
+            return;
+        }
+
+        _landmarkStates = new LandmarkState[landmarks.Length];
+        for (int i = 0; i < _landmarkStates.Length; i++)
+        {
+            _landmarkStates[i] = new() { Landmark = landmarks[i] };
+        }
+
+        _initialized = true;
+        _lastUpdate = CompositionNow;
+        RegisterForNextAnimationFrameUpdate();
+    }
+
+    public override void OnAnimationFrameUpdate()
+    {
+        RegisterForNextAnimationFrameUpdate();
+        if (_pausedAt.HasValue || !_initialized)
+        {
+            return;
+        }
+
+        if (CompositionNow - _lastUpdate > TimeSpan.FromMilliseconds(500))
+        {
+            _showA = !_showA;
+            if (_size.HasValue)
             {
-                _showA = !_showA;
-                foreach (LandmarkState landmarkState in landmarkStates)
+                Invalidate();
+            }
+            else
+            {
+                foreach (LandmarkState landmarkState in _landmarkStates)
                 {
-                    Invalidate(landmarkState.QBounds);
+                    if (landmarkState.QBounds is Rect qBounds)
+                    {
+                        Invalidate(qBounds);
+                    }
+
                     Invalidate(landmarkState.Bounds);
                 }
-
-                _lastUpdate = CompositionNow;
             }
-        }
 
-        private static BitmapPair CreateEmptyImagePair()
-        {
-            SKBitmap result = new(16, 16, SKColorType.Bgra8888, SKAlphaType.Unpremul);
-            result.SetImmutable();
-            SKImage resultImage = SKImage.FromBitmap(result);
-            return new() { A = result, AImage = resultImage, B = result, BImage = resultImage };
+            _lastUpdate = CompositionNow;
         }
     }
 }

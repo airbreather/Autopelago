@@ -11,10 +11,8 @@ using SkiaSharp;
 
 namespace Autopelago.ViewModels;
 
-public sealed partial class BitmapPair : ViewModelBase, IDisposable
+public sealed class BitmapPair : ViewModelBase, IDisposable
 {
-    [Reactive] private SKBitmap _toDraw = null!;
-
     public void Dispose()
     {
         A.Dispose();
@@ -33,18 +31,14 @@ public sealed partial class BitmapPair : ViewModelBase, IDisposable
     public required SKImage AImage { get; init; }
 
     public required SKImage BImage { get; init; }
-
-    public void NextFrame()
-    {
-        if (!ReferenceEquals(A, B) || ReferenceEquals(_toDraw, null))
-        {
-            ToDraw = ReferenceEquals(_toDraw, A) ? B : A;
-        }
-    }
 }
 
 public sealed partial class LandmarkRegionViewModel : ViewModelBase, IDisposable
 {
+    private static readonly BitmapPair s_yellowQuestImages = ReadFrames("yellow_quest").Saturated;
+
+    private static readonly BitmapPair s_grayQuestImages = ReadFrames("gray_quest").Saturated;
+
     private static readonly Vector s_toCenter = new Vector(16, 16) / 2;
 
     private static readonly FrozenDictionary<string, Point> s_canvasLocations = new[]
@@ -96,7 +90,7 @@ public sealed partial class LandmarkRegionViewModel : ViewModelBase, IDisposable
 
     [Reactive(SetModifier = AccessModifier.Private)] private bool _showGrayQuestImage = true;
 
-    public LandmarkRegionViewModel(string regionKey, BitmapPair yellowQuestImages, BitmapPair grayQuestImages)
+    public LandmarkRegionViewModel(string regionKey)
     {
         RegionKey = regionKey;
         Region = GameDefinitions.Instance.LandmarkRegions[regionKey];
@@ -104,8 +98,6 @@ public sealed partial class LandmarkRegionViewModel : ViewModelBase, IDisposable
         GameRequirementToolTipSource = new(Region.Requirement);
         CanvasLocation = s_canvasLocations[regionKey] - s_toCenter;
 
-        YellowQuestImages = yellowQuestImages;
-        GrayQuestImages = grayQuestImages;
         (SaturatedImages, DesaturatedImages) = ReadFrames(regionKey);
         _disposables.Add(SaturatedImages);
         _disposables.Add(DesaturatedImages);
@@ -158,22 +150,11 @@ public sealed partial class LandmarkRegionViewModel : ViewModelBase, IDisposable
 
     public BitmapPair DesaturatedImages { get; }
 
-    public BitmapPair YellowQuestImages { get; }
+    public BitmapPair YellowQuestImages => s_yellowQuestImages;
 
-    public BitmapPair GrayQuestImages { get; }
+    public BitmapPair GrayQuestImages => s_grayQuestImages;
 
-    public void NextFrame()
-    {
-        SaturatedImages.NextFrame();
-        DesaturatedImages.NextFrame();
-    }
-
-    public static (BitmapPair Saturated, BitmapPair Desaturated) CreateQuestImages()
-    {
-        return (ReadFrames("yellow_quest").Saturated, ReadFrames("gray_quest").Saturated);
-    }
-
-    internal static (BitmapPair Saturated, BitmapPair Desaturated) ReadFrames(string regionKey)
+    private static (BitmapPair Saturated, BitmapPair Desaturated) ReadFrames(string regionKey)
     {
         using Stream data = AssetLoader.Open(new($"avares://Autopelago/Assets/Images/{regionKey}.webp"));
         using SKCodec codec = SKCodec.Create(data);
