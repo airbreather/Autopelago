@@ -60,6 +60,10 @@ internal static class Program
             .With(new X11PlatformOptions
             {
                 RenderingMode = [X11RenderingMode.Vulkan, X11RenderingMode.Egl, X11RenderingMode.Glx, X11RenderingMode.Software],
+
+                // the default behavior here seems completely borked when composition rendering uses
+                // region-based dirty rects.
+                UseRetainedFramebuffer = true,
             })
             .With(new Win32PlatformOptions
             {
