@@ -18,15 +18,21 @@ public sealed partial class BitmapPair : ViewModelBase, IDisposable
     public void Dispose()
     {
         A.Dispose();
+        AImage.Dispose();
         if (!ReferenceEquals(A, B))
         {
             B.Dispose();
+            BImage.Dispose();
         }
     }
 
     public required SKBitmap A { get; init; }
 
     public required SKBitmap B { get; init; }
+
+    public required SKImage AImage { get; init; }
+
+    public required SKImage BImage { get; init; }
 
     public void NextFrame()
     {
@@ -175,6 +181,8 @@ public sealed partial class LandmarkRegionViewModel : ViewModelBase, IDisposable
         SKCodecFrameInfo[] frameInfo = codec.FrameInfo;
         SKBitmap[] saturated = new SKBitmap[2];
         SKBitmap[] desaturated = new SKBitmap[2];
+        SKImage[] saturatedImages = new SKImage[2];
+        SKImage[] desaturatedImages = new SKImage[2];
         if (frameInfo.Length is not (0 or 2))
         {
             throw new NotSupportedException("These were all supposed to be 1- or 2-frame images.");
@@ -192,6 +200,9 @@ public sealed partial class LandmarkRegionViewModel : ViewModelBase, IDisposable
             bmp.SetImmutable();
             saturated[i] = bmp;
             desaturated[i] = ToDesaturated(bmp);
+
+            saturatedImages[i] = SKImage.FromBitmap(bmp);
+            desaturatedImages[i] = SKImage.FromBitmap(desaturated[i]);
         }
 
         if (frameInfo.Length == 0)
@@ -201,8 +212,26 @@ public sealed partial class LandmarkRegionViewModel : ViewModelBase, IDisposable
             bmp.SetImmutable();
             saturated[0] = saturated[1] = bmp;
             desaturated[0] = desaturated[1] = ToDesaturated(bmp);
+            saturatedImages[0] = saturatedImages[1] = SKImage.FromBitmap(bmp);
+            desaturatedImages[0] = desaturatedImages[1] = SKImage.FromBitmap(desaturated[0]);
         }
 
-        return (new() { A = saturated[0], B = saturated[1] }, new() { A = desaturated[0], B = desaturated[1] });
+        return
+        (
+            new()
+            {
+                A = saturated[0],
+                AImage = saturatedImages[0],
+                B = saturated[1],
+                BImage = saturatedImages[1],
+            },
+            new()
+            {
+                A = desaturated[0],
+                AImage = desaturatedImages[0],
+                B = desaturated[1],
+                BImage = desaturatedImages[1],
+            }
+        );
     }
 }

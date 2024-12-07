@@ -70,13 +70,13 @@ public partial class LandmarksView : ReactiveUserControl<GameStateViewModel>
     {
         public required int Index { get; init; }
 
-        public required SKBitmap SKImageA { get; init; }
+        public required SKImage SKImageA { get; init; }
 
-        public required SKBitmap SKImageB { get; init; }
+        public required SKImage SKImageB { get; init; }
 
-        public required SKBitmap SKQImageA { get; init; }
+        public required SKImage SKQImageA { get; init; }
 
-        public required SKBitmap SKQImageB { get; init; }
+        public required SKImage SKQImageB { get; init; }
 
         private readonly Rect _bounds;
 
@@ -128,8 +128,8 @@ public partial class LandmarksView : ReactiveUserControl<GameStateViewModel>
 
             foreach (LandmarkState landmarkState in landmarkStates)
             {
-                canvas.DrawBitmap(_showA ? landmarkState.SKQImageA : landmarkState.SKQImageB, landmarkState.SKQBounds);
-                canvas.DrawBitmap(_showA ? landmarkState.SKImageA : landmarkState.SKImageB, landmarkState.SKBounds);
+                canvas.DrawImage(_showA ? landmarkState.SKQImageA : landmarkState.SKQImageB, landmarkState.SKQBounds);
+                canvas.DrawImage(_showA ? landmarkState.SKImageA : landmarkState.SKImageB, landmarkState.SKBounds);
             }
         }
 
@@ -169,10 +169,10 @@ public partial class LandmarksView : ReactiveUserControl<GameStateViewModel>
                     Index = i,
                     Bounds = new(landmark.CanvasLocation, size),
                     QBounds = new(landmark.CanvasLocation + toQ, qSize),
-                    SKImageA = (landmark.ShowSaturatedImage ? landmark.SaturatedImages : landmark.DesaturatedImages).A,
-                    SKImageB = (landmark.ShowSaturatedImage ? landmark.SaturatedImages : landmark.DesaturatedImages).B,
-                    SKQImageA = (landmark.ShowYellowQuestImage ? landmark.YellowQuestImages : landmark.ShowGrayQuestImage ? landmark.GrayQuestImages : s_emptyImagePair).A,
-                    SKQImageB = (landmark.ShowYellowQuestImage ? landmark.YellowQuestImages : landmark.ShowGrayQuestImage ? landmark.GrayQuestImages : s_emptyImagePair).B,
+                    SKImageA = (landmark.ShowSaturatedImage ? landmark.SaturatedImages : landmark.DesaturatedImages).AImage,
+                    SKImageB = (landmark.ShowSaturatedImage ? landmark.SaturatedImages : landmark.DesaturatedImages).BImage,
+                    SKQImageA = (landmark.ShowYellowQuestImage ? landmark.YellowQuestImages : landmark.ShowGrayQuestImage ? landmark.GrayQuestImages : s_emptyImagePair).AImage,
+                    SKQImageB = (landmark.ShowYellowQuestImage ? landmark.YellowQuestImages : landmark.ShowGrayQuestImage ? landmark.GrayQuestImages : s_emptyImagePair).BImage,
                 };
             }
 
@@ -205,7 +205,8 @@ public partial class LandmarksView : ReactiveUserControl<GameStateViewModel>
         {
             SKBitmap result = new(16, 16, SKColorType.Bgra8888, SKAlphaType.Unpremul);
             result.SetImmutable();
-            return new() { A = result, B = result };
+            SKImage resultImage = SKImage.FromBitmap(result);
+            return new() { A = result, AImage = resultImage, B = result, BImage = resultImage };
         }
     }
 }
