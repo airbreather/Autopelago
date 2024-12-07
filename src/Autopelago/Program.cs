@@ -1,8 +1,7 @@
 using Avalonia;
 using Avalonia.ReactiveUI;
 using Avalonia.Rendering.Composition;
-using Avalonia.Svg;
-using Avalonia.Vulkan;
+using Avalonia.Svg.Skia;
 
 using Serilog;
 
@@ -55,7 +54,7 @@ internal static class Program
     public static AppBuilder BuildAvaloniaApp()
     {
         GC.KeepAlive(typeof(SvgImageExtension).Assembly);
-        GC.KeepAlive(typeof(Avalonia.Svg.Svg).Assembly);
+        GC.KeepAlive(typeof(Avalonia.Svg.Skia.Svg).Assembly);
         return AppBuilder.Configure<App>()
             .UsePlatformDetect()
             .With(new X11PlatformOptions

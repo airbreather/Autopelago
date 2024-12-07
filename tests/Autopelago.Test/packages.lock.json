@@ -151,13 +151,15 @@
           "SkiaSharp.NativeAssets.WebAssembly": "2.88.9"
         }
       },
-      "Avalonia.Svg": {
+      "Avalonia.Svg.Skia": {
         "type": "Transitive",
         "resolved": "11.2.0.2",
-        "contentHash": "6BdUl2w3p/+3S3+Dqn6HEwJ8O/8yfyfd54haVAvdk71LD+UkmWcVqqiLLAmq6yi1qdsf5ax1V3cEkd6dtcweSg==",
+        "contentHash": "qvP8xTiwz28wi/a7nsQz78GKaqOELfcddFhRX7CsJPXzjaN+TECp2ufvPonRZh1W+xbFAkHIkqcfqXiE/Ftu6g==",
         "dependencies": {
           "Avalonia": "11.2.0",
-          "Svg.Model": "2.0.0.4"
+          "Avalonia.Skia": "11.2.0",
+          "SkiaSharp": "2.88.8",
+          "Svg.Skia": "2.0.0.4"
         }
       },
       "Avalonia.Themes.Fluent": {
@@ -341,6 +343,15 @@
           "SkiaSharp.NativeAssets.macOS": "3.116.1"
         }
       },
+      "SkiaSharp.HarfBuzz": {
+        "type": "Transitive",
+        "resolved": "2.88.8",
+        "contentHash": "ajSyJ2D17R0kZ4FwKwFrJTsYs3D3Y9iRBLhNecROR7dOxC6VTFaMPXJuwQB8KYpAqgmb2JAJFEgZ3i8MaaIw1g==",
+        "dependencies": {
+          "HarfBuzzSharp": "7.3.0.2",
+          "SkiaSharp": "2.88.8"
+        }
+      },
       "SkiaSharp.NativeAssets.Linux": {
         "type": "Transitive",
         "resolved": "3.116.1",
@@ -381,6 +392,17 @@
         "dependencies": {
           "ShimSkiaSharp": "2.0.0.4",
           "Svg.Custom": "2.0.0.4"
+        }
+      },
+      "Svg.Skia": {
+        "type": "Transitive",
+        "resolved": "2.0.0.4",
+        "contentHash": "RlM5lc+y9yIXdBnMKvuyutBdylSWGTfg7hqiGz6dLcJdOYiKQS+WcCECC+pYMTauSNeTQX77YMryMKiG1lMFyQ==",
+        "dependencies": {
+          "SkiaSharp": "2.88.8",
+          "SkiaSharp.HarfBuzz": "2.88.8",
+          "Svg.Custom": "2.0.0.4",
+          "Svg.Model": "2.0.0.4"
         }
       },
       "System.ComponentModel.Annotations": {
@@ -429,7 +451,7 @@
           "Avalonia.Diagnostics": "[*, )",
           "Avalonia.Fonts.Inter": "[*, )",
           "Avalonia.ReactiveUI": "[*, )",
-          "Avalonia.Svg": "[*, )",
+          "Avalonia.Svg.Skia": "[*, )",
           "Avalonia.Themes.Fluent": "[*, )",
           "HarfBuzzSharp": "[*, )",
           "HarfBuzzSharp.NativeAssets.Linux": "[*, )",

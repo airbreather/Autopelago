@@ -27,7 +27,7 @@
     <PackageReference Include="Avalonia.Diagnostics" Version="*" />
     <PackageReference Include="Avalonia.Fonts.Inter" Version="*" />
     <PackageReference Include="Avalonia.ReactiveUI" Version="*" />
-    <PackageReference Include="Avalonia.Svg" Version="*" />
+    <PackageReference Include="Avalonia.Svg.Skia" Version="*" />
     <PackageReference Include="Avalonia.Themes.Fluent" Version="*" />
     <PackageReference Include="Material.Icons.Avalonia" Version="*" />
     <PackageReference Include="ReactiveUI.SourceGenerators" Version="*" PrivateAssets="all" />
