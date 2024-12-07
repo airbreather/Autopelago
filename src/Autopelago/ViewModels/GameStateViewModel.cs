@@ -120,6 +120,7 @@ public sealed partial class GameStateViewModel : ViewModelBase, IDisposable
                 ? Observable.Never<long>()
                 : Observable.Interval(frameTime, AvaloniaScheduler.Instance)
             ).Switch()
+            .StartWith(0)
             .Subscribe(_ =>
             {
                 yellowQuestImage.NextFrame();

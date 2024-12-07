@@ -35,7 +35,7 @@ public sealed partial class CollectableItemViewModel : ViewModelBase, IDisposabl
         _saturatedImage = new(AssetLoader.Open(new($"avares://Autopelago/Assets/Images/{itemKey}.webp")));
         using SKBitmap bmp = SKBitmap.Decode(AssetLoader.Open(new($"avares://Autopelago/Assets/Images/{itemKey}.webp")));
         bmp.SetImmutable();
-        _desaturatedImage = ToDesaturated(bmp);
+        _desaturatedImage = ToAvaloniaDesaturated(bmp);
 
         _updateImageSubscription = this
             .WhenAnyValue(x => x.Collected)

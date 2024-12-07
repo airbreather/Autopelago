@@ -1,6 +1,8 @@
 using Avalonia;
 using Avalonia.ReactiveUI;
+using Avalonia.Rendering.Composition;
 using Avalonia.Svg;
+using Avalonia.Vulkan;
 
 using Serilog;
 
@@ -56,6 +58,22 @@ internal static class Program
         GC.KeepAlive(typeof(Avalonia.Svg.Svg).Assembly);
         return AppBuilder.Configure<App>()
             .UsePlatformDetect()
+            .With(new X11PlatformOptions
+            {
+                RenderingMode = [X11RenderingMode.Vulkan, X11RenderingMode.Egl, X11RenderingMode.Glx, X11RenderingMode.Software],
+            })
+            .With(new Win32PlatformOptions
+            {
+                RenderingMode = [Win32RenderingMode.Vulkan, Win32RenderingMode.Wgl, Win32RenderingMode.AngleEgl, Win32RenderingMode.Software],
+            })
+            .With(new AvaloniaNativePlatformOptions
+            {
+                RenderingMode = [AvaloniaNativeRenderingMode.Metal, AvaloniaNativeRenderingMode.OpenGl, AvaloniaNativeRenderingMode.Software],
+            })
+            .With(new CompositionOptions
+            {
+                UseRegionDirtyRectClipping = true,
+            })
             .WithInterFont()
             .LogToTrace()
             .UseReactiveUI();

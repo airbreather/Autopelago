@@ -7,14 +7,6 @@
     x:DataType="viewModels:BitmapPair"
     x:TypeArguments="viewModels:BitmapPair"
     x:Name="ThisBitmapPairView">
-    <Panel DataContext="{Binding ViewModel, ElementName=ThisBitmapPairView}">
-        <Image Height="{Binding Height, ElementName=ThisBitmapPairView}" Width="{Binding Width, ElementName=ThisBitmapPairView}"
-               Source="{Binding A, Mode=OneTime}" IsVisible="{Binding ShowA}" />
-        <Image Height="{Binding Height, ElementName=ThisBitmapPairView}" Width="{Binding Width, ElementName=ThisBitmapPairView}"
-               Source="{Binding B, Mode=OneTime}" IsVisible="{Binding !ShowA}" />
-
-        <!-- Make sure that the tooltip for this control doesn't flicker. -->
-        <Rectangle Height="{Binding Height, ElementName=ThisBitmapPairView}" Width="{Binding Width, ElementName=ThisBitmapPairView}"
-                   Fill="#00FFFFFF" />
-    </Panel>
+    <Rectangle Height="{Binding Height, ElementName=ThisBitmapPairView}" Width="{Binding Width, ElementName=ThisBitmapPairView}"
+               Fill="#00FFFFFF" />
 </reactiveUi:ReactiveUserControl>

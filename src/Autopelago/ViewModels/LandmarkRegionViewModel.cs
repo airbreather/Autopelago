@@ -2,7 +2,6 @@ using System.Collections.Frozen;
 using System.Reactive.Disposables;
 
 using Avalonia;
-using Avalonia.Media.Imaging;
 using Avalonia.Platform;
 
 using ReactiveUI;
@@ -14,13 +13,7 @@ namespace Autopelago.ViewModels;
 
 public sealed partial class BitmapPair : ViewModelBase, IDisposable
 {
-    [Reactive(SetModifier = AccessModifier.Private)] private bool _showA;
-
-    public BitmapPair(Bitmap a, Bitmap b)
-    {
-        A = a;
-        B = b;
-    }
+    [Reactive] private SKBitmap _toDraw = null!;
 
     public void Dispose()
     {
@@ -31,15 +24,15 @@ public sealed partial class BitmapPair : ViewModelBase, IDisposable
         }
     }
 
-    public Bitmap A { get; }
+    public required SKBitmap A { get; init; }
 
-    public Bitmap B { get; }
+    public required SKBitmap B { get; init; }
 
     public void NextFrame()
     {
-        if (!ReferenceEquals(A, B))
+        if (!ReferenceEquals(A, B) || ReferenceEquals(_toDraw, null))
         {
-            ShowA = !_showA;
+            ToDraw = ReferenceEquals(_toDraw, A) ? B : A;
         }
     }
 }
@@ -167,12 +160,6 @@ public sealed partial class LandmarkRegionViewModel : ViewModelBase, IDisposable
     {
         SaturatedImages.NextFrame();
         DesaturatedImages.NextFrame();
-
-        if (!_checked)
-        {
-            YellowQuestImages.NextFrame();
-            GrayQuestImages.NextFrame();
-        }
     }
 
     public static (BitmapPair Saturated, BitmapPair Desaturated) CreateQuestImages()
@@ -186,8 +173,8 @@ public sealed partial class LandmarkRegionViewModel : ViewModelBase, IDisposable
         using SKCodec codec = SKCodec.Create(data);
         SKImageInfo imageInfo = codec.Info;
         SKCodecFrameInfo[] frameInfo = codec.FrameInfo;
-        Bitmap[] saturated = new Bitmap[2];
-        Bitmap[] desaturated = new Bitmap[2];
+        SKBitmap[] saturated = new SKBitmap[2];
+        SKBitmap[] desaturated = new SKBitmap[2];
         if (frameInfo.Length is not (0 or 2))
         {
             throw new NotSupportedException("These were all supposed to be 1- or 2-frame images.");
@@ -200,32 +187,22 @@ public sealed partial class LandmarkRegionViewModel : ViewModelBase, IDisposable
                 throw new NotSupportedException("These were all supposed to be 500ms.");
             }
 
-            using SKBitmap bmp = new(imageInfo);
+            SKBitmap bmp = new(imageInfo);
             codec.GetPixels(imageInfo, bmp.GetPixels(), new(i));
             bmp.SetImmutable();
-            using SKImage img = SKImage.FromBitmap(bmp);
-            using MemoryStream ms = new();
-            using SKData encoded = img.Encode();
-            encoded.SaveTo(ms);
-            ms.Position = 0;
-            saturated[i] = new(ms);
+            saturated[i] = bmp;
             desaturated[i] = ToDesaturated(bmp);
         }
 
         if (frameInfo.Length == 0)
         {
-            using SKBitmap bmp = new(imageInfo);
+            SKBitmap bmp = new(imageInfo);
             codec.GetPixels(imageInfo, bmp.GetPixels());
             bmp.SetImmutable();
-            using SKImage img = SKImage.FromBitmap(bmp);
-            using MemoryStream ms = new();
-            using SKData encoded = img.Encode();
-            encoded.SaveTo(ms);
-            ms.Position = 0;
-            saturated[0] = saturated[1] = new(ms);
+            saturated[0] = saturated[1] = bmp;
             desaturated[0] = desaturated[1] = ToDesaturated(bmp);
         }
 
-        return (new(saturated[0], saturated[1]), new(desaturated[0], desaturated[1]));
+        return (new() { A = saturated[0], B = saturated[1] }, new() { A = desaturated[0], B = desaturated[1] });
     }
 }
