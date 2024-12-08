@@ -46,6 +46,12 @@
                         <Setter Property="BorderBrush" Value="{Binding $parent[Button].BorderBrush} "/>
                     </Style>
                     <Style Selector="^ Image">
+                        <Setter Property="Transitions">
+                            <Transitions>
+                                <DoubleTransition Property="Width" Duration="0:0:0.1" />
+                                <DoubleTransition Property="Height" Duration="0:0:0.1" />
+                            </Transitions>
+                        </Setter>
                         <Setter Property="Width" Value="32" />
                         <Setter Property="Height" Value="32" />
                     </Style>
