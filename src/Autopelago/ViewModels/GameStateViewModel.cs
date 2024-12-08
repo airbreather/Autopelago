@@ -7,6 +7,7 @@ using System.Reactive.Linq;
 
 using Avalonia;
 using Avalonia.Controls;
+using Avalonia.Media.Imaging;
 using Avalonia.ReactiveUI;
 
 using ReactiveUI;
@@ -99,6 +100,9 @@ public sealed partial class GameStateViewModel : ViewModelBase, IDisposable
             _paused = true;
             provider.SetPaused(true);
         }
+
+        PlayerToken = PlayerTokens.For(provider.Settings.PlayerToken, new(provider.Settings.PlayerTokenColor.ToUInt32()))
+            .DisposeWith(_disposables);
 
         this.ObservableForProperty(x => x.Paused)
             .Subscribe(paused => provider.SetPaused(paused.Value))
@@ -296,6 +300,8 @@ public sealed partial class GameStateViewModel : ViewModelBase, IDisposable
     }
 
     public static TimeSpan MovementAnimationTime { get; } = TimeSpan.FromSeconds(0.1);
+
+    public Bitmap PlayerToken { get; }
 
     public Points CurrentPathPoints { get; } = [];
 

@@ -15,51 +15,59 @@
         <viewModels:SettingsSelectionViewModel />
     </Design.DataContext>
 
-    <Grid Margin="5" RowDefinitions="Auto,Auto,Auto,Auto,Auto,Auto,Auto" IsSharedSizeScope="True">
-        <Grid.ColumnDefinitions>
-            <ColumnDefinition Width="Auto" SharedSizeGroup="Henry" />
-            <ColumnDefinition Width="*" />
-        </Grid.ColumnDefinitions>
+    <SplitView Margin="5" IsPaneOpen="{Binding PlayerTokenSelectorOpen}" PanePlacement="Right"
+               Pane="{Binding PlayerToken}" DisplayMode="Inline">
+        <Grid RowDefinitions="Auto,Auto,Auto,Auto,Auto,Auto,Auto" IsSharedSizeScope="True">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="Auto" SharedSizeGroup="Henry" />
+                <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="Auto" />
+            </Grid.ColumnDefinitions>
 
-        <TextBlock Grid.Row="0" Grid.Column="0" VerticalAlignment="Center" Text="Host:" />
-        <TextBox Margin="5,0,0,0" Grid.Row="0" Grid.Column="1" Text="{Binding Host}" />
+            <TextBlock Grid.Row="0" Grid.Column="0" VerticalAlignment="Center" Text="Slot:" />
+            <TextBox Margin="5,0,0,0" Grid.Row="0" Grid.Column="1" Text="{Binding Slot}" />
+            <Button Margin="5,0,0,0" Padding="0" Grid.Row="0" Grid.Column="2"
+                    Command="{Binding TogglePlayerTokenSelectorCommand}">
+                <Image x:Name="PlayerTokenImage" Width="32" Height="32" Source="{Binding PlayerToken.PlayerTokenIconSource}" />
+            </Button>
 
-        <TextBlock Margin="0,5,0,0" Grid.Row="1" Grid.Column="0" VerticalAlignment="Center" Text="Port:" />
-        <NumericUpDown Margin="5,5,0,0" Grid.Row="1" Grid.Column="1" Minimum="1" Maximum="65535" FormatString="{}{0:0}"
-                       IsEnabled="{Binding UserCanEditPort, Mode=OneWay}" Value="{Binding Port}" />
+            <TextBlock Margin="0,5,0,0" Grid.Row="1" Grid.Column="0" VerticalAlignment="Center" Text="Host:" />
+            <TextBox Margin="5,5,0,0" Grid.Row="1" Grid.Column="1" Grid.ColumnSpan="2" Text="{Binding Host}" />
 
-        <TextBlock Margin="0,5,0,0" Grid.Row="2" Grid.Column="0" VerticalAlignment="Center" Text="Slot:" />
-        <TextBox Margin="5,5,0,0" Grid.Row="2" Grid.Column="1" Text="{Binding Slot}" />
+            <TextBlock Margin="0,5,0,0" Grid.Row="2" Grid.Column="0" VerticalAlignment="Center" Text="Port:" />
+            <NumericUpDown Margin="5,5,0,0" Grid.Row="2" Grid.Column="1" Grid.ColumnSpan="2" Minimum="1" Maximum="65535" FormatString="{}{0:0}"
+                           IsEnabled="{Binding UserCanEditPort, Mode=OneWay}" Value="{Binding Port}" />
 
-        <TextBlock Margin="0,5,0,0" Grid.Row="3" Grid.Column="0" VerticalAlignment="Center" Text="Password:" />
-        <TextBox Margin="5,5,0,0" Grid.Row="3" Grid.Column="1" PasswordChar="*" Text="{Binding Password}" />
+            <TextBlock Margin="0,5,0,0" Grid.Row="3" Grid.Column="0" VerticalAlignment="Center" Text="Password:" />
+            <TextBox Margin="5,5,0,0" Grid.Row="3" Grid.Column="1" Grid.ColumnSpan="2" PasswordChar="*" Text="{Binding Password}" />
 
-        <Border Grid.Row="4" Grid.Column="0" Grid.ColumnSpan="2" BorderBrush="#151515" BorderThickness="2" Margin="5" Padding="5">
-            <Grid RowDefinitions="Auto,Auto,Auto">
-                <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="Auto" SharedSizeGroup="Henry" />
-                    <ColumnDefinition Width="*" />
-                </Grid.ColumnDefinitions>
+            <Border Grid.Row="4" Grid.Column="0" Grid.ColumnSpan="3" BorderBrush="#151515" BorderThickness="2" Margin="5" Padding="5">
+                <Grid RowDefinitions="Auto,Auto,Auto">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="Auto" SharedSizeGroup="Henry" />
+                        <ColumnDefinition Width="*" />
+                    </Grid.ColumnDefinitions>
 
-                <TextBlock Grid.ColumnSpan="2" Text="Time Between Steps (sec.)" HorizontalAlignment="Center"></TextBlock>
+                    <TextBlock Grid.ColumnSpan="2" Text="Time Between Steps (sec.)" HorizontalAlignment="Center"></TextBlock>
 
-                <TextBlock Margin="0,5,0,0" Grid.Row="1" Grid.Column="0" VerticalAlignment="Center" Text="Minimum:" />
-                <NumericUpDown Margin="5,5,0,0" Grid.Row="1" Grid.Column="1" Minimum="0" Increment="1" Value="{Binding MinStepSeconds}" />
+                    <TextBlock Margin="0,5,0,0" Grid.Row="1" Grid.Column="0" VerticalAlignment="Center" Text="Minimum:" />
+                    <NumericUpDown Margin="5,5,0,0" Grid.Row="1" Grid.Column="1" Minimum="0" Increment="1" Value="{Binding MinStepSeconds}" />
 
-                <TextBlock Margin="0,5,0,0" Grid.Row="2" Grid.Column="0" VerticalAlignment="Center" Text="Maximum:" />
-                <NumericUpDown Margin="5,5,0,0" Grid.Row="2" Grid.Column="1" Minimum="0" Increment="1" Value="{Binding MaxStepSeconds}" />
-            </Grid>
-        </Border>
+                    <TextBlock Margin="0,5,0,0" Grid.Row="2" Grid.Column="0" VerticalAlignment="Center" Text="Maximum:" />
+                    <NumericUpDown Margin="5,5,0,0" Grid.Row="2" Grid.Column="1" Minimum="0" Increment="1" Value="{Binding MaxStepSeconds}" />
+                </Grid>
+            </Border>
 
-        <CheckBox Margin="0,5,0,0" Grid.Row="5" Grid.Column="0" Grid.ColumnSpan="2" IsChecked="{Binding RatChat}">
-            Send messages using Archipelago chat
-        </CheckBox>
+            <CheckBox Margin="0,5,0,0" Grid.Row="5" Grid.Column="0" Grid.ColumnSpan="3" IsChecked="{Binding RatChat}">
+                Send messages using Archipelago chat
+            </CheckBox>
 
-        <Button Margin="0,5,0,0" Grid.Row="6" Grid.Column="0" Grid.ColumnSpan="2"
-                HorizontalAlignment="Stretch" HorizontalContentAlignment="Center"
-                IsDefault="True" Command="{Binding ConnectCommand}">
-            <TextBlock Text="Connect" />
-        </Button>
-    </Grid>
+            <Button Margin="0,5,0,0" Grid.Row="6" Grid.Column="0" Grid.ColumnSpan="3"
+                    HorizontalAlignment="Stretch" HorizontalContentAlignment="Center"
+                    IsDefault="True" Command="{Binding ConnectCommand}">
+                <TextBlock Text="Connect" />
+            </Button>
+        </Grid>
+    </SplitView>
 
 </reactiveUi:ReactiveUserControl>

@@ -345,7 +345,7 @@
                                                PointerMoved="OnPointerMovedOverControlWithToolTip"
                                                Width="16" Canvas.Left="{Binding CurrentPoint.X, Mode=OneWay}"
                                                Height="16" Canvas.Top="{Binding CurrentPoint.Y, Mode=OneWay}"
-                                               Source="/Assets/Images/pack_rat.webp"
+                                               Source="{Binding PlayerToken}"
                                                my:PlayerWiggleProperties.TargetAngle="{Binding RelativeAngle}"
                                                ToolTip.ToolTipOpening="OnPlayerToolTipOpening"
                                                PointerPressed="OnPlayerClicked">
@@ -376,7 +376,7 @@
                                                 <Border Margin="0,5,0,0" Padding="4" Classes="tracker-box item">
                                                   <Grid ColumnDefinitions="Auto,*">
                                                     <!-- Note: coordinates are NOT scaled like everything else on the map. -->
-                                                    <Image Height="64" Width="64" Source="/Assets/Images/pack_rat.webp" />
+                                                    <Image Height="64" Width="64" Source="{Binding PlayerToken}" />
                                                     <Grid Margin="5,0,0,0" Grid.Column="1"
                                                           Classes="tooltip big"
                                                           RowDefinitions="Auto,Auto,*,Auto"

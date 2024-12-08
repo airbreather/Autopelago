@@ -447,6 +447,7 @@
         "type": "Project",
         "dependencies": {
           "Avalonia": "[*, )",
+          "Avalonia.Controls.ColorPicker": "[*, )",
           "Avalonia.Desktop": "[*, )",
           "Avalonia.Diagnostics": "[*, )",
           "Avalonia.Fonts.Inter": "[*, )",

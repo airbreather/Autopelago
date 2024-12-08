@@ -23,6 +23,7 @@
 
   <ItemGroup>
     <PackageReference Include="Avalonia" Version="*" />
+    <PackageReference Include="Avalonia.Controls.ColorPicker" Version="*" />
     <PackageReference Include="Avalonia.Desktop" Version="*" />
     <PackageReference Include="Avalonia.Diagnostics" Version="*" />
     <PackageReference Include="Avalonia.Fonts.Inter" Version="*" />

@@ -19,8 +19,6 @@ public sealed class GameStateObservableProvider
 
     private readonly BehaviorSubject<bool> _paused = new(false);
 
-    private readonly Settings _settings;
-
     private readonly TimeProvider _timeProvider;
 
     public GameStateObservableProvider(Settings settings)
@@ -30,7 +28,7 @@ public sealed class GameStateObservableProvider
 
     public GameStateObservableProvider(Settings settings, TimeProvider timeProvider)
     {
-        _settings = settings;
+        Settings = settings;
         _timeProvider = timeProvider;
         CurrentGameState = _currentGameState.AsObservable();
         GameComplete = _gameComplete.AsObservable();
@@ -64,6 +62,8 @@ public sealed class GameStateObservableProvider
         }
     }
 
+    public Settings Settings { get; }
+
     public IObservable<Game> CurrentGameState { get; }
 
     public IObservable<Unit> GameComplete { get; }
@@ -95,13 +95,13 @@ public sealed class GameStateObservableProvider
 
     private async Task RunAsyncCore(CancellationToken cancellationToken)
     {
-        ArchipelagoConnection connection = new(_settings);
+        ArchipelagoConnection connection = new(Settings);
         using ClientWebSocket socket = await connection.ConnectAsync(cancellationToken);
 
-        ArchipelagoPacketProvider packets = new(_settings);
+        ArchipelagoPacketProvider packets = new(Settings);
 
         // set up to receive the game and the context from the initialization process.
-        GameInitializer gameInitializer = new(_settings, _unhandledException.AsObserver());
+        GameInitializer gameInitializer = new(Settings, _unhandledException.AsObserver());
         Task<GameAndContext> gameAndContextTask = gameInitializer.InitializedGame.ToTask(cancellationToken);
         IDisposable unregisterGameInitializer = await packets.RegisterHandlerAsync(gameInitializer);
         Task runPacketLoopTask = packets.RunToCompletionAsync(socket, cancellationToken)
@@ -116,10 +116,10 @@ public sealed class GameStateObservableProvider
 
         GameAndContext gameAndContext = await gameAndContextTask;
         unregisterGameInitializer.Dispose();
-        GameUpdatePacketHandler updatePacketHandler = new(_settings, gameAndContext.Game, gameAndContext.Context);
+        GameUpdatePacketHandler updatePacketHandler = new(Settings, gameAndContext.Game, gameAndContext.Context);
         using IDisposable unregisterUpdatePacketHandler = await packets.RegisterHandlerAsync(updatePacketHandler);
 
-        using PlayLoopRunner playLoopRunner = new(gameAndContext.Game, gameAndContext.Context, packets, _settings, _timeProvider);
+        using PlayLoopRunner playLoopRunner = new(gameAndContext.Game, gameAndContext.Context, packets, Settings, _timeProvider);
         Task runPlayLoopTask = playLoopRunner.RunPlayLoopAsync(Paused, cancellationToken)
             .ContinueWith(t =>
             {

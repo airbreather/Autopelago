@@ -11,13 +11,16 @@ public abstract class ViewModelBase : ReactiveObject
     protected static SKBitmap ToDesaturated(SKBitmap bmp)
     {
         SKBitmap result = bmp.Copy();
-        for (int y = 0; y < result.Height; y++)
+        using (SKCanvas canvas = new(result))
         {
-            for (int x = 0; x < result.Width; x++)
+            for (int y = 0; y < result.Height; y++)
             {
-                SKColor px = bmp.GetPixel(x, y);
-                px.ToHsl(out float h, out float s, out float l);
-                result.SetPixel(x, y, SKColor.FromHsl(h, s * 0.1f, l * 0.4f).WithAlpha(px.Alpha));
+                for (int x = 0; x < result.Width; x++)
+                {
+                    SKColor px = bmp.GetPixel(x, y);
+                    px.ToHsl(out float h, out float s, out float l);
+                    canvas.DrawPoint(x, y, SKColor.FromHsl(h, s * 0.1f, l * 0.4f).WithAlpha(px.Alpha));
+                }
             }
         }
 
