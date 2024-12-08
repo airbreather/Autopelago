@@ -1,0 +1,114 @@
+<reactiveUi:ReactiveUserControl
+    xmlns="https://github.com/avaloniaui"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+    xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+    xmlns:reactiveUi="http://reactiveui.net"
+    xmlns:my="using:Autopelago"
+    xmlns:viewModels="using:Autopelago.ViewModels"
+    xmlns:materialIcons="using:Material.Icons.Avalonia"
+    Classes="GamerFont"
+    mc:Ignorable="d" d:DesignWidth="320" d:DesignHeight="580"
+    x:Class="Autopelago.Views.PlayerTokenView"
+    x:DataType="viewModels:PlayerTokenViewModel"
+    x:TypeArguments="viewModels:PlayerTokenViewModel">
+
+    <Design.DataContext>
+        <viewModels:PlayerTokenViewModel />
+    </Design.DataContext>
+
+    <Grid RowDefinitions="Auto,Auto,Auto,Auto">
+        <DockPanel>
+            <Button DockPanel.Dock="Right" Padding="0" HorizontalAlignment="Right" VerticalAlignment="Top"
+                    Command="{Binding ClosePaneCommand}">
+                <materialIcons:MaterialIcon Width="14" Height="14" Kind="Close" />
+            </Button>
+            <TextBlock FontSize="12" HorizontalAlignment="Center">Personalize Your Rat!</TextBlock>
+        </DockPanel>
+
+        <UniformGrid Margin="5" Grid.Row="1" Columns="3" Rows="1">
+            <UniformGrid.Styles>
+                <Style Selector="Button.rat">
+                    <Setter Property="BorderBrush" Value="Black" />
+                    <Setter Property="BorderThickness" Value="1" />
+                    <Setter Property="Height" Value="64" />
+                    <Setter Property="Margin" Value="5,0" />
+                    <Style Selector="^:not(:pressed)">
+                        <Setter Property="Effect">
+                            <DropShadowEffect OffsetX="1.5" OffsetY="1.5" BlurRadius="1" />
+                        </Setter>
+                    </Style>
+                    <Style Selector="^ /template/ ContentPresenter#PART_ContentPresenter">
+                        <Setter Property="Background" Value="{Binding $parent[Button].Background} "/>
+                        <Setter Property="BorderBrush" Value="{Binding $parent[Button].BorderBrush} "/>
+                    </Style>
+                    <Style Selector="^ Image">
+                        <Setter Property="Transitions">
+                            <Transitions>
+                                <DoubleTransition Property="Width" Duration="0:0:0.1" />
+                                <DoubleTransition Property="Height" Duration="0:0:0.1" />
+                            </Transitions>
+                        </Setter>
+                        <Setter Property="Width" Value="32" />
+                        <Setter Property="Height" Value="32" />
+                    </Style>
+                    <Style Selector="^:pointerover Image">
+                        <Setter Property="Width" Value="48" />
+                        <Setter Property="Height" Value="48" />
+                    </Style>
+                    <Style Selector="^.chosen">
+                        <Setter Property="Background" Value="{DynamicResource SystemAccentColorDark2}" />
+                        <Setter Property="BorderThickness" Value="3" />
+                        <Style Selector="^ Image">
+                            <Setter Property="Width" Value="64" />
+                            <Setter Property="Height" Value="64" />
+                            <Setter Property="Effect">
+                                <DropShadowEffect OffsetX="1.5" OffsetY="1.5" BlurRadius="1" />
+                            </Setter>
+                            <Style.Animations>
+                                <Animation Duration="0:0:1"
+                                           IterationCount="Infinite">
+                                    <KeyFrame Cue="0%">
+                                        <Setter Property="RotateTransform.Angle" Value="0" />
+                                    </KeyFrame>
+                                    <KeyFrame Cue="25%">
+                                        <Setter Property="RotateTransform.Angle" Value="10" />
+                                    </KeyFrame>
+                                    <KeyFrame Cue="50%">
+                                        <Setter Property="RotateTransform.Angle" Value="0" />
+                                    </KeyFrame>
+                                    <KeyFrame Cue="75%">
+                                        <Setter Property="RotateTransform.Angle" Value="-10" />
+                                    </KeyFrame>
+                                    <KeyFrame Cue="100%">
+                                        <Setter Property="RotateTransform.Angle" Value="0" />
+                                    </KeyFrame>
+                                </Animation>
+                            </Style.Animations>
+                        </Style>
+                    </Style>
+                </Style>
+            </UniformGrid.Styles>
+            <Button Classes="rat" HorizontalAlignment="Stretch" Classes.chosen="{Binding IsPlayer1}"
+                    Command="{Binding ChoosePlayerTokenCommand}" CommandParameter="{x:Static my:PlayerTokenKind.Player1}">
+                <Image x:Name="Player1Image" Source="{Binding Player1}" />
+            </Button>
+            <Button Classes="rat" HorizontalAlignment="Stretch" Classes.chosen="{Binding IsPlayer2}"
+                    Command="{Binding ChoosePlayerTokenCommand}" CommandParameter="{x:Static my:PlayerTokenKind.Player2}">
+                <Image x:Name="Player2Image" Source="{Binding Player2}" />
+            </Button>
+            <Button Classes="rat" HorizontalAlignment="Stretch" Classes.chosen="{Binding IsPlayer4}"
+                    Command="{Binding ChoosePlayerTokenCommand}" CommandParameter="{x:Static my:PlayerTokenKind.Player4}">
+                <Image x:Name="Player4Image" Source="{Binding Player4}" />
+            </Button>
+        </UniformGrid>
+
+        <DockPanel Margin="5" Grid.Row="2">
+            <Button FontSize="10" HorizontalAlignment="Center" HorizontalContentAlignment="Center"
+                    Content="Reset to Default" Command="{Binding ResetCommand}" />
+        </DockPanel>
+        <ColorView Margin="5" Grid.Row="3" HorizontalAlignment="Stretch"
+                   Color="{Binding Color}" IsAlphaEnabled="False" IsAlphaVisible="False" />
+    </Grid>
+
+</reactiveUi:ReactiveUserControl>

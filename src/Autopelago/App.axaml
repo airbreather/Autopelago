@@ -31,6 +31,7 @@
         <Style Selector="TextBlock.GamerFont,.GamerFont TextBlock">
             <Setter Property="FontFamily" Value="{StaticResource PublicPixelFont}" />
         </Style>
+        <StyleInclude Source="avares://Avalonia.Controls.ColorPicker/Themes/Fluent/Fluent.xaml" />
     </Application.Styles>
 
 </Application>

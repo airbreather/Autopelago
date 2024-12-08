@@ -1,6 +1,7 @@
 using Avalonia;
 using Avalonia.ReactiveUI;
-using Avalonia.Svg;
+using Avalonia.Rendering.Composition;
+using Avalonia.Svg.Skia;
 
 using Serilog;
 
@@ -53,9 +54,29 @@ internal static class Program
     public static AppBuilder BuildAvaloniaApp()
     {
         GC.KeepAlive(typeof(SvgImageExtension).Assembly);
-        GC.KeepAlive(typeof(Avalonia.Svg.Svg).Assembly);
+        GC.KeepAlive(typeof(Avalonia.Svg.Skia.Svg).Assembly);
         return AppBuilder.Configure<App>()
             .UsePlatformDetect()
+            .With(new X11PlatformOptions
+            {
+                RenderingMode = [X11RenderingMode.Vulkan, X11RenderingMode.Egl, X11RenderingMode.Glx, X11RenderingMode.Software],
+
+                // the default behavior here seems completely borked when composition rendering uses
+                // region-based dirty rects.
+                UseRetainedFramebuffer = true,
+            })
+            .With(new Win32PlatformOptions
+            {
+                RenderingMode = [Win32RenderingMode.Vulkan, Win32RenderingMode.Wgl, Win32RenderingMode.AngleEgl, Win32RenderingMode.Software],
+            })
+            .With(new AvaloniaNativePlatformOptions
+            {
+                RenderingMode = [AvaloniaNativeRenderingMode.Metal, AvaloniaNativeRenderingMode.OpenGl, AvaloniaNativeRenderingMode.Software],
+            })
+            .With(new CompositionOptions
+            {
+                UseRegionDirtyRectClipping = true,
+            })
             .WithInterFont()
             .LogToTrace()
             .UseReactiveUI();

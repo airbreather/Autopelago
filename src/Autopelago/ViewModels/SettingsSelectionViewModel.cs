@@ -30,6 +30,8 @@ public sealed partial class SettingsSelectionViewModel : ViewModelBase, IDisposa
 
     [Reactive] private bool _ratChat = true;
 
+    [Reactive(SetModifier = AccessModifier.Private)] private bool _playerTokenSelectorOpen;
+
     public SettingsSelectionViewModel()
     {
         _canConnect = this.WhenAnyValue(
@@ -58,7 +60,14 @@ public sealed partial class SettingsSelectionViewModel : ViewModelBase, IDisposa
                     ? port
                     : 65535;
             }));
+
+        PlayerToken = new()
+        {
+            ClosePaneCommand = TogglePlayerTokenSelectorCommand,
+        };
     }
+
+    public PlayerTokenViewModel PlayerToken { get; }
 
     public void Dispose()
     {
@@ -76,6 +85,8 @@ public sealed partial class SettingsSelectionViewModel : ViewModelBase, IDisposa
             MinStepSeconds = MinStepSeconds,
             MaxStepSeconds = MaxStepSeconds,
             RatChat = RatChat,
+            PlayerToken = PlayerToken.Kind,
+            PlayerTokenColor = PlayerToken.Color,
         };
         set
         {
@@ -86,6 +97,8 @@ public sealed partial class SettingsSelectionViewModel : ViewModelBase, IDisposa
             MinStepSeconds = value.MinStepSeconds;
             MaxStepSeconds = value.MaxStepSeconds;
             RatChat = value.RatChat;
+            PlayerToken.Kind = value.PlayerToken;
+            PlayerToken.Color = value.PlayerTokenColor;
         }
     }
 
@@ -96,5 +109,11 @@ public sealed partial class SettingsSelectionViewModel : ViewModelBase, IDisposa
     private Settings Connect(Unit unit)
     {
         return SettingsModel;
+    }
+
+    [ReactiveCommand]
+    private void TogglePlayerTokenSelector()
+    {
+        PlayerTokenSelectorOpen = !PlayerTokenSelectorOpen;
     }
 }

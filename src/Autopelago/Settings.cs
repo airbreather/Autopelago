@@ -1,5 +1,9 @@
 ﻿using System.Text.Json.Serialization;
 
+using Autopelago.ViewModels;
+
+using Avalonia.Media;
+
 namespace Autopelago;
 
 public sealed record Settings
@@ -40,4 +44,18 @@ public sealed record Settings
     public required decimal MaxStepSeconds { get; init; }
 
     public required bool RatChat { get; init; } = true;
+
+    public PlayerTokenKind PlayerToken { get; init; }
+
+    [JsonIgnore]
+    public Color PlayerTokenColor { get; set; } = Color.Parse("#382E26");
+
+    public uint PlayerTokenColorNum
+    {
+        get => PlayerTokenColor.ToUInt32();
+
+        // set, not init, to work around some variation of:
+        // https://github.com/dotnet/runtime/issues/84484
+        set => PlayerTokenColor = Color.FromUInt32(value);
+    }
 }

@@ -2,7 +2,6 @@ using System.Collections.Frozen;
 using System.Reactive.Disposables;
 
 using Avalonia;
-using Avalonia.Media.Imaging;
 using Avalonia.Platform;
 
 using ReactiveUI;
@@ -12,40 +11,34 @@ using SkiaSharp;
 
 namespace Autopelago.ViewModels;
 
-public sealed partial class BitmapPair : ViewModelBase, IDisposable
+public sealed class BitmapPair : ViewModelBase, IDisposable
 {
-    [Reactive(SetModifier = AccessModifier.Private)] private bool _showA;
-
-    public BitmapPair(Bitmap a, Bitmap b)
-    {
-        A = a;
-        B = b;
-    }
-
     public void Dispose()
     {
         A.Dispose();
+        AImage.Dispose();
         if (!ReferenceEquals(A, B))
         {
             B.Dispose();
+            BImage.Dispose();
         }
     }
 
-    public Bitmap A { get; }
+    public required SKBitmap A { get; init; }
 
-    public Bitmap B { get; }
+    public required SKBitmap B { get; init; }
 
-    public void NextFrame()
-    {
-        if (!ReferenceEquals(A, B))
-        {
-            ShowA = !_showA;
-        }
-    }
+    public required SKImage AImage { get; init; }
+
+    public required SKImage BImage { get; init; }
 }
 
 public sealed partial class LandmarkRegionViewModel : ViewModelBase, IDisposable
 {
+    private static readonly BitmapPair s_yellowQuestImages = ReadFrames("yellow_quest").Saturated;
+
+    private static readonly BitmapPair s_grayQuestImages = ReadFrames("gray_quest").Saturated;
+
     private static readonly Vector s_toCenter = new Vector(16, 16) / 2;
 
     private static readonly FrozenDictionary<string, Point> s_canvasLocations = new[]
@@ -97,7 +90,7 @@ public sealed partial class LandmarkRegionViewModel : ViewModelBase, IDisposable
 
     [Reactive(SetModifier = AccessModifier.Private)] private bool _showGrayQuestImage = true;
 
-    public LandmarkRegionViewModel(string regionKey, BitmapPair yellowQuestImages, BitmapPair grayQuestImages)
+    public LandmarkRegionViewModel(string regionKey)
     {
         RegionKey = regionKey;
         Region = GameDefinitions.Instance.LandmarkRegions[regionKey];
@@ -105,8 +98,6 @@ public sealed partial class LandmarkRegionViewModel : ViewModelBase, IDisposable
         GameRequirementToolTipSource = new(Region.Requirement);
         CanvasLocation = s_canvasLocations[regionKey] - s_toCenter;
 
-        YellowQuestImages = yellowQuestImages;
-        GrayQuestImages = grayQuestImages;
         (SaturatedImages, DesaturatedImages) = ReadFrames(regionKey);
         _disposables.Add(SaturatedImages);
         _disposables.Add(DesaturatedImages);
@@ -159,35 +150,20 @@ public sealed partial class LandmarkRegionViewModel : ViewModelBase, IDisposable
 
     public BitmapPair DesaturatedImages { get; }
 
-    public BitmapPair YellowQuestImages { get; }
+    public BitmapPair YellowQuestImages => s_yellowQuestImages;
 
-    public BitmapPair GrayQuestImages { get; }
+    public BitmapPair GrayQuestImages => s_grayQuestImages;
 
-    public void NextFrame()
-    {
-        SaturatedImages.NextFrame();
-        DesaturatedImages.NextFrame();
-
-        if (!_checked)
-        {
-            YellowQuestImages.NextFrame();
-            GrayQuestImages.NextFrame();
-        }
-    }
-
-    public static (BitmapPair Saturated, BitmapPair Desaturated) CreateQuestImages()
-    {
-        return (ReadFrames("yellow_quest").Saturated, ReadFrames("gray_quest").Saturated);
-    }
-
-    internal static (BitmapPair Saturated, BitmapPair Desaturated) ReadFrames(string regionKey)
+    private static (BitmapPair Saturated, BitmapPair Desaturated) ReadFrames(string regionKey)
     {
         using Stream data = AssetLoader.Open(new($"avares://Autopelago/Assets/Images/{regionKey}.webp"));
         using SKCodec codec = SKCodec.Create(data);
         SKImageInfo imageInfo = codec.Info;
         SKCodecFrameInfo[] frameInfo = codec.FrameInfo;
-        Bitmap[] saturated = new Bitmap[2];
-        Bitmap[] desaturated = new Bitmap[2];
+        SKBitmap[] saturated = new SKBitmap[2];
+        SKBitmap[] desaturated = new SKBitmap[2];
+        SKImage[] saturatedImages = new SKImage[2];
+        SKImage[] desaturatedImages = new SKImage[2];
         if (frameInfo.Length is not (0 or 2))
         {
             throw new NotSupportedException("These were all supposed to be 1- or 2-frame images.");
@@ -200,32 +176,43 @@ public sealed partial class LandmarkRegionViewModel : ViewModelBase, IDisposable
                 throw new NotSupportedException("These were all supposed to be 500ms.");
             }
 
-            using SKBitmap bmp = new(imageInfo);
+            SKBitmap bmp = new(imageInfo);
             codec.GetPixels(imageInfo, bmp.GetPixels(), new(i));
             bmp.SetImmutable();
-            using SKImage img = SKImage.FromBitmap(bmp);
-            using MemoryStream ms = new();
-            using SKData encoded = img.Encode();
-            encoded.SaveTo(ms);
-            ms.Position = 0;
-            saturated[i] = new(ms);
+            saturated[i] = bmp;
             desaturated[i] = ToDesaturated(bmp);
+
+            saturatedImages[i] = SKImage.FromBitmap(bmp);
+            desaturatedImages[i] = SKImage.FromBitmap(desaturated[i]);
         }
 
         if (frameInfo.Length == 0)
         {
-            using SKBitmap bmp = new(imageInfo);
+            SKBitmap bmp = new(imageInfo);
             codec.GetPixels(imageInfo, bmp.GetPixels());
             bmp.SetImmutable();
-            using SKImage img = SKImage.FromBitmap(bmp);
-            using MemoryStream ms = new();
-            using SKData encoded = img.Encode();
-            encoded.SaveTo(ms);
-            ms.Position = 0;
-            saturated[0] = saturated[1] = new(ms);
+            saturated[0] = saturated[1] = bmp;
             desaturated[0] = desaturated[1] = ToDesaturated(bmp);
+            saturatedImages[0] = saturatedImages[1] = SKImage.FromBitmap(bmp);
+            desaturatedImages[0] = desaturatedImages[1] = SKImage.FromBitmap(desaturated[0]);
         }
 
-        return (new(saturated[0], saturated[1]), new(desaturated[0], desaturated[1]));
+        return
+        (
+            new()
+            {
+                A = saturated[0],
+                AImage = saturatedImages[0],
+                B = saturated[1],
+                BImage = saturatedImages[1],
+            },
+            new()
+            {
+                A = desaturated[0],
+                AImage = desaturatedImages[0],
+                B = desaturated[1],
+                BImage = desaturatedImages[1],
+            }
+        );
     }
 }

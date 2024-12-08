@@ -22,24 +22,35 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="Avalonia" Version="11.2.2" />
-    <PackageReference Include="Avalonia.Desktop" Version="11.2.2" />
-    <PackageReference Include="Avalonia.Diagnostics" Version="11.2.2" />
-    <PackageReference Include="Avalonia.Fonts.Inter" Version="11.2.2" />
-    <PackageReference Include="Avalonia.ReactiveUI" Version="11.2.2" />
-    <PackageReference Include="Avalonia.Svg" Version="11.2.0.2" />
-    <PackageReference Include="Avalonia.Themes.Fluent" Version="11.2.2" />
-    <PackageReference Include="Material.Icons.Avalonia" Version="2.1.10" />
-    <PackageReference Include="ReactiveUI.SourceGenerators" Version="2.0.17" PrivateAssets="all" />
-    <PackageReference Include="Serilog" Version="4.1.0" />
-    <PackageReference Include="Serilog.Sinks.Async" Version="2.1.0" />
-    <PackageReference Include="Serilog.Sinks.Console" Version="6.0.0" />
-    <PackageReference Include="YamlDotNet" Version="16.2.0" />
-    <PackageReference Include="ZstdSharp.Port" Version="0.8.3" />
+    <PackageReference Include="Avalonia" Version="*" />
+    <PackageReference Include="Avalonia.Controls.ColorPicker" Version="*" />
+    <PackageReference Include="Avalonia.Desktop" Version="*" />
+    <PackageReference Include="Avalonia.Diagnostics" Version="*" />
+    <PackageReference Include="Avalonia.Fonts.Inter" Version="*" />
+    <PackageReference Include="Avalonia.ReactiveUI" Version="*" />
+    <PackageReference Include="Avalonia.Svg.Skia" Version="*" />
+    <PackageReference Include="Avalonia.Themes.Fluent" Version="*" />
+    <PackageReference Include="Material.Icons.Avalonia" Version="*" />
+    <PackageReference Include="ReactiveUI.SourceGenerators" Version="*" PrivateAssets="all" />
+    <PackageReference Include="Serilog" Version="*" />
+    <PackageReference Include="Serilog.Sinks.Async" Version="*" />
+    <PackageReference Include="Serilog.Sinks.Console" Version="*" />
+    <PackageReference Include="YamlDotNet" Version="*" />
+    <PackageReference Include="ZstdSharp.Port" Version="*" />
   </ItemGroup>
 
   <ItemGroup Label="Transitive Reference Version Bumps">
-    <PackageReference Include="Libuv" Version="1.10.0" />
+    <PackageReference Include="HarfBuzzSharp" Version="*" />
+    <PackageReference Include="HarfBuzzSharp.NativeAssets.Linux" Version="*" />
+    <PackageReference Include="HarfBuzzSharp.NativeAssets.macOS" Version="*" />
+    <PackageReference Include="HarfBuzzSharp.NativeAssets.WebAssembly" Version="*" />
+    <PackageReference Include="HarfBuzzSharp.NativeAssets.Win32" Version="*" />
+    <PackageReference Include="Libuv" Version="*" />
+    <PackageReference Include="SkiaSharp" Version="*" />
+    <PackageReference Include="SkiaSharp.NativeAssets.Linux" Version="*" />
+    <PackageReference Include="SkiaSharp.NativeAssets.macOS" Version="*" />
+    <PackageReference Include="SkiaSharp.NativeAssets.WebAssembly" Version="*" />
+    <PackageReference Include="SkiaSharp.NativeAssets.Win32" Version="*" />
   </ItemGroup>
 
   <ItemGroup>
