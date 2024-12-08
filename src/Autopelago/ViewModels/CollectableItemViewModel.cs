@@ -25,7 +25,7 @@ public sealed partial class CollectableItemViewModel : ViewModelBase, IDisposabl
         ItemKey = itemKey;
         try
         {
-            Model = GameDefinitions.Instance.ProgressionItems[itemKey];
+            Model = GameDefinitions.Instance.ProgressionItemsByItemKey[itemKey];
         }
         catch (KeyNotFoundException ex)
         {
