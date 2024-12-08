@@ -85,6 +85,8 @@ public sealed partial class SettingsSelectionViewModel : ViewModelBase, IDisposa
             MinStepSeconds = MinStepSeconds,
             MaxStepSeconds = MaxStepSeconds,
             RatChat = RatChat,
+            PlayerToken = PlayerToken.Kind,
+            PlayerTokenColor = PlayerToken.Color,
         };
         set
         {
@@ -95,6 +97,8 @@ public sealed partial class SettingsSelectionViewModel : ViewModelBase, IDisposa
             MinStepSeconds = value.MinStepSeconds;
             MaxStepSeconds = value.MaxStepSeconds;
             RatChat = value.RatChat;
+            PlayerToken.Kind = value.PlayerToken;
+            PlayerToken.Color = value.PlayerTokenColor;
         }
     }
 

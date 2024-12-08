@@ -50,7 +50,7 @@ public sealed partial class PlayerTokenViewModel : ViewModelBase, IDisposable
 
     [Reactive] private Color _color = Color.Parse("#FF382E26");
 
-    [Reactive] private PlayerTokenKind _playerToken = PlayerTokenKind.Player1;
+    [Reactive] private PlayerTokenKind _kind = PlayerTokenKind.Player1;
 
     [ObservableAsProperty] private bool _isPlayer1;
 
@@ -63,7 +63,7 @@ public sealed partial class PlayerTokenViewModel : ViewModelBase, IDisposable
     public PlayerTokenViewModel()
     {
         IObservable<PlayerTokenKind> playerTokenChanges =
-            this.ObservableForProperty(x => x.PlayerToken, skipInitial: false)
+            this.ObservableForProperty(x => x.Kind, skipInitial: false)
                 .Select(p => p.Value);
 
         _playerTokenIconSourceHelper = playerTokenChanges
@@ -159,9 +159,9 @@ public sealed partial class PlayerTokenViewModel : ViewModelBase, IDisposable
     }
 
     [ReactiveCommand]
-    private void ChoosePlayerToken(PlayerTokenKind playerToken)
+    private void ChoosePlayerToken(PlayerTokenKind kind)
     {
-        PlayerToken = playerToken;
+        Kind = kind;
     }
 
     public WriteableBitmap Player1 { get; } = WriteableBitmap.Decode(AssetLoader.Open(new("avares://Autopelago/Assets/Images/pack_rat.webp")));
