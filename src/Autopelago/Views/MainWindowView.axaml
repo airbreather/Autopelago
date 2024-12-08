@@ -11,7 +11,7 @@
     x:TypeArguments="viewModels:MainWindowViewModel"
     Title="Autopelago"
     Icon="/Assets/Images/Autopelago.ico"
-    MinWidth="800"
-    MinHeight="600"
+    MinWidth="200"
+    MinHeight="150"
     Content="{Binding ContentViewModel}">
 </reactiveUi:ReactiveWindow>
