@@ -1,0 +1,10 @@
+<reactiveUi:ReactiveUserControl
+    xmlns="https://github.com/avaloniaui"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:viewModels="using:Autopelago.ViewModels"
+    xmlns:reactiveUi="http://reactiveui.net"
+    x:Class="Autopelago.Views.SingleLandmarkRegionView"
+    x:DataType="viewModels:LandmarkRegionViewModel"
+    x:TypeArguments="viewModels:LandmarkRegionViewModel"
+    x:Name="ThisSingleLandmarkRegionView">
+</reactiveUi:ReactiveUserControl>

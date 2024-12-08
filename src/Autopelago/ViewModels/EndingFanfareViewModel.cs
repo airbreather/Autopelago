@@ -1,8 +1,5 @@
 using System.Reactive;
 using System.Reactive.Disposables;
-using System.Reactive.Linq;
-
-using Avalonia.ReactiveUI;
 
 using ReactiveUI;
 
@@ -14,14 +11,10 @@ public sealed class EndingFanfareViewModel : ViewModelBase, IDisposable
 
     public EndingFanfareViewModel()
     {
-        _disposables.Add(Frames);
-        _disposables.Add(Observable.Interval(TimeSpan.FromMilliseconds(500), AvaloniaScheduler.Instance)
-            .Subscribe(_ => Frames.NextFrame())
-        );
+        MoonCommaThe.DisposeWith(_disposables);
     }
 
-    public BitmapPair Frames { get; } =
-        LandmarkRegionViewModel.ReadFrames(GameDefinitions.Instance.GoalRegion.Key).Saturated;
+    public LandmarkRegionViewModel MoonCommaThe { get; } = new("moon_comma_the");
 
     public void Dispose()
     {

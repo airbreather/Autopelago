@@ -43,6 +43,13 @@ public struct SmallBitArray
         get => _bits != UInt128.Zero;
     }
 
+    public void SetAll(bool value)
+    {
+        _bits = value
+            ? (UInt128.One << _length) - UInt128.One
+            : UInt128.Zero;
+    }
+
     public void Clear()
     {
         _bits = UInt128.Zero;

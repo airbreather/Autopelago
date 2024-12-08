@@ -5,7 +5,7 @@
     xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
     xmlns:reactiveUi="http://reactiveui.net"
     xmlns:viewModels="using:Autopelago.ViewModels"
-    xmlns:views="clr-namespace:Autopelago.Views"
+    xmlns:views="using:Autopelago.Views"
     Classes="GamerFont"
     mc:Ignorable="d" d:DesignWidth="800" d:DesignHeight="450"
     x:Class="Autopelago.Views.EndingFanfareView"
@@ -21,7 +21,7 @@
             <TextBlock FontSize="40">
                 u win.
             </TextBlock>
-            <views:BitmapPairView Height="30" Width="30" ViewModel="{Binding Frames, Mode=OneTime}" />
+            <views:SingleLandmarkRegionView Height="30" Width="30" ViewModel="{Binding MoonCommaThe}" />
         </StackPanel>
 
         <Button Grid.Row="2"
