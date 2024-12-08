@@ -22,7 +22,7 @@
                     Command="{Binding ClosePaneCommand}">
                 <materialIcons:MaterialIcon Width="14" Height="14" Kind="Close" />
             </Button>
-            <TextBlock HorizontalAlignment="Center">Choose Your Avatar</TextBlock>
+            <TextBlock FontSize="12" HorizontalAlignment="Center">Personalize Your Rat!</TextBlock>
         </DockPanel>
 
         <UniformGrid Margin="5" Grid.Row="1" Columns="3" Rows="1">
@@ -84,17 +84,19 @@
             </UniformGrid.Styles>
             <Button Classes="rat" HorizontalAlignment="Stretch" Classes.chosen="{Binding IsPlayer1}"
                     Command="{Binding ChoosePlayerTokenCommand}" CommandParameter="{x:Static viewModels:PlayerTokenKind.Player1}">
-                <Image Source="avares://Autopelago/Assets/Images/pack_rat.webp" />
+                <Image x:Name="Player1Image" Source="{Binding Player1}" />
             </Button>
             <Button Classes="rat" HorizontalAlignment="Stretch" Classes.chosen="{Binding IsPlayer2}"
                     Command="{Binding ChoosePlayerTokenCommand}" CommandParameter="{x:Static viewModels:PlayerTokenKind.Player2}">
-                <Image Source="avares://Autopelago/Assets/Images/player2.webp" />
+                <Image x:Name="Player2Image" Source="{Binding Player2}" />
             </Button>
             <Button Classes="rat" HorizontalAlignment="Stretch" Classes.chosen="{Binding IsPlayer4}"
                     Command="{Binding ChoosePlayerTokenCommand}" CommandParameter="{x:Static viewModels:PlayerTokenKind.Player4}">
-                <Image Source="avares://Autopelago/Assets/Images/player4.webp" />
+                <Image x:Name="Player4Image" Source="{Binding Player4}" />
             </Button>
         </UniformGrid>
+        <ColorView Grid.Row="2" Grid.Column="0" HorizontalAlignment="Stretch"
+                   Color="{Binding Color}" IsAlphaEnabled="False" />
     </Grid>
 
 </reactiveUi:ReactiveUserControl>
