@@ -48,11 +48,14 @@ public sealed record Settings
     public PlayerTokenKind PlayerToken { get; init; }
 
     [JsonIgnore]
-    public Color PlayerTokenColor { get; init; } = Color.Parse("#382E26");
+    public Color PlayerTokenColor { get; set; } = Color.Parse("#382E26");
 
     public uint PlayerTokenColorNum
     {
         get => PlayerTokenColor.ToUInt32();
-        init => PlayerTokenColor = Color.FromUInt32(value);
+
+        // set, not init, to work around some variation of:
+        // https://github.com/dotnet/runtime/issues/84484
+        set => PlayerTokenColor = Color.FromUInt32(value);
     }
 }
