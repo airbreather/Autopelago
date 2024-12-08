@@ -4,6 +4,7 @@
     xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
     xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
     xmlns:reactiveUi="http://reactiveui.net"
+    xmlns:my="using:Autopelago"
     xmlns:viewModels="using:Autopelago.ViewModels"
     xmlns:materialIcons="using:Material.Icons.Avalonia"
     Classes="GamerFont"
@@ -16,7 +17,7 @@
         <viewModels:PlayerTokenViewModel />
     </Design.DataContext>
 
-    <Grid RowDefinitions="Auto,Auto,Auto">
+    <Grid RowDefinitions="Auto,Auto,Auto,Auto">
         <DockPanel>
             <Button DockPanel.Dock="Right" Padding="0" HorizontalAlignment="Right" VerticalAlignment="Top"
                     Command="{Binding ClosePaneCommand}">
@@ -25,7 +26,10 @@
             <TextBlock FontSize="12" HorizontalAlignment="Center">Personalize Your Rat!</TextBlock>
         </DockPanel>
 
-        <UniformGrid Margin="5" Grid.Row="1" Columns="3" Rows="1">
+        <Button Margin="5" Grid.Row="1" HorizontalAlignment="Stretch"
+                Content="Reset to Default" Command="{Binding ResetCommand}" />
+
+        <UniformGrid Margin="5" Grid.Row="2" Columns="3" Rows="1">
             <UniformGrid.Styles>
                 <Style Selector="Button.rat">
                     <Setter Property="BorderBrush" Value="Black" />
@@ -83,20 +87,20 @@
                 </Style>
             </UniformGrid.Styles>
             <Button Classes="rat" HorizontalAlignment="Stretch" Classes.chosen="{Binding IsPlayer1}"
-                    Command="{Binding ChoosePlayerTokenCommand}" CommandParameter="{x:Static viewModels:PlayerTokenKind.Player1}">
+                    Command="{Binding ChoosePlayerTokenCommand}" CommandParameter="{x:Static my:PlayerTokenKind.Player1}">
                 <Image x:Name="Player1Image" Source="{Binding Player1}" />
             </Button>
             <Button Classes="rat" HorizontalAlignment="Stretch" Classes.chosen="{Binding IsPlayer2}"
-                    Command="{Binding ChoosePlayerTokenCommand}" CommandParameter="{x:Static viewModels:PlayerTokenKind.Player2}">
+                    Command="{Binding ChoosePlayerTokenCommand}" CommandParameter="{x:Static my:PlayerTokenKind.Player2}">
                 <Image x:Name="Player2Image" Source="{Binding Player2}" />
             </Button>
             <Button Classes="rat" HorizontalAlignment="Stretch" Classes.chosen="{Binding IsPlayer4}"
-                    Command="{Binding ChoosePlayerTokenCommand}" CommandParameter="{x:Static viewModels:PlayerTokenKind.Player4}">
+                    Command="{Binding ChoosePlayerTokenCommand}" CommandParameter="{x:Static my:PlayerTokenKind.Player4}">
                 <Image x:Name="Player4Image" Source="{Binding Player4}" />
             </Button>
         </UniformGrid>
-        <ColorView Grid.Row="2" Grid.Column="0" HorizontalAlignment="Stretch"
-                   Color="{Binding Color}" IsAlphaEnabled="False" />
+        <ColorView Margin="5" Grid.Row="3" HorizontalAlignment="Stretch"
+                   Color="{Binding Color}" IsAlphaEnabled="False" IsAlphaVisible="False" />
     </Grid>
 
 </reactiveUi:ReactiveUserControl>
