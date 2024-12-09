@@ -645,7 +645,7 @@ public sealed partial class Game
         int startledMod = 0;
         foreach (ItemDefinitionModel newItem in newItems)
         {
-            recalculateAccess |= GameDefinitions.Instance.ProgressionItemNames.Contains(newItem.Name);
+            recalculateAccess |= GameDefinitions.Instance.ProgressionItemNames.Contains(newItem.Name) || newItem.RatCount > 0;
 
             // "confidence" takes place right away: it could apply to another item in the batch.
             bool addConfidence = false;
