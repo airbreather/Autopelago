@@ -120,7 +120,7 @@ public sealed class GameStateObservableProvider
         using IDisposable unregisterUpdatePacketHandler = await packets.RegisterHandlerAsync(updatePacketHandler);
 
         using PlayLoopRunner playLoopRunner = new(gameAndContext.Game, gameAndContext.Context, packets, Settings, _timeProvider);
-        Task runPlayLoopTask = playLoopRunner.RunPlayLoopAsync(Paused, cancellationToken)
+        Task runPlayLoopTask = playLoopRunner.RunPlayLoopAsync(_paused, cancellationToken)
             .ContinueWith(t =>
             {
                 if (t.IsFaulted)

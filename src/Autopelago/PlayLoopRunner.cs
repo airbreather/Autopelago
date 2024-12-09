@@ -4,6 +4,7 @@ using System.Diagnostics;
 using System.Reactive.Disposables;
 using System.Reactive.Linq;
 using System.Reactive.Subjects;
+using System.Runtime.InteropServices;
 
 namespace Autopelago;
 
@@ -54,14 +55,22 @@ public sealed class PlayLoopRunner : IDisposable
 
     public IObservable<Game> GameUpdates { get; }
 
-    public async Task RunPlayLoopAsync(IObservable<bool> pauseUnpause, CancellationToken cancellationToken)
+    public async Task RunPlayLoopAsync(BehaviorSubject<bool> pausedSubject, CancellationToken cancellationToken)
     {
-        CancellationTokenSource pauseUnpauseCts = new();
-        using IDisposable _ = pauseUnpause.Subscribe(_ =>
+        PauseUnpause pauseUnpause = new()
         {
-            CancellationTokenSource oldPauseUnpauseCts = pauseUnpauseCts;
-            pauseUnpauseCts = new();
-            oldPauseUnpauseCts.Cancel();
+            Paused = pausedSubject.Value,
+            CancellationTokenSource = new(),
+        };
+        using IDisposable _ = pausedSubject.Subscribe(paused =>
+        {
+            PauseUnpause oldPauseUnpause = pauseUnpause;
+            pauseUnpause = new()
+            {
+                Paused = paused,
+                CancellationTokenSource = new(),
+            };
+            oldPauseUnpause.CancellationTokenSource.Cancel();
         });
 
         Game game = _gameUpdates.Value;
@@ -78,7 +87,15 @@ public sealed class PlayLoopRunner : IDisposable
                 long dueTime = _timeProvider.GetTimestamp() + ((long)(nextFullInterval.TotalSeconds * _timeProvider.TimestampFrequency));
                 while (_timeProvider.GetTimestamp() < dueTime)
                 {
-                    using CancellationTokenSource pauseOrCancel = CancellationTokenSource.CreateLinkedTokenSource(pauseUnpauseCts.Token, cancellationToken);
+                    PauseUnpause localPauseUnpause = pauseUnpause;
+                    long waitStart = _timeProvider.GetTimestamp();
+                    if (await localPauseUnpause.WaitUntilUnpausedAsync(cancellationToken))
+                    {
+                        dueTime += _timeProvider.GetTimestamp() - waitStart;
+                        continue;
+                    }
+
+                    using CancellationTokenSource pauseOrCancel = CancellationTokenSource.CreateLinkedTokenSource(localPauseUnpause.CancellationTokenSource.Token, cancellationToken);
                     try
                     {
                         await Task.Delay(remaining, _timeProvider, pauseOrCancel.Token);
@@ -86,15 +103,11 @@ public sealed class PlayLoopRunner : IDisposable
                     catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested)
                     {
                         // user clicked Pause
-                        long waitStart = _timeProvider.GetTimestamp();
-                        TaskCompletionSource cancelTcs = new(TaskCreationOptions.RunContinuationsAsynchronously);
-                        await using CancellationTokenRegistration reg = pauseUnpauseCts.Token.Register(() => cancelTcs.TrySetResult());
-                        await cancelTcs.Task.WaitAsync(cancellationToken);
-                        dueTime += _timeProvider.GetTimestamp() - waitStart;
                     }
                 }
             }
 
+            await pauseUnpause.WaitUntilUnpausedAsync(cancellationToken);
             prevStartTimestamp = _timeProvider.GetTimestamp();
             int prevCheckedLocationsCount = game.CheckedLocations.Count;
             nextFullInterval = NextInterval();
@@ -169,5 +182,26 @@ public sealed class PlayLoopRunner : IDisposable
         double rangeSeconds = (double)(_settings.MaxStepSeconds - _settings.MinStepSeconds);
         double baseInterval = (double)_settings.MinStepSeconds + (rangeSeconds * Random.Shared.NextDouble());
         return TimeSpan.FromSeconds(baseInterval);
+    }
+}
+
+[StructLayout(LayoutKind.Auto)]
+file readonly record struct PauseUnpause
+{
+    public required bool Paused { get; init; }
+
+    public required CancellationTokenSource CancellationTokenSource { get; init; }
+
+    public async ValueTask<bool> WaitUntilUnpausedAsync(CancellationToken cancellationToken = default)
+    {
+        if (!Paused)
+        {
+            return false;
+        }
+
+        TaskCompletionSource cancelTcs = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        await using CancellationTokenRegistration reg = CancellationTokenSource.Token.Register(() => cancelTcs.TrySetResult());
+        await cancelTcs.Task.WaitAsync(cancellationToken);
+        return true;
     }
 }
