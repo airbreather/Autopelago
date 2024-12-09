@@ -1,7 +1,5 @@
 ﻿using System.Text.Json.Serialization;
 
-using Autopelago.ViewModels;
-
 using Avalonia.Media;
 
 namespace Autopelago;
