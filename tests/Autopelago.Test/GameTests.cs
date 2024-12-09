@@ -23,9 +23,9 @@ public sealed class GameTests
 
     private static readonly RegionDefinitionModel s_beforePrawnStars = GameDefinitions.Instance.AllRegions["before_prawn_stars"];
 
-    private static readonly ItemDefinitionModel s_pizzaRat = GameDefinitions.Instance.ProgressionItems["pizza_rat"];
+    private static readonly ItemDefinitionModel s_pizzaRat = GameDefinitions.Instance.ProgressionItemsByItemKey["pizza_rat"];
 
-    private static readonly ItemDefinitionModel s_premiumCanOfPrawnFood = GameDefinitions.Instance.ProgressionItems["premium_can_of_prawn_food"];
+    private static readonly ItemDefinitionModel s_premiumCanOfPrawnFood = GameDefinitions.Instance.ProgressionItemsByItemKey["premium_can_of_prawn_food"];
 
     private static readonly Prng.State s_highRolls = EnsureSeedProducesInitialD20Sequence("ZcuBXfRkZixzx/eQAL1UiHpMG3kLbaDksoajUfxCis8="u8, [20, 20, 20, 20, 20, 20, 20, 20, 20, 20, 20]);
 
@@ -185,30 +185,28 @@ public sealed class GameTests
     }
 
     [Test]
-    public void PositiveEnergyFactorShouldGiveFreeMovement()
+    public void PositiveEnergyFactorShouldGiveExtraMovement()
     {
-        // with an "energy factor" of 5, you can make up to a total of 6 checks in two rounds before
-        // needing to spend any actions to move, if you are lucky enough.
         Game game = new(s_lowRolls);
+        game.InitializeCheckedLocations([
+            s_basketball,
+            GameDefinitions.Instance.LocationsByName["Prawn Stars"],
+        ]);
         game.ReceiveItems([
             s_singleAuraItems["energized"],
-            .. Enumerable.Repeat(s_singleAuraItems["lucky"], 9),
+            .. Enumerable.Repeat(s_normalRat, 5),
+            s_premiumCanOfPrawnFood,
+            GameDefinitions.Instance.ItemsByName["Pie Rat"],
         ]);
+        game.AddPriorityLocation(GameDefinitions.Instance.LocationsByName["Pirate Bake Sale"]);
 
-        game.Advance();
-        Assert.That(game.CheckedLocations, Has.Count.EqualTo(3));
+        for (int i = 0; i < 5; i++)
+        {
+            game.PrngState = s_lowRolls;
+            game.Advance();
+        }
 
-        game.Advance();
-        Assert.That(game.CheckedLocations, Has.Count.EqualTo(6));
-
-        // the energy factor wears off after that, though. in fact, the next round, there's only
-        // enough actions to do "move, check, move".
-        game.Advance();
-        Assert.That(game.CheckedLocations, Has.Count.EqualTo(7));
-
-        // one more round: "check, move, check"
-        game.Advance();
-        Assert.That(game.CheckedLocations, Has.Count.EqualTo(9));
+        Assert.That(game.CurrentLocation.Name, Is.EqualTo("Pirate Bake Sale"));
     }
 
     [Test]
@@ -376,7 +374,7 @@ public sealed class GameTests
         Game game = new(s_lowRolls);
 
         // give it all randomized items except the last one.
-        ItemDefinitionModel finalRandomizedItem = GameDefinitions.Instance.ProgressionItems["mongoose_in_a_combat_spacecraft"];
+        ItemDefinitionModel finalRandomizedItem = GameDefinitions.Instance.ProgressionItemsByItemKey["mongoose_in_a_combat_spacecraft"];
         game.ReceiveItems([
             .. GameDefinitions.Instance.LocationsByKey.Values
                 .Where(l => l is { RewardIsFixed: false, UnrandomizedItem: not null })
@@ -391,7 +389,7 @@ public sealed class GameTests
         {
             game.Advance();
             Assert.That(game.TargetLocation.Key.RegionKey, Is.EqualTo(GameDefinitions.Instance.StartRegion.Key));
-            game.ArbitrarilyModifyState(g => g.PrngState, s_lowRolls);
+            game.PrngState = s_lowRolls;
         }
 
         // now give it that last randomized item and see it shoot for the moon all the way through.
@@ -400,7 +398,7 @@ public sealed class GameTests
         int advancesSoFar = 0;
         while (!game.IsCompleted)
         {
-            game.ArbitrarilyModifyState(g => g.PrngState, s_highRolls);
+            game.PrngState = s_highRolls;
             game.Advance();
             Assert.That(game.TargetLocation.Region, Is.InstanceOf<LandmarkRegionDefinitionModel>());
             foreach (LocationDefinitionModel checkedLocation in game.CheckedLocations.Order)
@@ -425,7 +423,7 @@ public sealed class GameTests
         Assert.That(game.TargetLocation.Key, Is.EqualTo(new LocationKey { RegionKey = "Menu", N = 0 }));
 
         // prioritize Prawn Stars
-        game.AddPriorityLocation(prawnStars);
+        Assert.That(game.AddPriorityLocation(prawnStars), Is.EqualTo(AddPriorityLocationResult.AddedUnreachable));
         game.Advance();
 
         // should NOT be targeting Prawn Stars now, because we can't reach it out the gate.
@@ -435,7 +433,8 @@ public sealed class GameTests
         game = new(s_lowRolls);
         game.InitializeCheckedLocations([s_basketball]);
         game.InitializeReceivedItems([.. Enumerable.Range(0, 5).Select(_ => s_normalRat), s_premiumCanOfPrawnFood]);
-        game.AddPriorityLocation(prawnStars);
+        Assert.That(game.AddPriorityLocation(prawnStars), Is.EqualTo(AddPriorityLocationResult.AddedReachable));
+        Assert.That(game.AddPriorityLocation(prawnStars), Is.EqualTo(AddPriorityLocationResult.AlreadyPrioritized));
 
         game.Advance();
 
@@ -451,7 +450,7 @@ public sealed class GameTests
         Assert.That(game.PriorityLocations, Is.EqualTo(new[] { prawnStars }));
 
         // now roll natural 20s.
-        game.ArbitrarilyModifyState(g => g.PrngState, s_highRolls);
+        game.PrngState = s_highRolls;
         game.Advance();
 
         Assert.That(game.PriorityLocations, Is.Empty);
@@ -577,7 +576,7 @@ public sealed class GameTests
         for (int i = 0; i < 3; i++)
         {
             game.Advance();
-            game.ArbitrarilyModifyState(g => g.PrngState, s_lowRolls);
+            game.PrngState = s_lowRolls;
         }
 
         Assert.That(game.CurrentLocation, Is.EqualTo(s_basketball));
@@ -586,7 +585,7 @@ public sealed class GameTests
     [Test]
     public void LongMovesShouldBeAccelerated()
     {
-        if (s_startRegion.Locations.Length < 25)
+        if (s_startRegion.Locations.Length < 9)
         {
             Assert.Inconclusive("This test is particularly sensitive to changes in the number of locations in the start region. Please re-evaluate.");
         }
@@ -594,19 +593,17 @@ public sealed class GameTests
         Game game = new(s_highRolls);
         game.InitializeReceivedItems(Enumerable.Repeat(s_normalRat, 5));
         game.InitializeCheckedLocations(s_startRegion.Locations);
-        game.ArbitrarilyModifyState(g => g.CurrentLocation, GameDefinitions.Instance.StartLocation);
-        game.ArbitrarilyModifyState(g => g.TargetLocation, s_basketball);
+        game.AddPriorityLocation(s_basketball);
 
-        game.ReceiveItems([s_singleAuraItems["energized"]]);
         game.Advance();
         Assert.Multiple(() =>
         {
             Assert.That(
                 game.PreviousStepMovementLog.Select(v => v.PreviousLocation),
-                Is.EqualTo(s_startRegion.Locations[..24]));
+                Is.EqualTo(s_startRegion.Locations[..6]));
             Assert.That(
                 game.PreviousStepMovementLog.Select(v => v.CurrentLocation),
-                Is.EqualTo(s_startRegion.Locations[1..25]));
+                Is.EqualTo(s_startRegion.Locations[1..7]));
             Assert.That(
                 game.CurrentLocation,
                 Is.EqualTo(game.PreviousStepMovementLog[^1].CurrentLocation));

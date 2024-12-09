@@ -54,7 +54,7 @@ public sealed record LocationVector
     public required LocationDefinitionModel CurrentLocation { get; init; }
 }
 
-public sealed class Game
+public sealed partial class Game
 {
     private readonly Lock? _lock;
 
@@ -71,13 +71,11 @@ public sealed class Game
 
     private readonly List<LocationVector> _movementLog = [];
 
+    private readonly Queue<LocationDefinitionModel> _pathToTarget = [];
+
     private int _actionBalanceAfterPreviousStep;
 
     private bool _initializedAuraData;
-
-    private RouteCalculator? _routeCalculator;
-
-    private IEnumerator<LocationDefinitionModel>? _targetLocationPathEnumerator;
 
     private FrozenDictionary<ArchipelagoItemFlags, FrozenSet<LocationKey>>? _spoilerData;
 
@@ -88,6 +86,9 @@ public sealed class Game
 
     public Game(Prng.State prngState, GameInstrumentation? instrumentation)
     {
+        _hardLockedRegions.Remove(GameDefinitions.Instance.StartRegion.Key);
+        _softLockedRegions.Remove(GameDefinitions.Instance.StartRegion.Key);
+
         _prngState = prngState;
         _instrumentation = instrumentation;
         _lock = instrumentation is null ? new() : null;
@@ -207,14 +208,13 @@ public sealed class Game
     }
 
     private Prng.State _prngState;
-    public Prng.State PrngState { get => _prngState; private set => _prngState = value; }
+    public Prng.State PrngState { get => _prngState; set => _prngState = value; }
 
     public bool HasStarted { get; private set; }
 
     public bool IsCompleted => CurrentLocation == GameDefinitions.Instance.GoalLocation;
 
-    public int PermanentRollModifier => GetPermanentRollModifier(RatCount);
-    public static int GetPermanentRollModifier(int ratCount)
+    private static int GetPermanentRollModifier(int ratCount)
     {
         // diminishing returns
         int rolling = 0;
@@ -258,7 +258,7 @@ public sealed class Game
     {
         return checked((sbyte)(
             d20 +
-            PermanentRollModifier +
+            GetPermanentRollModifier(RatCount) +
             mercy +
             (multi * -5) +
             (hasUnlucky ? -5 : 0) +
@@ -340,22 +340,22 @@ public sealed class Game
     public AddPriorityLocationResult? AddPriorityLocation(LocationDefinitionModel toPrioritize)
     {
         using Lock.Scope _ = EnterLockScope();
+        EnsureStarted();
         if (_priorityLocations.Contains(toPrioritize))
         {
             return AddPriorityLocationResult.AlreadyPrioritized;
         }
 
         _priorityLocations.Add(toPrioritize);
-        return _routeCalculator?.CanReach(toPrioritize) switch
-        {
-            false => AddPriorityLocationResult.AddedUnreachable,
-            _ => AddPriorityLocationResult.AddedReachable,
-        };
+        return _hardLockedRegions.Contains(toPrioritize.Key.RegionKey)
+            ? AddPriorityLocationResult.AddedUnreachable
+            : AddPriorityLocationResult.AddedReachable;
     }
 
     public LocationDefinitionModel? RemovePriorityLocation(string locationName)
     {
         using Lock.Scope _ = EnterLockScope();
+        EnsureStarted();
         int index = _priorityLocations.FindIndex(
             l => l.Name.Equals(locationName, StringComparison.InvariantCultureIgnoreCase));
         if (index < 0)
@@ -368,11 +368,11 @@ public sealed class Game
         return removed;
     }
 
-    public IEnumerable<LocationDefinitionModel> CalculateRoute(LocationDefinitionModel fromLocation, LocationDefinitionModel toLocation)
+    public List<LocationDefinitionModel> CalculateRoute(LocationDefinitionModel fromLocation, LocationDefinitionModel toLocation)
     {
         using Lock.Scope _ = EnterLockScope();
         EnsureStarted();
-        return _routeCalculator!.GetPath(fromLocation, toLocation) ?? [];
+        return GetPath(fromLocation, toLocation);
     }
 
     public void EnsureStarted()
@@ -396,8 +396,8 @@ public sealed class Game
             .GroupBy(l => l.UnrandomizedItem!.ArchipelagoFlags, l => l.Key)
             .ToFrozenDictionary(grp => grp.Key, grp => grp.ToFrozenSet());
         _initializedAuraData = true;
-        _routeCalculator = new(this);
         HasStarted = true;
+        RecalculateClearable();
     }
 
     public void Advance()
@@ -417,6 +417,7 @@ public sealed class Game
         _movementLog.Clear();
         bool bumpMercyModifierForNextTime = false;
         bool isFirstCheck = true;
+        bool confirmedTargetLocation = false;
         int actionBalance = 3 + _actionBalanceAfterPreviousStep;
         switch (FoodFactor)
         {
@@ -431,6 +432,11 @@ public sealed class Game
                 break;
         }
 
+        // positive EnergyFactor lets the player make up to 2x as much distance in a single round of
+        // (only) movement. in the past, this was uncapped, which basically meant that the player
+        // would often teleport great distances, which was against the spirit of the whole thing.
+        int energyBank = actionBalance;
+
         if (DistractionCounter > 0)
         {
             // being startled takes priority over a distraction. you just saw a ghost, you're not
@@ -444,21 +450,18 @@ public sealed class Game
         }
 
         int multi = 0;
-
-        // "Startled" has its own separate code to figure out the route to take.
-        using IEnumerator<LocationDefinitionModel>? startledPath = actionBalance > 0 && StartledCounter > 0
-            ? _routeCalculator!.GetStartledPath(CurrentLocation).GetEnumerator()
-            : null;
         while (actionBalance > 0 && !IsCompleted)
         {
             --actionBalance;
 
             // changing your route takes an action unless you're startled.
-            if (UpdateTargetLocation() && TargetLocationReason != TargetLocationReason.Startled)
+            if (!confirmedTargetLocation && UpdateTargetLocation() && TargetLocationReason != TargetLocationReason.Startled)
             {
+                confirmedTargetLocation = true;
                 continue;
             }
 
+            confirmedTargetLocation = true;
             bool moved = false;
             if (CurrentLocation != TargetLocation)
             {
@@ -469,8 +472,9 @@ public sealed class Game
                         EnergyFactor += 1;
                         break;
 
-                    case > 0:
+                    case > 0 when energyBank > 0:
                         ++actionBalance;
+                        --energyBank;
                         EnergyFactor -= 1;
                         break;
                 }
@@ -482,23 +486,11 @@ public sealed class Game
                 // same in dense areas.
                 for (int i = 0; i < 3 && CurrentLocation != TargetLocation; i++)
                 {
-                    if (startledPath?.MoveNext() == true)
+                    _movementLog.Add(new()
                     {
-                        _movementLog.Add(new()
-                        {
-                            PreviousLocation = CurrentLocation,
-                            CurrentLocation = startledPath.Current,
-                        });
-                    }
-                    else
-                    {
-                        _targetLocationPathEnumerator!.MoveNext();
-                        _movementLog.Add(new()
-                        {
-                            PreviousLocation = CurrentLocation,
-                            CurrentLocation = _targetLocationPathEnumerator.Current,
-                        });
-                    }
+                        PreviousLocation = CurrentLocation,
+                        CurrentLocation = _pathToTarget.Dequeue(),
+                    });
 
                     CurrentLocation = _movementLog[^1].CurrentLocation;
                     moved = true;
@@ -552,6 +544,7 @@ public sealed class Game
                 if (success)
                 {
                     _checkedLocations!.MarkChecked(CurrentLocation);
+                    _softLockedRegions.Remove(CurrentLocation.Key.RegionKey);
                     MercyModifier = 0;
                     bumpMercyModifierForNextTime = false;
                 }
@@ -627,6 +620,7 @@ public sealed class Game
         {
             _checkedLocations!.MarkChecked(location);
             keys.Add(location.Key);
+            _softLockedRegions.Remove(CurrentLocation.Key.RegionKey);
         }
 
         _priorityLocations.RemoveAll(l => keys.Contains(l.Key));
@@ -642,6 +636,7 @@ public sealed class Game
 
         using Lock.Scope _ = EnterLockScope();
         EnsureStarted();
+        bool recalculateAccess = false;
         int foodMod = 0;
         int energyFactorMod = 0;
         int luckFactorMod = 0;
@@ -650,6 +645,8 @@ public sealed class Game
         int startledMod = 0;
         foreach (ItemDefinitionModel newItem in newItems)
         {
+            recalculateAccess |= GameDefinitions.Instance.ProgressionItemNames.Contains(newItem.Name);
+
             // "confidence" takes place right away: it could apply to another item in the batch.
             bool addConfidence = false;
             bool subtractConfidence = false;
@@ -706,7 +703,7 @@ public sealed class Game
                     case "conspiratorial":
                         ArchipelagoItemFlags flags = aura == "smart" ? ArchipelagoItemFlags.LogicalAdvancement : ArchipelagoItemFlags.Trap;
                         FrozenSet<LocationDefinitionModel> toSkip = [.. _priorityPriorityLocations];
-                        if (_routeCalculator!.GetClosestLocationsWithItemFlags(CurrentLocation, flags).FirstOrDefault(l => !toSkip.Contains(l)) is { } loc)
+                        if (GetClosestLocationsWithItemFlags(CurrentLocation, flags).FirstOrDefault(l => !toSkip.Contains(l)) is { } loc)
                         {
                             _priorityPriorityLocations.Add(loc);
                         }
@@ -744,68 +741,11 @@ public sealed class Game
         // there and wait for too many turns in a row. same concept applies to Distracted.
         StartledCounter = Math.Min(StartledCounter, 3);
         DistractionCounter = Math.Min(DistractionCounter, 3);
-    }
 
-    private bool UpdateTargetLocation()
-    {
-        LocationDefinitionModel prevTargetLocation = TargetLocation;
-        TargetLocation = BestTargetLocation(out TargetLocationReason bestTargetLocationReason);
-        TargetLocationReason = bestTargetLocationReason;
-        _targetLocationPathEnumerator ??= _routeCalculator!.GetPath(CurrentLocation, TargetLocation)!.GetEnumerator();
-        if (TargetLocation == prevTargetLocation)
+        if (recalculateAccess)
         {
-            return false;
+            RecalculateClearable();
         }
-
-        using IEnumerator<LocationDefinitionModel> _ = _targetLocationPathEnumerator;
-        _targetLocationPathEnumerator = _routeCalculator!.GetPath(CurrentLocation, TargetLocation)!.GetEnumerator();
-        return true;
-    }
-
-    private LocationDefinitionModel BestTargetLocation(out TargetLocationReason reason)
-    {
-        if (StartledCounter > 0)
-        {
-            reason = TargetLocationReason.Startled;
-            return GameDefinitions.Instance.StartLocation;
-        }
-
-        if (_routeCalculator!.CanReachGoal() && _routeCalculator!.GetPath(CurrentLocation, GameDefinitions.Instance.GoalLocation) is { } path0)
-        {
-            reason = TargetLocationReason.GoMode;
-            return path0.Prepend(CurrentLocation).FirstOrDefault(p => p.Region is LandmarkRegionDefinitionModel && !CheckedLocations[p]) ?? GameDefinitions.Instance.GoalLocation;
-        }
-
-        foreach (LocationDefinitionModel priorityPriorityLocation in _priorityPriorityLocations)
-        {
-            if (_routeCalculator!.GetPath(CurrentLocation, priorityPriorityLocation) is not { } path)
-            {
-                continue;
-            }
-
-            reason = TargetLocationReason.PriorityPriority;
-            return path.Prepend(CurrentLocation).FirstOrDefault(p => p.Region is LandmarkRegionDefinitionModel && !CheckedLocations[p]) ?? priorityPriorityLocation;
-        }
-
-        foreach (LocationDefinitionModel priorityLocation in _priorityLocations)
-        {
-            if (_routeCalculator!.GetPath(CurrentLocation, priorityLocation) is not { } path)
-            {
-                continue;
-            }
-
-            reason = TargetLocationReason.Priority;
-            return path.Prepend(CurrentLocation).FirstOrDefault(p => p.Region is LandmarkRegionDefinitionModel && !CheckedLocations[p]) ?? priorityLocation;
-        }
-
-        if (_routeCalculator!.FindClosestUncheckedLocation(CurrentLocation) is { } closestReachableUnchecked)
-        {
-            reason = TargetLocationReason.ClosestReachableUnchecked;
-            return closestReachableUnchecked;
-        }
-
-        reason = TargetLocationReason.NowhereUsefulToMove;
-        return CurrentLocation;
     }
 
     private Lock.Scope EnterLockScope()

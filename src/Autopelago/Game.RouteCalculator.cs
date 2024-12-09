@@ -1,60 +1,107 @@
 using System.Collections.Frozen;
 using System.Collections.Immutable;
-using System.Collections.ObjectModel;
 using System.Runtime.InteropServices;
 
 namespace Autopelago;
 
-public sealed class RouteCalculator
+public sealed partial class Game
 {
-    private static readonly FrozenSet<ItemDefinitionModel> s_progressionItems = [.. GameDefinitions.Instance.ProgressionItems.Values];
+    private readonly HashSet<string> _hardLockedRegions = [.. GameDefinitions.Instance.AllRegions.Keys];
 
-    private readonly Game _game;
+    private readonly HashSet<string> _softLockedRegions = [.. GameDefinitions.Instance.AllRegions.Keys];
 
-    private readonly FrozenDictionary<string, FillerRegionDefinitionModel> _fillerRegions = GameDefinitions.Instance.FillerRegions;
-
-    private readonly FrozenDictionary<string, LandmarkRegionDefinitionModel> _landmarkRegions = GameDefinitions.Instance.LandmarkRegions;
-
-    private readonly FrozenDictionary<string, ImmutableArray<(RegionDefinitionModel Region, Direction Direction)>> _connectedRegions = GameDefinitions.Instance.ConnectedRegions;
-
-    private readonly HashSet<string> _clearableLandmarks = new(GameDefinitions.Instance.LandmarkRegions.Count);
-
-    private readonly HashSet<string> _checkableRegions = new(GameDefinitions.Instance.AllRegions.Count) { GameDefinitions.Instance.StartRegion.Key };
-
-    private int _lastReceivedItemsCount;
-
-    private int _lastCheckedLocationsCount;
-
-    public RouteCalculator(Game game)
+    private bool _everCalculatedPathToTarget;
+    private bool UpdateTargetLocation()
     {
-        _game = game;
+        LocationKey prevTargetLocation = TargetLocation.Key;
+        TargetLocationReason = MoveBestTargetLocation();
+        if (TargetLocation.Key == prevTargetLocation && _everCalculatedPathToTarget)
+        {
+            return false;
+        }
+
+        _pathToTarget.Clear();
+        foreach (LocationDefinitionModel l in GetPath(CurrentLocation, TargetLocation))
+        {
+            _pathToTarget.Enqueue(l);
+        }
+
+        _everCalculatedPathToTarget = true;
+        return TargetLocation.Key != prevTargetLocation;
     }
 
-    public bool CanReach(LocationDefinitionModel location)
+    private TargetLocationReason MoveBestTargetLocation()
     {
-        // TODO: optimize. this isn't speed-critical, and I'd rather release quickly.
-        return GetPath(GameDefinitions.Instance.StartLocation, location) is not null;
+        if (StartledCounter > 0)
+        {
+            TargetLocation = GameDefinitions.Instance.StartLocation;
+            return TargetLocationReason.Startled;
+        }
+
+        TargetLocationReason result = default;
+        LocationDefinitionModel? ultimateTargetLocation = null;
+        if (!_hardLockedRegions.Contains(GameDefinitions.Instance.GoalRegion.Key))
+        {
+            ultimateTargetLocation = GameDefinitions.Instance.GoalLocation;
+            result = TargetLocationReason.GoMode;
+        }
+
+        if (ultimateTargetLocation is null)
+        {
+            foreach (LocationDefinitionModel l in _priorityPriorityLocations)
+            {
+                if (!_hardLockedRegions.Contains(l.Key.RegionKey))
+                {
+                    ultimateTargetLocation = l;
+                    result = TargetLocationReason.PriorityPriority;
+                    break;
+                }
+            }
+
+            if (ultimateTargetLocation is null)
+            {
+                foreach (LocationDefinitionModel l in _priorityLocations)
+                {
+                    if (!_hardLockedRegions.Contains(l.Key.RegionKey))
+                    {
+                        ultimateTargetLocation = l;
+                        result = TargetLocationReason.Priority;
+                        break;
+                    }
+                }
+            }
+        }
+
+        if (ultimateTargetLocation is not null)
+        {
+            TargetLocation = GetPath(CurrentLocation, ultimateTargetLocation)
+                .Where(l => !GameDefinitions.Instance.FillerRegions.ContainsKey(l.Key.RegionKey))
+                .Prepend(CurrentLocation)
+                .FirstOrDefault(l => GameDefinitions.Instance.LandmarkRegions.ContainsKey(l.Key.RegionKey) && !_checkedLocations![l.Key])
+                ?? ultimateTargetLocation;
+            return result;
+        }
+
+        if (FindClosestUncheckedLocation(CurrentLocation) is { } closestReachableUnchecked)
+        {
+            TargetLocation = closestReachableUnchecked;
+            return TargetLocationReason.ClosestReachableUnchecked;
+        }
+
+        TargetLocation = CurrentLocation;
+        return TargetLocationReason.NowhereUsefulToMove;
     }
 
     private readonly PriorityQueue<(RegionDefinitionModel Region, Direction Direction), int> _pq = new(GameDefinitions.Instance.AllRegions.Count);
     private readonly HashSet<string> _visitedRegions = new(GameDefinitions.Instance.AllRegions.Count);
 
-    public LocationDefinitionModel? FindClosestUncheckedLocation(LocationDefinitionModel currentLocation)
+    private LocationDefinitionModel? FindClosestUncheckedLocation(LocationDefinitionModel currentLocation)
     {
-        return
-            FindClosestUncheckedLocation(currentLocation, false) ??
-            FindClosestUncheckedLocation(currentLocation, true);
-    }
-
-    private LocationDefinitionModel? FindClosestUncheckedLocation(LocationDefinitionModel currentLocation, bool relyOnMercyFactor)
-    {
-        RecalculateAccessibility();
-
         // quick short-circuit: often, this will get called while we're already standing on exactly
         // the closest unchecked location (perhaps because we failed at clearing it). let's optimize
         // for that case here, even though it should not affect correctness.
-        SmallBitArray checkedLocationsInCurrentRegion = _game.CheckedLocations[currentLocation.Key.RegionKey];
-        if (!checkedLocationsInCurrentRegion[currentLocation.Key.N] && (relyOnMercyFactor || _checkableRegions.Contains(currentLocation.Key.RegionKey)))
+        SmallBitArray checkedLocationsInCurrentRegion = _checkedLocations![currentLocation.Key.RegionKey];
+        if (!checkedLocationsInCurrentRegion[currentLocation.Key.N])
         {
             return currentLocation;
         }
@@ -70,7 +117,7 @@ public sealed class RouteCalculator
         // closest unchecked location will either be in that same filler region, one of the (up to)
         // two adjacent landmark regions, or far enough away that there's an entire filler region's
         // worth of checked locations between the two.
-        if (!checkedLocationsInCurrentRegion.HasAllSet && (relyOnMercyFactor || _checkableRegions.Contains(currentLocation.Key.RegionKey)))
+        if (!checkedLocationsInCurrentRegion.HasAllSet)
         {
             // this won't necessarily be the final answer, but it will be a solid upper bound.
             for (int i = currentLocation.Key.N + 1; i < checkedLocationsInCurrentRegion.Length; i++)
@@ -122,11 +169,9 @@ public sealed class RouteCalculator
         _pq.Clear();
         _visitedRegions.Clear();
         _visitedRegions.Add(currentLocation.Key.RegionKey);
-        foreach ((RegionDefinitionModel connectedRegion, Direction direction) in _connectedRegions[currentLocation.Key.RegionKey])
+        foreach ((RegionDefinitionModel connectedRegion, Direction direction) in GameDefinitions.Instance.ConnectedRegions[currentLocation.Key.RegionKey])
         {
-            if (_fillerRegions.ContainsKey(connectedRegion.Key) ||
-                _game.CheckedLocations[connectedRegion.Key][0] ||
-                _clearableLandmarks.Contains(connectedRegion.Key))
+            if (!_hardLockedRegions.Contains(connectedRegion.Key))
             {
                 _visitedRegions.Add(connectedRegion.Key);
                 _pq.Enqueue((connectedRegion, direction), direction switch
@@ -145,8 +190,8 @@ public sealed class RouteCalculator
             }
 
             (RegionDefinitionModel connectedRegion, Direction direction) = tup;
-            SmallBitArray checkedLocationsInConnectedRegion = _game.CheckedLocations[connectedRegion.Key];
-            if (!checkedLocationsInConnectedRegion.HasAllSet && (relyOnMercyFactor || _checkableRegions.Contains(connectedRegion.Key)))
+            SmallBitArray checkedLocationsInConnectedRegion = _checkedLocations![connectedRegion.Key];
+            if (!checkedLocationsInConnectedRegion.HasAllSet)
             {
                 if (direction == Direction.TowardsGoal)
                 {
@@ -181,7 +226,7 @@ public sealed class RouteCalculator
             // the exact details of how far we will need to walk through the current region to get
             // to the next one will depend on the direction we face when entering the next region.
             ++extraDistance;
-            foreach ((RegionDefinitionModel nextConnectedRegion, Direction nextDirection) in _connectedRegions[connectedRegion.Key])
+            foreach ((RegionDefinitionModel nextConnectedRegion, Direction nextDirection) in GameDefinitions.Instance.ConnectedRegions[connectedRegion.Key])
             {
                 // at the time of writing, we technically don't need this to be conditional: only
                 // landmark regions can connect to more than one other region in a given direction,
@@ -207,9 +252,7 @@ public sealed class RouteCalculator
                 }
 
                 if (_visitedRegions.Add(nextConnectedRegion.Key) &&
-                    (_fillerRegions.ContainsKey(nextConnectedRegion.Key) ||
-                     _game.CheckedLocations[nextConnectedRegion.Key][0] ||
-                     _clearableLandmarks.Contains(nextConnectedRegion.Key)))
+                    !_hardLockedRegions.Contains(nextConnectedRegion.Key))
                 {
                     _pq.Enqueue((nextConnectedRegion, nextDirection), nextExtraDistance);
                 }
@@ -221,112 +264,52 @@ public sealed class RouteCalculator
             : null;
     }
 
-    private readonly Queue<ImmutableList<(RegionDefinitionModel Region, Direction? Direction)>> _qqq = new(GameDefinitions.Instance.AllRegions.Count);
-    public IEnumerable<LocationDefinitionModel> GetStartledPath(LocationDefinitionModel currentLocation)
-    {
-        RecalculateAccessibility();
-
-        if (currentLocation.Key.RegionKey == GameDefinitions.Instance.StartRegion.Key)
-        {
-            // trivial.
-            for (int i = currentLocation.Key.N - 1; i >= 0; --i)
-            {
-                yield return GameDefinitions.Instance.LocationsByKey[currentLocation.Key with { N = i }];
-            }
-
-            yield break;
-        }
-
-        // here's the thing about "Startled". I think it's technically possible that a simple BFS by
-        // just the regions (regardless of the number of locations in each) is not guaranteed to
-        // yield a shortest path to the start. but that doesn't matter. the player is spooked. they
-        // aren't necessarily making the best decisions at the time either. so I'm going to cheat:
-        // find a shortest path by number of regions, then yield the locations along that path. it's
-        // absolutely not worth the extra complication to do any better than that.
-        _qqq.Clear();
-        _visitedRegions.Clear();
-        _qqq.Enqueue([(currentLocation.Region, null)]);
-        _visitedRegions.Add(currentLocation.Key.RegionKey);
-        while (_qqq.TryDequeue(out ImmutableList<(RegionDefinitionModel Region, Direction? Direction)>? regionPath))
-        {
-            foreach ((RegionDefinitionModel connectedRegion, Direction direction) in _connectedRegions[regionPath[^1].Region.Key])
-            {
-                if (!_fillerRegions.ContainsKey(connectedRegion.Key) &&
-                    !_game.CheckedLocations[connectedRegion.Key][0])
-                {
-                    continue;
-                }
-
-                if (connectedRegion.Key == GameDefinitions.Instance.StartRegion.Key)
-                {
-                    // found it. follow the path from the current region. it starts off a little
-                    // complicated because we probably start in the middle.
-                    ImmutableArray<LocationDefinitionModel> startRegionLocations = currentLocation.Region.Locations;
-                    switch (regionPath.ElementAtOrDefault(1).Direction ?? direction)
-                    {
-                        case Direction.TowardsGoal:
-                            for (int i = currentLocation.Key.N + 1; i < startRegionLocations.Length; i++)
-                            {
-                                yield return startRegionLocations[i];
-                            }
-
-                            break;
-
-                        default:
-                            for (int i = currentLocation.Key.N - 1; i >= 0; --i)
-                            {
-                                yield return startRegionLocations[i];
-                            }
-
-                            break;
-                    }
-
-                    // OK, now just yield all the full regions all the way through.
-                    foreach ((RegionDefinitionModel nextRegion, Direction? nextDirection) in regionPath.Skip(1).Append((connectedRegion, direction)))
-                    {
-                        foreach (LocationDefinitionModel loc in nextDirection == Direction.TowardsGoal ? nextRegion.Locations : nextRegion.Locations.Reverse())
-                        {
-                            yield return loc;
-                        }
-                    }
-
-                    yield break;
-                }
-
-                if (_visitedRegions.Add(connectedRegion.Key))
-                {
-                    _qqq.Enqueue(regionPath.Add((connectedRegion, direction)));
-                }
-            }
-        }
-    }
-
-    public bool CanReachGoal()
-    {
-        return _clearableLandmarks.Contains(GameDefinitions.Instance.GoalRegion.Key);
-    }
-
     private readonly Queue<(RegionDefinitionModel Region, Direction Direction)> _q = new(GameDefinitions.Instance.AllRegions.Count);
     private readonly List<LocationDefinitionModel> _pathLocations = new(GameDefinitions.Instance.LocationsByName.Count);
     private readonly Dictionary<string, (RegionDefinitionModel Region, Direction Direction)> _prev = new(GameDefinitions.Instance.LocationsByName.Count);
     private readonly Stack<(RegionDefinitionModel Region, Direction Direction)> _regionStack = new(GameDefinitions.Instance.AllRegions.Count);
-    private IEnumerable<LocationDefinitionModel>? _prevPath;
+    private readonly List<LocationDefinitionModel> _prevPath = [];
     private LocationKey _currentLocationForPrevPath = LocationKey.For("nonexistent");
     private LocationKey _targetLocationForPrevPath = LocationKey.For("nonexistent");
+    private bool _startledForPrevPath;
 
-    public IEnumerable<LocationDefinitionModel>? GetPath(LocationDefinitionModel currentLocation, LocationDefinitionModel targetLocation)
+    private List<LocationDefinitionModel> GetPath(LocationDefinitionModel currentLocation, LocationDefinitionModel targetLocation)
     {
-        if ((_currentLocationForPrevPath, _targetLocationForPrevPath) != (currentLocation.Key, targetLocation.Key))
+        bool startled = TargetLocationReason == TargetLocationReason.Startled;
+        if ((_currentLocationForPrevPath, _targetLocationForPrevPath, _startledForPrevPath) != (currentLocation.Key, targetLocation.Key, startled))
         {
+            if (_currentLocationForPrevPath == currentLocation.Key && _startledForPrevPath == startled && _prevPath.Count > 0)
+            {
+                for (int i = _prevPath.Count - 1; i >= 0; --i)
+                {
+                    if (_prevPath[i].Key == targetLocation.Key)
+                    {
+                        _targetLocationForPrevPath = targetLocation.Key;
+                        _startledForPrevPath = startled;
+                        CollectionsMarshal.SetCount(_prevPath, i + 1);
+                        return _prevPath;
+                    }
+                }
+            }
+
             _currentLocationForPrevPath = currentLocation.Key;
             _targetLocationForPrevPath = targetLocation.Key;
-            _prevPath = GetPathCore(currentLocation, targetLocation);
+            _startledForPrevPath = startled;
+            _prevPath.Clear();
+            if (GetPathCore(currentLocation, targetLocation, startled) is { } path)
+            {
+                _prevPath.AddRange(path);
+            }
         }
 
         return _prevPath;
     }
-    private IEnumerable<LocationDefinitionModel>? GetPathCore(LocationDefinitionModel currentLocation, LocationDefinitionModel targetLocation)
+
+    private IEnumerable<LocationDefinitionModel>? GetPathCore(LocationDefinitionModel currentLocation, LocationDefinitionModel targetLocation, bool startled)
     {
+        HashSet<string> lockedRegions = startled
+            ? _softLockedRegions
+            : _hardLockedRegions;
         if (currentLocation.Key.RegionKey == targetLocation.Key.RegionKey)
         {
             LocationKey currentLocationKey = currentLocation.Key;
@@ -346,21 +329,16 @@ public sealed class RouteCalculator
                 .Select(n => currentRegionLocations[currentLocationKey.N + n]);
         }
 
-        RecalculateAccessibility();
-        if (targetLocation.Region is LandmarkRegionDefinitionModel landmark &&
-            !_game.CheckedLocations[landmark.Key][0] &&
-            !_clearableLandmarks.Contains(landmark.Key))
+        if (lockedRegions.Contains(targetLocation.Key.RegionKey))
         {
             return null;
         }
 
         _q.Clear();
         _prev.Clear();
-        foreach ((RegionDefinitionModel connectedRegion, Direction direction) in _connectedRegions[currentLocation.Region.Key])
+        foreach ((RegionDefinitionModel connectedRegion, Direction direction) in GameDefinitions.Instance.ConnectedRegions[currentLocation.Region.Key])
         {
-            if (_fillerRegions.ContainsKey(connectedRegion.Key) ||
-                _game.CheckedLocations[connectedRegion.Key][0] ||
-                _clearableLandmarks.Contains(connectedRegion.Key))
+            if (!lockedRegions.Contains(connectedRegion.Key))
             {
                 _q.Enqueue((connectedRegion, direction));
                 _prev.Add(connectedRegion.Key, (currentLocation.Region, direction));
@@ -372,13 +350,11 @@ public sealed class RouteCalculator
             (RegionDefinitionModel connectedRegion, _) = tup;
             if (connectedRegion.Key != targetLocation.Key.RegionKey)
             {
-                foreach ((RegionDefinitionModel nextConnectedRegion, Direction nextDirection) in _connectedRegions[connectedRegion.Key])
+                foreach ((RegionDefinitionModel nextConnectedRegion, Direction nextDirection) in GameDefinitions.Instance.ConnectedRegions[connectedRegion.Key])
                 {
                     if (nextConnectedRegion.Key != currentLocation.Key.RegionKey &&
                         _prev.TryAdd(nextConnectedRegion.Key, (connectedRegion, nextDirection)) &&
-                        (_fillerRegions.ContainsKey(nextConnectedRegion.Key) ||
-                         _game.CheckedLocations[nextConnectedRegion.Key][0] ||
-                         _clearableLandmarks.Contains(nextConnectedRegion.Key)))
+                        !lockedRegions.Contains(nextConnectedRegion.Key))
                     {
                         _q.Enqueue((nextConnectedRegion, nextDirection));
                     }
@@ -451,11 +427,9 @@ public sealed class RouteCalculator
     }
 
     private readonly Dictionary<string, SmallBitArray> _visitedLocations = GameDefinitions.Instance.AllRegions.Values.ToDictionary(r => r.Key, r => new SmallBitArray(r.Locations.Length));
-    public IEnumerable<LocationDefinitionModel> GetClosestLocationsWithItemFlags(LocationDefinitionModel currentLocation, ArchipelagoItemFlags flags)
+    private IEnumerable<LocationDefinitionModel> GetClosestLocationsWithItemFlags(LocationDefinitionModel currentLocation, ArchipelagoItemFlags flags)
     {
-        RecalculateAccessibility();
-
-        FrozenSet<LocationKey> spoilerData = _game.SpoilerData[flags];
+        FrozenSet<LocationKey> spoilerData = _spoilerData![flags];
 
         // TODO: optimize this, it's getting late.
         foreach (string regionKey in _visitedLocations.Keys)
@@ -468,17 +442,15 @@ public sealed class RouteCalculator
         CollectionsMarshal.GetValueRefOrAddDefault(_visitedLocations, currentLocation.Key.RegionKey, out _)[currentLocation.Key.N] = true;
         while (q.TryDequeue(out LocationDefinitionModel? loc))
         {
-            if (spoilerData.Contains(loc.Key) && !_game.CheckedLocations[loc.Key])
+            if (spoilerData.Contains(loc.Key) && !_checkedLocations![loc.Key])
             {
                 yield return loc;
             }
 
             foreach ((LocationDefinitionModel connectedLocation, _) in GameDefinitions.Instance.ConnectedLocations[loc.Key])
             {
-                if (!_visitedLocations[connectedLocation.Key.RegionKey][connectedLocation.Key.N] &&
-                    (_fillerRegions.ContainsKey(connectedLocation.Key.RegionKey) ||
-                     _game.CheckedLocations[connectedLocation.Key.RegionKey][0] ||
-                     _clearableLandmarks.Contains(connectedLocation.Key.RegionKey)))
+                if (!(_visitedLocations[connectedLocation.Key.RegionKey][connectedLocation.Key.N] ||
+                      _hardLockedRegions.Contains(connectedLocation.Key.RegionKey)))
                 {
                     CollectionsMarshal.GetValueRefOrAddDefault(_visitedLocations, connectedLocation.Key.RegionKey, out _)[connectedLocation.Key.N] = true;
                     q.Enqueue(connectedLocation);
@@ -487,60 +459,44 @@ public sealed class RouteCalculator
         }
     }
 
-    private void RecalculateAccessibility()
-    {
-        while (_lastReceivedItemsCount < _game.ReceivedItems.Count)
-        {
-            if (s_progressionItems.Contains(_game.ReceivedItems[_lastReceivedItemsCount++]))
-            {
-                RecalculateClearable();
-                break;
-            }
-        }
-
-        _lastReceivedItemsCount = _game.ReceivedItems.Count;
-
-        ReadOnlyCollection<LocationDefinitionModel> checkedLocationsOrder = _game.CheckedLocations.Order;
-        while (_lastCheckedLocationsCount < _game.CheckedLocations.Count)
-        {
-            _clearableLandmarks.Remove(checkedLocationsOrder[_lastCheckedLocationsCount++].Key.RegionKey);
-        }
-    }
-
     private readonly Queue<(RegionDefinitionModel Region, IReadOnlyList<ItemDefinitionModel> ReceivedItems)> _qq = new(GameDefinitions.Instance.AllRegions.Count);
     private void RecalculateClearable()
     {
-        int rollModifier = _game.PermanentRollModifier;
         _qq.Clear();
         _visitedRegions.Clear();
 
-        _qq.Enqueue((GameDefinitions.Instance.StartRegion, _game.ReceivedItems));
+        _qq.Enqueue((GameDefinitions.Instance.StartRegion, _receivedItems!));
         while (_qq.TryDequeue(out var tup))
         {
             (RegionDefinitionModel region, IReadOnlyList<ItemDefinitionModel> receivedItems) = tup;
             _visitedRegions.Add(region.Key);
-            if (20 + rollModifier >= region.AbilityCheckDC)
-            {
-                _checkableRegions.Add(region.Key);
-            }
 
-            if (_landmarkRegions.TryGetValue(region.Key, out LandmarkRegionDefinitionModel? landmark) &&
-                !_game.CheckedLocations[region.Key][0] &&
-                !_clearableLandmarks.Contains(region.Key))
+            if (GameDefinitions.Instance.LandmarkRegions.TryGetValue(region.Key, out LandmarkRegionDefinitionModel? landmark))
             {
+                if (_checkedLocations![region.Key][0])
+                {
+                    _hardLockedRegions.Remove(region.Key);
+                    _softLockedRegions.Remove(region.Key);
+                }
+
                 if (!landmark.Requirement.Satisfied(receivedItems))
                 {
                     continue;
                 }
 
-                _clearableLandmarks.Add(region.Key);
+                _hardLockedRegions.Remove(region.Key);
                 if (landmark.Locations[0].RewardIsFixed)
                 {
                     receivedItems = [.. receivedItems, landmark.Locations[0].UnrandomizedItem!];
                 }
             }
+            else
+            {
+                _hardLockedRegions.Remove(region.Key);
+                _softLockedRegions.Remove(region.Key);
+            }
 
-            foreach ((RegionDefinitionModel connectedRegion, _) in _connectedRegions[region.Key])
+            foreach ((RegionDefinitionModel connectedRegion, _) in GameDefinitions.Instance.ConnectedRegions[region.Key])
             {
                 if (_visitedRegions.Add(connectedRegion.Key))
                 {
