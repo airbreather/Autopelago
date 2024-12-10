@@ -9,6 +9,7 @@
 
   <ItemGroup>
     <PackageReference Include="TUnit" Version="*-*" />
+    <PackageReference Include="Microsoft.Testing.Extensions.TrxReport" Version="*" />
 
     <ProjectReference Include="$(SolutionDir)src/Autopelago/Autopelago.csproj" />
   </ItemGroup>
