@@ -39,7 +39,7 @@ jobs:
           fi
 
       - name: Run tests
-        run: dotnet run -c Release --no-build --project tests/**/*.csproj -- --output Detailed --report-trx
+        run: dotnet run -c Release --no-build --project tests/**/*.csproj -- --output Detailed --report-trx --results-directory TestResults
 
       - name: Upload test results
         uses: actions/upload-artifact@v4
