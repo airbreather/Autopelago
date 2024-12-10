@@ -8,11 +8,7 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="Microsoft.NET.Test.Sdk" Version="*" />
-    <PackageReference Include="NUnit" Version="*" />
-    <PackageReference Include="NUnit3TestAdapter" Version="*" />
-    <PackageReference Include="NUnit.Analyzers" Version="*" PrivateAssets="all" />
-    <PackageReference Include="coverlet.collector" Version="*" PrivateAssets="all" />
+    <PackageReference Include="TUnit" Version="*-*" />
 
     <ProjectReference Include="$(SolutionDir)src/Autopelago/Autopelago.csproj" />
   </ItemGroup>

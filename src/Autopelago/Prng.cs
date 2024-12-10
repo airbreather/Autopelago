@@ -154,6 +154,9 @@ public static class Prng
     [JsonConverter(typeof(Converter))]
     public struct State
     {
+        // 43 payload, 1 padding
+        private const byte Base64Length = 44;
+
         [SuppressMessage("Style", "IDE0044: Add readonly modifier", Justification = "https://github.com/dotnet/roslyn/issues/69143")]
         private ulong _element0;
 
@@ -199,11 +202,14 @@ public static class Prng
             return h.ToHashCode();
         }
 
+        public override string ToString()
+        {
+            ReadOnlySpan<byte> src = MemoryMarshal.AsBytes(MemoryMarshal.CreateReadOnlySpan(in this, 1));
+            return Convert.ToBase64String(src);
+        }
+
         public sealed class Converter : JsonConverter<State>
         {
-            // 43 payload, 1 padding
-            private const byte Base64Length = 44;
-
             public override State Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
             {
                 // reader MUST be validated, because we make very strong assumptions about data that
