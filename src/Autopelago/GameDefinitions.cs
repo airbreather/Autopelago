@@ -661,7 +661,7 @@ public sealed record LocationDefinitionModel
 
 public abstract record GameRequirement
 {
-    public virtual bool Satisfied(IReadOnlyCollection<ItemDefinitionModel> receivedItems)
+    public virtual bool Satisfied(IReadOnlyList<ItemDefinitionModel> receivedItems)
     {
         return true;
     }
@@ -698,7 +698,7 @@ public sealed record AllChildrenGameRequirement : GameRequirement
         return new() { Children = [.. ((YamlSequenceNode)node).Select(GameRequirement.DeserializeFrom)] };
     }
 
-    public override bool Satisfied(IReadOnlyCollection<ItemDefinitionModel> receivedItems)
+    public override bool Satisfied(IReadOnlyList<ItemDefinitionModel> receivedItems)
     {
         foreach (GameRequirement child in Children)
         {
@@ -741,7 +741,7 @@ public sealed record AnyChildGameRequirement : GameRequirement
         return new() { Children = [.. ((YamlSequenceNode)node).Select(GameRequirement.DeserializeFrom)] };
     }
 
-    public override bool Satisfied(IReadOnlyCollection<ItemDefinitionModel> receivedItems)
+    public override bool Satisfied(IReadOnlyList<ItemDefinitionModel> receivedItems)
     {
         foreach (GameRequirement child in Children)
         {
@@ -784,7 +784,7 @@ public sealed record AnyTwoChildrenGameRequirement : GameRequirement
         return new() { Children = [.. ((YamlSequenceNode)node).Select(GameRequirement.DeserializeFrom)] };
     }
 
-    public override bool Satisfied(IReadOnlyCollection<ItemDefinitionModel> receivedItems)
+    public override bool Satisfied(IReadOnlyList<ItemDefinitionModel> receivedItems)
     {
         bool one = false;
         foreach (GameRequirement child in Children)
@@ -835,9 +835,24 @@ public sealed record RatCountRequirement : GameRequirement
         return new() { RatCount = node.To<int>() };
     }
 
-    public override bool Satisfied(IReadOnlyCollection<ItemDefinitionModel> receivedItems)
+    public override bool Satisfied(IReadOnlyList<ItemDefinitionModel> receivedItems)
     {
-        return receivedItems.Sum(i => i.RatCount.GetValueOrDefault()) >= RatCount;
+        int stillNeeded = RatCount;
+        for (int i = 0; i < receivedItems.Count; i++)
+        {
+            if (receivedItems[i].RatCount is not (int ratCount and > 0))
+            {
+                continue;
+            }
+
+            stillNeeded -= ratCount;
+            if (stillNeeded <= 0)
+            {
+                return true;
+            }
+        }
+
+        return false;
     }
 }
 
@@ -850,9 +865,18 @@ public sealed record ReceivedItemRequirement : GameRequirement
         return new() { ItemKey = node.To<string>() };
     }
 
-    public override bool Satisfied(IReadOnlyCollection<ItemDefinitionModel> receivedItems)
+    public override bool Satisfied(IReadOnlyList<ItemDefinitionModel> receivedItems)
     {
-        return receivedItems.Contains(GameDefinitions.Instance.ProgressionItemsByItemKey[ItemKey]);
+        string itemName = GameDefinitions.Instance.ProgressionItemsByItemKey[ItemKey].Name;
+        for (int i = 0; i < receivedItems.Count; i++)
+        {
+            if (receivedItems[i].Name == itemName)
+            {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     public override void VisitItemKeys(Action<string> onItemKey)

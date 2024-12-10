@@ -198,7 +198,7 @@ public sealed class GameTests
             s_premiumCanOfPrawnFood,
             GameDefinitions.Instance.ItemsByName["Pie Rat"],
         ]);
-        game.AddPriorityLocation(GameDefinitions.Instance.LocationsByName["Pirate Bake Sale"]);
+        game.AddPriorityLocation(GameDefinitions.Instance.LocationsByName["Pirate Bake Sale"].Key);
 
         for (int i = 0; i < 5; i++)
         {
@@ -423,7 +423,7 @@ public sealed class GameTests
         Assert.That(game.TargetLocation.Key, Is.EqualTo(new LocationKey { RegionKey = "Menu", N = 0 }));
 
         // prioritize Prawn Stars
-        Assert.That(game.AddPriorityLocation(prawnStars), Is.EqualTo(AddPriorityLocationResult.AddedUnreachable));
+        Assert.That(game.AddPriorityLocation(prawnStars.Key), Is.EqualTo(AddPriorityLocationResult.AddedUnreachable));
         game.Advance();
 
         // should NOT be targeting Prawn Stars now, because we can't reach it out the gate.
@@ -433,8 +433,8 @@ public sealed class GameTests
         game = new(s_lowRolls);
         game.InitializeCheckedLocations([s_basketball]);
         game.InitializeReceivedItems([.. Enumerable.Range(0, 5).Select(_ => s_normalRat), s_premiumCanOfPrawnFood]);
-        Assert.That(game.AddPriorityLocation(prawnStars), Is.EqualTo(AddPriorityLocationResult.AddedReachable));
-        Assert.That(game.AddPriorityLocation(prawnStars), Is.EqualTo(AddPriorityLocationResult.AlreadyPrioritized));
+        Assert.That(game.AddPriorityLocation(prawnStars.Key), Is.EqualTo(AddPriorityLocationResult.AddedReachable));
+        Assert.That(game.AddPriorityLocation(prawnStars.Key), Is.EqualTo(AddPriorityLocationResult.AlreadyPrioritized));
 
         game.Advance();
 
@@ -447,7 +447,7 @@ public sealed class GameTests
         game.Advance();
 
         // it should still be there, and it should still be our priority location.
-        Assert.That(game.PriorityLocations, Is.EqualTo(new[] { prawnStars }));
+        Assert.That(game.PriorityLocations, Is.EqualTo(new[] { prawnStars.Key }));
 
         // now roll natural 20s.
         game.PrngState = s_highRolls;
@@ -461,7 +461,7 @@ public sealed class GameTests
     {
         // force the first steps to move it towards the last reachable location in this region
         Game game = new(s_highRolls);
-        game.ArbitrarilyModifyState(g => g.PriorityLocations, new([GameDefinitions.Instance.StartRegion.Locations[^1]]));
+        game.ArbitrarilyModifyState(g => g.PriorityLocations, new([GameDefinitions.Instance.StartRegion.Locations[^1].Key]));
 
         game.Advance();
         LocationDefinitionModel middleLocation = game.CurrentLocation;
@@ -545,7 +545,7 @@ public sealed class GameTests
         game.ReceiveItems([s_singleAuraItems[aura]]);
         Assert.That(game.PriorityPriorityLocations, Is.EqualTo(new[]
         {
-            GameDefinitions.Instance.StartLocation,
+            GameDefinitions.Instance.StartLocation.Key,
         }));
 
         // if there's nothing else that we can reach, then we should NOT target the unreachable one
@@ -553,7 +553,7 @@ public sealed class GameTests
         game.ReceiveItems([s_singleAuraItems[aura]]);
         Assert.That(game.PriorityPriorityLocations, Is.EqualTo(new[]
         {
-            GameDefinitions.Instance.StartLocation,
+            GameDefinitions.Instance.StartLocation.Key,
         }));
 
         // #100: it also shouldn't re-prioritize the same location after it's been checked.
@@ -571,7 +571,7 @@ public sealed class GameTests
         game.InitializeReceivedItems(Enumerable.Repeat(s_normalRat, 5));
         game.ArbitrarilyModifyState(g => g.CurrentLocation, GameDefinitions.Instance.StartRegion.Locations[^1]);
         game.ArbitrarilyModifyState(g => g.TargetLocation, GameDefinitions.Instance.StartRegion.Locations[^1]);
-        game.ArbitrarilyModifyState(g => g.PriorityLocations, new([s_beforePrawnStars.Locations[1]]));
+        game.ArbitrarilyModifyState(g => g.PriorityLocations, new([s_beforePrawnStars.Locations[1].Key]));
 
         for (int i = 0; i < 3; i++)
         {
@@ -593,7 +593,7 @@ public sealed class GameTests
         Game game = new(s_highRolls);
         game.InitializeReceivedItems(Enumerable.Repeat(s_normalRat, 5));
         game.InitializeCheckedLocations(s_startRegion.Locations);
-        game.AddPriorityLocation(s_basketball);
+        game.AddPriorityLocation(s_basketball.Key);
 
         game.Advance();
         Assert.Multiple(() =>
@@ -619,7 +619,7 @@ public sealed class GameTests
         game.InitializeCheckedLocations([lastLocationBeforeBasketball]);
         game.ArbitrarilyModifyState(g => g.CurrentLocation, lastLocationBeforeBasketball);
         game.ArbitrarilyModifyState(g => g.TargetLocation, lastLocationBeforeBasketball);
-        game.ArbitrarilyModifyState(g => g.PriorityLocations, new([s_basketball, lastLocationBeforeBasketball]));
+        game.ArbitrarilyModifyState(g => g.PriorityLocations, new([s_basketball.Key, lastLocationBeforeBasketball.Key]));
         game.Advance();
 
         Assert.That(game.TargetLocation, Is.Not.EqualTo(lastLocationBeforeBasketball));

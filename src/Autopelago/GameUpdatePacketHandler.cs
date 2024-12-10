@@ -109,9 +109,9 @@ public sealed class GameUpdatePacketHandler : ArchipelagoPacketHandler, IDisposa
         List<ArchipelagoPacketModel> newPackets = [];
         if (priorityPriorityLocationCountBefore != game.PriorityPriorityLocations.Count)
         {
-            foreach (LocationDefinitionModel newPriorityLocation in game.PriorityPriorityLocations.Skip(priorityPriorityLocationCountBefore))
+            foreach (LocationKey newPriorityLocation in game.PriorityPriorityLocations.Skip(priorityPriorityLocationCountBefore))
             {
-                newPackets.Add(new SayPacketModel { Text = s_newTargetPhrases[Random.Shared.Next(s_newTargetPhrases.Length)].Replace("{LOCATION}", newPriorityLocation.Name), });
+                newPackets.Add(new SayPacketModel { Text = s_newTargetPhrases[Random.Shared.Next(s_newTargetPhrases.Length)].Replace("{LOCATION}", GameDefinitions.Instance.LocationsByKey[newPriorityLocation].Name), });
             }
         }
 
@@ -216,7 +216,7 @@ public sealed class GameUpdatePacketHandler : ArchipelagoPacketHandler, IDisposa
             string loc = cmd["go ".Length..].Trim('"');
             if (GameDefinitions.Instance.LocationsByNameCaseInsensitive.TryGetValue(loc, out LocationDefinitionModel? toPrioritize))
             {
-                string message = _gameUpdates.Value.AddPriorityLocation(toPrioritize) switch
+                string message = _gameUpdates.Value.AddPriorityLocation(toPrioritize.Key) switch
                 {
                     AddPriorityLocationResult.AlreadyPrioritized => $"Hey, {probablyPlayerAlias}, just so you know, I already had '{toPrioritize.Name}' on my radar. I'll get there when I can, no worries!",
                     AddPriorityLocationResult.AddedUnreachable => $"I'll keep it in mind that '{toPrioritize.Name}' is important to you, '{probablyPlayerAlias}'. I can't get there just yet, though, so please be patient with me...",
@@ -237,12 +237,12 @@ public sealed class GameUpdatePacketHandler : ArchipelagoPacketHandler, IDisposa
         else if (cmd.StartsWith("stop ", StringComparison.OrdinalIgnoreCase))
         {
             string loc = cmd["stop ".Length..].Trim('"');
-            LocationDefinitionModel? removed = _gameUpdates.Value.RemovePriorityLocation(loc);
+            LocationKey? removedOrNull = _gameUpdates.Value.RemovePriorityLocation(loc);
             SayPacketModel say = new()
             {
-                Text = removed is null
-                    ? $"Um... excuse me, but... I don't see a '{loc}' to remove..."
-                    : $"Oh, OK. I'll stop trying to get to '{removed.Name}', {probablyPlayerAlias}.",
+                Text = removedOrNull is { } removed
+                    ? $"Oh, OK. I'll stop trying to get to '{GameDefinitions.Instance.LocationsByKey[removed].Name}', {probablyPlayerAlias}."
+                    : $"Um... excuse me, but... I don't see a '{loc}' to remove...",
             };
             await sender.SendPacketsAsync([say]);
         }

@@ -138,7 +138,7 @@ public static class DataCollector
                 }
             }
         }, cancelReports.Token);
-        Parallel.For(0, numSeeds * numRunsPerSeed, new ParallelOptions { CancellationToken = cancellationToken }, (ij, loopState) =>
+        Parallel.For(0, numSeeds * numRunsPerSeed, new() { CancellationToken = cancellationToken }, (ij, loopState) =>
         {
             if (loopState.ShouldExitCurrentIteration)
             {
@@ -182,7 +182,8 @@ public static class DataCollector
         {
         }
 
-        await outLocationAttempts.WriteLineAsync("SeedNumber,IterationNumber,SlotNumber,StepNumber,Region,N,AbilityCheckDC,RatCount,MercyModifier,HasLucky,HasUnlucky,HasStylish,Roll,Success");
+        StringBuilder sb = new("SeedNumber,IterationNumber,SlotNumber,StepNumber,Region,N,AbilityCheckDC,RatCount,MercyModifier,HasLucky,HasUnlucky,HasStylish,Roll,Success");
+        await outLocationAttempts.WriteLineAsync(sb, cancellationToken);
         for (int i = 0; i < numSeeds; i++)
         {
             for (int j = 0; j < numRunsPerSeed; j++)
@@ -191,7 +192,9 @@ public static class DataCollector
                 {
                     foreach (LocationAttemptTraceEvent l in locationAttempts[(i * numRunsPerSeed * numSlotsPerSeed) + (j * numSlotsPerSeed) + k])
                     {
-                        await outLocationAttempts.WriteLineAsync($"{i},{j},{k},{l.StepNumber},{l.Location.Key.RegionKey},{l.Location.Key.N},{l.AbilityCheckDC},{l.RatCount},{l.MercyModifier},{(l.HasLucky ? 1 : 0)},{(l.HasUnlucky ? 1 : 0)},{(l.HasStylish ? 1 : 0)},{l.D20},{(l.Success ? 1 : 0)}");
+                        sb.Clear();
+                        sb.Append($"{i},{j},{k},{l.StepNumber},{l.Location.Key.RegionKey},{l.Location.Key.N},{l.AbilityCheckDC},{l.RatCount},{l.MercyModifier},{(l.HasLucky ? 1 : 0)},{(l.HasUnlucky ? 1 : 0)},{(l.HasStylish ? 1 : 0)},{l.D20},{(l.Success ? 1 : 0)}");
+                        await outLocationAttempts.WriteLineAsync(sb, cancellationToken);
                     }
                 }
             }

@@ -6,9 +6,9 @@ namespace Autopelago;
 
 public sealed partial class Game
 {
-    private readonly HashSet<string> _hardLockedRegions = [.. GameDefinitions.Instance.AllRegions.Keys];
+    private readonly HashSet<string> _hardLockedRegions = new(ImmutableCollectionsMarshal.AsArray(GameDefinitions.Instance.AllRegions.Keys)!);
 
-    private readonly HashSet<string> _softLockedRegions = [.. GameDefinitions.Instance.AllRegions.Keys];
+    private readonly HashSet<string> _softLockedRegions = new(ImmutableCollectionsMarshal.AsArray(GameDefinitions.Instance.AllRegions.Keys)!);
 
     private bool _everCalculatedPathToTarget;
     private bool UpdateTargetLocation()
@@ -21,9 +21,17 @@ public sealed partial class Game
         }
 
         _pathToTarget.Clear();
+        bool first = true;
         foreach (LocationDefinitionModel l in GetPath(CurrentLocation, TargetLocation))
         {
-            _pathToTarget.Enqueue(l);
+            if (first)
+            {
+                first = false;
+            }
+            else
+            {
+                _pathToTarget.Enqueue(l);
+            }
         }
 
         _everCalculatedPathToTarget = true;
@@ -48,11 +56,11 @@ public sealed partial class Game
 
         if (ultimateTargetLocation is null)
         {
-            foreach (LocationDefinitionModel l in _priorityPriorityLocations)
+            foreach (LocationKey l in _priorityPriorityLocations)
             {
-                if (!_hardLockedRegions.Contains(l.Key.RegionKey))
+                if (!_hardLockedRegions.Contains(l.RegionKey))
                 {
-                    ultimateTargetLocation = l;
+                    ultimateTargetLocation = GameDefinitions.Instance.LocationsByKey[l];
                     result = TargetLocationReason.PriorityPriority;
                     break;
                 }
@@ -60,11 +68,11 @@ public sealed partial class Game
 
             if (ultimateTargetLocation is null)
             {
-                foreach (LocationDefinitionModel l in _priorityLocations)
+                foreach (LocationKey l in _priorityLocations)
                 {
-                    if (!_hardLockedRegions.Contains(l.Key.RegionKey))
+                    if (!_hardLockedRegions.Contains(l.RegionKey))
                     {
-                        ultimateTargetLocation = l;
+                        ultimateTargetLocation = GameDefinitions.Instance.LocationsByKey[l];
                         result = TargetLocationReason.Priority;
                         break;
                     }
@@ -74,11 +82,17 @@ public sealed partial class Game
 
         if (ultimateTargetLocation is not null)
         {
-            TargetLocation = GetPath(CurrentLocation, ultimateTargetLocation)
-                .Where(l => !GameDefinitions.Instance.FillerRegions.ContainsKey(l.Key.RegionKey))
-                .Prepend(CurrentLocation)
-                .FirstOrDefault(l => GameDefinitions.Instance.LandmarkRegions.ContainsKey(l.Key.RegionKey) && !_checkedLocations![l.Key])
-                ?? ultimateTargetLocation;
+            List<LocationDefinitionModel> path = GetPath(CurrentLocation, ultimateTargetLocation);
+            foreach (LocationDefinitionModel l in path)
+            {
+                if (GameDefinitions.Instance.LandmarkRegions.ContainsKey(l.Key.RegionKey) && !_checkedLocations![l.Key])
+                {
+                    TargetLocation = l;
+                    return result;
+                }
+            }
+
+            TargetLocation = ultimateTargetLocation;
             return result;
         }
 
@@ -266,9 +280,9 @@ public sealed partial class Game
 
     private readonly Queue<(RegionDefinitionModel Region, Direction Direction)> _q = new(GameDefinitions.Instance.AllRegions.Count);
     private readonly List<LocationDefinitionModel> _pathLocations = new(GameDefinitions.Instance.LocationsByName.Count);
-    private readonly Dictionary<string, (RegionDefinitionModel Region, Direction Direction)> _prev = new(GameDefinitions.Instance.LocationsByName.Count);
+    private readonly Dictionary<string, (RegionDefinitionModel Region, Direction Direction)> _prev = new(GameDefinitions.Instance.AllRegions.Count);
     private readonly Stack<(RegionDefinitionModel Region, Direction Direction)> _regionStack = new(GameDefinitions.Instance.AllRegions.Count);
-    private readonly List<LocationDefinitionModel> _prevPath = [];
+    private readonly List<LocationDefinitionModel> _prevPath = new(GameDefinitions.Instance.LocationsByName.Count);
     private LocationKey _currentLocationForPrevPath = LocationKey.For("nonexistent");
     private LocationKey _targetLocationForPrevPath = LocationKey.For("nonexistent");
     private bool _startledForPrevPath;
@@ -298,15 +312,16 @@ public sealed partial class Game
             _prevPath.Clear();
             if (GetPathCore(currentLocation, targetLocation, startled) is { } path)
             {
-                _prevPath.AddRange(path);
+                _prevPath.AddRange(CollectionsMarshal.AsSpan(path));
             }
         }
 
         return _prevPath;
     }
 
-    private IEnumerable<LocationDefinitionModel>? GetPathCore(LocationDefinitionModel currentLocation, LocationDefinitionModel targetLocation, bool startled)
+    private List<LocationDefinitionModel>? GetPathCore(LocationDefinitionModel currentLocation, LocationDefinitionModel targetLocation, bool startled)
     {
+        _pathLocations.Clear();
         HashSet<string> lockedRegions = startled
             ? _softLockedRegions
             : _hardLockedRegions;
@@ -315,18 +330,28 @@ public sealed partial class Game
             LocationKey currentLocationKey = currentLocation.Key;
             if (currentLocationKey.N == targetLocation.Key.N)
             {
-                return [targetLocation];
+                _pathLocations.Add(currentLocation);
+                _pathLocations.Add(targetLocation);
+                return _pathLocations;
             }
 
             ImmutableArray<LocationDefinitionModel> currentRegionLocations = currentLocation.Region.Locations;
             if (currentLocation.Key.N > targetLocation.Key.N)
             {
-                return Enumerable.Range(1, currentLocationKey.N - targetLocation.Key.N)
-                    .Select(n => currentRegionLocations[currentLocationKey.N - n]);
+                for (int i = currentLocationKey.N; i >= targetLocation.Key.N; --i)
+                {
+                    _pathLocations.Add(currentRegionLocations[i]);
+                }
+            }
+            else
+            {
+                for (int i = currentLocationKey.N; i <= targetLocation.Key.N; i++)
+                {
+                    _pathLocations.Add(currentRegionLocations[i]);
+                }
             }
 
-            return Enumerable.Range(1, targetLocation.Key.N - currentLocationKey.N)
-                .Select(n => currentRegionLocations[currentLocationKey.N + n]);
+            return _pathLocations;
         }
 
         if (lockedRegions.Contains(targetLocation.Key.RegionKey))
@@ -369,7 +394,6 @@ public sealed partial class Game
                 _regionStack.Push(tup);
             } while (_prev.TryGetValue(tup.Region.Key, out tup));
 
-            _pathLocations.Clear();
             while (_regionStack.TryPop(out tup))
             {
                 (RegionDefinitionModel nextRegion, Direction direction) = tup;
@@ -378,12 +402,12 @@ public sealed partial class Game
                     switch (direction)
                     {
                         case Direction.TowardsGoal:
-                            _pathLocations.AddRange(nextRegion.Locations.AsSpan((currentLocation.Key.N + 1)..));
+                            _pathLocations.AddRange(nextRegion.Locations.AsSpan(currentLocation.Key.N..));
                             break;
 
                         default:
                             int oldCount = _pathLocations.Count;
-                            _pathLocations.AddRange(nextRegion.Locations.AsSpan(..currentLocation.Key.N));
+                            _pathLocations.AddRange(nextRegion.Locations.AsSpan(..(currentLocation.Key.N + 1)));
                             _pathLocations.Reverse(oldCount, _pathLocations.Count - oldCount);
                             break;
                     }
@@ -408,26 +432,27 @@ public sealed partial class Game
                     switch (direction)
                     {
                         case Direction.TowardsGoal:
-                            _pathLocations.AddRange(nextRegion.Locations);
+                            _pathLocations.AddRange(nextRegion.Locations.AsSpan());
                             break;
 
                         default:
                             int oldCount = _pathLocations.Count;
-                            _pathLocations.AddRange(nextRegion.Locations);
+                            _pathLocations.AddRange(nextRegion.Locations.AsSpan());
                             _pathLocations.Reverse(oldCount, _pathLocations.Count - oldCount);
                             break;
                     }
                 }
             }
 
-            return _pathLocations.ToArray();
+            return _pathLocations;
         }
 
         return null;
     }
 
     private readonly Dictionary<string, SmallBitArray> _visitedLocations = GameDefinitions.Instance.AllRegions.Values.ToDictionary(r => r.Key, r => new SmallBitArray(r.Locations.Length));
-    private IEnumerable<LocationDefinitionModel> GetClosestLocationsWithItemFlags(LocationDefinitionModel currentLocation, ArchipelagoItemFlags flags)
+    private readonly Queue<LocationKey> _qqq = new(GameDefinitions.Instance.LocationsByName.Count);
+    private IEnumerable<LocationKey> GetClosestLocationsWithItemFlags(LocationKey currentLocation, ArchipelagoItemFlags flags)
     {
         FrozenSet<LocationKey> spoilerData = _spoilerData![flags];
 
@@ -437,23 +462,23 @@ public sealed partial class Game
             (CollectionsMarshal.GetValueRefOrNullRef(_visitedLocations, regionKey)).Clear();
         }
 
-        Queue<LocationDefinitionModel> q = [];
-        q.Enqueue(currentLocation);
-        CollectionsMarshal.GetValueRefOrAddDefault(_visitedLocations, currentLocation.Key.RegionKey, out _)[currentLocation.Key.N] = true;
-        while (q.TryDequeue(out LocationDefinitionModel? loc))
+        _qqq.Clear();
+        _qqq.Enqueue(currentLocation);
+        CollectionsMarshal.GetValueRefOrAddDefault(_visitedLocations, currentLocation.RegionKey, out _)[currentLocation.N] = true;
+        while (_qqq.TryDequeue(out LocationKey loc))
         {
-            if (spoilerData.Contains(loc.Key) && !_checkedLocations![loc.Key])
+            if (spoilerData.Contains(loc) && !_checkedLocations![loc])
             {
                 yield return loc;
             }
 
-            foreach ((LocationDefinitionModel connectedLocation, _) in GameDefinitions.Instance.ConnectedLocations[loc.Key])
+            foreach ((LocationDefinitionModel connectedLocation, _) in GameDefinitions.Instance.ConnectedLocations[loc])
             {
                 if (!(_visitedLocations[connectedLocation.Key.RegionKey][connectedLocation.Key.N] ||
                       _hardLockedRegions.Contains(connectedLocation.Key.RegionKey)))
                 {
                     CollectionsMarshal.GetValueRefOrAddDefault(_visitedLocations, connectedLocation.Key.RegionKey, out _)[connectedLocation.Key.N] = true;
-                    q.Enqueue(connectedLocation);
+                    _qqq.Enqueue(connectedLocation.Key);
                 }
             }
         }
@@ -479,16 +504,12 @@ public sealed partial class Game
                     _softLockedRegions.Remove(region.Key);
                 }
 
-                if (!landmark.Requirement.Satisfied(receivedItems))
+                if (!landmark.Requirement.Satisfied(receivedItems) && landmark.Key != GameDefinitions.Instance.GoalRegion.Key)
                 {
                     continue;
                 }
 
                 _hardLockedRegions.Remove(region.Key);
-                if (landmark.Locations[0].RewardIsFixed)
-                {
-                    receivedItems = [.. receivedItems, landmark.Locations[0].UnrandomizedItem!];
-                }
             }
             else
             {
