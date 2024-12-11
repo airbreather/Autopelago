@@ -79,30 +79,6 @@ public sealed partial class Game
 
     private FrozenDictionary<ArchipelagoItemFlags, FrozenSet<LocationKey>>? _spoilerData;
 
-    public Game(Prng.State prngState)
-        : this(prngState, null)
-    {
-    }
-
-    public Game(Prng.State prngState, GameInstrumentation? instrumentation)
-    {
-        _hardLockedRegions[GameDefinitions.Instance.StartRegion.N] = false;
-        _softLockedRegions[GameDefinitions.Instance.StartRegion.N] = false;
-
-        _prngState = prngState;
-        _instrumentation = instrumentation;
-        _lock = instrumentation is null ? new() : null;
-        _prevMovementLog.Add(new()
-        {
-            PreviousLocation = GameDefinitions.Instance.StartLocation,
-            CurrentLocation = GameDefinitions.Instance.StartLocation,
-        });
-        PreviousStepMovementLog = _prevMovementLog.AsReadOnly();
-        ReceivedItems = new(_receivedItemsOrder);
-        LocationIsChecked = new(_checkedLocations);
-        CheckedLocations = new(_checkedLocationsOrder);
-    }
-
     public ReadOnlyCollection<LocationVector> PreviousStepMovementLog { get; }
 
     public LocationKey CurrentLocation { get; private set; } = GameDefinitions.Instance.StartLocation;
@@ -280,8 +256,14 @@ public sealed partial class Game
 
         foreach (LocationKey location in checkedLocations)
         {
+            if (_checkedLocations[location.N])
+            {
+                continue;
+            }
+
             _checkedLocations[location.N] = true;
             _checkedLocationsOrder.Add(location);
+            --_regionUncheckedLocationsCount[GameDefinitions.Instance.RegionKey[location].N];
         }
 
         _checkedLocationsInitialized = true;
@@ -545,6 +527,7 @@ public sealed partial class Game
                 if (success)
                 {
                     _checkedLocations[CurrentLocation.N] = true;
+                    --_regionUncheckedLocationsCount[GameDefinitions.Instance.RegionKey[CurrentLocation].N];
                     _softLockedRegions[GameDefinitions.Instance.RegionKey[CurrentLocation].N] = false;
                     MercyModifier = 0;
                     bumpMercyModifierForNextTime = false;
@@ -619,9 +602,16 @@ public sealed partial class Game
         BitArray locationIsNewlyChecked = borrowed.Value;
         foreach (LocationKey location in newLocations)
         {
+            if (_checkedLocations[location.N])
+            {
+                continue;
+            }
+
             _checkedLocations[location.N] = true;
             locationIsNewlyChecked[location.N] = true;
-            _softLockedRegions[GameDefinitions.Instance.RegionKey[CurrentLocation].N] = false;
+            RegionKey region = GameDefinitions.Instance.RegionKey[location];
+            _softLockedRegions[region.N] = false;
+            --_regionUncheckedLocationsCount[region.N];
         }
 
         _priorityLocations.RemoveAll(l => locationIsNewlyChecked[l.N]);

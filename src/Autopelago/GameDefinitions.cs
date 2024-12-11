@@ -42,6 +42,8 @@ public sealed class GameDefinitions
 
     public required FrozenDictionary<ArchipelagoItemFlags, FrozenSet<LocationKey>> UnrandomizedSpoilerData { get; init; }
 
+    private byte LandmarkRegionCount { get; init; }
+
     public ref readonly ItemDefinitionModel this[ItemKey key] => ref AllItems.AsSpan()[key.N];
 
     public ref readonly LocationDefinitionModel this[LocationKey key] => ref AllLocations.AsSpan()[key.N];
@@ -52,6 +54,8 @@ public sealed class GameDefinitions
 
     public RegionKeyHelper RegionKey => new(AllLocations);
 
+    public RegionHelper Region => new(AllLocations, AllRegions);
+
     public RegionLocationKey StartRegionLocation => this[StartLocation].RegionLocationKey;
 
     public RegionLocationKey GoalRegionLocation => this[GoalLocation].RegionLocationKey;
@@ -59,6 +63,12 @@ public sealed class GameDefinitions
     public RegionKey StartRegion => StartRegionLocation.Region;
 
     public RegionKey GoalRegion => GoalRegionLocation.Region;
+
+    public bool TryGetLandmarkRegion(LocationKey key, out RegionKey region)
+    {
+        region = new() { N = (byte)key.N };
+        return key.N < LandmarkRegionCount;
+    }
 
     private static GameDefinitions LoadFromEmbeddedResource()
     {
@@ -90,9 +100,11 @@ public sealed class GameDefinitions
             UnrandomizedSpoilerData = regions.AllLocations
                 .GroupBy(l => items.AllItems[l.UnrandomizedItem.N].ArchipelagoFlags, l => l.Key)
                 .ToFrozenDictionary(grp => grp.Key, grp => grp.ToFrozenSet()),
+            LandmarkRegionCount = regions.AllRegions.First(l => l is not LandmarkRegionDefinitionModel).Key.N,
         };
     }
 
+    [StructLayout(LayoutKind.Auto)]
     public readonly struct RegionKeyHelper
     {
         private readonly ImmutableArray<LocationDefinitionModel> _allLocations;
@@ -103,6 +115,22 @@ public sealed class GameDefinitions
         }
 
         public RegionKey this[LocationKey key] => _allLocations[key.N].RegionLocationKey.Region;
+    }
+
+    [StructLayout(LayoutKind.Auto)]
+    public readonly struct RegionHelper
+    {
+        private readonly ImmutableArray<LocationDefinitionModel> _allLocations;
+
+        private readonly ImmutableArray<RegionDefinitionModel> _allRegions;
+
+        internal RegionHelper(ImmutableArray<LocationDefinitionModel> allLocations, ImmutableArray<RegionDefinitionModel> allRegions)
+        {
+            _allLocations = allLocations;
+            _allRegions = allRegions;
+        }
+
+        public ref readonly RegionDefinitionModel this[LocationKey key] => ref _allRegions.AsSpan()[_allLocations[key.N].RegionLocationKey.Region.N];
     }
 }
 
@@ -325,11 +353,36 @@ public readonly record struct ItemDefinitionModel
     }
 }
 
+public enum Direction : byte
+{
+    TowardsGoal,
+    TowardsStart,
+}
+
 public readonly struct Connected<T>
 {
-    public required ImmutableArray<T> Forward { get; init; }
+    public Connected(ImmutableArray<T> forward, ImmutableArray<T> backward)
+    {
+        Forward = forward;
+        Backward = backward;
+        All =
+        [
+            .. forward.Select(x => (x, Direction.TowardsGoal)),
+            .. backward.Select(x => (x, Direction.TowardsStart)),
+        ];
+    }
 
-    public required ImmutableArray<T> Backward { get; init; }
+    public ImmutableArray<T> Forward { get; }
+
+    public ImmutableArray<T> Backward { get; }
+
+    public ImmutableArray<(T Next, Direction Direction)> All { get; }
+
+    public ImmutableArray<T> this[Direction direction] => direction switch
+    {
+        Direction.TowardsGoal => Forward,
+        Direction.TowardsStart => Backward,
+    };
 }
 
 public sealed class RegionDefinitionsModel
@@ -408,11 +461,10 @@ public sealed class RegionDefinitionsModel
             (List<RegionKey> forward, List<RegionKey> backward) = connectedRegions[i];
             allRegions[i] = allRegions[i] with
             {
-                Connected = new()
-                {
-                    Forward = [.. forward.Distinct().OrderBy(k => k.N)],
-                    Backward = [.. backward.Distinct().OrderBy(k => k.N)],
-                },
+                Connected = new(
+                    forward: [.. forward.Distinct().OrderBy(k => k.N)],
+                    backward: [.. backward.Distinct().OrderBy(k => k.N)]
+                ),
             };
         }
 
@@ -421,16 +473,14 @@ public sealed class RegionDefinitionsModel
             (List<LocationKey> forward, List<LocationKey> backward) = connectedLocations[i];
             allLocations[i] = allLocations[i] with
             {
-                Connected = new()
-                {
-                    Forward = [.. forward.Distinct().OrderBy(k => k.N)],
-                    Backward = [.. backward.Distinct().OrderBy(k => k.N)],
-                },
-                ConnectedAsRegionLocations = new()
-                {
-                    Forward = [.. forward.Distinct().Select(l => allLocations[l.N].RegionLocationKey).OrderBy(l => l.Region.N).ThenBy(l => l.N)],
-                    Backward = [.. backward.Distinct().Select(l => allLocations[l.N].RegionLocationKey).OrderBy(l => l.Region.N).ThenBy(l => l.N)],
-                },
+                Connected = new(
+                    forward: [.. forward.Distinct().OrderBy(k => k.N)],
+                    backward: [.. backward.Distinct().OrderBy(k => k.N)]
+                ),
+                ConnectedAsRegionLocations = new(
+                    forward: [.. forward.Distinct().Select(l => allLocations[l.N].RegionLocationKey).OrderBy(l => l.Region.N).ThenBy(l => l.N)],
+                    backward: [.. backward.Distinct().Select(l => allLocations[l.N].RegionLocationKey).OrderBy(l => l.Region.N).ThenBy(l => l.N)]
+                ),
             };
         }
 
@@ -475,7 +525,7 @@ public sealed record LandmarkRegionDefinitionModel : RegionDefinitionModel
             Key = key,
             Requirement = requirement,
             AbilityCheckDC = abilityCheckDC,
-            Connected = new() { Forward = [], Backward = [] }, // we'll have to deal with this later.
+            Connected = new([], []), // we'll have to deal with this later.
         };
 
         return new()
@@ -487,8 +537,8 @@ public sealed record LandmarkRegionDefinitionModel : RegionDefinitionModel
             UnrandomizedItem = items.ProgressionItemsByYamlKey.GetValueOrDefault(map["unrandomized_item"].To<string>()),
             AbilityCheckDC = abilityCheckDC,
             RewardIsFixed = map.TryGetValue("reward_is_fixed", out bool rewardIsFixed) && rewardIsFixed,
-            Connected = new() { Forward = [], Backward = [] }, // we'll have to deal with this later.
-            ConnectedAsRegionLocations = new() { Forward = [], Backward = [] }, // we'll have to deal with this later.
+            Connected = new([], []), // we'll have to deal with this later.
+            ConnectedAsRegionLocations = new([], []), // we'll have to deal with this later.
         };
     }
 
@@ -574,8 +624,8 @@ public sealed record FillerRegionDefinitionModel : RegionDefinitionModel
                 AbilityCheckDC = abilityCheckDC,
                 UnrandomizedItem = unrandomizedItems[i],
                 RewardIsFixed = false,
-                Connected = new() { Forward = [], Backward = [] }, // we'll have to deal with this later.
-                ConnectedAsRegionLocations = new() { Forward = [], Backward = [] }, // we'll have to deal with this later.
+                Connected = new([], []), // we'll have to deal with this later.
+                ConnectedAsRegionLocations = new([], []), // we'll have to deal with this later.
             };
         }
 
@@ -583,7 +633,7 @@ public sealed record FillerRegionDefinitionModel : RegionDefinitionModel
         {
             Key = regionKey,
             AbilityCheckDC = abilityCheckDC,
-            Connected = new() { Forward = [], Backward = [] }, // we'll have to deal with this later.
+            Connected = new([], []), // we'll have to deal with this later.
             FillerLocations = ImmutableCollectionsMarshal.AsImmutableArray(Array.ConvertAll(locations, l => l.Key)),
         };
 

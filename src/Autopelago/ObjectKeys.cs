@@ -7,6 +7,8 @@ public readonly record struct RegionKey
 
 public readonly record struct LocationKey
 {
+    public static readonly LocationKey Nonexistent = new() { N = ushort.MaxValue };
+
     public required ushort N { get; init; }
 }
 

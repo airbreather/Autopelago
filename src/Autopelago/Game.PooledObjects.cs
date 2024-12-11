@@ -23,19 +23,52 @@ public sealed partial class Game : IDisposable
     private readonly Queue<LocationKey> _pathToTarget = Pools<Queue<LocationKey>>.Get(GameDefinitions.Instance.AllLocations.Length);
 
     private readonly List<ItemKey> _receivedItemsOrder = Pools<List<ItemKey>>.Get(GameDefinitions.Instance.AllItems.Length);
-    private readonly ArraySegment<int> _receivedItems = RentAndClearArray<int>(GameDefinitions.Instance.AllItems.Length);
+    private readonly ArraySegment<int> _receivedItems = RentArray<int>(GameDefinitions.Instance.AllItems.Length);
 
     private readonly List<LocationKey> _checkedLocationsOrder = Pools<List<LocationKey>>.Get(GameDefinitions.Instance.AllLocations.Length);
     private readonly BitArray _checkedLocations = s_locationBitArrayPoolDefaultFalse.Get();
+    private readonly ArraySegment<int> _regionUncheckedLocationsCount = RentArray<int>(GameDefinitions.Instance.AllRegions.Length);
 
     private readonly List<LocationKey> _priorityPriorityLocations = Pools<List<LocationKey>>.Get(GameDefinitions.Instance.AllLocations.Length);
     private readonly List<LocationKey> _priorityLocations = Pools<List<LocationKey>>.Get(GameDefinitions.Instance.AllLocations.Length);
+
+    public Game(Prng.State prngState)
+        : this(prngState, null)
+    {
+    }
+
+    public Game(Prng.State prngState, GameInstrumentation? instrumentation)
+    {
+        _hardLockedRegions[GameDefinitions.Instance.StartRegion.N] = false;
+        _softLockedRegions[GameDefinitions.Instance.StartRegion.N] = false;
+
+        _receivedItems.AsSpan().Clear();
+        Span<int> regionUncheckedLocationsCount = _regionUncheckedLocationsCount;
+        foreach (ref readonly RegionDefinitionModel region in GameDefinitions.Instance.AllRegions.AsSpan())
+        {
+            regionUncheckedLocationsCount[region.Key.N] = region.Locations.Length;
+        }
+
+        _prngState = prngState;
+        _instrumentation = instrumentation;
+        _lock = instrumentation is null ? new() : null;
+        _prevMovementLog.Add(new()
+        {
+            PreviousLocation = GameDefinitions.Instance.StartLocation,
+            CurrentLocation = GameDefinitions.Instance.StartLocation,
+        });
+        PreviousStepMovementLog = _prevMovementLog.AsReadOnly();
+        ReceivedItems = new(_receivedItemsOrder);
+        LocationIsChecked = new(_checkedLocations);
+        CheckedLocations = new(_checkedLocationsOrder);
+    }
 
     public void Dispose()
     {
         Pools<List<LocationKey>>.Return(_priorityLocations);
         Pools<List<LocationKey>>.Return(_priorityPriorityLocations);
 
+        ArrayPool<int>.Shared.Return(_regionUncheckedLocationsCount.Array!);
         s_locationBitArrayPoolDefaultFalse.Return(_checkedLocations);
         Pools<List<LocationKey>>.Return(_checkedLocationsOrder);
 
@@ -51,17 +84,21 @@ public sealed partial class Game : IDisposable
         s_regionBitArrayPoolDefaultTrue.Return(_hardLockedRegions);
     }
 
-    private static ArraySegment<T> RentAndClearArray<T>(int length)
+    private static ArraySegment<T> RentArray<T>(int length)
     {
         T[] array = ArrayPool<T>.Shared.Rent(length);
         ArraySegment<T> segment = new(array, 0, length);
-        segment.AsSpan().Clear();
         return segment;
     }
 
     private static Borrowed<BitArray> BorrowLocationsBitArrayDefaultFalse()
     {
         return new(s_locationBitArrayPoolDefaultFalse.Get(), s_locationBitArrayPoolDefaultFalse);
+    }
+
+    private static Borrowed<BitArray> BorrowRegionsBitArrayDefaultTrue()
+    {
+        return new(s_regionBitArrayPoolDefaultTrue.Get(), s_regionBitArrayPoolDefaultTrue);
     }
 
     private static Borrowed<T> Borrow<T>()
