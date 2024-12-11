@@ -5,8 +5,6 @@ using System.Collections.ObjectModel;
 using System.Linq.Expressions;
 using System.Reflection;
 
-using Microsoft.Extensions.ObjectPool;
-
 namespace Autopelago;
 
 public enum TargetLocationReason
@@ -77,7 +75,7 @@ public sealed partial class Game
 
     private bool _auraDataInitialized;
 
-    private FrozenDictionary<ArchipelagoItemFlags, FrozenSet<LocationKey>>? _spoilerData;
+    private FrozenDictionary<ArchipelagoItemFlags, ReadOnlyBitArray>? _spoilerData;
 
     public ReadOnlyCollection<LocationVector> PreviousStepMovementLog { get; }
 
@@ -106,7 +104,7 @@ public sealed partial class Game
         }
     }
 
-    public FrozenDictionary<ArchipelagoItemFlags, FrozenSet<LocationKey>> SpoilerData
+    public FrozenDictionary<ArchipelagoItemFlags, ReadOnlyBitArray> SpoilerData
     {
         get
         {
@@ -287,7 +285,7 @@ public sealed partial class Game
         _receivedItemsInitialized = true;
     }
 
-    public void InitializeSpoilerData(FrozenDictionary<ArchipelagoItemFlags, FrozenSet<LocationKey>> spoilerData)
+    public void InitializeSpoilerData(FrozenDictionary<ArchipelagoItemFlags, ReadOnlyBitArray> spoilerData)
     {
         using Lock.Scope _ = EnterLockScope();
         if (_spoilerData is not null)
@@ -527,6 +525,7 @@ public sealed partial class Game
                 if (success)
                 {
                     _checkedLocations[CurrentLocation.N] = true;
+                    _checkedLocationsOrder.Add(CurrentLocation);
                     --_regionUncheckedLocationsCount[GameDefinitions.Instance.RegionKey[CurrentLocation].N];
                     _softLockedRegions[GameDefinitions.Instance.RegionKey[CurrentLocation].N] = false;
                     MercyModifier = 0;
@@ -608,6 +607,7 @@ public sealed partial class Game
             }
 
             _checkedLocations[location.N] = true;
+            _checkedLocationsOrder.Add(location);
             locationIsNewlyChecked[location.N] = true;
             RegionKey region = GameDefinitions.Instance.RegionKey[location];
             _softLockedRegions[region.N] = false;

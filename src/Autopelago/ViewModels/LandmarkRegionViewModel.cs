@@ -41,42 +41,42 @@ public sealed partial class LandmarkRegionViewModel : ViewModelBase, IDisposable
 
     private static readonly Vector s_toCenter = new Vector(16, 16) / 2;
 
-    private static readonly FrozenDictionary<string, Point> s_canvasLocations = new[]
+    private static readonly FrozenDictionary<RegionKey, Point> s_canvasLocations = new Dictionary<string, Point>
     {
-        KeyValuePair.Create("basketball", new Point(59, 77)),
-        KeyValuePair.Create("prawn_stars", new Point(103, 34)),
-        KeyValuePair.Create("angry_turtles", new Point(103, 120)),
-        KeyValuePair.Create("pirate_bake_sale", new Point(166, 34)),
-        KeyValuePair.Create("restaurant", new Point(166, 120)),
-        KeyValuePair.Create("bowling_ball_door", new Point(254, 77)),
-        KeyValuePair.Create("captured_goldfish", new Point(290, 106)),
-        KeyValuePair.Create("computer_interface", new Point(282, 225)),
-        KeyValuePair.Create("kart_races", new Point(235, 179)),
-        KeyValuePair.Create("trapeze", new Point(235, 225)),
-        KeyValuePair.Create("daring_adventurer", new Point(235, 269)),
-        KeyValuePair.Create("broken_down_bus", new Point(178, 179)),
-        KeyValuePair.Create("blue_colored_screen_interface", new Point(178, 225)),
-        KeyValuePair.Create("overweight_boulder", new Point(178, 269)),
-        KeyValuePair.Create("binary_tree", new Point(124, 179)),
-        KeyValuePair.Create("copyright_mouse", new Point(124, 225)),
-        KeyValuePair.Create("computer_ram", new Point(124, 269)),
-        KeyValuePair.Create("rat_rap_battle", new Point(67, 179)),
-        KeyValuePair.Create("room_full_of_typewriters", new Point(67, 225)),
-        KeyValuePair.Create("stack_of_crates", new Point(67, 269)),
-        KeyValuePair.Create("secret_cache", new Point(20, 225)),
-        KeyValuePair.Create("makeshift_rocket_ship", new Point(25, 331)),
-        KeyValuePair.Create("roboclop_the_robot_war_horse", new Point(73, 353)),
-        KeyValuePair.Create("homeless_mummy", new Point(84, 402)),
-        KeyValuePair.Create("frozen_assets", new Point(54, 435)),
-        KeyValuePair.Create("alien_vending_machine", new Point(114, 428)),
-        KeyValuePair.Create("stalled_rocket_get_out_and_push", new Point(113, 334)),
-        KeyValuePair.Create("seal_of_fortune", new Point(149, 381)),
-        KeyValuePair.Create("space_opera", new Point(183, 346)),
-        KeyValuePair.Create("minotaur_labyrinth", new Point(194, 399)),
-        KeyValuePair.Create("asteroid_with_pants", new Point(232, 406)),
-        KeyValuePair.Create("snakes_on_a_planet", new Point(243, 354)),
-        KeyValuePair.Create("moon_comma_the", new Point(284, 319)),
-    }.ToFrozenDictionary();
+        ["basketball"] = new(59, 77),
+        ["prawn_stars"] = new(103, 34),
+        ["angry_turtles"] = new(103, 120),
+        ["pirate_bake_sale"] = new(166, 34),
+        ["restaurant"] = new(166, 120),
+        ["bowling_ball_door"] = new(254, 77),
+        ["captured_goldfish"] = new(290, 106),
+        ["computer_interface"] = new(282, 225),
+        ["kart_races"] = new(235, 179),
+        ["trapeze"] = new(235, 225),
+        ["daring_adventurer"] = new(235, 269),
+        ["broken_down_bus"] = new(178, 179),
+        ["blue_colored_screen_interface"] = new(178, 225),
+        ["overweight_boulder"] = new(178, 269),
+        ["binary_tree"] = new(124, 179),
+        ["copyright_mouse"] = new(124, 225),
+        ["computer_ram"] = new(124, 269),
+        ["rat_rap_battle"] = new(67, 179),
+        ["room_full_of_typewriters"] = new(67, 225),
+        ["stack_of_crates"] = new(67, 269),
+        ["secret_cache"] = new(20, 225),
+        ["makeshift_rocket_ship"] = new(25, 331),
+        ["roboclop_the_robot_war_horse"] = new(73, 353),
+        ["homeless_mummy"] = new(84, 402),
+        ["frozen_assets"] = new(54, 435),
+        ["alien_vending_machine"] = new(114, 428),
+        ["stalled_rocket_get_out_and_push"] = new(113, 334),
+        ["seal_of_fortune"] = new(149, 381),
+        ["space_opera"] = new(183, 346),
+        ["minotaur_labyrinth"] = new(194, 399),
+        ["asteroid_with_pants"] = new(232, 406),
+        ["snakes_on_a_planet"] = new(243, 354),
+        ["moon_comma_the"] = new(284, 319),
+    }.ToFrozenDictionary(kvp => GameDefinitions.Instance.RegionsByYamlKey[kvp.Key], kvp => kvp.Value);
 
     private readonly CompositeDisposable _disposables = [];
 
@@ -90,15 +90,14 @@ public sealed partial class LandmarkRegionViewModel : ViewModelBase, IDisposable
 
     [Reactive(SetModifier = AccessModifier.Private)] private bool _showGrayQuestImage = true;
 
-    public LandmarkRegionViewModel(string regionKey)
+    public LandmarkRegionViewModel(RegionKey region)
     {
-        RegionKey = regionKey;
-        Region = GameDefinitions.Instance.LandmarkRegions[regionKey];
-        Location = Region.Locations[0];
-        GameRequirementToolTipSource = new(Region.Requirement);
-        CanvasLocation = s_canvasLocations[regionKey] - s_toCenter;
+        Region = (LandmarkRegionDefinitionModel)GameDefinitions.Instance[region];
+        Location = GameDefinitions.Instance[GameDefinitions.Instance[region].Locations[0]];
+        GameRequirementToolTipSource = new(((LandmarkRegionDefinitionModel)GameDefinitions.Instance[region]).Requirement);
+        CanvasLocation = s_canvasLocations[region] - s_toCenter;
 
-        (SaturatedImages, DesaturatedImages) = ReadFrames(regionKey);
+        (SaturatedImages, DesaturatedImages) = ReadFrames(Region.YamlKey);
         _disposables.Add(SaturatedImages);
         _disposables.Add(DesaturatedImages);
 
@@ -135,8 +134,6 @@ public sealed partial class LandmarkRegionViewModel : ViewModelBase, IDisposable
     {
         _disposables.Dispose();
     }
-
-    public string RegionKey { get; }
 
     public LandmarkRegionDefinitionModel Region { get; }
 

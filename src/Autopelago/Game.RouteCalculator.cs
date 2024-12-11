@@ -1,5 +1,4 @@
 using System.Collections;
-using System.Collections.Frozen;
 using System.Runtime.InteropServices;
 
 namespace Autopelago;
@@ -137,7 +136,7 @@ public sealed partial class Game
                 }
 
                 bestDistance = i;
-                bestLocationKey = new() { N = (ushort)(currentLocation.N + i) };
+                bestLocationKey = new() { N = currentLocation.N + i };
                 break;
             }
 
@@ -149,7 +148,7 @@ public sealed partial class Game
                 }
 
                 bestDistance = i;
-                bestLocationKey = new() { N = (ushort)(currentLocation.N - i) };
+                bestLocationKey = new() { N = currentLocation.N - i };
                 break;
             }
         }
@@ -310,6 +309,7 @@ public sealed partial class Game
         if (currentLocation == targetLocation)
         {
             var trivialResultBorrow = Borrow<List<LocationKey>>();
+            trivialResultBorrow.Value.Clear();
             trivialResultBorrow.Value.AddRange([currentLocation, targetLocation]);
             return trivialResultBorrow;
         }
@@ -328,6 +328,7 @@ public sealed partial class Game
 
         var resultBorrow = Borrow<List<LocationKey>>();
         List<LocationKey> result = resultBorrow.Value;
+        result.Clear();
         if (currentRegionLocation.Region == targetRegionLocation.Region)
         {
             if (currentLocation.N > targetLocation.N)
@@ -336,7 +337,7 @@ public sealed partial class Game
                 result.EnsureCapacity(count);
                 for (int i = 0; i < count; i++)
                 {
-                    result.Add(new() { N = (ushort)(currentLocation.N - i) });
+                    result.Add(new() { N = currentLocation.N - i });
                 }
             }
             else
@@ -344,7 +345,7 @@ public sealed partial class Game
                 int count = targetLocation.N - currentLocation.N + 1;
                 for (int i = 0; i < count; i++)
                 {
-                    result.Add(new() { N = (ushort)(currentLocation.N + i) });
+                    result.Add(new() { N = currentLocation.N + i });
                 }
             }
 
@@ -376,7 +377,8 @@ public sealed partial class Game
                 ref readonly RegionDefinitionModel connectedRegionDefinition = ref GameDefinitions.Instance[connectedRegion];
                 foreach ((RegionKey nextConnectedRegion, Direction nextDirection) in connectedRegionDefinition.Connected.All)
                 {
-                    if (prev.TryAdd(nextConnectedRegion, (connectedRegion, nextDirection)) &&
+                    if (nextConnectedRegion != currentRegionLocation.Region &&
+                        prev.TryAdd(nextConnectedRegion, (connectedRegion, nextDirection)) &&
                         !lockedRegions[nextConnectedRegion.N])
                     {
                         q.Enqueue((nextConnectedRegion, nextDirection));
@@ -408,7 +410,7 @@ public sealed partial class Game
 
                         default:
                             int oldCount = result.Count;
-                            result.AddRange(nextRegionDefinition.Locations.AsSpan(..(currentLocation.N + 1)));
+                            result.AddRange(nextRegionDefinition.Locations.AsSpan(..(currentRegionLocation.N + 1)));
                             result.Reverse(oldCount, result.Count - oldCount);
                             break;
                     }
@@ -456,7 +458,7 @@ public sealed partial class Game
 
     private IEnumerable<LocationKey> GetClosestLocationsWithItemFlags(LocationKey currentLocation, ArchipelagoItemFlags flags)
     {
-        FrozenSet<LocationKey> spoilerData = _spoilerData![flags];
+        ReadOnlyBitArray spoilerData = _spoilerData![flags];
 
         // TODO: optimize this, it's getting late.
         using var visitedLocationsBorrow = BorrowLocationsBitArrayDefaultFalse();
@@ -468,7 +470,7 @@ public sealed partial class Game
         visitedLocations[currentLocation.N] = true;
         while (q.TryDequeue(out LocationKey loc))
         {
-            if (spoilerData.Contains(loc) && !_checkedLocations[loc.N])
+            if (spoilerData[loc.N] && !_checkedLocations[loc.N])
             {
                 yield return loc;
             }
@@ -499,6 +501,12 @@ public sealed partial class Game
         while (q.TryDequeue(out RegionKey region))
         {
             visitedRegions[region.N] = true;
+
+            if (_checkedLocations[region.N])
+            {
+                _hardLockedRegions[region.N] = false;
+                _softLockedRegions[region.N] = false;
+            }
 
             if (GameDefinitions.Instance[region] is LandmarkRegionDefinitionModel landmark)
             {

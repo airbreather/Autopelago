@@ -1,7 +1,10 @@
 using System.Buffers.Text;
+using System.Collections;
 using System.Collections.Frozen;
 using System.Runtime.InteropServices;
 using System.Text;
+
+using DynamicData;
 
 namespace Autopelago;
 
@@ -9,30 +12,14 @@ public sealed class GameTests
 {
     private delegate TResult SpanFunc<TSource, out TResult>(ReadOnlySpan<TSource> vals);
 
-    private static readonly ItemDefinitionModel s_packRat = GameDefinitions.Instance.ProgressionItemsByItemKey["pack_rat"];
-
-    private static readonly LocationDefinitionModel s_startLocation = GameDefinitions.Instance.StartLocation;
-
-    private static readonly RegionDefinitionModel s_startRegion = s_startLocation.Region;
-
-    private static readonly LocationDefinitionModel s_basketball = GameDefinitions.Instance.LocationsByKey[LocationKey.For("basketball")];
-
-    private static readonly RegionDefinitionModel s_beforeAngryTurtles = GameDefinitions.Instance.AllRegions["before_angry_turtles"];
-
-    private static readonly RegionDefinitionModel s_beforePrawnStars = GameDefinitions.Instance.AllRegions["before_prawn_stars"];
-
-    private static readonly ItemDefinitionModel s_pizzaRat = GameDefinitions.Instance.ProgressionItemsByItemKey["pizza_rat"];
-
-    private static readonly ItemDefinitionModel s_premiumCanOfPrawnFood = GameDefinitions.Instance.ProgressionItemsByItemKey["premium_can_of_prawn_food"];
-
     private static readonly Prng.State s_highRolls = EnsureSeedProducesInitialD20Sequence("ZcuBXfRkZixzx/eQAL1UiHpMG3kLbaDksoajUfxCis8="u8, [20, 20, 20, 20, 20, 20, 20, 20, 20, 20, 20]);
 
     private static readonly Prng.State s_lowRolls = EnsureSeedProducesInitialD20Sequence("Sr8rXn/wy4+RmchoEi8DdYc99ConsS+Fj2g7IoicNns="u8, [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1]);
 
-    private static readonly FrozenDictionary<string, ItemDefinitionModel> s_singleAuraItems =
+    private static readonly FrozenDictionary<string, ItemKey> s_singleAuraItems =
         new[] { "well_fed", "upset_tummy", "lucky", "unlucky", "energized", "sluggish", "distracted", "stylish", "startled", "smart", "conspiratorial", "confident" }
             .Select(aura => GameDefinitions.Instance.AllItems.First(i => i.AurasGranted.SequenceEqual([aura])))
-            .ToFrozenDictionary(i => i.AurasGranted[0]);
+            .ToFrozenDictionary(i => i.AurasGranted[0], i => i.Key);
 
     public static Prng.State[] RandomSeeds()
     {
@@ -76,8 +63,8 @@ public sealed class GameTests
         game.Advance();
         using (Assert.Multiple())
         {
-            await Assert.That(game.CheckedLocations.Order.FirstOrDefault()).IsEqualTo(s_startLocation);
-            await Assert.That(game.TargetLocation).IsEqualTo(s_startRegion.Locations[1]);
+            await Assert.That(game.CheckedLocations.FirstOrDefault()).IsEqualTo(GameDefinitions.Instance.StartLocation);
+            await Assert.That(game.TargetLocation).IsEqualTo(GameDefinitions.Instance[GameDefinitions.Instance.StartRegion].Locations[1]);
 
             // because they succeeded on their first attempt, they have just enough actions to reach and
             // then make a feeble attempt at the next location on the route
@@ -91,18 +78,18 @@ public sealed class GameTests
     public async ValueTask ShouldOnlyTryBasketballWithAtLeastFiveRats([Matrix(0, 7)] int ratCount)
     {
         Game game = new(s_highRolls);
-        game.InitializeCheckedLocations(s_startRegion.Locations);
-        game.InitializeReceivedItems(Enumerable.Repeat(s_packRat, ratCount));
-        game.ArbitrarilyModifyState(g => g.CurrentLocation, s_startRegion.Locations[^1]);
-        game.ArbitrarilyModifyState(g => g.TargetLocation, s_startRegion.Locations[^1]);
+        game.InitializeCheckedLocations(GameDefinitions.Instance[GameDefinitions.Instance.StartRegion].Locations);
+        game.InitializeReceivedItems(Enumerable.Repeat(GameDefinitions.Instance.AllItems.First(i => i.Name == "Pack Rat").Key, ratCount));
+        game.ArbitrarilyModifyState(g => g.CurrentLocation, GameDefinitions.Instance[GameDefinitions.Instance.StartRegion].Locations[^1]);
+        game.ArbitrarilyModifyState(g => g.TargetLocation, GameDefinitions.Instance[GameDefinitions.Instance.StartRegion].Locations[^1]);
         game.Advance();
         if (ratCount < 5)
         {
-            await Assert.That(game.CheckedLocations.Order).DoesNotContain(s_basketball);
+            await Assert.That(game.CheckedLocations).DoesNotContain(GameDefinitions.Instance.LocationsByName["Basketball"]);
         }
         else
         {
-            await Assert.That(game.CheckedLocations.Order).Contains(s_basketball);
+            await Assert.That(game.CheckedLocations).Contains(GameDefinitions.Instance.LocationsByName["Basketball"]);
         }
     }
 
@@ -110,10 +97,15 @@ public sealed class GameTests
     public async ValueTask ShouldHeadFurtherAfterCompletingBasketball([Matrix(true, false)] bool unblockAngryTurtlesFirst)
     {
         Game game = new(s_highRolls);
-        game.InitializeReceivedItems([.. Enumerable.Repeat(s_packRat, 5), unblockAngryTurtlesFirst ? s_pizzaRat : s_premiumCanOfPrawnFood]);
-        game.InitializeCheckedLocations(s_startRegion.Locations);
-        game.ArbitrarilyModifyState(g => g.CurrentLocation, s_basketball);
-        game.ArbitrarilyModifyState(g => g.TargetLocation, s_basketball);
+        game.InitializeReceivedItems([
+            .. Enumerable.Repeat(GameDefinitions.Instance.ItemsByName["Pack Rat"], 5),
+            unblockAngryTurtlesFirst
+                ? GameDefinitions.Instance.ItemsByName["Pizza Rat"]
+                : GameDefinitions.Instance.ItemsByName["Premium Can of Prawn Food"]
+        ]);
+        game.InitializeCheckedLocations(GameDefinitions.Instance[GameDefinitions.Instance.StartRegion].Locations);
+        game.ArbitrarilyModifyState(g => g.CurrentLocation, GameDefinitions.Instance.LocationsByName["Basketball"]);
+        game.ArbitrarilyModifyState(g => g.TargetLocation, GameDefinitions.Instance.LocationsByName["Basketball"]);
 
         game.Advance();
 
@@ -121,9 +113,12 @@ public sealed class GameTests
         // basketball, then move, then complete that first location that we moved to.
         using (Assert.Multiple())
         {
-            await Assert.That(game.CurrentLocation.Region).IsEqualTo(s_beforePrawnStars).Or.IsEqualTo(s_beforeAngryTurtles);
-            await Assert.That(game.CurrentLocation.Key.N).IsEqualTo(0);
-            await Assert.That(game.TargetLocation.Key.N).IsEqualTo(1);
+            await Assert.That(GameDefinitions.Instance.RegionKey[game.CurrentLocation])
+                .IsEqualTo(GameDefinitions.Instance.RegionKey[GameDefinitions.Instance.LocationsByName["Before Prawn Stars #1"]])
+                .Or
+                .IsEqualTo(GameDefinitions.Instance.RegionKey[GameDefinitions.Instance.LocationsByName["Before Angry Turtles #1"]]);
+            await Assert.That(GameDefinitions.Instance[game.CurrentLocation].RegionLocationKey.N).IsEqualTo((byte)0);
+            await Assert.That(GameDefinitions.Instance[game.TargetLocation].RegionLocationKey.N).IsEqualTo((byte)1);
         }
     }
 
@@ -133,7 +128,7 @@ public sealed class GameTests
     {
         Game game = new(seed);
         int advancesSoFar = 0;
-        List<ItemDefinitionModel> newReceivedItems = [];
+        List<ItemKey> newReceivedItems = [];
         while (true)
         {
             int prevCheckedLocationsCount = game.CheckedLocations.Count;
@@ -144,9 +139,9 @@ public sealed class GameTests
                 break;
             }
 
-            foreach (LocationDefinitionModel newCheckedLocation in game.CheckedLocations.Order.Skip(prevCheckedLocationsCount))
+            foreach (LocationKey newCheckedLocation in game.CheckedLocations.Skip(prevCheckedLocationsCount))
             {
-                newReceivedItems.Add(newCheckedLocation.UnrandomizedItem!);
+                newReceivedItems.Add(GameDefinitions.Instance[newCheckedLocation].UnrandomizedItem);
             }
 
             if (newReceivedItems.Count > 0)
@@ -208,16 +203,16 @@ public sealed class GameTests
     {
         Game game = new(s_lowRolls);
         game.InitializeCheckedLocations([
-            s_basketball,
+            GameDefinitions.Instance.LocationsByName["Basketball"],
             GameDefinitions.Instance.LocationsByName["Prawn Stars"],
         ]);
         game.ReceiveItems([
             s_singleAuraItems["energized"],
-            .. Enumerable.Repeat(s_packRat, 5),
-            s_premiumCanOfPrawnFood,
+            .. Enumerable.Repeat(GameDefinitions.Instance.ItemsByName["Pack Rat"], 5),
+            GameDefinitions.Instance.ItemsByName["Premium Can of Prawn Food"],
             GameDefinitions.Instance.ItemsByName["Pie Rat"],
         ]);
-        game.AddPriorityLocation(GameDefinitions.Instance.LocationsByName["Pirate Bake Sale"].Key);
+        game.AddPriorityLocation(GameDefinitions.Instance.LocationsByName["Pirate Bake Sale"]);
 
         for (int i = 0; i < 5; i++)
         {
@@ -225,7 +220,7 @@ public sealed class GameTests
             game.Advance();
         }
 
-        await Assert.That(game.CurrentLocation.Name).IsEqualTo("Pirate Bake Sale");
+        await Assert.That(GameDefinitions.Instance[game.CurrentLocation].Name).IsEqualTo("Pirate Bake Sale");
     }
 
     [Test]
@@ -267,7 +262,7 @@ public sealed class GameTests
         using (Assert.Multiple())
         {
             await Assert.That(game.CheckedLocations.Count).IsEqualTo(2);
-            await Assert.That(game.CurrentLocation.Key.N).IsEqualTo(2);
+            await Assert.That(GameDefinitions.Instance[game.CurrentLocation].RegionLocationKey.N).IsEqualTo(2);
         }
 
         // 4 actions are "check, move, check, move".
@@ -275,7 +270,7 @@ public sealed class GameTests
         using (Assert.Multiple())
         {
             await Assert.That(game.CheckedLocations.Count).IsEqualTo(4);
-            await Assert.That(game.CurrentLocation.Key.N).IsEqualTo(4);
+            await Assert.That(GameDefinitions.Instance[game.CurrentLocation].RegionLocationKey.N).IsEqualTo(4);
         }
 
         // 3 actions are "check, move, check".
@@ -283,8 +278,8 @@ public sealed class GameTests
         using (Assert.Multiple())
         {
             await Assert.That(game.CheckedLocations.Count).IsEqualTo(6);
-            await Assert.That(game.CurrentLocation.Key.N).IsEqualTo(5);
-            await Assert.That(game.TargetLocation.Key.N).IsEqualTo(6);
+            await Assert.That(GameDefinitions.Instance[game.CurrentLocation].RegionLocationKey.N).IsEqualTo(5);
+            await Assert.That(GameDefinitions.Instance[game.TargetLocation].RegionLocationKey.N).IsEqualTo(6);
         }
 
         game.ReceiveItems([s_singleAuraItems["well_fed"]]);
@@ -294,8 +289,8 @@ public sealed class GameTests
         using (Assert.Multiple())
         {
             await Assert.That(game.CheckedLocations.Count).IsEqualTo(8);
-            await Assert.That(game.CurrentLocation.Key.N).IsEqualTo(7);
-            await Assert.That(game.TargetLocation.Key.N).IsEqualTo(8);
+            await Assert.That(GameDefinitions.Instance[game.CurrentLocation].RegionLocationKey.N).IsEqualTo(7);
+            await Assert.That(GameDefinitions.Instance[game.TargetLocation].RegionLocationKey.N).IsEqualTo(8);
             await Assert.That(game.FoodFactor).IsEqualTo(4);
         }
     }
@@ -311,7 +306,7 @@ public sealed class GameTests
         using (Assert.Multiple())
         {
             await Assert.That(game.CheckedLocations.Count).IsEqualTo(1);
-            await Assert.That(game.CurrentLocation.Key.N).IsEqualTo(1);
+            await Assert.That(GameDefinitions.Instance[game.CurrentLocation].RegionLocationKey.N).IsEqualTo(1);
         }
 
         // 2 actions are "check, move".
@@ -319,7 +314,7 @@ public sealed class GameTests
         using (Assert.Multiple())
         {
             await Assert.That(game.CheckedLocations.Count).IsEqualTo(2);
-            await Assert.That(game.CurrentLocation.Key.N).IsEqualTo(2);
+            await Assert.That(GameDefinitions.Instance[game.CurrentLocation].RegionLocationKey.N).IsEqualTo(2);
         }
 
         // 3 actions are "check, move, check".
@@ -327,8 +322,8 @@ public sealed class GameTests
         using (Assert.Multiple())
         {
             await Assert.That(game.CheckedLocations.Count).IsEqualTo(4);
-            await Assert.That(game.CurrentLocation.Key.N).IsEqualTo(3);
-            await Assert.That(game.TargetLocation.Key.N).IsEqualTo(4);
+            await Assert.That(GameDefinitions.Instance[game.CurrentLocation].RegionLocationKey.N).IsEqualTo(3);
+            await Assert.That(GameDefinitions.Instance[game.TargetLocation].RegionLocationKey.N).IsEqualTo(4);
         }
 
         game.ReceiveItems([s_singleAuraItems["upset_tummy"]]);
@@ -338,8 +333,8 @@ public sealed class GameTests
         using (Assert.Multiple())
         {
             await Assert.That(game.CheckedLocations.Count).IsEqualTo(5);
-            await Assert.That(game.CurrentLocation.Key.N).IsEqualTo(4);
-            await Assert.That(game.TargetLocation.Key.N).IsEqualTo(5);
+            await Assert.That(GameDefinitions.Instance[game.CurrentLocation].RegionLocationKey.N).IsEqualTo(4);
+            await Assert.That(GameDefinitions.Instance[game.TargetLocation].RegionLocationKey.N).IsEqualTo(5);
             await Assert.That(game.FoodFactor).IsEqualTo(-4);
         }
     }
@@ -365,8 +360,8 @@ public sealed class GameTests
         using (Assert.Multiple())
         {
             await Assert.That(game.CheckedLocations.Count).IsEqualTo(2);
-            await Assert.That(game.CurrentLocation.Key.N).IsEqualTo(1);
-            await Assert.That(game.TargetLocation.Key.N).IsEqualTo(2);
+            await Assert.That(GameDefinitions.Instance[game.CurrentLocation].RegionLocationKey.N).IsEqualTo(1);
+            await Assert.That(GameDefinitions.Instance[game.TargetLocation].RegionLocationKey.N).IsEqualTo(2);
         }
     }
 
@@ -382,8 +377,8 @@ public sealed class GameTests
         using (Assert.Multiple())
         {
             await Assert.That(game.CheckedLocations.Count).IsEqualTo(2);
-            await Assert.That(game.CurrentLocation.Key.N).IsEqualTo(1);
-            await Assert.That(game.TargetLocation.Key.N).IsEqualTo(2);
+            await Assert.That(GameDefinitions.Instance[game.CurrentLocation].RegionLocationKey.N).IsEqualTo(1);
+            await Assert.That(GameDefinitions.Instance[game.TargetLocation].RegionLocationKey.N).IsEqualTo(2);
         }
     }
 
@@ -393,11 +388,11 @@ public sealed class GameTests
         Game game = new(s_lowRolls);
 
         // give it all randomized items except the last one.
-        ItemDefinitionModel finalRandomizedItem = GameDefinitions.Instance.ProgressionItemsByItemKey["mongoose_in_a_combat_spacecraft"];
+        ItemKey finalRandomizedItem = GameDefinitions.Instance.ProgressionItemsByYamlKey["mongoose_in_a_combat_spacecraft"];
         game.ReceiveItems([
-            .. GameDefinitions.Instance.LocationsByKey.Values
-                .Where(l => l is { RewardIsFixed: false, UnrandomizedItem: not null })
-                .Select(l => l.UnrandomizedItem!)
+            .. GameDefinitions.Instance.AllLocations
+                .Where(l => l is { RewardIsFixed: false })
+                .Select(l => l.UnrandomizedItem)
                 .Where(i => i != finalRandomizedItem),
         ]);
 
@@ -407,7 +402,7 @@ public sealed class GameTests
         for (int i = 0; i < 2; i++)
         {
             game.Advance();
-            await Assert.That(game.TargetLocation.Key.RegionKey).IsEqualTo(GameDefinitions.Instance.StartRegion.Key);
+            await Assert.That(GameDefinitions.Instance.RegionKey[game.TargetLocation]).IsEqualTo(GameDefinitions.Instance.StartRegion);
             game.PrngState = s_lowRolls;
         }
 
@@ -419,10 +414,10 @@ public sealed class GameTests
         {
             game.PrngState = s_highRolls;
             game.Advance();
-            await Assert.That(game.TargetLocation.Region).IsAssignableTo<LandmarkRegionDefinitionModel>();
-            foreach (LocationDefinitionModel checkedLocation in game.CheckedLocations.Order)
+            await Assert.That(GameDefinitions.Instance.Region[game.TargetLocation]).IsAssignableTo<LandmarkRegionDefinitionModel>();
+            foreach (LocationKey checkedLocation in game.CheckedLocations)
             {
-                if (fixedRewardsGranted.Add(checkedLocation.Key) && checkedLocation is { RewardIsFixed: true, UnrandomizedItem: { } unrandomizedItem })
+                if (fixedRewardsGranted.Add(checkedLocation) && GameDefinitions.Instance[checkedLocation] is { RewardIsFixed: true, UnrandomizedItem: { } unrandomizedItem })
                 {
                     game.ReceiveItems([unrandomizedItem]);
                 }
@@ -438,11 +433,11 @@ public sealed class GameTests
     {
         Game game = new(s_lowRolls);
 
-        LocationDefinitionModel prawnStars = GameDefinitions.Instance.LocationsByName["Prawn Stars"];
-        await Assert.That(game.TargetLocation.Key).IsEqualTo(new LocationKey { RegionKey = "Menu", N = 0 });
+        LocationKey prawnStars = GameDefinitions.Instance.LocationsByName["Prawn Stars"];
+        await Assert.That(game.TargetLocation).IsEqualTo(GameDefinitions.Instance.StartLocation);
 
         // prioritize Prawn Stars
-        await Assert.That(game.AddPriorityLocation(prawnStars.Key)).IsEqualTo(AddPriorityLocationResult.AddedUnreachable);
+        await Assert.That(game.AddPriorityLocation(prawnStars)).IsEqualTo(AddPriorityLocationResult.AddedUnreachable);
         game.Advance();
 
         // should NOT be targeting Prawn Stars now, because we can't reach it out the gate.
@@ -450,10 +445,10 @@ public sealed class GameTests
 
         // just restart it, giving it what's needed to reach Prawn Stars
         game = new(s_lowRolls);
-        game.InitializeCheckedLocations([s_basketball]);
-        game.InitializeReceivedItems([.. Enumerable.Range(0, 5).Select(_ => s_packRat), s_premiumCanOfPrawnFood]);
-        await Assert.That(game.AddPriorityLocation(prawnStars.Key)).IsEqualTo(AddPriorityLocationResult.AddedReachable);
-        await Assert.That(game.AddPriorityLocation(prawnStars.Key)).IsEqualTo(AddPriorityLocationResult.AlreadyPrioritized);
+        game.InitializeCheckedLocations([GameDefinitions.Instance.LocationsByName["Basketball"]]);
+        game.InitializeReceivedItems([.. Enumerable.Range(0, 5).Select(_ => GameDefinitions.Instance.ItemsByName["Pack Rat"]), GameDefinitions.Instance.ItemsByName["Premium Can of Prawn Food"]]);
+        await Assert.That(game.AddPriorityLocation(prawnStars)).IsEqualTo(AddPriorityLocationResult.AddedReachable);
+        await Assert.That(game.AddPriorityLocation(prawnStars)).IsEqualTo(AddPriorityLocationResult.AlreadyPrioritized);
 
         game.Advance();
 
@@ -466,7 +461,7 @@ public sealed class GameTests
         game.Advance();
 
         // it should still be there, and it should still be our priority location.
-        await Assert.That(game.PriorityLocations).IsEquivalentTo([prawnStars.Key]);
+        await Assert.That(game.PriorityLocations).IsEquivalentTo([prawnStars]);
 
         // now roll natural 20s.
         game.PrngState = s_highRolls;
@@ -480,13 +475,13 @@ public sealed class GameTests
     {
         // force the first steps to move it towards the last reachable location in this region
         Game game = new(s_highRolls);
-        game.ArbitrarilyModifyState(g => g.PriorityLocations, new([GameDefinitions.Instance.StartRegion.Locations[^1].Key]));
+        game.ArbitrarilyModifyState(g => g.PriorityLocations, new([GameDefinitions.Instance[GameDefinitions.Instance.StartRegion].Locations[^1]]));
 
         game.Advance();
-        LocationDefinitionModel middleLocation = game.CurrentLocation;
+        LocationKey middleLocation = game.CurrentLocation;
 
         game.Advance();
-        await Assert.That(game.CurrentLocation.Key).IsNotEqualTo(game.TargetLocation.Key)
+        await Assert.That(game.CurrentLocation).IsNotEqualTo(game.TargetLocation)
             .Because("YAML was changed too much: there aren't enough locations in the starting region for this test.");
 
         // even though it's all high rolls, we shouldn't have any checks because the rat is hard-prioritizing.
@@ -508,7 +503,7 @@ public sealed class GameTests
     public async ValueTask StartledShouldTakePriorityOverDistracted()
     {
         Game game = new(s_highRolls);
-        game.ArbitrarilyModifyState(g => g.CurrentLocation, GameDefinitions.Instance.StartRegion.Locations[^1]);
+        game.ArbitrarilyModifyState(g => g.CurrentLocation, GameDefinitions.Instance[GameDefinitions.Instance.StartRegion].Locations[^1]);
         game.ReceiveItems([
             s_singleAuraItems["startled"],
             .. Enumerable.Repeat(s_singleAuraItems["distracted"], 2),
@@ -517,7 +512,7 @@ public sealed class GameTests
         // first step, we're startled out of our distraction.
         game.Advance();
 
-        LocationDefinitionModel expectedStartleTarget = GameDefinitions.Instance.StartRegion.Locations[^10];
+        LocationKey expectedStartleTarget = GameDefinitions.Instance[GameDefinitions.Instance.StartRegion].Locations[^10];
         using (Assert.Multiple())
         {
             await Assert.That(game.StartledCounter).IsEqualTo(0);
@@ -546,23 +541,25 @@ public sealed class GameTests
             "conspiratorial" => ArchipelagoItemFlags.Trap,
             _ => throw null!,
         };
-        FrozenDictionary<ArchipelagoItemFlags, FrozenSet<LocationKey>> spoilerData = CreateSpoiler([
+
+        RegionDefinitionModel beforePrawnStars = GameDefinitions.Instance[GameDefinitions.Instance.Region[GameDefinitions.Instance.LocationsByName["Prawn Stars"]].Connected.Backward[0]];
+        FrozenDictionary<ArchipelagoItemFlags, ReadOnlyBitArray> spoilerData = CreateSpoiler([
             (GameDefinitions.Instance.StartLocation, targetFlags),
-            (s_beforePrawnStars.Locations[0], targetFlags),
-            (s_beforePrawnStars.Locations[^1], targetFlags),
+            (beforePrawnStars.Locations[0], targetFlags),
+            (beforePrawnStars.Locations[^1], targetFlags),
         ]);
 
         Game game = new(Prng.State.Start());
         game.InitializeSpoilerData(spoilerData);
-        game.ArbitrarilyModifyState(g => g.CurrentLocation, GameDefinitions.Instance.StartRegion.Locations[^1]);
-        game.ArbitrarilyModifyState(g => g.TargetLocation, GameDefinitions.Instance.StartRegion.Locations[^1]);
+        game.ArbitrarilyModifyState(g => g.CurrentLocation, GameDefinitions.Instance[GameDefinitions.Instance.StartRegion].Locations[^1]);
+        game.ArbitrarilyModifyState(g => g.TargetLocation, GameDefinitions.Instance[GameDefinitions.Instance.StartRegion].Locations[^1]);
 
         // even though there's a target RIGHT on the other side, we still favor the nearest one that
         // we can already reach with what we currently have.
         game.ReceiveItems([s_singleAuraItems[aura]]);
         await Assert.That(game.PriorityPriorityLocations).IsEquivalentTo(
         [
-            GameDefinitions.Instance.StartLocation.Key,
+            GameDefinitions.Instance.StartLocation,
         ]);
 
         // if there's nothing else that we can reach, then we should NOT target the unreachable one
@@ -570,7 +567,7 @@ public sealed class GameTests
         game.ReceiveItems([s_singleAuraItems[aura]]);
         await Assert.That(game.PriorityPriorityLocations).IsEquivalentTo(
         [
-            GameDefinitions.Instance.StartLocation.Key,
+            GameDefinitions.Instance.StartLocation,
         ]);
 
         // #100: it also shouldn't re-prioritize the same location after it's been checked.
@@ -584,11 +581,12 @@ public sealed class GameTests
     [Property("Regression", "45")]
     public async ValueTask PriorityLocationsPastClearableLandmarksShouldBlockThePlayer()
     {
+        RegionDefinitionModel beforePrawnStars = GameDefinitions.Instance[GameDefinitions.Instance.Region[GameDefinitions.Instance.LocationsByName["Prawn Stars"]].Connected.Backward[0]];
         Game game = new(s_lowRolls);
-        game.InitializeReceivedItems(Enumerable.Repeat(s_packRat, 5));
-        game.ArbitrarilyModifyState(g => g.CurrentLocation, GameDefinitions.Instance.StartRegion.Locations[^1]);
-        game.ArbitrarilyModifyState(g => g.TargetLocation, GameDefinitions.Instance.StartRegion.Locations[^1]);
-        game.ArbitrarilyModifyState(g => g.PriorityLocations, new([s_beforePrawnStars.Locations[1].Key]));
+        game.InitializeReceivedItems(Enumerable.Repeat(GameDefinitions.Instance.ItemsByName["Pack Rat"], 5));
+        game.ArbitrarilyModifyState(g => g.CurrentLocation, GameDefinitions.Instance[GameDefinitions.Instance.StartRegion].Locations[^1]);
+        game.ArbitrarilyModifyState(g => g.TargetLocation, GameDefinitions.Instance[GameDefinitions.Instance.StartRegion].Locations[^1]);
+        game.ArbitrarilyModifyState(g => g.PriorityLocations, new([beforePrawnStars.Locations[1]]));
 
         for (int i = 0; i < 3; i++)
         {
@@ -596,29 +594,30 @@ public sealed class GameTests
             game.PrngState = s_lowRolls;
         }
 
-        await Assert.That(game.CurrentLocation).IsEqualTo(s_basketball);
+        await Assert.That(game.CurrentLocation).IsEqualTo(GameDefinitions.Instance.LocationsByName["Basketball"]);
     }
 
     [Test]
     public async ValueTask LongMovesShouldBeAccelerated()
     {
-        await Assert.That(s_startRegion.Locations.Length).IsGreaterThanOrEqualTo(9)
+        RegionDefinitionModel startRegion = GameDefinitions.Instance[GameDefinitions.Instance.StartRegion];
+        await Assert.That(startRegion.Locations.Length).IsGreaterThanOrEqualTo(9)
             .Because("This test is particularly sensitive to changes in the number of locations in the start region. Please re-evaluate.");
 
         Game game = new(s_highRolls);
-        game.InitializeReceivedItems(Enumerable.Repeat(s_packRat, 5));
-        game.InitializeCheckedLocations(s_startRegion.Locations);
-        game.AddPriorityLocation(s_basketball.Key);
+        game.InitializeReceivedItems(Enumerable.Repeat(GameDefinitions.Instance.ItemsByName["Pack Rat"], 5));
+        game.InitializeCheckedLocations(GameDefinitions.Instance[GameDefinitions.Instance.StartRegion].Locations);
+        game.AddPriorityLocation(GameDefinitions.Instance.LocationsByName["Basketball"]);
 
         game.Advance();
         using (Assert.Multiple())
         {
             await Assert.That(
                 game.PreviousStepMovementLog.Select(v => v.PreviousLocation))
-                .IsEquivalentTo(s_startRegion.Locations[..6]);
+                .IsEquivalentTo(startRegion.Locations[..6]);
             await Assert.That(
                 game.PreviousStepMovementLog.Select(v => v.CurrentLocation))
-                .IsEquivalentTo(s_startRegion.Locations[1..7]);
+                .IsEquivalentTo(startRegion.Locations[1..7]);
             await Assert.That(
                 game.CurrentLocation)
                 .IsEquivalentTo(game.PreviousStepMovementLog[^1].CurrentLocation);
@@ -629,12 +628,14 @@ public sealed class GameTests
     [Property("Regression", "53")]
     public async ValueTask PriorityLocationChecksShouldBypassUnreachableLocations()
     {
-        LocationDefinitionModel lastLocationBeforeBasketball = GameDefinitions.Instance.StartRegion.Locations[^1];
+        RegionDefinitionModel startRegion = GameDefinitions.Instance[GameDefinitions.Instance.StartRegion];
+        LocationKey lastLocationBeforeBasketball = startRegion.Locations[^1];
+        LocationKey basketball = GameDefinitions.Instance.LocationsByName["Basketball"];
         Game game = new(s_lowRolls);
         game.InitializeCheckedLocations([lastLocationBeforeBasketball]);
         game.ArbitrarilyModifyState(g => g.CurrentLocation, lastLocationBeforeBasketball);
         game.ArbitrarilyModifyState(g => g.TargetLocation, lastLocationBeforeBasketball);
-        game.ArbitrarilyModifyState(g => g.PriorityLocations, new([s_basketball.Key, lastLocationBeforeBasketball.Key]));
+        game.ArbitrarilyModifyState(g => g.PriorityLocations, new([basketball, lastLocationBeforeBasketball]));
         game.Advance();
 
         await Assert.That(game.TargetLocation).IsNotEqualTo(lastLocationBeforeBasketball);
@@ -643,16 +644,19 @@ public sealed class GameTests
     [Test]
     public async ValueTask StartledShouldNotMoveThroughLockedLocations()
     {
+        ItemKey packRat = GameDefinitions.Instance.ItemsByName["Pack Rat"];
+        LocationKey basketball = GameDefinitions.Instance.LocationsByName["Basketball"];
+
         Game game = new(Prng.State.Start());
         game.InitializeReceivedItems([
-            .. Enumerable.Repeat(s_packRat, 40),
+            .. Enumerable.Repeat(packRat, 40),
             GameDefinitions.Instance.ItemsByName["Priceless Antique"],
             GameDefinitions.Instance.ItemsByName["Pie Rat"],
             GameDefinitions.Instance.ItemsByName["Pizza Rat"],
             GameDefinitions.Instance.ItemsByName["Chef Rat"],
         ]);
         game.InitializeCheckedLocations([
-            s_basketball,
+            basketball,
             GameDefinitions.Instance.LocationsByName["Angry Turtles"],
             GameDefinitions.Instance.LocationsByName["Restaurant"],
             GameDefinitions.Instance.LocationsByName["Bowling Ball Door"],
@@ -669,13 +673,13 @@ public sealed class GameTests
                 .DoesNotContain(GameDefinitions.Instance.LocationsByName["Pirate Bake Sale"])
                 .And
                 .DoesNotContain(GameDefinitions.Instance.LocationsByName["Prawn Stars"]);
-            if (game.CurrentLocation == s_startLocation)
+            if (game.CurrentLocation == GameDefinitions.Instance.StartLocation)
             {
                 break;
             }
         }
 
-        await Assert.That(game.CurrentLocation).IsEqualTo(s_startLocation);
+        await Assert.That(game.CurrentLocation).IsEqualTo(GameDefinitions.Instance.StartLocation);
     }
 
     [Test]
@@ -715,6 +719,7 @@ public sealed class GameTests
     [Property("Regression", "92")]
     public async ValueTask RegressionTestPathingErrors()
     {
+        ItemKey packRat = GameDefinitions.Instance.ItemsByName["Pack Rat"];
         Game game = new(s_highRolls);
         game.InitializeCheckedLocations([
             GameDefinitions.Instance.LocationsByName["Basketball"],
@@ -722,14 +727,14 @@ public sealed class GameTests
             GameDefinitions.Instance.LocationsByName["Restaurant"],
             GameDefinitions.Instance.LocationsByName["Bowling Ball Door"],
             GameDefinitions.Instance.LocationsByName["Captured Goldfish"],
-            .. GameDefinitions.Instance.FillerRegions["Menu"].Locations, // "Before Basketball"
-            .. GameDefinitions.Instance.FillerRegions["before_prawn_stars"].Locations,
-            .. GameDefinitions.Instance.FillerRegions["before_angry_turtles"].Locations,
-            .. GameDefinitions.Instance.FillerRegions["after_restaurant"].Locations,
-            .. GameDefinitions.Instance.FillerRegions["before_captured_goldfish"].Locations,
+            .. GameDefinitions.Instance[GameDefinitions.Instance.RegionsByYamlKey["Menu"]].Locations, // "Before Basketball"
+            .. GameDefinitions.Instance[GameDefinitions.Instance.RegionsByYamlKey["before_prawn_stars"]].Locations,
+            .. GameDefinitions.Instance[GameDefinitions.Instance.RegionsByYamlKey["before_angry_turtles"]].Locations,
+            .. GameDefinitions.Instance[GameDefinitions.Instance.RegionsByYamlKey["after_restaurant"]].Locations,
+            .. GameDefinitions.Instance[GameDefinitions.Instance.RegionsByYamlKey["before_captured_goldfish"]].Locations,
 
-            .. GameDefinitions.Instance.FillerRegions["after_pirate_bake_sale"].Locations.AsSpan(3..),
-            .. GameDefinitions.Instance.FillerRegions["before_computer_interface"].Locations.AsSpan(..3),
+            .. GameDefinitions.Instance[GameDefinitions.Instance.RegionsByYamlKey["after_pirate_bake_sale"]].Locations.AsSpan(3..),
+            .. GameDefinitions.Instance[GameDefinitions.Instance.RegionsByYamlKey["before_computer_interface"]].Locations.AsSpan(..3),
         ]);
         game.InitializeReceivedItems([
             GameDefinitions.Instance.ItemsByName["Giant Novelty Scissors"],
@@ -737,7 +742,7 @@ public sealed class GameTests
             GameDefinitions.Instance.ItemsByName["Chef Rat"],
             GameDefinitions.Instance.ItemsByName["Computer Rat"],
             GameDefinitions.Instance.ItemsByName["Notorious R.A.T."],
-            .. Enumerable.Repeat(s_packRat, 14),
+            .. Enumerable.Repeat(packRat, 14),
         ]);
 
         game.ArbitrarilyModifyState(g => g.CurrentLocation, GameDefinitions.Instance.LocationsByName["Before Goldfish #2"]);
@@ -757,22 +762,27 @@ public sealed class GameTests
 
             // this part ensures that the test will not loop forever: a LocationDefinitionModel does
             // exist for CurrentLocation, and only <1000 of those ever get created.
-            await Assert.That(locationsVisited).DoesNotContain(game.CurrentLocation.Key);
-            locationsVisited.Add(game.CurrentLocation.Key);
+            await Assert.That(locationsVisited).DoesNotContain(game.CurrentLocation);
+            locationsVisited.Add(game.CurrentLocation);
         }
     }
 
-    private static FrozenDictionary<ArchipelagoItemFlags, FrozenSet<LocationKey>> CreateSpoiler(ReadOnlySpan<(LocationDefinitionModel Location, ArchipelagoItemFlags Flags)> defined)
+    private static FrozenDictionary<ArchipelagoItemFlags, ReadOnlyBitArray> CreateSpoiler(ReadOnlySpan<(LocationKey Location, ArchipelagoItemFlags Flags)> defined)
     {
-        Dictionary<LocationKey, ArchipelagoItemFlags> result = GameDefinitions.Instance.LocationsByName.Values.ToDictionary(l => l.Key, _ => ArchipelagoItemFlags.None);
-        foreach ((LocationDefinitionModel location, ArchipelagoItemFlags flags) in defined)
+        Dictionary<ArchipelagoItemFlags, BitArray> result = new()
         {
-            result[location.Key] = flags;
+            [ArchipelagoItemFlags.None] = new(GameDefinitions.Instance.AllLocations.Length),
+            [ArchipelagoItemFlags.ImportantNonAdvancement] = new(GameDefinitions.Instance.AllLocations.Length),
+            [ArchipelagoItemFlags.LogicalAdvancement] = new(GameDefinitions.Instance.AllLocations.Length),
+            [ArchipelagoItemFlags.Trap] = new(GameDefinitions.Instance.AllLocations.Length),
+        };
+        foreach ((LocationKey location, ArchipelagoItemFlags flags) in defined)
+        {
+            result[flags][location.N] = true;
         }
 
         return result
-            .GroupBy(kvp => kvp.Value, kvp => kvp.Key)
-            .ToFrozenDictionary(grp => grp.Key, grp => grp.ToFrozenSet());
+            .ToFrozenDictionary(kvp => kvp.Key, kvp => new ReadOnlyBitArray(kvp.Value));
     }
 
     private static Prng.State EnsureSeedProducesInitialD20Sequence(ulong seed, ReadOnlySpan<int> exactVals)

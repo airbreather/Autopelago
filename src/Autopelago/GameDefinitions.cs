@@ -1,3 +1,4 @@
+using System.Collections;
 using System.Collections.Frozen;
 using System.Collections.Immutable;
 using System.Reflection;
@@ -17,13 +18,15 @@ public sealed class GameDefinitions
     {
     }
 
-    // EVERYTHING must be derived from these first few All* arrays. this is important to minimize
+    // EVERYTHING must be derived from these first few collections. this is important to minimize
     // how much work #52 will be!
     public required ImmutableArray<ItemDefinitionModel> AllItems { get; init; }
 
     public required ImmutableArray<LocationDefinitionModel> AllLocations { get; init; }
 
     public required ImmutableArray<RegionDefinitionModel> AllRegions { get; init; }
+
+    public required FrozenDictionary<string, ItemKey> ProgressionItemsByYamlKey { get; init; }
 
     // what remains are STRICTLY pre-computed indexes into the above arrays, solely for the sake of
     // speeding up computations. especially, PLEASE don't put anything here that's derived using
@@ -36,11 +39,15 @@ public sealed class GameDefinitions
 
     public required ImmutableArray<ItemKey> ItemsWithNonzeroRatCounts { get; init; }
 
+    public required FrozenDictionary<string, RegionKey> RegionsByYamlKey { get; init; }
+
+    public required FrozenDictionary<string, ItemKey> ItemsByName { get; init; }
+
     public required FrozenDictionary<string, LocationKey> LocationsByName { get; init; }
 
     public required FrozenDictionary<string, LocationKey> LocationsByNameCaseInsensitive { get; init; }
 
-    public required FrozenDictionary<ArchipelagoItemFlags, FrozenSet<LocationKey>> UnrandomizedSpoilerData { get; init; }
+    public required FrozenDictionary<ArchipelagoItemFlags, ReadOnlyBitArray> UnrandomizedSpoilerData { get; init; }
 
     private byte LandmarkRegionCount { get; init; }
 
@@ -70,6 +77,17 @@ public sealed class GameDefinitions
         return key.N < LandmarkRegionCount;
     }
 
+    private static ReadOnlyBitArray ToSpoilerArray(IEnumerable<LocationKey> locations, int locationCount)
+    {
+        BitArray result = new(locationCount);
+        foreach (LocationKey loc in locations)
+        {
+            result[loc.N] = true;
+        }
+
+        return new(result);
+    }
+
     private static GameDefinitions LoadFromEmbeddedResource()
     {
         using Stream yamlStream = Assembly.GetExecutingAssembly().GetManifestResourceStream("AutopelagoDefinitions.yml")!;
@@ -86,6 +104,7 @@ public sealed class GameDefinitions
             AllItems = items.AllItems,
             AllLocations = regions.AllLocations,
             AllRegions = regions.AllRegions,
+            ProgressionItemsByYamlKey = items.ProgressionItemsByYamlKey,
 
             StartLocation = regions.AllLocations.First(l => l.Connected.Backward.IsEmpty).Key,
             GoalLocation = regions.AllLocations
@@ -95,12 +114,14 @@ public sealed class GameDefinitions
                         regions.AllLocations[pl.N].Connected.Forward.Length == 1)
                 ).Key,
             ItemsWithNonzeroRatCounts = items.ItemsWithNonzeroRatCounts,
+            RegionsByYamlKey = regions.AllRegions.ToFrozenDictionary(r => r.YamlKey, r => r.Key),
+            ItemsByName = items.AllItems.ToFrozenDictionary(i => i.Name, i => i.Key),
             LocationsByName = regions.AllLocations.ToFrozenDictionary(l => l.Name, l => l.Key),
             LocationsByNameCaseInsensitive = regions.AllLocations.ToFrozenDictionary(l => l.Name, l => l.Key, StringComparer.InvariantCultureIgnoreCase),
             UnrandomizedSpoilerData = regions.AllLocations
                 .GroupBy(l => items.AllItems[l.UnrandomizedItem.N].ArchipelagoFlags, l => l.Key)
-                .ToFrozenDictionary(grp => grp.Key, grp => grp.ToFrozenSet()),
-            LandmarkRegionCount = regions.AllRegions.First(l => l is not LandmarkRegionDefinitionModel).Key.N,
+                .ToFrozenDictionary(grp => grp.Key, grp => ToSpoilerArray(grp, regions.AllLocations.Length)),
+            LandmarkRegionCount = (byte)regions.AllRegions.First(l => l is not LandmarkRegionDefinitionModel).Key.N,
         };
     }
 
@@ -131,6 +152,8 @@ public sealed class GameDefinitions
         }
 
         public ref readonly RegionDefinitionModel this[LocationKey key] => ref _allRegions.AsSpan()[_allLocations[key.N].RegionLocationKey.Region.N];
+
+        public ref readonly RegionDefinitionModel this[RegionLocationKey key] => ref _allRegions.AsSpan()[key.Region.N];
     }
 }
 
@@ -162,7 +185,7 @@ public sealed class ItemDefinitionsModel
             switch (key)
             {
                 case "rats":
-                    foreach ((string ratKey, ItemDefinitionModel ratItem) in DeserializeRatsFrom((ushort)allItems.Count, (YamlMappingNode)valueNode))
+                    foreach ((string ratKey, ItemDefinitionModel ratItem) in DeserializeRatsFrom(allItems.Count, (YamlMappingNode)valueNode))
                     {
                         allItems.Add(ratItem);
                         keyedItems.Add(ratKey, ratItem.Key);
@@ -171,7 +194,7 @@ public sealed class ItemDefinitionsModel
                     break;
 
                 case string when s_bulkItemFlagsLookup.TryGetValue(key, out ArchipelagoItemFlags flags):
-                    foreach (ItemDefinitionModel item in DeserializeBulkFrom((ushort)allItems.Count, (YamlSequenceNode)valueNode, flags))
+                    foreach (ItemDefinitionModel item in DeserializeBulkFrom(allItems.Count, (YamlSequenceNode)valueNode, flags))
                     {
                         allItems.Add(item);
                     }
@@ -181,13 +204,12 @@ public sealed class ItemDefinitionsModel
                 default:
                     // for simplicity's sake (and because this is getting a bit old), we expect only
                     // progression items to be given keys in the YAML file.
-                    allItems.Add(ItemDefinitionModel.DeserializeFrom((ushort)allItems.Count, valueNode, ArchipelagoItemFlags.LogicalAdvancement));
+                    allItems.Add(ItemDefinitionModel.DeserializeFrom(allItems.Count, valueNode, ArchipelagoItemFlags.LogicalAdvancement));
                     keyedItems.Add(key, allItems[^1].Key);
                     break;
             }
         }
 
-        _ = checked((ushort)allItems.Count);
         return new()
         {
             AllItems = [.. allItems],
@@ -197,7 +219,7 @@ public sealed class ItemDefinitionsModel
         };
     }
 
-    private static IEnumerable<KeyValuePair<string, ItemDefinitionModel>> DeserializeRatsFrom(ushort nextItemNum, YamlMappingNode map)
+    private static IEnumerable<KeyValuePair<string, ItemDefinitionModel>> DeserializeRatsFrom(int nextItemNum, YamlMappingNode map)
     {
         // at the time of writing, all rats (in this mapping) are considered logical advancements.
         ArchipelagoItemFlags archipelagoFlags = ArchipelagoItemFlags.LogicalAdvancement;
@@ -210,7 +232,7 @@ public sealed class ItemDefinitionsModel
         }
     }
 
-    private static IEnumerable<ItemDefinitionModel> DeserializeBulkFrom(ushort nextItemNum, YamlSequenceNode seq, ArchipelagoItemFlags flags, string? associatedGame = null)
+    private static IEnumerable<ItemDefinitionModel> DeserializeBulkFrom(int nextItemNum, YamlSequenceNode seq, ArchipelagoItemFlags flags, string? associatedGame = null)
     {
         foreach (YamlNode valueNode in seq)
         {
@@ -252,13 +274,13 @@ public readonly record struct ItemDefinitionModel
 
     public required ArchipelagoItemFlags ArchipelagoFlags { get; init; }
 
-    public ImmutableArray<string> AurasGranted { get; init; }
+    public required ImmutableArray<string> AurasGranted { get; init; }
 
     public string? FlavorText { get; init; }
 
     public int RatCount { get; init; }
 
-    public static ItemDefinitionModel DeserializeFrom(ushort itemNum, YamlNode node, ArchipelagoItemFlags archipelagoFlags, string? associatedGame = null, int defaultRatCount = 0)
+    public static ItemDefinitionModel DeserializeFrom(int itemNum, YamlNode node, ArchipelagoItemFlags archipelagoFlags, string? associatedGame = null, int defaultRatCount = 0)
     {
         return node switch
         {
@@ -269,7 +291,7 @@ public readonly record struct ItemDefinitionModel
         };
     }
 
-    private static ItemDefinitionModel DeserializeFrom(ushort itemNum, YamlScalarNode scalar, ArchipelagoItemFlags archipelagoFlags, string? associatedGame = null, int defaultRatCount = 0)
+    private static ItemDefinitionModel DeserializeFrom(int itemNum, YamlScalarNode scalar, ArchipelagoItemFlags archipelagoFlags, string? associatedGame = null, int defaultRatCount = 0)
     {
         return new()
         {
@@ -277,11 +299,12 @@ public readonly record struct ItemDefinitionModel
             AssociatedGame = associatedGame,
             Name = scalar.Value!,
             ArchipelagoFlags = archipelagoFlags,
+            AurasGranted = [],
             RatCount = defaultRatCount,
         };
     }
 
-    private static ItemDefinitionModel DeserializeFrom(ushort itemNum, YamlSequenceNode sequence, ArchipelagoItemFlags archipelagoFlags, string? associatedGame = null, int defaultRatCount = 0)
+    private static ItemDefinitionModel DeserializeFrom(int itemNum, YamlSequenceNode sequence, ArchipelagoItemFlags archipelagoFlags, string? associatedGame = null, int defaultRatCount = 0)
     {
         if (sequence.Children is not [YamlScalarNode { Value: string itemName }, YamlSequenceNode aurasGranted])
         {
@@ -299,7 +322,7 @@ public readonly record struct ItemDefinitionModel
         };
     }
 
-    private static ItemDefinitionModel DeserializeFrom(ushort itemNum, YamlMappingNode map, ArchipelagoItemFlags archipelagoFlags, string? associatedGame = null, int defaultRatCount = 0)
+    private static ItemDefinitionModel DeserializeFrom(int itemNum, YamlMappingNode map, ArchipelagoItemFlags archipelagoFlags, string? associatedGame = null, int defaultRatCount = 0)
     {
         string? name = null;
         int ratCount = defaultRatCount;
@@ -399,24 +422,24 @@ public sealed class RegionDefinitionsModel
         Dictionary<string, RegionKey> regionLookup = new();
         foreach ((YamlNode keyNode, YamlNode valueNode) in (YamlMappingNode)map["landmarks"])
         {
-            string stringKey = keyNode.To<string>();
+            string yamlKey = keyNode.To<string>();
             RegionKey key = new() { N = checked((byte)allRegions.Count) };
-            LocationDefinitionModel location = LandmarkRegionDefinitionModel.DeserializeFrom(key, (YamlMappingNode)valueNode, items, out LandmarkRegionDefinitionModel region, out string[] currExits);
+            LocationDefinitionModel location = LandmarkRegionDefinitionModel.DeserializeFrom(yamlKey, key, (YamlMappingNode)valueNode, items, out LandmarkRegionDefinitionModel region, out string[] currExits);
             allRegions.Add(region);
             allLocations.Add(location);
             exits.Add(currExits);
-            regionLookup.Add(stringKey, key);
+            regionLookup.Add(yamlKey, key);
         }
 
         foreach ((YamlNode keyNode, YamlNode valueNode) in (YamlMappingNode)map["fillers"])
         {
-            string stringKey = keyNode.To<string>();
+            string yamlKey = keyNode.To<string>();
             RegionKey key = new() { N = checked((byte)allRegions.Count) };
-            ImmutableArray<LocationDefinitionModel> locations = FillerRegionDefinitionModel.DeserializeFrom(key, (ushort)allLocations.Count, (YamlMappingNode)valueNode, items, out FillerRegionDefinitionModel region, out string[] currExits);
+            ImmutableArray<LocationDefinitionModel> locations = FillerRegionDefinitionModel.DeserializeFrom(yamlKey, key, allLocations.Count, (YamlMappingNode)valueNode, items, regionLookup, allRegions, out FillerRegionDefinitionModel region, out string[] currExits);
             allLocations.AddRange(locations);
             allRegions.Add(region);
             exits.Add(currExits);
-            regionLookup.Add(stringKey, key);
+            regionLookup.Add(yamlKey, key);
         }
 
         (List<RegionKey> Forward, List<RegionKey> Backward)[] connectedRegions = new (List<RegionKey> Forward, List<RegionKey> Backward)[checked((byte)allRegions.Count)];
@@ -425,7 +448,7 @@ public sealed class RegionDefinitionsModel
             connectedRegions[i] = ([], []);
         }
 
-        (List<LocationKey> Forward, List<LocationKey> Backward)[] connectedLocations = new (List<LocationKey> Forward, List<LocationKey> Backward)[checked((ushort)allLocations.Count)];
+        (List<LocationKey> Forward, List<LocationKey> Backward)[] connectedLocations = new (List<LocationKey> Forward, List<LocationKey> Backward)[allLocations.Count];
         for (int i = 0; i < connectedLocations.Length; i++)
         {
             connectedLocations[i] = ([], []);
@@ -496,6 +519,8 @@ public abstract record RegionDefinitionModel
 {
     public required RegionKey Key { get; init; }
 
+    public required string YamlKey { get; init; }
+
     public required int AbilityCheckDC { get; init; }
 
     public required Connected<RegionKey> Connected { get; init; }
@@ -515,7 +540,7 @@ public sealed record LandmarkRegionDefinitionModel : RegionDefinitionModel
 
     public required GameRequirement Requirement { get; init; }
 
-    public static LocationDefinitionModel DeserializeFrom(RegionKey key, YamlMappingNode map, ItemDefinitionsModel items, out LandmarkRegionDefinitionModel region, out string[] exits)
+    public static LocationDefinitionModel DeserializeFrom(string yamlKey, RegionKey key, YamlMappingNode map, ItemDefinitionsModel items, out LandmarkRegionDefinitionModel region, out string[] exits)
     {
         exits = map.TryGetValue("exits", out string[]? exitsOrNull) ? exitsOrNull : [];
         GameRequirement requirement = GameRequirement.DeserializeFrom(map["requires"], items);
@@ -523,6 +548,7 @@ public sealed record LandmarkRegionDefinitionModel : RegionDefinitionModel
         region = new()
         {
             Key = key,
+            YamlKey = yamlKey,
             Requirement = requirement,
             AbilityCheckDC = abilityCheckDC,
             Connected = new([], []), // we'll have to deal with this later.
@@ -561,7 +587,7 @@ public sealed record FillerRegionDefinitionModel : RegionDefinitionModel
 
     public required ImmutableArray<LocationKey> FillerLocations { get; init; }
 
-    public static ImmutableArray<LocationDefinitionModel> DeserializeFrom(RegionKey regionKey, ushort firstLocationNum, YamlMappingNode map, ItemDefinitionsModel items, out FillerRegionDefinitionModel region, out string[] exits)
+    public static ImmutableArray<LocationDefinitionModel> DeserializeFrom(string yamlKey, RegionKey regionKey, int firstLocationNum, YamlMappingNode map, ItemDefinitionsModel items, IReadOnlyDictionary<string, RegionKey> landmarkLookup, IReadOnlyList<RegionDefinitionModel> allRegionsSoFar, out FillerRegionDefinitionModel region, out string[] exits)
     {
         Dictionary<ArchipelagoItemFlags, string> keyMap = new()
         {
@@ -612,13 +638,13 @@ public sealed record FillerRegionDefinitionModel : RegionDefinitionModel
         exits = map.TryGetValue("exits", out string[]? exitsOrNull) ? exitsOrNull : [];
         int abilityCheckDC = map.Children.TryGetValue("ability_check_dc", out YamlNode? abilityCheckDCNode)
             ? abilityCheckDCNode.To<int>()
-            : -1;
+            : exits.Max(e => allRegionsSoFar[landmarkLookup[e].N].AbilityCheckDC) - 1;
         LocationDefinitionModel[] locations = new LocationDefinitionModel[checked((byte)unrandomizedItems.Count)];
-        for (byte i = 0; i != locations.Length; i++)
+        for (int i = 0; i != locations.Length; i++)
         {
             locations[i] = new()
             {
-                Key = new() { N = (ushort)(firstLocationNum + i) },
+                Key = new() { N = firstLocationNum + i },
                 RegionLocationKey = RegionLocationKey.For(regionKey, i),
                 Name = nameTemplate.Replace("{n}", $"{i + 1}"),
                 AbilityCheckDC = abilityCheckDC,
@@ -632,6 +658,7 @@ public sealed record FillerRegionDefinitionModel : RegionDefinitionModel
         region = new()
         {
             Key = regionKey,
+            YamlKey = yamlKey,
             AbilityCheckDC = abilityCheckDC,
             Connected = new([], []), // we'll have to deal with this later.
             FillerLocations = ImmutableCollectionsMarshal.AsImmutableArray(Array.ConvertAll(locations, l => l.Key)),

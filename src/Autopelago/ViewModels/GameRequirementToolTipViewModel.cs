@@ -25,8 +25,8 @@ public sealed partial class GameRequirementToolTipViewModel : ViewModelBase, IDi
                 MyContent = $"{ratCount} rats";
                 break;
 
-            case ReceivedItemRequirement { ItemKey: string itemKey }:
-                MyContent = GameDefinitions.Instance.ProgressionItemsByItemKey[itemKey].Name;
+            case ReceivedItemRequirement { ItemKey: ItemKey itemKey }:
+                MyContent = GameDefinitions.Instance[itemKey].Name;
                 break;
 
             case AllChildrenGameRequirement { Children: ImmutableArray<GameRequirement> children }:

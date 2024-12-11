@@ -9,5 +9,5 @@ public readonly record struct WorldItem
 
     public required string ItemName { get; init; }
 
-    public ItemDefinitionModel Item => GameDefinitions.Instance.ItemsByName[ItemName];
+    public ItemKey Item => GameDefinitions.Instance.ItemsByName[ItemName];
 }

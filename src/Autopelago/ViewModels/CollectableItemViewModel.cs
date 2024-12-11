@@ -20,20 +20,20 @@ public sealed partial class CollectableItemViewModel : ViewModelBase, IDisposabl
 
     [Reactive] private Bitmap? _image;
 
-    public CollectableItemViewModel(string itemKey)
+    public CollectableItemViewModel(string yamlKey)
     {
-        ItemKey = itemKey;
+        YamlKey = yamlKey;
         try
         {
-            Model = GameDefinitions.Instance.ProgressionItemsByItemKey[itemKey];
+            Model = GameDefinitions.Instance[GameDefinitions.Instance.ProgressionItemsByYamlKey[yamlKey]];
         }
         catch (KeyNotFoundException ex)
         {
-            throw new KeyNotFoundException($"Item Key: '{itemKey}'", ex);
+            throw new KeyNotFoundException($"Item Key: '{yamlKey}'", ex);
         }
 
-        _saturatedImage = new(AssetLoader.Open(new($"avares://Autopelago/Assets/Images/{itemKey}.webp")));
-        using SKBitmap bmp = SKBitmap.Decode(AssetLoader.Open(new($"avares://Autopelago/Assets/Images/{itemKey}.webp")));
+        _saturatedImage = new(AssetLoader.Open(new($"avares://Autopelago/Assets/Images/{yamlKey}.webp")));
+        using SKBitmap bmp = SKBitmap.Decode(AssetLoader.Open(new($"avares://Autopelago/Assets/Images/{yamlKey}.webp")));
         bmp.SetImmutable();
         _desaturatedImage = ToAvaloniaDesaturated(bmp);
 
@@ -49,7 +49,7 @@ public sealed partial class CollectableItemViewModel : ViewModelBase, IDisposabl
         _desaturatedImage.Dispose();
     }
 
-    public string ItemKey { get; }
+    public string YamlKey { get; }
 
     public ItemDefinitionModel Model { get; }
 }

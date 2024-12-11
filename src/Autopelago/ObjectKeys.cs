@@ -2,28 +2,43 @@ namespace Autopelago;
 
 public readonly record struct RegionKey
 {
-    public required byte N { get; init; }
+    private readonly byte _n;
+    public required int N
+    {
+        get => _n;
+        init => _n = (byte)value;
+    }
 }
 
 public readonly record struct LocationKey
 {
     public static readonly LocationKey Nonexistent = new() { N = ushort.MaxValue };
 
-    public required ushort N { get; init; }
+    private readonly ushort _n;
+    public required int N
+    {
+        get => _n;
+        init => _n = (ushort)value;
+    }
 }
 
 public readonly record struct RegionLocationKey
 {
     public required RegionKey Region { get; init; }
 
-    public required byte N { get; init; }
+    private readonly byte _n;
+    public required int N
+    {
+        get => _n;
+        init => _n = (byte)value;
+    }
 
     public static RegionLocationKey For(RegionKey region)
     {
         return For(region, 0);
     }
 
-    public static RegionLocationKey For(RegionKey region, byte n)
+    public static RegionLocationKey For(RegionKey region, int n)
     {
         return new()
         {
@@ -35,5 +50,10 @@ public readonly record struct RegionLocationKey
 
 public readonly record struct ItemKey
 {
-    public required ushort N { get; init; }
+    private readonly ushort _n;
+    public required int N
+    {
+        get => _n;
+        init => _n = (ushort)value;
+    }
 }
