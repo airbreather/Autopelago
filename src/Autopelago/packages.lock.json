@@ -142,6 +142,12 @@
           "Material.Icons": "2.1.10"
         }
       },
+      "Microsoft.Extensions.ObjectPool": {
+        "type": "Direct",
+        "requested": "[*, )",
+        "resolved": "9.0.0",
+        "contentHash": "UbsU/gYe4nv1DeqMXIVzDfNNek7Sk2kKuAOXL/Y+sLcAR0HwFUqzg1EPiU88jeHNe0g81aPvvHbvHarQr3r9IA=="
+      },
       "ReactiveUI.SourceGenerators": {
         "type": "Direct",
         "requested": "[*, )",

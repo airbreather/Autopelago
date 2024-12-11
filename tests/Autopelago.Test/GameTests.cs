@@ -9,7 +9,7 @@ public sealed class GameTests
 {
     private delegate TResult SpanFunc<TSource, out TResult>(ReadOnlySpan<TSource> vals);
 
-    private static readonly ItemDefinitionModel s_normalRat = GameDefinitions.Instance.PackRat;
+    private static readonly ItemDefinitionModel s_packRat = GameDefinitions.Instance.ProgressionItemsByItemKey["pack_rat"];
 
     private static readonly LocationDefinitionModel s_startLocation = GameDefinitions.Instance.StartLocation;
 
@@ -92,7 +92,7 @@ public sealed class GameTests
     {
         Game game = new(s_highRolls);
         game.InitializeCheckedLocations(s_startRegion.Locations);
-        game.InitializeReceivedItems(Enumerable.Repeat(s_normalRat, ratCount));
+        game.InitializeReceivedItems(Enumerable.Repeat(s_packRat, ratCount));
         game.ArbitrarilyModifyState(g => g.CurrentLocation, s_startRegion.Locations[^1]);
         game.ArbitrarilyModifyState(g => g.TargetLocation, s_startRegion.Locations[^1]);
         game.Advance();
@@ -110,7 +110,7 @@ public sealed class GameTests
     public async ValueTask ShouldHeadFurtherAfterCompletingBasketball([Matrix(true, false)] bool unblockAngryTurtlesFirst)
     {
         Game game = new(s_highRolls);
-        game.InitializeReceivedItems([.. Enumerable.Repeat(s_normalRat, 5), unblockAngryTurtlesFirst ? s_pizzaRat : s_premiumCanOfPrawnFood]);
+        game.InitializeReceivedItems([.. Enumerable.Repeat(s_packRat, 5), unblockAngryTurtlesFirst ? s_pizzaRat : s_premiumCanOfPrawnFood]);
         game.InitializeCheckedLocations(s_startRegion.Locations);
         game.ArbitrarilyModifyState(g => g.CurrentLocation, s_basketball);
         game.ArbitrarilyModifyState(g => g.TargetLocation, s_basketball);
@@ -213,7 +213,7 @@ public sealed class GameTests
         ]);
         game.ReceiveItems([
             s_singleAuraItems["energized"],
-            .. Enumerable.Repeat(s_normalRat, 5),
+            .. Enumerable.Repeat(s_packRat, 5),
             s_premiumCanOfPrawnFood,
             GameDefinitions.Instance.ItemsByName["Pie Rat"],
         ]);
@@ -451,7 +451,7 @@ public sealed class GameTests
         // just restart it, giving it what's needed to reach Prawn Stars
         game = new(s_lowRolls);
         game.InitializeCheckedLocations([s_basketball]);
-        game.InitializeReceivedItems([.. Enumerable.Range(0, 5).Select(_ => s_normalRat), s_premiumCanOfPrawnFood]);
+        game.InitializeReceivedItems([.. Enumerable.Range(0, 5).Select(_ => s_packRat), s_premiumCanOfPrawnFood]);
         await Assert.That(game.AddPriorityLocation(prawnStars.Key)).IsEqualTo(AddPriorityLocationResult.AddedReachable);
         await Assert.That(game.AddPriorityLocation(prawnStars.Key)).IsEqualTo(AddPriorityLocationResult.AlreadyPrioritized);
 
@@ -585,7 +585,7 @@ public sealed class GameTests
     public async ValueTask PriorityLocationsPastClearableLandmarksShouldBlockThePlayer()
     {
         Game game = new(s_lowRolls);
-        game.InitializeReceivedItems(Enumerable.Repeat(s_normalRat, 5));
+        game.InitializeReceivedItems(Enumerable.Repeat(s_packRat, 5));
         game.ArbitrarilyModifyState(g => g.CurrentLocation, GameDefinitions.Instance.StartRegion.Locations[^1]);
         game.ArbitrarilyModifyState(g => g.TargetLocation, GameDefinitions.Instance.StartRegion.Locations[^1]);
         game.ArbitrarilyModifyState(g => g.PriorityLocations, new([s_beforePrawnStars.Locations[1].Key]));
@@ -606,7 +606,7 @@ public sealed class GameTests
             .Because("This test is particularly sensitive to changes in the number of locations in the start region. Please re-evaluate.");
 
         Game game = new(s_highRolls);
-        game.InitializeReceivedItems(Enumerable.Repeat(s_normalRat, 5));
+        game.InitializeReceivedItems(Enumerable.Repeat(s_packRat, 5));
         game.InitializeCheckedLocations(s_startRegion.Locations);
         game.AddPriorityLocation(s_basketball.Key);
 
@@ -645,7 +645,7 @@ public sealed class GameTests
     {
         Game game = new(Prng.State.Start());
         game.InitializeReceivedItems([
-            .. Enumerable.Repeat(s_normalRat, 40),
+            .. Enumerable.Repeat(s_packRat, 40),
             GameDefinitions.Instance.ItemsByName["Priceless Antique"],
             GameDefinitions.Instance.ItemsByName["Pie Rat"],
             GameDefinitions.Instance.ItemsByName["Pizza Rat"],
@@ -737,7 +737,7 @@ public sealed class GameTests
             GameDefinitions.Instance.ItemsByName["Chef Rat"],
             GameDefinitions.Instance.ItemsByName["Computer Rat"],
             GameDefinitions.Instance.ItemsByName["Notorious R.A.T."],
-            .. Enumerable.Repeat(s_normalRat, 14),
+            .. Enumerable.Repeat(s_packRat, 14),
         ]);
 
         game.ArbitrarilyModifyState(g => g.CurrentLocation, GameDefinitions.Instance.LocationsByName["Before Goldfish #2"]);

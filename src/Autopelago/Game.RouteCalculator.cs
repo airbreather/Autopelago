@@ -1,3 +1,4 @@
+using System.Collections;
 using System.Collections.Frozen;
 using System.Collections.Immutable;
 using System.Runtime.InteropServices;
@@ -6,10 +7,6 @@ namespace Autopelago;
 
 public sealed partial class Game
 {
-    private readonly HashSet<string> _hardLockedRegions = new(ImmutableCollectionsMarshal.AsArray(GameDefinitions.Instance.AllRegions.Keys)!);
-
-    private readonly HashSet<string> _softLockedRegions = new(ImmutableCollectionsMarshal.AsArray(GameDefinitions.Instance.AllRegions.Keys)!);
-
     private bool _everCalculatedPathToTarget;
     private bool UpdateTargetLocation()
     {
@@ -105,9 +102,6 @@ public sealed partial class Game
         TargetLocation = CurrentLocation;
         return TargetLocationReason.NowhereUsefulToMove;
     }
-
-    private readonly PriorityQueue<(RegionDefinitionModel Region, Direction Direction), int> _pq = new(GameDefinitions.Instance.AllRegions.Count);
-    private readonly HashSet<string> _visitedRegions = new(GameDefinitions.Instance.AllRegions.Count);
 
     private LocationDefinitionModel? FindClosestUncheckedLocation(LocationDefinitionModel currentLocation)
     {
@@ -278,11 +272,6 @@ public sealed partial class Game
             : null;
     }
 
-    private readonly Queue<(RegionDefinitionModel Region, Direction Direction)> _q = new(GameDefinitions.Instance.AllRegions.Count);
-    private readonly List<LocationDefinitionModel> _pathLocations = new(GameDefinitions.Instance.LocationsByName.Count);
-    private readonly Dictionary<string, (RegionDefinitionModel Region, Direction Direction)> _prev = new(GameDefinitions.Instance.AllRegions.Count);
-    private readonly Stack<(RegionDefinitionModel Region, Direction Direction)> _regionStack = new(GameDefinitions.Instance.AllRegions.Count);
-    private readonly List<LocationDefinitionModel> _prevPath = new(GameDefinitions.Instance.LocationsByName.Count);
     private LocationKey _currentLocationForPrevPath = LocationKey.For("nonexistent");
     private LocationKey _targetLocationForPrevPath = LocationKey.For("nonexistent");
     private bool _startledForPrevPath;
@@ -450,8 +439,6 @@ public sealed partial class Game
         return null;
     }
 
-    private readonly Dictionary<string, SmallBitArray> _visitedLocations = GameDefinitions.Instance.AllRegions.Values.ToDictionary(r => r.Key, r => new SmallBitArray(r.Locations.Length));
-    private readonly Queue<LocationKey> _qqq = new(GameDefinitions.Instance.LocationsByName.Count);
     private IEnumerable<LocationKey> GetClosestLocationsWithItemFlags(LocationKey currentLocation, ArchipelagoItemFlags flags)
     {
         FrozenSet<LocationKey> spoilerData = _spoilerData![flags];
@@ -484,7 +471,6 @@ public sealed partial class Game
         }
     }
 
-    private readonly Queue<(RegionDefinitionModel Region, IReadOnlyList<ItemDefinitionModel> ReceivedItems)> _qq = new(GameDefinitions.Instance.AllRegions.Count);
     private void RecalculateClearable()
     {
         _qq.Clear();

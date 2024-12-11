@@ -1,8 +1,11 @@
+using System.Collections;
 using System.Collections.Frozen;
 using System.Collections.Immutable;
 using System.Collections.ObjectModel;
 using System.Linq.Expressions;
 using System.Reflection;
+
+using Microsoft.Extensions.ObjectPool;
 
 namespace Autopelago;
 
@@ -49,9 +52,9 @@ public sealed record AuraData
 
 public readonly record struct LocationVector
 {
-    public required LocationDefinitionModel PreviousLocation { get; init; }
+    public required LocationKey PreviousLocation { get; init; }
 
-    public required LocationDefinitionModel CurrentLocation { get; init; }
+    public required LocationKey CurrentLocation { get; init; }
 }
 
 public sealed partial class Game
@@ -70,15 +73,9 @@ public sealed partial class Game
 
     private readonly GameInstrumentation? _instrumentation;
 
-    private readonly List<LocationVector> _prevMovementLog = new(MaxMovementsPerStep);
-
-    private readonly List<LocationVector> _movementLog = new(MaxMovementsPerStep);
-
-    private readonly Queue<LocationDefinitionModel> _pathToTarget = new(GameDefinitions.Instance.LocationsByName.Count);
-
     private int _actionBalanceAfterPreviousStep;
 
-    private bool _initializedAuraData;
+    private bool _auraDataInitialized;
 
     private FrozenDictionary<ArchipelagoItemFlags, FrozenSet<LocationKey>>? _spoilerData;
 
@@ -89,8 +86,8 @@ public sealed partial class Game
 
     public Game(Prng.State prngState, GameInstrumentation? instrumentation)
     {
-        _hardLockedRegions.Remove(GameDefinitions.Instance.StartRegion.Key);
-        _softLockedRegions.Remove(GameDefinitions.Instance.StartRegion.Key);
+        _hardLockedRegions[GameDefinitions.Instance.StartRegion.N] = false;
+        _softLockedRegions[GameDefinitions.Instance.StartRegion.N] = false;
 
         _prngState = prngState;
         _instrumentation = instrumentation;
@@ -101,43 +98,27 @@ public sealed partial class Game
             CurrentLocation = GameDefinitions.Instance.StartLocation,
         });
         PreviousStepMovementLog = _prevMovementLog.AsReadOnly();
+        ReceivedItems = new(_receivedItemsOrder);
+        LocationIsChecked = new(_checkedLocations);
+        CheckedLocations = new(_checkedLocationsOrder);
     }
 
     public ReadOnlyCollection<LocationVector> PreviousStepMovementLog { get; }
 
-    public LocationDefinitionModel CurrentLocation { get; private set; } = GameDefinitions.Instance.StartLocation;
+    public LocationKey CurrentLocation { get; private set; } = GameDefinitions.Instance.StartLocation;
 
-    public LocationDefinitionModel TargetLocation { get; private set; } = GameDefinitions.Instance.StartLocation;
+    public LocationKey TargetLocation { get; private set; } = GameDefinitions.Instance.StartLocation;
 
     public TargetLocationReason TargetLocationReason { get; private set; } = TargetLocationReason.GameNotStarted;
 
-    private List<ItemDefinitionModel>? _receivedItems;
+    private bool _receivedItemsInitialized;
+    public ReadOnlyCollection<ItemKey> ReceivedItems { get; }
 
-    public ReadOnlyCollection<ItemDefinitionModel> ReceivedItems
-    {
-        get
-        {
-            EnsureStarted();
-            return _receivedItems!.AsReadOnly();
-        }
-    }
-
-    private CheckedLocations? _checkedLocations;
-
-    public CheckedLocations CheckedLocations
-    {
-        get
-        {
-            EnsureStarted();
-            return _checkedLocations!;
-        }
-    }
-
-    private List<LocationKey> _priorityPriorityLocations = [];
+    private bool _checkedLocationsInitialized;
+    public ReadOnlyBitArray LocationIsChecked { get; }
+    public ReadOnlyCollection<LocationKey> CheckedLocations { get; }
 
     public ReadOnlyCollection<LocationKey> PriorityPriorityLocations => _priorityPriorityLocations.AsReadOnly();
-
-    private List<LocationKey> _priorityLocations = [];
 
     public ReadOnlyCollection<LocationKey> PriorityLocations
     {
@@ -185,13 +166,17 @@ public sealed partial class Game
             if (_ratCount is null)
             {
                 _ratCount = 0;
-                foreach (ItemDefinitionModel item in _receivedItems!)
+                ReadOnlySpan<int> receivedItems = _receivedItems;
+                foreach (ItemKey item in GameDefinitions.Instance.ItemsWithNonzeroRatCounts)
                 {
-                    _ratCount += item.RatCount.GetValueOrDefault();
+                    if (receivedItems[item.N] > 0)
+                    {
+                        _ratCount += GameDefinitions.Instance.AllItems[item.N].RatCount * receivedItems[item.N];
+                    }
                 }
             }
 
-            return _ratCount.Value;
+            return _ratCount.GetValueOrDefault();
         }
     }
 
@@ -200,7 +185,7 @@ public sealed partial class Game
         get
         {
             using Lock.Scope _ = EnterLockScope();
-            if (!_initializedAuraData)
+            if (!_auraDataInitialized)
             {
                 throw new InvalidOperationException("Game has not started yet.");
             }
@@ -215,8 +200,8 @@ public sealed partial class Game
                 StartledCounter = StartledCounter,
                 MercyModifier = MercyModifier,
                 HasConfidence = HasConfidence,
-                PriorityPriorityLocations = [.. _priorityPriorityLocations.Select(l => GameDefinitions.Instance.LocationsByKey[l].Name)],
-                PriorityLocations = [.. _priorityLocations.Select(l => GameDefinitions.Instance.LocationsByKey[l].Name)],
+                PriorityPriorityLocations = [.. _priorityPriorityLocations.Select(l => GameDefinitions.Instance[l].Name)],
+                PriorityLocations = [.. _priorityLocations.Select(l => GameDefinitions.Instance[l].Name)],
             };
         }
     }
@@ -285,31 +270,39 @@ public sealed partial class Game
         ((PropertyInfo)((MemberExpression)prop.Body).Member).SetValue(this, value);
     }
 
-    public void InitializeCheckedLocations(IEnumerable<LocationDefinitionModel> checkedLocations)
+    public void InitializeCheckedLocations(IEnumerable<LocationKey> checkedLocations)
     {
         using Lock.Scope _ = EnterLockScope();
-        if (_checkedLocations is not null)
+        if (_checkedLocationsInitialized)
         {
             throw new InvalidOperationException("Checked locations have already been initialized.");
         }
 
-        _checkedLocations = new();
-        foreach (LocationDefinitionModel location in checkedLocations)
+        foreach (LocationKey location in checkedLocations)
         {
-            _checkedLocations.MarkChecked(location);
+            _checkedLocations[location.N] = true;
+            _checkedLocationsOrder.Add(location);
         }
+
+        _checkedLocationsInitialized = true;
     }
 
-    public void InitializeReceivedItems(IEnumerable<ItemDefinitionModel> receivedItems)
+    public void InitializeReceivedItems(IEnumerable<ItemKey> receivedItems)
     {
         using Lock.Scope _ = EnterLockScope();
-        if (_receivedItems is not null)
+        if (_receivedItemsInitialized)
         {
             throw new InvalidOperationException("Received items have already been initialized.");
         }
 
-        _receivedItems = [.. receivedItems];
+        Span<int> receivedItemsSpan = _receivedItems;
+        foreach (ItemKey item in receivedItems)
+        {
+            ++receivedItemsSpan[item.N];
+            _receivedItemsOrder.Add(item);
+        }
         _ratCount = null;
+        _receivedItemsInitialized = true;
     }
 
     public void InitializeSpoilerData(FrozenDictionary<ArchipelagoItemFlags, FrozenSet<LocationKey>> spoilerData)
@@ -326,7 +319,7 @@ public sealed partial class Game
     public void InitializeAuraData(AuraData auraData)
     {
         using Lock.Scope _ = EnterLockScope();
-        if (_initializedAuraData)
+        if (_auraDataInitialized)
         {
             throw new InvalidOperationException("Aura data has already been initialized.");
         }
@@ -339,16 +332,13 @@ public sealed partial class Game
         StartledCounter = auraData.StartledCounter;
         MercyModifier = auraData.MercyModifier;
         HasConfidence = auraData.HasConfidence;
-        _priorityPriorityLocations =
-        [
-            .. auraData.PriorityPriorityLocations.Select(l => GameDefinitions.Instance.LocationsByName[l].Key),
-        ];
-        _priorityLocations =
-        [
-            .. auraData.PriorityLocations.Select(l => GameDefinitions.Instance.LocationsByName[l].Key),
-        ];
-
-        _initializedAuraData = true;
+        _priorityPriorityLocations.AddRange(
+            auraData.PriorityPriorityLocations.Select(l => GameDefinitions.Instance.LocationsByName[l])
+        );
+        _priorityLocations.AddRange(
+            auraData.PriorityLocations.Select(l => GameDefinitions.Instance.LocationsByName[l])
+        );
+        _auraDataInitialized = true;
     }
 
     public AddPriorityLocationResult? AddPriorityLocation(LocationKey toPrioritize)
@@ -361,7 +351,7 @@ public sealed partial class Game
         }
 
         _priorityLocations.Add(toPrioritize);
-        return _hardLockedRegions.Contains(toPrioritize.RegionKey)
+        return _hardLockedRegions[GameDefinitions.Instance.RegionKey[toPrioritize].N]
             ? AddPriorityLocationResult.AddedUnreachable
             : AddPriorityLocationResult.AddedReachable;
     }
@@ -371,7 +361,7 @@ public sealed partial class Game
         using Lock.Scope _ = EnterLockScope();
         EnsureStarted();
         int index = _priorityLocations.FindIndex(
-            l => GameDefinitions.Instance.LocationsByKey[l].Name.Equals(locationName, StringComparison.InvariantCultureIgnoreCase));
+            l => GameDefinitions.Instance[l].Name.Equals(locationName, StringComparison.InvariantCultureIgnoreCase));
         if (index < 0)
         {
             return null;
@@ -382,7 +372,7 @@ public sealed partial class Game
         return removed;
     }
 
-    public List<LocationDefinitionModel> CalculateRoute(LocationDefinitionModel fromLocation, LocationDefinitionModel toLocation)
+    public List<LocationKey> CalculateRoute(LocationKey fromLocation, LocationKey toLocation)
     {
         using Lock.Scope _ = EnterLockScope();
         EnsureStarted();
@@ -402,14 +392,11 @@ public sealed partial class Game
             return;
         }
 
-        _checkedLocations ??= new();
-        _receivedItems ??= new(GameDefinitions.Instance.LocationsByName.Count);
+        _receivedItemsInitialized = true;
+        _checkedLocationsInitialized = true;
+        _auraDataInitialized = true;
+        _spoilerData ??= GameDefinitions.Instance.UnrandomizedSpoilerData;
         _ratCount = null;
-        _spoilerData ??= GameDefinitions.Instance.LocationsByName.Values
-            .Where(l => l.UnrandomizedItem is not null)
-            .GroupBy(l => l.UnrandomizedItem!.ArchipelagoFlags, l => l.Key)
-            .ToFrozenDictionary(grp => grp.Key, grp => grp.ToFrozenSet());
-        _initializedAuraData = true;
         HasStarted = true;
         RecalculateClearable();
     }
@@ -511,7 +498,7 @@ public sealed partial class Game
                 }
             }
 
-            if (!moved && StartledCounter == 0 && !_checkedLocations![CurrentLocation.Key])
+            if (!moved && StartledCounter == 0 && !_checkedLocations[CurrentLocation.N])
             {
                 bool hasUnlucky = false;
                 bool hasLucky = false;
@@ -546,7 +533,7 @@ public sealed partial class Game
                         multi: multi++,
                         hasUnlucky: hasUnlucky,
                         hasStylish: hasStylish);
-                    success = modifiedRoll >= CurrentLocation.AbilityCheckDC;
+                    success = modifiedRoll >= GameDefinitions.Instance[CurrentLocation].AbilityCheckDC;
                     if (isFirstCheck && !success)
                     {
                         bumpMercyModifierForNextTime = true;
@@ -557,13 +544,13 @@ public sealed partial class Game
 
                 if (success)
                 {
-                    _checkedLocations!.MarkChecked(CurrentLocation);
-                    _softLockedRegions.Remove(CurrentLocation.Key.RegionKey);
+                    _checkedLocations[CurrentLocation.N] = true;
+                    _softLockedRegions[GameDefinitions.Instance.RegionKey[CurrentLocation].N] = false;
                     MercyModifier = 0;
                     bumpMercyModifierForNextTime = false;
                 }
 
-                _instrumentation?.TraceLocationAttempt(CurrentLocation, roll, hasLucky, hasUnlucky, hasStylish, (byte)RatCount, (byte)CurrentLocation.AbilityCheckDC, (byte)immediateMercyModifier, success);
+                _instrumentation?.TraceLocationAttempt(CurrentLocation, roll, hasLucky, hasUnlucky, hasStylish, (byte)RatCount, (byte)GameDefinitions.Instance[CurrentLocation].AbilityCheckDC, (byte)immediateMercyModifier, success);
                 if (!success)
                 {
                     continue;
@@ -575,11 +562,11 @@ public sealed partial class Game
                 switch (TargetLocationReason)
                 {
                     case TargetLocationReason.Priority:
-                        _priorityLocations.Remove(TargetLocation.Key);
+                        _priorityLocations.Remove(TargetLocation);
                         break;
 
                     case TargetLocationReason.PriorityPriority:
-                        _priorityPriorityLocations.Remove(TargetLocation.Key);
+                        _priorityPriorityLocations.Remove(TargetLocation);
                         break;
                 }
             }
@@ -624,23 +611,24 @@ public sealed partial class Game
         }
     }
 
-    public void CheckLocations(ReadOnlySpan<LocationDefinitionModel> newLocations)
+    public void CheckLocations(ReadOnlySpan<LocationKey> newLocations)
     {
         using Lock.Scope _ = EnterLockScope();
         EnsureStarted();
-        HashSet<LocationKey> keys = new(newLocations.Length);
-        foreach (LocationDefinitionModel location in newLocations)
+        using Borrowed<BitArray> borrowed = BorrowLocationsBitArrayDefaultFalse();
+        BitArray locationIsNewlyChecked = borrowed.Value;
+        foreach (LocationKey location in newLocations)
         {
-            _checkedLocations!.MarkChecked(location);
-            keys.Add(location.Key);
-            _softLockedRegions.Remove(CurrentLocation.Key.RegionKey);
+            _checkedLocations[location.N] = true;
+            locationIsNewlyChecked[location.N] = true;
+            _softLockedRegions[GameDefinitions.Instance.RegionKey[CurrentLocation].N] = false;
         }
 
-        _priorityLocations.RemoveAll(keys.Contains);
-        _priorityPriorityLocations.RemoveAll(keys.Contains);
+        _priorityLocations.RemoveAll(l => locationIsNewlyChecked[l.N]);
+        _priorityPriorityLocations.RemoveAll(l => locationIsNewlyChecked[l.N]);
     }
 
-    public void ReceiveItems(ReadOnlySpan<ItemDefinitionModel> newItems)
+    public void ReceiveItems(ReadOnlySpan<ItemKey> newItems)
     {
         if (newItems.IsEmpty)
         {
@@ -649,6 +637,7 @@ public sealed partial class Game
 
         using Lock.Scope _ = EnterLockScope();
         EnsureStarted();
+        Span<int> receivedItems = _receivedItems;
         bool recalculateAccess = false;
         int foodMod = 0;
         int energyFactorMod = 0;
@@ -656,14 +645,17 @@ public sealed partial class Game
         int distractedMod = 0;
         int stylishMod = 0;
         int startledMod = 0;
-        foreach (ItemDefinitionModel newItem in newItems)
+        foreach (ItemKey newItem in newItems)
         {
-            recalculateAccess |= GameDefinitions.Instance.ProgressionItemNames.Contains(newItem.Name) || newItem.RatCount > 0;
+            _receivedItemsOrder.Add(newItem);
+            ++receivedItems[newItem.N];
+            ref readonly ItemDefinitionModel item = ref GameDefinitions.Instance[newItem];
+            recalculateAccess |= item.ArchipelagoFlags == ArchipelagoItemFlags.LogicalAdvancement || item.RatCount > 0;
 
             // "confidence" takes place right away: it could apply to another item in the batch.
             bool addConfidence = false;
             bool subtractConfidence = false;
-            foreach (string aura in newItem.AurasGranted)
+            foreach (string aura in item.AurasGranted)
             {
                 switch (aura)
                 {
@@ -715,7 +707,7 @@ public sealed partial class Game
                     case "smart":
                     case "conspiratorial":
                         ArchipelagoItemFlags flags = aura == "smart" ? ArchipelagoItemFlags.LogicalAdvancement : ArchipelagoItemFlags.Trap;
-                        foreach (LocationKey loc in GetClosestLocationsWithItemFlags(CurrentLocation.Key, flags))
+                        foreach (LocationKey loc in GetClosestLocationsWithItemFlags(CurrentLocation, flags))
                         {
                             if (!_priorityPriorityLocations.Contains(loc))
                             {
@@ -744,7 +736,6 @@ public sealed partial class Game
             }
         }
 
-        _receivedItems!.AddRange(newItems);
         _ratCount = null;
         FoodFactor += foodMod * 5;
         EnergyFactor += energyFactorMod * 5;

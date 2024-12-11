@@ -31,6 +31,7 @@
     <PackageReference Include="Avalonia.Svg.Skia" Version="*" />
     <PackageReference Include="Avalonia.Themes.Fluent" Version="*" />
     <PackageReference Include="Material.Icons.Avalonia" Version="*" />
+    <PackageReference Include="Microsoft.Extensions.ObjectPool" Version="*" />
     <PackageReference Include="ReactiveUI.SourceGenerators" Version="*" PrivateAssets="all" />
     <PackageReference Include="Serilog" Version="*" />
     <PackageReference Include="Serilog.Sinks.Async" Version="*" />
