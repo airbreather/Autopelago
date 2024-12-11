@@ -1,6 +1,5 @@
 using System.Collections;
 using System.Collections.Frozen;
-using System.Collections.Immutable;
 using System.Runtime.InteropServices;
 
 namespace Autopelago;
@@ -79,7 +78,7 @@ public sealed partial class Game
 
         if (priorityTargetLocation is LocationKey ultimateTargetLocation)
         {
-            List<LocationKey> path = GetPath(CurrentLocation, priorityTargetLocation);
+            List<LocationKey> path = GetPath(CurrentLocation, ultimateTargetLocation);
             foreach (LocationKey l in path)
             {
                 if (GameDefinitions.Instance.TryGetLandmarkRegion(l, out _) && !_checkedLocations[l.N])
@@ -174,8 +173,8 @@ public sealed partial class Game
         using var borrowedPq = Borrow<PriorityQueue<(RegionKey ConnectedRegion, Direction Direction), int>>();
         PriorityQueue<(RegionKey ConnectedRegion, Direction Direction), int> pq = borrowedPq.Value;
         pq.Clear();
-        using var borrowedVisitedRegions = BorrowRegionsBitArrayDefaultTrue();
-        BitArray visitedRegions = borrowedVisitedRegions.Value;
+        using var visitedRegionsBorrow = BorrowRegionsBitArrayDefaultTrue();
+        BitArray visitedRegions = visitedRegionsBorrow.Value;
         visitedRegions.SetAll(false);
         visitedRegions[currentRegionLocation.Region.N] = true;
         foreach ((RegionKey connected, Direction direction) in currentRegionDefinition.Connected.All)
@@ -279,13 +278,13 @@ public sealed partial class Game
         bool startled = TargetLocationReason == TargetLocationReason.Startled;
         if ((_currentLocationForPrevPath, _targetLocationForPrevPath, _startledForPrevPath) != (currentLocation, targetLocation, startled))
         {
-            if (_currentLocationForPrevPath == currentLocation.Key && _startledForPrevPath == startled && _prevPath.Count > 0)
+            if (_currentLocationForPrevPath == currentLocation && _startledForPrevPath == startled && _prevPath.Count > 0)
             {
                 for (int i = _prevPath.Count - 1; i >= 0; --i)
                 {
-                    if (_prevPath[i].Key == targetLocation.Key)
+                    if (_prevPath[i] == targetLocation)
                     {
-                        _targetLocationForPrevPath = targetLocation.Key;
+                        _targetLocationForPrevPath = targetLocation;
                         _startledForPrevPath = startled;
                         CollectionsMarshal.SetCount(_prevPath, i + 1);
                         return _prevPath;
@@ -293,124 +292,139 @@ public sealed partial class Game
                 }
             }
 
-            _currentLocationForPrevPath = currentLocation.Key;
-            _targetLocationForPrevPath = targetLocation.Key;
+            _currentLocationForPrevPath = currentLocation;
+            _targetLocationForPrevPath = targetLocation;
             _startledForPrevPath = startled;
             _prevPath.Clear();
             if (GetPathCore(currentLocation, targetLocation, startled) is { } path)
             {
-                _prevPath.AddRange(CollectionsMarshal.AsSpan(path));
+                _prevPath.AddRange(CollectionsMarshal.AsSpan(path.Value));
             }
         }
 
         return _prevPath;
     }
 
-    private List<LocationDefinitionModel>? GetPathCore(LocationDefinitionModel currentLocation, LocationDefinitionModel targetLocation, bool startled)
+    private Borrowed<List<LocationKey>>? GetPathCore(LocationKey currentLocation, LocationKey targetLocation, bool startled)
     {
-        _pathLocations.Clear();
-        HashSet<string> lockedRegions = startled
-            ? _softLockedRegions
-            : _hardLockedRegions;
-        if (currentLocation.Key.RegionKey == targetLocation.Key.RegionKey)
+        if (currentLocation == targetLocation)
         {
-            LocationKey currentLocationKey = currentLocation.Key;
-            if (currentLocationKey.N == targetLocation.Key.N)
-            {
-                _pathLocations.Add(currentLocation);
-                _pathLocations.Add(targetLocation);
-                return _pathLocations;
-            }
-
-            ImmutableArray<LocationDefinitionModel> currentRegionLocations = currentLocation.Region.Locations;
-            if (currentLocation.Key.N > targetLocation.Key.N)
-            {
-                for (int i = currentLocationKey.N; i >= targetLocation.Key.N; --i)
-                {
-                    _pathLocations.Add(currentRegionLocations[i]);
-                }
-            }
-            else
-            {
-                for (int i = currentLocationKey.N; i <= targetLocation.Key.N; i++)
-                {
-                    _pathLocations.Add(currentRegionLocations[i]);
-                }
-            }
-
-            return _pathLocations;
+            var trivialResultBorrow = Borrow<List<LocationKey>>();
+            trivialResultBorrow.Value.AddRange([currentLocation, targetLocation]);
+            return trivialResultBorrow;
         }
 
-        if (lockedRegions.Contains(targetLocation.Key.RegionKey))
+        ref readonly LocationDefinitionModel currentLocationDefinition = ref GameDefinitions.Instance[currentLocation];
+        ref readonly LocationDefinitionModel targetLocationDefinition = ref GameDefinitions.Instance[targetLocation];
+        RegionLocationKey currentRegionLocation = currentLocationDefinition.RegionLocationKey;
+        RegionLocationKey targetRegionLocation = targetLocationDefinition.RegionLocationKey;
+        BitArray lockedRegions = startled
+            ? _softLockedRegions
+            : _hardLockedRegions;
+        if (lockedRegions[targetRegionLocation.Region.N])
         {
             return null;
         }
 
-        _q.Clear();
-        _prev.Clear();
-        foreach ((RegionDefinitionModel connectedRegion, Direction direction) in GameDefinitions.Instance.ConnectedRegions[currentLocation.Region.Key])
+        var resultBorrow = Borrow<List<LocationKey>>();
+        List<LocationKey> result = resultBorrow.Value;
+        if (currentRegionLocation.Region == targetRegionLocation.Region)
         {
-            if (!lockedRegions.Contains(connectedRegion.Key))
+            if (currentLocation.N > targetLocation.N)
             {
-                _q.Enqueue((connectedRegion, direction));
-                _prev.Add(connectedRegion.Key, (currentLocation.Region, direction));
+                int count = currentLocation.N - targetLocation.N + 1;
+                result.EnsureCapacity(count);
+                for (int i = 0; i < count; i++)
+                {
+                    result.Add(new() { N = (ushort)(currentLocation.N - i) });
+                }
+            }
+            else
+            {
+                int count = targetLocation.N - currentLocation.N + 1;
+                for (int i = 0; i < count; i++)
+                {
+                    result.Add(new() { N = (ushort)(currentLocation.N + i) });
+                }
+            }
+
+            return resultBorrow;
+        }
+
+        using var qBorrow = Borrow<Queue<(RegionKey ConnectedRegion, Direction Direction)>>();
+        Queue<(RegionKey ConnectedRegion, Direction Direction)> q = qBorrow.Value;
+        q.Clear();
+
+        using var prevBorrow = Borrow<Dictionary<RegionKey, (RegionKey ConnectedRegion, Direction Direction)>>();
+        Dictionary<RegionKey, (RegionKey ConnectedRegion, Direction Direction)> prev = prevBorrow.Value;
+        prev.Clear();
+
+        foreach ((RegionKey connectedRegion, Direction direction) in GameDefinitions.Instance[currentRegionLocation.Region].Connected.All)
+        {
+            if (!lockedRegions[connectedRegion.N])
+            {
+                q.Enqueue((connectedRegion, direction));
+                prev.Add(connectedRegion, (currentRegionLocation.Region, direction));
             }
         }
 
-        while (_q.TryDequeue(out var tup))
+        while (q.TryDequeue(out var tup))
         {
-            (RegionDefinitionModel connectedRegion, _) = tup;
-            if (connectedRegion.Key != targetLocation.Key.RegionKey)
+            (RegionKey connectedRegion, _) = tup;
+            if (connectedRegion != targetRegionLocation.Region)
             {
-                foreach ((RegionDefinitionModel nextConnectedRegion, Direction nextDirection) in GameDefinitions.Instance.ConnectedRegions[connectedRegion.Key])
+                ref readonly RegionDefinitionModel connectedRegionDefinition = ref GameDefinitions.Instance[connectedRegion];
+                foreach ((RegionKey nextConnectedRegion, Direction nextDirection) in connectedRegionDefinition.Connected.All)
                 {
-                    if (nextConnectedRegion.Key != currentLocation.Key.RegionKey &&
-                        _prev.TryAdd(nextConnectedRegion.Key, (connectedRegion, nextDirection)) &&
-                        !lockedRegions.Contains(nextConnectedRegion.Key))
+                    if (prev.TryAdd(nextConnectedRegion, (connectedRegion, nextDirection)) &&
+                        !lockedRegions[nextConnectedRegion.N])
                     {
-                        _q.Enqueue((nextConnectedRegion, nextDirection));
+                        q.Enqueue((nextConnectedRegion, nextDirection));
                     }
                 }
 
                 continue;
             }
 
-            _regionStack.Clear();
+            using var regionStackBorrow = Borrow<Stack<(RegionKey ConnectedRegion, Direction Direction)>>();
+            Stack<(RegionKey ConnectedRegion, Direction Direction)> regionStack = regionStackBorrow.Value;
+            regionStack.Clear();
             do
             {
-                _regionStack.Push(tup);
-            } while (_prev.TryGetValue(tup.Region.Key, out tup));
+                regionStack.Push(tup);
+            } while (prev.TryGetValue(tup.ConnectedRegion, out tup));
 
-            while (_regionStack.TryPop(out tup))
+            while (regionStack.TryPop(out tup))
             {
-                (RegionDefinitionModel nextRegion, Direction direction) = tup;
-                if (nextRegion.Key == currentLocation.Key.RegionKey)
+                (RegionKey nextRegion, Direction direction) = tup;
+                ref readonly RegionDefinitionModel nextRegionDefinition = ref GameDefinitions.Instance[nextRegion];
+                if (nextRegion == currentRegionLocation.Region)
                 {
                     switch (direction)
                     {
                         case Direction.TowardsGoal:
-                            _pathLocations.AddRange(nextRegion.Locations.AsSpan(currentLocation.Key.N..));
+                            result.AddRange(nextRegionDefinition.Locations.AsSpan(currentRegionLocation.N..));
                             break;
 
                         default:
-                            int oldCount = _pathLocations.Count;
-                            _pathLocations.AddRange(nextRegion.Locations.AsSpan(..(currentLocation.Key.N + 1)));
-                            _pathLocations.Reverse(oldCount, _pathLocations.Count - oldCount);
+                            int oldCount = result.Count;
+                            result.AddRange(nextRegionDefinition.Locations.AsSpan(..(currentLocation.N + 1)));
+                            result.Reverse(oldCount, result.Count - oldCount);
                             break;
                     }
                 }
-                else if (nextRegion.Key == targetLocation.Key.RegionKey)
+                else if (nextRegion == targetRegionLocation.Region)
                 {
                     switch (direction)
                     {
                         case Direction.TowardsGoal:
-                            _pathLocations.AddRange(nextRegion.Locations.AsSpan(..(targetLocation.Key.N + 1)));
+                            result.AddRange(nextRegionDefinition.Locations.AsSpan(..(targetRegionLocation.N + 1)));
                             break;
 
                         default:
-                            int oldCount = _pathLocations.Count;
-                            _pathLocations.AddRange(nextRegion.Locations.AsSpan(targetLocation.Key.N..));
-                            _pathLocations.Reverse(oldCount, _pathLocations.Count - oldCount);
+                            int oldCount = result.Count;
+                            result.AddRange(nextRegionDefinition.Locations.AsSpan(targetRegionLocation.N..));
+                            result.Reverse(oldCount, result.Count - oldCount);
                             break;
                     }
                 }
@@ -419,22 +433,25 @@ public sealed partial class Game
                     switch (direction)
                     {
                         case Direction.TowardsGoal:
-                            _pathLocations.AddRange(nextRegion.Locations.AsSpan());
+                            result.AddRange(nextRegionDefinition.Locations.AsSpan());
                             break;
 
                         default:
-                            int oldCount = _pathLocations.Count;
-                            _pathLocations.AddRange(nextRegion.Locations.AsSpan());
-                            _pathLocations.Reverse(oldCount, _pathLocations.Count - oldCount);
+                            int oldCount = result.Count;
+                            result.AddRange(nextRegionDefinition.Locations.AsSpan());
+                            result.Reverse(oldCount, result.Count - oldCount);
                             break;
                     }
                 }
             }
 
-            return _pathLocations;
+            return resultBorrow;
         }
 
-        return null;
+        using (resultBorrow)
+        {
+            return null;
+        }
     }
 
     private IEnumerable<LocationKey> GetClosestLocationsWithItemFlags(LocationKey currentLocation, ArchipelagoItemFlags flags)
@@ -442,28 +459,27 @@ public sealed partial class Game
         FrozenSet<LocationKey> spoilerData = _spoilerData![flags];
 
         // TODO: optimize this, it's getting late.
-        foreach (string regionKey in _visitedLocations.Keys)
+        using var visitedLocationsBorrow = BorrowLocationsBitArrayDefaultFalse();
+        BitArray visitedLocations = visitedLocationsBorrow.Value;
+        using var qBorrow = Borrow<Queue<LocationKey>>();
+        Queue<LocationKey> q = qBorrow.Value;
+        q.Clear();
+        q.Enqueue(currentLocation);
+        visitedLocations[currentLocation.N] = true;
+        while (q.TryDequeue(out LocationKey loc))
         {
-            (CollectionsMarshal.GetValueRefOrNullRef(_visitedLocations, regionKey)).Clear();
-        }
-
-        _qqq.Clear();
-        _qqq.Enqueue(currentLocation);
-        CollectionsMarshal.GetValueRefOrAddDefault(_visitedLocations, currentLocation.RegionKey, out _)[currentLocation.N] = true;
-        while (_qqq.TryDequeue(out LocationKey loc))
-        {
-            if (spoilerData.Contains(loc) && !_checkedLocations![loc])
+            if (spoilerData.Contains(loc) && !_checkedLocations[loc.N])
             {
                 yield return loc;
             }
 
-            foreach ((LocationDefinitionModel connectedLocation, _) in GameDefinitions.Instance.ConnectedLocations[loc])
+            foreach ((LocationKey connectedLocation, _) in GameDefinitions.Instance[loc].Connected.All)
             {
-                if (!(_visitedLocations[connectedLocation.Key.RegionKey][connectedLocation.Key.N] ||
-                      _hardLockedRegions.Contains(connectedLocation.Key.RegionKey)))
+                if (!(visitedLocations[connectedLocation.N] ||
+                      _hardLockedRegions[GameDefinitions.Instance.RegionKey[connectedLocation].N]))
                 {
-                    CollectionsMarshal.GetValueRefOrAddDefault(_visitedLocations, connectedLocation.Key.RegionKey, out _)[connectedLocation.Key.N] = true;
-                    _qqq.Enqueue(connectedLocation.Key);
+                    visitedLocations[connectedLocation.N] = true;
+                    q.Enqueue(connectedLocation);
                 }
             }
         }
@@ -471,41 +487,40 @@ public sealed partial class Game
 
     private void RecalculateClearable()
     {
-        _qq.Clear();
-        _visitedRegions.Clear();
+        using var qBorrow = Borrow<Queue<RegionKey>>();
+        Queue<RegionKey> q = qBorrow.Value;
+        q.Clear();
 
-        _qq.Enqueue((GameDefinitions.Instance.StartRegion, _receivedItems!));
-        while (_qq.TryDequeue(out var tup))
+        using var visitedRegionsBorrow = BorrowRegionsBitArrayDefaultTrue();
+        BitArray visitedRegions = visitedRegionsBorrow.Value;
+        visitedRegions.SetAll(false);
+
+        q.Enqueue(GameDefinitions.Instance.StartRegion);
+        while (q.TryDequeue(out RegionKey region))
         {
-            (RegionDefinitionModel region, IReadOnlyList<ItemDefinitionModel> receivedItems) = tup;
-            _visitedRegions.Add(region.Key);
+            visitedRegions[region.N] = true;
 
-            if (GameDefinitions.Instance.LandmarkRegions.TryGetValue(region.Key, out LandmarkRegionDefinitionModel? landmark))
+            if (GameDefinitions.Instance[region] is LandmarkRegionDefinitionModel landmark)
             {
-                if (_checkedLocations![region.Key][0])
-                {
-                    _hardLockedRegions.Remove(region.Key);
-                    _softLockedRegions.Remove(region.Key);
-                }
-
-                if (!landmark.Requirement.Satisfied(receivedItems) && landmark.Key != GameDefinitions.Instance.GoalRegion.Key)
+                if (!landmark.Requirement.Satisfied(_receivedItems) && landmark.Key != GameDefinitions.Instance.GoalRegion)
                 {
                     continue;
                 }
 
-                _hardLockedRegions.Remove(region.Key);
+                _hardLockedRegions[region.N] = false;
             }
             else
             {
-                _hardLockedRegions.Remove(region.Key);
-                _softLockedRegions.Remove(region.Key);
+                _hardLockedRegions[region.N] = false;
+                _softLockedRegions[region.N] = false;
             }
 
-            foreach ((RegionDefinitionModel connectedRegion, _) in GameDefinitions.Instance.ConnectedRegions[region.Key])
+            foreach ((RegionKey connectedRegion, _) in GameDefinitions.Instance[region].Connected.All)
             {
-                if (_visitedRegions.Add(connectedRegion.Key))
+                if (!visitedRegions[connectedRegion.N])
                 {
-                    _qq.Enqueue((connectedRegion, receivedItems));
+                    visitedRegions[connectedRegion.N] = true;
+                    q.Enqueue(connectedRegion);
                 }
             }
         }

@@ -711,7 +711,7 @@ public readonly record struct LocationDefinitionModel
 
 public abstract record GameRequirement
 {
-    public virtual bool Satisfied(ReadOnlyBitArray receivedItems)
+    public virtual bool Satisfied(ReadOnlySpan<int> receivedItems)
     {
         return true;
     }
@@ -744,7 +744,7 @@ public sealed record AllChildrenGameRequirement : GameRequirement
         return new() { Children = [.. ((YamlSequenceNode)node).Select(n => GameRequirement.DeserializeFrom(n, lookup))] };
     }
 
-    public override bool Satisfied(ReadOnlyBitArray receivedItems)
+    public override bool Satisfied(ReadOnlySpan<int> receivedItems)
     {
         foreach (GameRequirement child in Children)
         {
@@ -779,7 +779,7 @@ public sealed record AnyChildGameRequirement : GameRequirement
         return new() { Children = [.. ((YamlSequenceNode)node).Select(n => GameRequirement.DeserializeFrom(n, lookup))] };
     }
 
-    public override bool Satisfied(ReadOnlyBitArray receivedItems)
+    public override bool Satisfied(ReadOnlySpan<int> receivedItems)
     {
         foreach (GameRequirement child in Children)
         {
@@ -814,7 +814,7 @@ public sealed record AnyTwoChildrenGameRequirement : GameRequirement
         return new() { Children = [.. ((YamlSequenceNode)node).Select(n => GameRequirement.DeserializeFrom(n, lookup))] };
     }
 
-    public override bool Satisfied(ReadOnlyBitArray receivedItems)
+    public override bool Satisfied(ReadOnlySpan<int> receivedItems)
     {
         bool one = false;
         foreach (GameRequirement child in Children)
@@ -866,17 +866,12 @@ public sealed record RatCountRequirement : GameRequirement
         };
     }
 
-    public override bool Satisfied(ReadOnlyBitArray receivedItems)
+    public override bool Satisfied(ReadOnlySpan<int> receivedItems)
     {
         int stillNeeded = RatCount;
         foreach (ItemKey item in ItemsWithNonzeroRatCounts)
         {
-            if (!receivedItems[item.N])
-            {
-                continue;
-            }
-
-            stillNeeded -= RatCounts[item.N];
+            stillNeeded -= RatCounts[item.N] * receivedItems[item.N];
             if (stillNeeded <= 0)
             {
                 return true;
@@ -896,8 +891,8 @@ public sealed record ReceivedItemRequirement : GameRequirement
         return new() { ItemKey = lookup.ProgressionItemsByYamlKey[node.To<string>()] };
     }
 
-    public override bool Satisfied(ReadOnlyBitArray receivedItems)
+    public override bool Satisfied(ReadOnlySpan<int> receivedItems)
     {
-        return receivedItems[ItemKey.N];
+        return receivedItems[ItemKey.N] > 0;
     }
 }

@@ -67,6 +67,8 @@ public sealed partial class Game : IDisposable
 
     public void Dispose()
     {
+        Pools<List<LocationKey>>.Return(_prevPath);
+
         Pools<List<LocationKey>>.Return(_priorityLocations);
         Pools<List<LocationKey>>.Return(_priorityPriorityLocations);
 
