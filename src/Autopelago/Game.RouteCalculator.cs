@@ -277,7 +277,7 @@ public sealed partial class Game
     private List<LocationKey> GetPath(LocationKey currentLocation, LocationKey targetLocation)
     {
         bool startled = TargetLocationReason == TargetLocationReason.Startled;
-        if ((_currentLocationForPrevPath, _targetLocationForPrevPath, _startledForPrevPath) != (currentLocation.Key, targetLocation.Key, startled))
+        if ((_currentLocationForPrevPath, _targetLocationForPrevPath, _startledForPrevPath) != (currentLocation, targetLocation, startled))
         {
             if (_currentLocationForPrevPath == currentLocation.Key && _startledForPrevPath == startled && _prevPath.Count > 0)
             {

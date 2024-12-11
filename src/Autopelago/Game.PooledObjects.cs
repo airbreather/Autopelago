@@ -32,6 +32,8 @@ public sealed partial class Game : IDisposable
     private readonly List<LocationKey> _priorityPriorityLocations = Pools<List<LocationKey>>.Get(GameDefinitions.Instance.AllLocations.Length);
     private readonly List<LocationKey> _priorityLocations = Pools<List<LocationKey>>.Get(GameDefinitions.Instance.AllLocations.Length);
 
+    private readonly List<LocationKey> _prevPath = Pools<List<LocationKey>>.Get(GameDefinitions.Instance.AllLocations.Length);
+
     public Game(Prng.State prngState)
         : this(prngState, null)
     {
