@@ -169,10 +169,10 @@ public sealed partial class Game
         //
         // in all of those cases, we must examine at least one region other than the one that we're
         // currently in (minimally, to prove that there's no region in some direction).
-        using var borrowedPq = Borrow<PriorityQueue<(RegionKey ConnectedRegion, Direction Direction), int>>();
+        using Borrowed<PriorityQueue<(RegionKey ConnectedRegion, Direction Direction), int>> borrowedPq = new();
         PriorityQueue<(RegionKey ConnectedRegion, Direction Direction), int> pq = borrowedPq.Value;
         pq.Clear();
-        using var visitedRegionsBorrow = BorrowRegionsBitArray();
+        using var visitedRegionsBorrow = BorrowedBitArray.ForRegions();
         BitArray visitedRegions = visitedRegionsBorrow.Value;
         visitedRegions.SetAll(false);
         visitedRegions[currentRegionLocation.Region.N] = true;
@@ -311,7 +311,7 @@ public sealed partial class Game
     {
         if (currentLocation == targetLocation)
         {
-            var trivialResultBorrow = Borrow<List<LocationKey>>();
+            Borrowed<List<LocationKey>> trivialResultBorrow = new();
             trivialResultBorrow.Value.Clear();
             trivialResultBorrow.Value.AddRange([currentLocation, targetLocation]);
             return trivialResultBorrow;
@@ -329,7 +329,7 @@ public sealed partial class Game
             return null;
         }
 
-        var resultBorrow = Borrow<List<LocationKey>>();
+        Borrowed<List<LocationKey>> resultBorrow = new();
         List<LocationKey> result = resultBorrow.Value;
         result.Clear();
         if (currentRegionLocation.Region == targetRegionLocation.Region)
@@ -355,11 +355,11 @@ public sealed partial class Game
             return resultBorrow;
         }
 
-        using var qBorrow = Borrow<Queue<(RegionKey ConnectedRegion, Direction Direction)>>();
+        using Borrowed<Queue<(RegionKey ConnectedRegion, Direction Direction)>> qBorrow = new();
         Queue<(RegionKey ConnectedRegion, Direction Direction)> q = qBorrow.Value;
         q.Clear();
 
-        using var prevBorrow = Borrow<Dictionary<RegionKey, (RegionKey ConnectedRegion, Direction Direction)>>();
+        using Borrowed<Dictionary<RegionKey, (RegionKey ConnectedRegion, Direction Direction)>> prevBorrow = new();
         Dictionary<RegionKey, (RegionKey ConnectedRegion, Direction Direction)> prev = prevBorrow.Value;
         prev.Clear();
 
@@ -391,7 +391,7 @@ public sealed partial class Game
                 continue;
             }
 
-            using var regionStackBorrow = Borrow<Stack<(RegionKey ConnectedRegion, Direction Direction)>>();
+            using Borrowed<Stack<(RegionKey ConnectedRegion, Direction Direction)>> regionStackBorrow = new();
             Stack<(RegionKey ConnectedRegion, Direction Direction)> regionStack = regionStackBorrow.Value;
             regionStack.Clear();
             do
@@ -462,9 +462,9 @@ public sealed partial class Game
         ReadOnlyBitArray spoilerData = _spoilerData![flags];
 
         // TODO: optimize this, it's getting late.
-        using var visitedLocationsBorrow = BorrowLocationsBitArray();
+        using var visitedLocationsBorrow = BorrowedBitArray.ForLocations();
         BitArray visitedLocations = visitedLocationsBorrow.Value;
-        using var qBorrow = Borrow<Queue<LocationKey>>();
+        using Borrowed<Queue<LocationKey>> qBorrow = new();
         Queue<LocationKey> q = qBorrow.Value;
         q.Clear();
         q.Enqueue(currentLocation);
@@ -490,11 +490,11 @@ public sealed partial class Game
 
     private void RecalculateClearable()
     {
-        using var qBorrow = Borrow<Queue<RegionKey>>();
+        using Borrowed<Queue<RegionKey>> qBorrow = new();
         Queue<RegionKey> q = qBorrow.Value;
         q.Clear();
 
-        using var visitedRegionsBorrow = BorrowRegionsBitArray();
+        using var visitedRegionsBorrow = BorrowedBitArray.ForRegions();
         BitArray visitedRegions = visitedRegionsBorrow.Value;
 
         q.Enqueue(GameDefinitions.Instance.StartRegion);

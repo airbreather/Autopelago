@@ -1,9 +1,6 @@
 using System.Buffers;
 using System.Collections;
-using System.Collections.Concurrent;
-using System.Linq.Expressions;
-using System.Reflection;
-using System.Runtime.InteropServices;
+using System.Diagnostics;
 
 using Microsoft.Extensions.ObjectPool;
 
@@ -11,25 +8,25 @@ namespace Autopelago;
 
 public sealed partial class Game : IDisposable
 {
-    private readonly BitArray _hardLockedRegions = Pools.RegionBitArray.Get();
-    private readonly BitArray _softLockedRegions = Pools.RegionBitArray.Get();
+    private readonly BorrowedBitArray b_hardLockedRegions = BorrowedBitArray.ForRegions(); private BitArray _hardLockedRegions => b_hardLockedRegions.Value;
+    private readonly BorrowedBitArray b_softLockedRegions = BorrowedBitArray.ForRegions(); private BitArray _softLockedRegions => b_softLockedRegions.Value;
 
-    private readonly List<LocationVector> _prevMovementLog = Pools<List<LocationVector>>.Get(MaxMovementsPerStep);
-    private readonly List<LocationVector> _movementLog = Pools<List<LocationVector>>.Get(MaxMovementsPerStep);
+    private readonly Borrowed<List<LocationVector>> b_prevMovementLog = new(); private List<LocationVector> _prevMovementLog => b_prevMovementLog.Value;
+    private readonly Borrowed<List<LocationVector>> b_movementLog = new(); private List<LocationVector> _movementLog => b_movementLog.Value;
 
-    private readonly Queue<LocationKey> _pathToTarget = Pools<Queue<LocationKey>>.Get(GameDefinitions.Instance.AllLocations.Length);
+    private readonly Borrowed<Queue<LocationKey>> b_pathToTarget = new(); private Queue<LocationKey> _pathToTarget => b_pathToTarget.Value;
 
-    private readonly List<ItemKey> _receivedItemsOrder = Pools<List<ItemKey>>.Get(GameDefinitions.Instance.AllItems.Length);
-    private readonly ArraySegment<int> _receivedItems = RentArray<int>(GameDefinitions.Instance.AllItems.Length);
+    private readonly Borrowed<List<ItemKey>> b_receivedItemsOrder = new(); private List<ItemKey> _receivedItemsOrder => b_receivedItemsOrder.Value;
+    private readonly BorrowedArray<int> b_receivedItems = new(GameDefinitions.Instance.AllItems.Length); private Span<int> _receivedItems => b_receivedItems.Value;
 
-    private readonly List<LocationKey> _checkedLocationsOrder = Pools<List<LocationKey>>.Get(GameDefinitions.Instance.AllLocations.Length);
-    private readonly BitArray _checkedLocations = Pools.LocationBitArray.Get();
-    private readonly ArraySegment<int> _regionUncheckedLocationsCount = RentArray<int>(GameDefinitions.Instance.AllRegions.Length);
+    private readonly Borrowed<List<LocationKey>> b_checkedLocationsOrder = new(); private List<LocationKey> _checkedLocationsOrder => b_checkedLocationsOrder.Value;
+    private readonly BorrowedBitArray b_checkedLocations = BorrowedBitArray.ForLocations(); private BitArray _checkedLocations => b_checkedLocations.Value;
+    private readonly BorrowedArray<int> b_regionUncheckedLocationsCount = new(GameDefinitions.Instance.AllRegions.Length); private Span<int> _regionUncheckedLocationsCount => b_regionUncheckedLocationsCount.Value;
 
-    private readonly List<LocationKey> _priorityPriorityLocations = Pools<List<LocationKey>>.Get(GameDefinitions.Instance.AllLocations.Length);
-    private readonly List<LocationKey> _priorityLocations = Pools<List<LocationKey>>.Get(GameDefinitions.Instance.AllLocations.Length);
+    private readonly Borrowed<List<LocationKey>> b_priorityPriorityLocations = new(); private List<LocationKey> _priorityPriorityLocations => b_priorityPriorityLocations.Value;
+    private readonly Borrowed<List<LocationKey>> b_priorityLocations = new(); private List<LocationKey> _priorityLocations => b_priorityLocations.Value;
 
-    private readonly List<LocationKey> _prevPath = Pools<List<LocationKey>>.Get(GameDefinitions.Instance.AllLocations.Length);
+    private readonly Borrowed<List<LocationKey>> b_prevPath = new(); private List<LocationKey> _prevPath => b_prevPath.Value;
 
     public Game(Prng.State prngState)
         : this(prngState, null)
@@ -43,7 +40,7 @@ public sealed partial class Game : IDisposable
         _softLockedRegions.SetAll(true);
         _softLockedRegions[GameDefinitions.Instance.StartRegion.N] = false;
 
-        _receivedItems.AsSpan().Clear();
+        _receivedItems.Clear();
         Span<int> regionUncheckedLocationsCount = _regionUncheckedLocationsCount;
         foreach (ref readonly RegionDefinitionModel region in GameDefinitions.Instance.AllRegions.AsSpan())
         {
@@ -68,181 +65,148 @@ public sealed partial class Game : IDisposable
 
     public void Dispose()
     {
-        Pools<List<LocationKey>>.Return(_prevPath);
-
-        Pools<List<LocationKey>>.Return(_priorityLocations);
-        Pools<List<LocationKey>>.Return(_priorityPriorityLocations);
-
-        ArrayPool<int>.Shared.Return(_regionUncheckedLocationsCount.Array!);
-        Pools.LocationBitArray.Return(_checkedLocations);
-        Pools<List<LocationKey>>.Return(_checkedLocationsOrder);
-
-        ArrayPool<int>.Shared.Return(_receivedItems.Array!);
-        Pools<List<ItemKey>>.Return(_receivedItemsOrder);
-
-        Pools<Queue<LocationKey>>.Return(_pathToTarget);
-
-        Pools<List<LocationVector>>.Return(_movementLog);
-        Pools<List<LocationVector>>.Return(_prevMovementLog);
-
-        Pools.RegionBitArray.Return(_softLockedRegions);
-        Pools.RegionBitArray.Return(_hardLockedRegions);
-    }
-
-    private static ArraySegment<T> RentArray<T>(int length)
-    {
-        T[] array = ArrayPool<T>.Shared.Rent(length);
-        ArraySegment<T> segment = new(array, 0, length);
-        segment.AsSpan().Clear();
-        return segment;
-    }
-
-    private static Borrowed<BitArray> BorrowLocationsBitArray()
-    {
-        Borrowed<BitArray> result = new(Pools.LocationBitArray.Get(), Pools.LocationBitArray);
-        result.Value.SetAll(false);
-        return result;
-    }
-
-    private static Borrowed<BitArray> BorrowRegionsBitArray()
-    {
-        Borrowed<BitArray> result = new(Pools.RegionBitArray.Get(), Pools.RegionBitArray);
-        result.Value.SetAll(false);
-        return result;
-    }
-
-    private static Borrowed<T> Borrow<T>()
-        where T : class, new()
-    {
-        return Pools<T>.GetWrapped();
+        b_hardLockedRegions.Dispose();
+        b_softLockedRegions.Dispose();
+        b_prevMovementLog.Dispose();
+        b_movementLog.Dispose();
+        b_pathToTarget.Dispose();
+        b_receivedItemsOrder.Dispose();
+        b_receivedItems.Dispose();
+        b_checkedLocationsOrder.Dispose();
+        b_checkedLocations.Dispose();
+        b_regionUncheckedLocationsCount.Dispose();
+        b_priorityPriorityLocations.Dispose();
+        b_priorityLocations.Dispose();
+        b_prevPath.Dispose();
     }
 }
 
-[StructLayout(LayoutKind.Auto)]
-public readonly struct Borrowed<T> : IDisposable
-    where T : class
+public sealed class Borrowed<T> : IDisposable
+    where T : class, new()
 {
-    private readonly ObjectPool<T> _pool;
+    private static readonly ObjectPool<T> s_pool = ObjectPool.Create<T>();
 
-    public Borrowed(T obj, ObjectPool<T> pool)
-    {
-        Value = obj;
-        _pool = pool;
-    }
-
-    public T Value { get; }
+    private T? _obj = s_pool.Get();
 
     public void Dispose()
     {
-        _pool.Return(Value);
+        if (Interlocked.Exchange(ref _obj, null) is { } obj)
+        {
+            s_pool.Return(obj);
+        }
+    }
+
+    public T Value
+    {
+        get
+        {
+            ObjectDisposedException.ThrowIf(_obj is null, this);
+            return _obj;
+        }
     }
 }
 
-file static class Pools<T> where T : class, new()
+public sealed class BorrowedBitArray : IDisposable
 {
-    private static readonly Action<T, int>? s_ensureCapacity = GetEnsureCapacityMethod();
+    private static readonly ObjectPool<BitArray> s_regionBitArray = new DefaultObjectPool<BitArray>(new AnonymousPolicy<BitArray>(() => new(GameDefinitions.Instance.AllRegions.Length)));
 
-    public static Borrowed<T> GetWrapped()
+    private static readonly ObjectPool<BitArray> s_locationBitArray = new DefaultObjectPool<BitArray>(new AnonymousPolicy<BitArray>(() => new(GameDefinitions.Instance.AllLocations.Length)));
+
+    private readonly string _stackTrace = Environment.StackTrace;
+
+    private readonly ObjectPool<BitArray> _pool;
+
+    private BitArray? _obj;
+
+    private BorrowedBitArray(ObjectPool<BitArray> pool)
     {
-        return new(Pools.Easy<T>().Get(), Pools.Easy<T>());
+        _pool = pool;
+        _obj = pool.Get();
+        _obj.SetAll(false);
     }
 
-    public static T Get()
+    ~BorrowedBitArray()
     {
-        return Pools.Easy<T>().Get();
+        Console.WriteLine($"AAAAAAAAAAAAA!!! BIT ARRAY!!! {_stackTrace}");
     }
 
-    public static T Get(int capacity)
+    public static BorrowedBitArray ForRegions()
     {
-        T result = Pools.Easy<T>().Get();
-        try
+        return new(s_regionBitArray);
+    }
+
+    public static BorrowedBitArray ForLocations()
+    {
+        return new(s_locationBitArray);
+    }
+
+    public void Dispose()
+    {
+        if (Interlocked.Exchange(ref _obj, null) is { } obj)
         {
-            s_ensureCapacity?.Invoke(result, capacity);
-            return result;
-        }
-        catch
-        {
-            Pools.Easy<T>().Return(result);
-            throw;
+            _pool.Return(obj);
+            GC.SuppressFinalize(this);
         }
     }
 
-    public static void Return(T obj)
+    public BitArray Value
     {
-        Pools.Easy<T>().Return(obj);
-    }
-
-    private static Action<T, int>? GetEnsureCapacityMethod()
-    {
-        MethodInfo? method = typeof(T).GetMethod("EnsureCapacity", BindingFlags.Instance | BindingFlags.Public, [typeof(int)]);
-        if (method is null)
+        get
         {
-            return null;
+            ObjectDisposedException.ThrowIf(_obj is null, this);
+            return _obj;
         }
-
-        ParameterExpression thisParam = Expression.Parameter(typeof(T), "this");
-        ParameterExpression capacityParam = Expression.Parameter(typeof(int), "capacity");
-        MethodCallExpression methodCall = Expression.Call(thisParam, method, capacityParam);
-        return Expression.Lambda<Action<T, int>>(methodCall, thisParam, capacityParam).Compile();
     }
 }
 
-file static class Pools
+public sealed class BorrowedArray<T> : IDisposable
 {
-    public static readonly ObjectPool<BitArray> RegionBitArray = new MyPool<BitArray>(() => new(GameDefinitions.Instance.AllRegions.Length));
+    private T[]? _value;
 
-    public static readonly ObjectPool<BitArray> LocationBitArray = new MyPool<BitArray>(() => new(GameDefinitions.Instance.AllLocations.Length));
+    private readonly int _length;
 
-    public static ObjectPool<T> Easy<T>()
-        where T : class, new()
+    public BorrowedArray(int length)
     {
-        return BulkPools<T>.Pool;
+        _value = ArrayPool<T>.Shared.Rent(length);
+        _length = length;
+        Array.Clear(_value, 0, _length);
     }
 
-    private static class BulkPools<T>
-        where T : class, new()
+    public void Dispose()
     {
-        public static readonly ObjectPool<T> Pool = new MyPool<T>(() => new());
+        if (Interlocked.Exchange(ref _value, null) is { } array)
+        {
+            ArrayPool<T>.Shared.Return(array);
+        }
+    }
+
+    public Span<T> Value
+    {
+        get
+        {
+            ObjectDisposedException.ThrowIf(_value is null, this);
+            return _value.AsSpan(0, _length);
+        }
     }
 }
 
-file sealed class MyPool<T> : ObjectPool<T>
+file sealed class AnonymousPolicy<T> : PooledObjectPolicy<T>
     where T : class
 {
-    private static readonly Action<T>? s_clear = GetClearMethod();
+    private readonly Func<T> _factory;
 
-    private readonly ConcurrentBag<T> _bag = [];
-    private readonly Func<T> _create;
-
-    public MyPool(Func<T> create)
+    public AnonymousPolicy(Func<T> factory)
     {
-        _create = create;
+        _factory = factory;
     }
 
-    public override T Get()
+    public override T Create()
     {
-        return _bag.TryTake(out T? item) ? item : _create();
+        return _factory();
     }
 
-    public override void Return(T obj)
+    public override bool Return(T obj)
     {
-        if (_bag.Count < 100)
-        {
-            s_clear?.Invoke(obj);
-            _bag.Add(obj);
-        }
-    }
-
-    private static Action<T>? GetClearMethod()
-    {
-        MethodInfo? method = typeof(T).GetMethod("Clear", BindingFlags.Instance | BindingFlags.Public, []);
-        if (method is null)
-        {
-            return null;
-        }
-
-        ParameterExpression thisParam = Expression.Parameter(typeof(T), "this");
-        MethodCallExpression methodCall = Expression.Call(thisParam, method);
-        return Expression.Lambda<Action<T>>(methodCall, thisParam).Compile();
+        return true;
     }
 }

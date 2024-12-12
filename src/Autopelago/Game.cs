@@ -589,7 +589,7 @@ public sealed partial class Game
     {
         using Lock.Scope _ = EnterLockScope();
         EnsureStarted();
-        using Borrowed<BitArray> borrowed = BorrowLocationsBitArray();
+        using BorrowedBitArray borrowed = BorrowedBitArray.ForLocations();
         BitArray locationIsNewlyChecked = borrowed.Value;
         foreach (LocationKey location in newLocations)
         {
