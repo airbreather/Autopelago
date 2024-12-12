@@ -1,6 +1,5 @@
 using System.Buffers;
 using System.Collections;
-using System.Diagnostics;
 
 using Microsoft.Extensions.ObjectPool;
 
@@ -112,8 +111,6 @@ public sealed class BorrowedBitArray : IDisposable
 
     private static readonly ObjectPool<BitArray> s_locationBitArray = new DefaultObjectPool<BitArray>(new AnonymousPolicy<BitArray>(() => new(GameDefinitions.Instance.AllLocations.Length)));
 
-    private readonly string _stackTrace = Environment.StackTrace;
-
     private readonly ObjectPool<BitArray> _pool;
 
     private BitArray? _obj;
@@ -123,11 +120,6 @@ public sealed class BorrowedBitArray : IDisposable
         _pool = pool;
         _obj = pool.Get();
         _obj.SetAll(false);
-    }
-
-    ~BorrowedBitArray()
-    {
-        Console.WriteLine($"AAAAAAAAAAAAA!!! BIT ARRAY!!! {_stackTrace}");
     }
 
     public static BorrowedBitArray ForRegions()
@@ -145,7 +137,6 @@ public sealed class BorrowedBitArray : IDisposable
         if (Interlocked.Exchange(ref _obj, null) is { } obj)
         {
             _pool.Return(obj);
-            GC.SuppressFinalize(this);
         }
     }
 

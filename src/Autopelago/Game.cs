@@ -348,7 +348,8 @@ public sealed partial class Game
     {
         using Lock.Scope _ = EnterLockScope();
         EnsureStarted();
-        return GetPath(fromLocation, toLocation);
+        GetPath(fromLocation, toLocation);
+        return _prevPath;
     }
 
     public void EnsureStarted()

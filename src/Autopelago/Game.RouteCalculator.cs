@@ -17,7 +17,8 @@ public sealed partial class Game
 
         _pathToTarget.Clear();
         bool first = true;
-        foreach (LocationKey l in GetPath(CurrentLocation, TargetLocation))
+        GetPath(CurrentLocation, TargetLocation);
+        foreach (LocationKey l in _prevPath)
         {
             if (first)
             {
@@ -77,8 +78,8 @@ public sealed partial class Game
 
         if (priorityTargetLocation is LocationKey ultimateTargetLocation)
         {
-            List<LocationKey> path = GetPath(CurrentLocation, ultimateTargetLocation);
-            foreach (LocationKey l in path)
+            GetPath(CurrentLocation, ultimateTargetLocation);
+            foreach (LocationKey l in _prevPath)
             {
                 if (GameDefinitions.Instance.TryGetLandmarkRegion(l, out _) && !_checkedLocations[l.N])
                 {
@@ -274,7 +275,7 @@ public sealed partial class Game
     private LocationKey _targetLocationForPrevPath = LocationKey.Nonexistent;
     private bool _startledForPrevPath;
 
-    private List<LocationKey> GetPath(LocationKey currentLocation, LocationKey targetLocation)
+    private void GetPath(LocationKey currentLocation, LocationKey targetLocation)
     {
         bool startled = TargetLocationReason == TargetLocationReason.Startled;
         if ((_currentLocationForPrevPath, _targetLocationForPrevPath, _startledForPrevPath) != (currentLocation, targetLocation, startled))
@@ -288,7 +289,7 @@ public sealed partial class Game
                         _targetLocationForPrevPath = targetLocation;
                         _startledForPrevPath = startled;
                         CollectionsMarshal.SetCount(_prevPath, i + 1);
-                        return _prevPath;
+                        return;
                     }
                 }
             }
@@ -296,25 +297,18 @@ public sealed partial class Game
             _currentLocationForPrevPath = currentLocation;
             _targetLocationForPrevPath = targetLocation;
             _startledForPrevPath = startled;
-            _prevPath.Clear();
-            using var pathBorrowed = GetPathCore(currentLocation, targetLocation, startled);
-            if (pathBorrowed?.Value is { } path)
-            {
-                _prevPath.AddRange(CollectionsMarshal.AsSpan(path));
-            }
+            GetPathCore(currentLocation, targetLocation, startled);
         }
-
-        return _prevPath;
     }
 
-    private Borrowed<List<LocationKey>>? GetPathCore(LocationKey currentLocation, LocationKey targetLocation, bool startled)
+    private void GetPathCore(LocationKey currentLocation, LocationKey targetLocation, bool startled)
     {
+        _prevPath.Clear();
         if (currentLocation == targetLocation)
         {
-            Borrowed<List<LocationKey>> trivialResultBorrow = new();
-            trivialResultBorrow.Value.Clear();
-            trivialResultBorrow.Value.AddRange([currentLocation, targetLocation]);
-            return trivialResultBorrow;
+            _prevPath.Add(currentLocation);
+            _prevPath.Add(targetLocation);
+            return;
         }
 
         ref readonly LocationDefinitionModel currentLocationDefinition = ref GameDefinitions.Instance[currentLocation];
@@ -326,33 +320,31 @@ public sealed partial class Game
             : _hardLockedRegions;
         if (lockedRegions[targetRegionLocation.Region.N])
         {
-            return null;
+            return;
         }
 
-        Borrowed<List<LocationKey>> resultBorrow = new();
-        List<LocationKey> result = resultBorrow.Value;
-        result.Clear();
         if (currentRegionLocation.Region == targetRegionLocation.Region)
         {
             if (currentLocation.N > targetLocation.N)
             {
                 int count = currentLocation.N - targetLocation.N + 1;
-                result.EnsureCapacity(count);
+                _prevPath.EnsureCapacity(count);
                 for (int i = 0; i < count; i++)
                 {
-                    result.Add(new() { N = currentLocation.N - i });
+                    _prevPath.Add(new() { N = currentLocation.N - i });
                 }
             }
             else
             {
                 int count = targetLocation.N - currentLocation.N + 1;
+                _prevPath.EnsureCapacity(count);
                 for (int i = 0; i < count; i++)
                 {
-                    result.Add(new() { N = currentLocation.N + i });
+                    _prevPath.Add(new() { N = currentLocation.N + i });
                 }
             }
 
-            return resultBorrow;
+            return;
         }
 
         using Borrowed<Queue<(RegionKey ConnectedRegion, Direction Direction)>> qBorrow = new();
@@ -408,13 +400,13 @@ public sealed partial class Game
                     switch (direction)
                     {
                         case Direction.TowardsGoal:
-                            result.AddRange(nextRegionDefinition.Locations.AsSpan(currentRegionLocation.N..));
+                            _prevPath.AddRange(nextRegionDefinition.Locations.AsSpan(currentRegionLocation.N..));
                             break;
 
                         default:
-                            int oldCount = result.Count;
-                            result.AddRange(nextRegionDefinition.Locations.AsSpan(..(currentRegionLocation.N + 1)));
-                            result.Reverse(oldCount, result.Count - oldCount);
+                            int oldCount = _prevPath.Count;
+                            _prevPath.AddRange(nextRegionDefinition.Locations.AsSpan(..(currentRegionLocation.N + 1)));
+                            _prevPath.Reverse(oldCount, _prevPath.Count - oldCount);
                             break;
                     }
                 }
@@ -423,13 +415,13 @@ public sealed partial class Game
                     switch (direction)
                     {
                         case Direction.TowardsGoal:
-                            result.AddRange(nextRegionDefinition.Locations.AsSpan(..(targetRegionLocation.N + 1)));
+                            _prevPath.AddRange(nextRegionDefinition.Locations.AsSpan(..(targetRegionLocation.N + 1)));
                             break;
 
                         default:
-                            int oldCount = result.Count;
-                            result.AddRange(nextRegionDefinition.Locations.AsSpan(targetRegionLocation.N..));
-                            result.Reverse(oldCount, result.Count - oldCount);
+                            int oldCount = _prevPath.Count;
+                            _prevPath.AddRange(nextRegionDefinition.Locations.AsSpan(targetRegionLocation.N..));
+                            _prevPath.Reverse(oldCount, _prevPath.Count - oldCount);
                             break;
                     }
                 }
@@ -438,23 +430,20 @@ public sealed partial class Game
                     switch (direction)
                     {
                         case Direction.TowardsGoal:
-                            result.AddRange(nextRegionDefinition.Locations.AsSpan());
+                            _prevPath.AddRange(nextRegionDefinition.Locations.AsSpan());
                             break;
 
                         default:
-                            int oldCount = result.Count;
-                            result.AddRange(nextRegionDefinition.Locations.AsSpan());
-                            result.Reverse(oldCount, result.Count - oldCount);
+                            int oldCount = _prevPath.Count;
+                            _prevPath.AddRange(nextRegionDefinition.Locations.AsSpan());
+                            _prevPath.Reverse(oldCount, _prevPath.Count - oldCount);
                             break;
                     }
                 }
             }
 
-            return resultBorrow;
+            return;
         }
-
-        resultBorrow.Dispose();
-        return null;
     }
 
     private IEnumerable<LocationKey> GetClosestLocationsWithItemFlags(LocationKey currentLocation, ArchipelagoItemFlags flags)
