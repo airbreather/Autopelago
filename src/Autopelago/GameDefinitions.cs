@@ -525,7 +525,7 @@ public abstract record RegionDefinitionModel
 
     public required Connected<RegionKey> Connected { get; init; }
 
-    public abstract ImmutableArray<LocationKey> Locations { get; }
+    public required ImmutableArray<LocationKey> Locations { get; init; }
 
     public abstract bool Equals(RegionDefinitionModel? other);
 
@@ -534,10 +534,6 @@ public abstract record RegionDefinitionModel
 
 public sealed record LandmarkRegionDefinitionModel : RegionDefinitionModel
 {
-    public LocationKey Location => new() { N = Key.N };
-
-    public override ImmutableArray<LocationKey> Locations => [Location];
-
     public required GameRequirement Requirement { get; init; }
 
     public static LocationDefinitionModel DeserializeFrom(string yamlKey, RegionKey key, YamlMappingNode map, ItemDefinitionsModel items, out LandmarkRegionDefinitionModel region, out string[] exits)
@@ -552,6 +548,7 @@ public sealed record LandmarkRegionDefinitionModel : RegionDefinitionModel
             Requirement = requirement,
             AbilityCheckDC = abilityCheckDC,
             Connected = new([], []), // we'll have to deal with this later.
+            Locations = [new() { N = key.N }],
         };
 
         return new()
@@ -583,10 +580,6 @@ public sealed record LandmarkRegionDefinitionModel : RegionDefinitionModel
 
 public sealed record FillerRegionDefinitionModel : RegionDefinitionModel
 {
-    public override ImmutableArray<LocationKey> Locations => FillerLocations;
-
-    public required ImmutableArray<LocationKey> FillerLocations { get; init; }
-
     public static ImmutableArray<LocationDefinitionModel> DeserializeFrom(string yamlKey, RegionKey regionKey, int firstLocationNum, YamlMappingNode map, ItemDefinitionsModel items, IReadOnlyDictionary<string, RegionKey> landmarkLookup, IReadOnlyList<RegionDefinitionModel> allRegionsSoFar, out FillerRegionDefinitionModel region, out string[] exits)
     {
         Dictionary<ArchipelagoItemFlags, string> keyMap = new()
@@ -661,7 +654,7 @@ public sealed record FillerRegionDefinitionModel : RegionDefinitionModel
             YamlKey = yamlKey,
             AbilityCheckDC = abilityCheckDC,
             Connected = new([], []), // we'll have to deal with this later.
-            FillerLocations = ImmutableCollectionsMarshal.AsImmutableArray(Array.ConvertAll(locations, l => l.Key)),
+            Locations = ImmutableCollectionsMarshal.AsImmutableArray(Array.ConvertAll(locations, l => l.Key)),
         };
 
         return ImmutableCollectionsMarshal.AsImmutableArray(locations);

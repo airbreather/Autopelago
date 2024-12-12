@@ -15,11 +15,11 @@
       "TUnit": {
         "type": "Direct",
         "requested": "[*-*, )",
-        "resolved": "0.4.95",
-        "contentHash": "AndGgegnwgbIIzG6BOlBAippVvzlTYgy/wCgnvhf91uYgnueoovuC+zLzSVwS8+mCct/ptdWR4zTV9+VJ+44cw==",
+        "resolved": "0.4.99",
+        "contentHash": "asRnWZQnJNmlxaBIh8ozpay1Bp4A9a9sTLUDfnYRiUB0GjLoagxVXSK7IMRtplOfCH/PMiAtDsX3pULUEEd7ZA==",
         "dependencies": {
-          "TUnit.Assertions": "0.4.95",
-          "TUnit.Engine": "0.4.95"
+          "TUnit.Assertions": "0.4.99",
+          "TUnit.Engine": "0.4.99"
         }
       },
       "Avalonia": {
@@ -434,24 +434,24 @@
       },
       "TUnit.Assertions": {
         "type": "Transitive",
-        "resolved": "0.4.95",
-        "contentHash": "BWNPH7qKZEZh97TOIf4n6Kw/vg1+ezf58i3IJCDNVg00Q4y3m17IVguxM9qGZVxJoHJKEuRMhEZ4sVAffTKYiA=="
+        "resolved": "0.4.99",
+        "contentHash": "2zKHwfwjAIZ12SwC4eZ2NtqnOQgi0u1Z7XH5CAX3e2x84OK26D5KN3XNvxWCo+GKdiltu0/5oYryJ1XQO4WObg=="
       },
       "TUnit.Core": {
         "type": "Transitive",
-        "resolved": "0.4.95",
-        "contentHash": "lCMBATk2KRp7y1sJem0oa0hEBTYlrXAUFR/uoxx2vDUE+dmDCVmaS/fDXrAyNolN23nRmojF3/Th36NgWlTENw=="
+        "resolved": "0.4.99",
+        "contentHash": "HcrQWTnj2llyK+IyB5p2bDVuRpeD6dt8V9WMVipFS5GQ6cvy3+Pb2+tRFvF+fu5JxrKFN+5+t/t3McHs1fWTHQ=="
       },
       "TUnit.Engine": {
         "type": "Transitive",
-        "resolved": "0.4.95",
-        "contentHash": "K24J5mMsuai/gF44J/Jdd4w1E+tvgES7lvcy35lAjjMddK4d4ZXltO/1PjNGh0YN06r2oYzqM05Ad/QxoljVtw==",
+        "resolved": "0.4.99",
+        "contentHash": "iVPg6mx/XmH2meilcL9sjXTm/z8NcOjdljl1WYPUZgPlPsQEftAvOrv+0xOI9l7zit+fUqeQ8o0qIAdcjuw+AA==",
         "dependencies": {
           "EnumerableAsyncProcessor": "1.4.0",
           "Microsoft.Testing.Extensions.TrxReport.Abstractions": "1.4.3",
           "Microsoft.Testing.Platform": "1.4.3",
           "Microsoft.Testing.Platform.MSBuild": "1.4.3",
-          "TUnit.Core": "0.4.95"
+          "TUnit.Core": "0.4.99"
         }
       },
       "YamlDotNet": {

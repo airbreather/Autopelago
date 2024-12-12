@@ -9,6 +9,7 @@ public sealed class World : IDisposable
 
     public void Dispose()
     {
+        Game.Dispose();
         Instrumentation.Dispose();
     }
 

@@ -94,15 +94,7 @@ public sealed partial class Game
 
     public ReadOnlyCollection<LocationKey> PriorityPriorityLocations => _priorityPriorityLocations.AsReadOnly();
 
-    public ReadOnlyCollection<LocationKey> PriorityLocations
-    {
-        get => _priorityLocations.AsReadOnly();
-        private set
-        {
-            _priorityLocations.Clear();
-            _priorityLocations.AddRange(value);
-        }
-    }
+    public ReadOnlyCollection<LocationKey> PriorityLocations => _priorityLocations.AsReadOnly();
 
     public FrozenDictionary<ArchipelagoItemFlags, ReadOnlyBitArray> SpoilerData
     {

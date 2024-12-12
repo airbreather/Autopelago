@@ -240,6 +240,8 @@ public sealed partial class Game
                     continue;
                 }
 
+                visitedRegions[nextConnectedRegion.N] = true;
+
                 // at the time of writing, we technically don't need this to be conditional: only
                 // landmark regions can connect to more than one other region in a given direction,
                 // and it costs the same to route through them regardless of which direction a path
@@ -295,9 +297,10 @@ public sealed partial class Game
             _targetLocationForPrevPath = targetLocation;
             _startledForPrevPath = startled;
             _prevPath.Clear();
-            if (GetPathCore(currentLocation, targetLocation, startled) is { } path)
+            using var pathBorrowed = GetPathCore(currentLocation, targetLocation, startled);
+            if (pathBorrowed?.Value is { } path)
             {
-                _prevPath.AddRange(CollectionsMarshal.AsSpan(path.Value));
+                _prevPath.AddRange(CollectionsMarshal.AsSpan(path));
             }
         }
 

@@ -4,8 +4,6 @@ using System.Collections.Frozen;
 using System.Runtime.InteropServices;
 using System.Text;
 
-using DynamicData;
-
 namespace Autopelago;
 
 public sealed class GameTests
@@ -40,7 +38,7 @@ public sealed class GameTests
         Prng.State seed = EnsureSeedProducesInitialD20Sequence(56061, [8, 13, 18, 9, 13]);
         Prng.State prngState = seed;
 
-        Game game = new(seed);
+        using Game game = new(seed);
 
         // we're on the first location. we should fail three times and then yield.
         _ = Prng.NextD20(ref prngState);
@@ -77,7 +75,7 @@ public sealed class GameTests
     [Test]
     public async ValueTask ShouldOnlyTryBasketballWithAtLeastFiveRats([Matrix(0, 7)] int ratCount)
     {
-        Game game = new(s_highRolls);
+        using Game game = new(s_highRolls);
         game.InitializeCheckedLocations(GameDefinitions.Instance[GameDefinitions.Instance.StartRegion].Locations);
         game.InitializeReceivedItems(Enumerable.Repeat(GameDefinitions.Instance.AllItems.First(i => i.Name == "Pack Rat").Key, ratCount));
         game.ArbitrarilyModifyState(g => g.CurrentLocation, GameDefinitions.Instance[GameDefinitions.Instance.StartRegion].Locations[^1]);
@@ -96,7 +94,7 @@ public sealed class GameTests
     [Test]
     public async ValueTask ShouldHeadFurtherAfterCompletingBasketball([Matrix(true, false)] bool unblockAngryTurtlesFirst)
     {
-        Game game = new(s_highRolls);
+        using Game game = new(s_highRolls);
         game.InitializeReceivedItems([
             .. Enumerable.Repeat(GameDefinitions.Instance.ItemsByName["Pack Rat"], 5),
             unblockAngryTurtlesFirst
@@ -126,7 +124,7 @@ public sealed class GameTests
     [MethodDataSource(nameof(RandomSeeds))]
     public async ValueTask GameShouldBeWinnable(Prng.State seed)
     {
-        Game game = new(seed);
+        using Game game = new(seed);
         int advancesSoFar = 0;
         List<ItemKey> newReceivedItems = [];
         while (true)
@@ -158,7 +156,7 @@ public sealed class GameTests
     [Test]
     public async ValueTask LuckyAuraShouldForceSuccess([Matrix(1, 2, 3)] int effectCount)
     {
-        Game game = new(s_lowRolls);
+        using Game game = new(s_lowRolls);
         game.ReceiveItems([.. Enumerable.Repeat(s_singleAuraItems["lucky"], effectCount)]);
         game.Advance();
         game.Advance();
@@ -170,7 +168,7 @@ public sealed class GameTests
     public async ValueTask UnluckyAuraShouldReduceModifier()
     {
         Prng.State seed = EnsureSeedProducesInitialD20Sequence(1070077, [13, 18, 20, 12, 13]);
-        Game game = new(seed);
+        using Game game = new(seed);
         game.ReceiveItems([.. Enumerable.Repeat(s_singleAuraItems["unlucky"], 4)]);
 
         // normally, a 13 as your first roll should pass, but with Unlucky it's not enough. the 18
@@ -201,7 +199,7 @@ public sealed class GameTests
     [Test]
     public async ValueTask PositiveEnergyFactorShouldGiveExtraMovement()
     {
-        Game game = new(s_lowRolls);
+        using Game game = new(s_lowRolls);
         game.InitializeCheckedLocations([
             GameDefinitions.Instance.LocationsByName["Basketball"],
             GameDefinitions.Instance.LocationsByName["Prawn Stars"],
@@ -227,7 +225,7 @@ public sealed class GameTests
     public async ValueTask NegativeEnergyFactorShouldEncumberMovement()
     {
         Prng.State seed = EnsureSeedProducesInitialD20Sequence(13033555434, [20, 20, 1, 20, 20, 20, 20, 1]);
-        Game game = new(seed);
+        using Game game = new(seed);
         game.ArbitrarilyModifyState(g => g.EnergyFactor, -3);
 
         // 3 actions are "check, move, (movement penalty)".
@@ -254,7 +252,7 @@ public sealed class GameTests
     [Test]
     public async ValueTask PositiveFoodFactorShouldGrantOneExtraAction()
     {
-        Game game = new(s_highRolls);
+        using Game game = new(s_highRolls);
         game.ArbitrarilyModifyState(g => g.FoodFactor, 2);
 
         // 4 actions are "check, move, check, move".
@@ -298,7 +296,7 @@ public sealed class GameTests
     [Test]
     public async ValueTask NegativeFoodFactorShouldSubtractOneAction()
     {
-        Game game = new(s_highRolls);
+        using Game game = new(s_highRolls);
         game.ArbitrarilyModifyState(g => g.FoodFactor, -2);
 
         // 2 actions are "check, move".
@@ -342,7 +340,7 @@ public sealed class GameTests
     [Test]
     public async ValueTask DistractionCounterShouldWasteEntireRound()
     {
-        Game game = new(s_highRolls);
+        using Game game = new(s_highRolls);
 
         // distraction should also burn through your food factor.
         game.ReceiveItems([.. Enumerable.Repeat(s_singleAuraItems["well_fed"], 1)]);
@@ -369,7 +367,7 @@ public sealed class GameTests
     public async ValueTask StyleFactorShouldImproveModifier()
     {
         Prng.State seed = EnsureSeedProducesInitialD20Sequence(81622, [6, 11]);
-        Game game = new(seed);
+        using Game game = new(seed);
         game.ReceiveItems([.. Enumerable.Repeat(s_singleAuraItems["stylish"], 2)]);
 
         // 3 actions are "check, move, check".
@@ -385,7 +383,7 @@ public sealed class GameTests
     [Test]
     public async ValueTask TestGoMode()
     {
-        Game game = new(s_lowRolls);
+        using Game game = new(s_lowRolls);
 
         // give it all randomized items except the last one.
         ItemKey finalRandomizedItem = GameDefinitions.Instance.ProgressionItemsByYamlKey["mongoose_in_a_combat_spacecraft"];
@@ -431,20 +429,20 @@ public sealed class GameTests
     [Test]
     public async ValueTask PriorityLocationsShouldShiftTarget()
     {
-        Game game = new(s_lowRolls);
+        using Game scrubbedGame = new(s_lowRolls);
 
         LocationKey prawnStars = GameDefinitions.Instance.LocationsByName["Prawn Stars"];
-        await Assert.That(game.TargetLocation).IsEqualTo(GameDefinitions.Instance.StartLocation);
+        await Assert.That(scrubbedGame.TargetLocation).IsEqualTo(GameDefinitions.Instance.StartLocation);
 
         // prioritize Prawn Stars
-        await Assert.That(game.AddPriorityLocation(prawnStars)).IsEqualTo(AddPriorityLocationResult.AddedUnreachable);
-        game.Advance();
+        await Assert.That(scrubbedGame.AddPriorityLocation(prawnStars)).IsEqualTo(AddPriorityLocationResult.AddedUnreachable);
+        scrubbedGame.Advance();
 
         // should NOT be targeting Prawn Stars now, because we can't reach it out the gate.
-        await Assert.That(game.TargetLocation).IsNotEqualTo(prawnStars);
+        await Assert.That(scrubbedGame.TargetLocation).IsNotEqualTo(prawnStars);
 
         // just restart it, giving it what's needed to reach Prawn Stars
-        game = new(s_lowRolls);
+        using Game game = new(s_lowRolls);
         game.InitializeCheckedLocations([GameDefinitions.Instance.LocationsByName["Basketball"]]);
         game.InitializeReceivedItems([.. Enumerable.Range(0, 5).Select(_ => GameDefinitions.Instance.ItemsByName["Pack Rat"]), GameDefinitions.Instance.ItemsByName["Premium Can of Prawn Food"]]);
         await Assert.That(game.AddPriorityLocation(prawnStars)).IsEqualTo(AddPriorityLocationResult.AddedReachable);
@@ -474,8 +472,8 @@ public sealed class GameTests
     public async ValueTask StartledShouldMovePlayerTowardsStart()
     {
         // force the first steps to move it towards the last reachable location in this region
-        Game game = new(s_highRolls);
-        game.ArbitrarilyModifyState(g => g.PriorityLocations, new([GameDefinitions.Instance[GameDefinitions.Instance.StartRegion].Locations[^1]]));
+        using Game game = new(s_highRolls);
+        game.AddPriorityLocation(GameDefinitions.Instance[GameDefinitions.Instance.StartRegion].Locations[^1]);
 
         game.Advance();
         LocationKey middleLocation = game.CurrentLocation;
@@ -502,7 +500,7 @@ public sealed class GameTests
     [Test]
     public async ValueTask StartledShouldTakePriorityOverDistracted()
     {
-        Game game = new(s_highRolls);
+        using Game game = new(s_highRolls);
         game.ArbitrarilyModifyState(g => g.CurrentLocation, GameDefinitions.Instance[GameDefinitions.Instance.StartRegion].Locations[^1]);
         game.ReceiveItems([
             s_singleAuraItems["startled"],
@@ -549,7 +547,7 @@ public sealed class GameTests
             (beforePrawnStars.Locations[^1], targetFlags),
         ]);
 
-        Game game = new(Prng.State.Start());
+        using Game game = new(Prng.State.Start());
         game.InitializeSpoilerData(spoilerData);
         game.ArbitrarilyModifyState(g => g.CurrentLocation, GameDefinitions.Instance[GameDefinitions.Instance.StartRegion].Locations[^1]);
         game.ArbitrarilyModifyState(g => g.TargetLocation, GameDefinitions.Instance[GameDefinitions.Instance.StartRegion].Locations[^1]);
@@ -582,11 +580,11 @@ public sealed class GameTests
     public async ValueTask PriorityLocationsPastClearableLandmarksShouldBlockThePlayer()
     {
         RegionDefinitionModel beforePrawnStars = GameDefinitions.Instance[GameDefinitions.Instance.Region[GameDefinitions.Instance.LocationsByName["Prawn Stars"]].Connected.Backward[0]];
-        Game game = new(s_lowRolls);
+        using Game game = new(s_lowRolls);
         game.InitializeReceivedItems(Enumerable.Repeat(GameDefinitions.Instance.ItemsByName["Pack Rat"], 5));
         game.ArbitrarilyModifyState(g => g.CurrentLocation, GameDefinitions.Instance[GameDefinitions.Instance.StartRegion].Locations[^1]);
         game.ArbitrarilyModifyState(g => g.TargetLocation, GameDefinitions.Instance[GameDefinitions.Instance.StartRegion].Locations[^1]);
-        game.ArbitrarilyModifyState(g => g.PriorityLocations, new([beforePrawnStars.Locations[1]]));
+        game.AddPriorityLocation(beforePrawnStars.Locations[1]);
 
         for (int i = 0; i < 3; i++)
         {
@@ -604,7 +602,7 @@ public sealed class GameTests
         await Assert.That(startRegion.Locations.Length).IsGreaterThanOrEqualTo(9)
             .Because("This test is particularly sensitive to changes in the number of locations in the start region. Please re-evaluate.");
 
-        Game game = new(s_highRolls);
+        using Game game = new(s_highRolls);
         game.InitializeReceivedItems(Enumerable.Repeat(GameDefinitions.Instance.ItemsByName["Pack Rat"], 5));
         game.InitializeCheckedLocations(GameDefinitions.Instance[GameDefinitions.Instance.StartRegion].Locations);
         game.AddPriorityLocation(GameDefinitions.Instance.LocationsByName["Basketball"]);
@@ -631,11 +629,12 @@ public sealed class GameTests
         RegionDefinitionModel startRegion = GameDefinitions.Instance[GameDefinitions.Instance.StartRegion];
         LocationKey lastLocationBeforeBasketball = startRegion.Locations[^1];
         LocationKey basketball = GameDefinitions.Instance.LocationsByName["Basketball"];
-        Game game = new(s_lowRolls);
+        using Game game = new(s_lowRolls);
         game.InitializeCheckedLocations([lastLocationBeforeBasketball]);
         game.ArbitrarilyModifyState(g => g.CurrentLocation, lastLocationBeforeBasketball);
         game.ArbitrarilyModifyState(g => g.TargetLocation, lastLocationBeforeBasketball);
-        game.ArbitrarilyModifyState(g => g.PriorityLocations, new([basketball, lastLocationBeforeBasketball]));
+        game.AddPriorityLocation(basketball);
+        game.AddPriorityLocation(lastLocationBeforeBasketball);
         game.Advance();
 
         await Assert.That(game.TargetLocation).IsNotEqualTo(lastLocationBeforeBasketball);
@@ -647,7 +646,7 @@ public sealed class GameTests
         ItemKey packRat = GameDefinitions.Instance.ItemsByName["Pack Rat"];
         LocationKey basketball = GameDefinitions.Instance.LocationsByName["Basketball"];
 
-        Game game = new(Prng.State.Start());
+        using Game game = new(Prng.State.Start());
         game.InitializeReceivedItems([
             .. Enumerable.Repeat(packRat, 40),
             GameDefinitions.Instance.ItemsByName["Priceless Antique"],
@@ -685,7 +684,7 @@ public sealed class GameTests
     [Test]
     public async ValueTask ReceiveItemsShouldApplyAuras()
     {
-        Game game = new(Prng.State.Start());
+        using Game game = new(Prng.State.Start());
         game.ReceiveItems([
             // upset_tummy, upset_tummy, upset_tummy, unlucky, startled, startled, startled, sluggish
             GameDefinitions.Instance.ItemsByName["Rat Poison"],
@@ -720,7 +719,7 @@ public sealed class GameTests
     public async ValueTask RegressionTestPathingErrors()
     {
         ItemKey packRat = GameDefinitions.Instance.ItemsByName["Pack Rat"];
-        Game game = new(s_highRolls);
+        using Game game = new(s_highRolls);
         game.InitializeCheckedLocations([
             GameDefinitions.Instance.LocationsByName["Basketball"],
             GameDefinitions.Instance.LocationsByName["Angry Turtles"],
