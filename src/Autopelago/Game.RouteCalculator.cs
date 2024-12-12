@@ -173,6 +173,7 @@ public sealed partial class Game
         using Borrowed<PriorityQueue<(RegionKey ConnectedRegion, Direction Direction), int>> borrowedPq = new();
         PriorityQueue<(RegionKey ConnectedRegion, Direction Direction), int> pq = borrowedPq.Value;
         pq.Clear();
+        pq.EnsureCapacity(GameDefinitions.Instance.AllRegions.Length);
         using var visitedRegionsBorrow = BorrowedBitArray.ForRegions();
         BitArray visitedRegions = visitedRegionsBorrow.Value;
         visitedRegions.SetAll(false);
@@ -350,10 +351,12 @@ public sealed partial class Game
         using Borrowed<Queue<(RegionKey ConnectedRegion, Direction Direction)>> qBorrow = new();
         Queue<(RegionKey ConnectedRegion, Direction Direction)> q = qBorrow.Value;
         q.Clear();
+        q.EnsureCapacity(GameDefinitions.Instance.AllRegions.Length);
 
         using Borrowed<Dictionary<RegionKey, (RegionKey ConnectedRegion, Direction Direction)>> prevBorrow = new();
         Dictionary<RegionKey, (RegionKey ConnectedRegion, Direction Direction)> prev = prevBorrow.Value;
         prev.Clear();
+        prev.EnsureCapacity(GameDefinitions.Instance.AllRegions.Length);
 
         foreach ((RegionKey connectedRegion, Direction direction) in GameDefinitions.Instance[currentRegionLocation.Region].Connected.All)
         {
@@ -386,6 +389,7 @@ public sealed partial class Game
             using Borrowed<Stack<(RegionKey ConnectedRegion, Direction Direction)>> regionStackBorrow = new();
             Stack<(RegionKey ConnectedRegion, Direction Direction)> regionStack = regionStackBorrow.Value;
             regionStack.Clear();
+            regionStack.EnsureCapacity(GameDefinitions.Instance.AllRegions.Length);
             do
             {
                 regionStack.Push(tup);
@@ -446,23 +450,28 @@ public sealed partial class Game
         }
     }
 
-    private IEnumerable<LocationKey> GetClosestLocationsWithItemFlags(LocationKey currentLocation, ArchipelagoItemFlags flags)
+    private Borrowed<List<LocationKey>> GetClosestLocationsWithItemFlags(LocationKey currentLocation, ArchipelagoItemFlags flags)
     {
+        Borrowed<List<LocationKey>> result = new();
+        result.Value.Clear();
+        result.Value.EnsureCapacity(GameDefinitions.Instance.AllLocations.Length);
         ReadOnlyBitArray spoilerData = _spoilerData![flags];
 
         // TODO: optimize this, it's getting late.
         using var visitedLocationsBorrow = BorrowedBitArray.ForLocations();
         BitArray visitedLocations = visitedLocationsBorrow.Value;
+        visitedLocations.SetAll(false);
         using Borrowed<Queue<LocationKey>> qBorrow = new();
         Queue<LocationKey> q = qBorrow.Value;
         q.Clear();
+        q.EnsureCapacity(GameDefinitions.Instance.AllLocations.Length);
         q.Enqueue(currentLocation);
         visitedLocations[currentLocation.N] = true;
         while (q.TryDequeue(out LocationKey loc))
         {
             if (spoilerData[loc.N] && !_checkedLocations[loc.N])
             {
-                yield return loc;
+                result.Value.Add(loc);
             }
 
             foreach ((LocationKey connectedLocation, _) in GameDefinitions.Instance[loc].Connected.All)
@@ -475,6 +484,8 @@ public sealed partial class Game
                 }
             }
         }
+
+        return result;
     }
 
     private void RecalculateClearable()
@@ -482,9 +493,11 @@ public sealed partial class Game
         using Borrowed<Queue<RegionKey>> qBorrow = new();
         Queue<RegionKey> q = qBorrow.Value;
         q.Clear();
+        q.EnsureCapacity(GameDefinitions.Instance.AllRegions.Length);
 
         using var visitedRegionsBorrow = BorrowedBitArray.ForRegions();
         BitArray visitedRegions = visitedRegionsBorrow.Value;
+        visitedRegions.SetAll(false);
 
         q.Enqueue(GameDefinitions.Instance.StartRegion);
         while (q.TryDequeue(out RegionKey region))

@@ -59,13 +59,7 @@ public sealed partial class Game
 {
     private const int DefaultActionsPerStep = 3;
 
-    // at most, FoodFactor adds +1
-    private const int MaxActionsPerStep = DefaultActionsPerStep + 1;
-
     private const int MaxMovementsPerAction = 3;
-
-    // at most, EnergyFactor can let you move 2x as much at once.
-    private const int MaxMovementsPerStep = MaxActionsPerStep * MaxMovementsPerAction * 2;
 
     private readonly Lock? _lock;
 
@@ -592,6 +586,7 @@ public sealed partial class Game
         EnsureStarted();
         using BorrowedBitArray borrowed = BorrowedBitArray.ForLocations();
         BitArray locationIsNewlyChecked = borrowed.Value;
+        locationIsNewlyChecked.SetAll(false);
         foreach (LocationKey location in newLocations)
         {
             if (_checkedLocations[location.N])
@@ -690,12 +685,15 @@ public sealed partial class Game
                     case "smart":
                     case "conspiratorial":
                         ArchipelagoItemFlags flags = aura == "smart" ? ArchipelagoItemFlags.LogicalAdvancement : ArchipelagoItemFlags.Trap;
-                        foreach (LocationKey loc in GetClosestLocationsWithItemFlags(CurrentLocation, flags))
+                        using (Borrowed<List<LocationKey>> borrowedResult = GetClosestLocationsWithItemFlags(CurrentLocation, flags))
                         {
-                            if (!_priorityPriorityLocations.Contains(loc))
+                            foreach (LocationKey loc in borrowedResult.Value)
                             {
-                                _priorityPriorityLocations.Add(loc);
-                                break;
+                                if (!_priorityPriorityLocations.Contains(loc))
+                                {
+                                    _priorityPriorityLocations.Add(loc);
+                                    break;
+                                }
                             }
                         }
 

@@ -447,21 +447,18 @@ public sealed class GameTests
 
         LocationKey basketball = GameDefinitions.Instance.LocationsByName["Basketball"];
         LocationKey prawnStars = GameDefinitions.Instance.LocationsByName["Prawn Stars"];
-        {
-            using Game scrubbedGame = new(s_lowRolls);
+        using Game scrubbedGame = new(s_lowRolls);
 
-            await Assert.That(scrubbedGame.TargetLocation).IsEqualTo(GameDefinitions.Instance.StartLocation);
+        await Assert.That(scrubbedGame.TargetLocation).IsEqualTo(GameDefinitions.Instance.StartLocation);
 
-            // prioritize Prawn Stars
-            await Assert.That(scrubbedGame.AddPriorityLocation(prawnStars)).IsEqualTo(AddPriorityLocationResult.AddedUnreachable);
-            scrubbedGame.Advance();
+        // prioritize Prawn Stars
+        await Assert.That(scrubbedGame.AddPriorityLocation(prawnStars)).IsEqualTo(AddPriorityLocationResult.AddedUnreachable);
+        scrubbedGame.Advance();
 
-            // should NOT be targeting Prawn Stars now, because we can't reach it out the gate.
-            await Assert.That(scrubbedGame.TargetLocation).IsNotEqualTo(prawnStars);
+        // should NOT be targeting Prawn Stars now, because we can't reach it out the gate.
+        await Assert.That(scrubbedGame.TargetLocation).IsNotEqualTo(prawnStars);
 
-            // just restart it, giving it what's needed to reach Prawn Stars
-        }
-
+        // just restart it, giving it what's needed to reach Prawn Stars
         using Game game = new(s_lowRolls);
         game.InitializeCheckedLocations([basketball]);
         game.InitializeReceivedItems([.. Enumerable.Repeat(packRat, 5), premiumCanOfPrawnFood]);

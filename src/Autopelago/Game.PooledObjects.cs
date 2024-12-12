@@ -7,25 +7,50 @@ namespace Autopelago;
 
 public sealed partial class Game : IDisposable
 {
-    private readonly BorrowedBitArray b_hardLockedRegions = BorrowedBitArray.ForRegions(); private BitArray _hardLockedRegions => b_hardLockedRegions.Value;
-    private readonly BorrowedBitArray b_softLockedRegions = BorrowedBitArray.ForRegions(); private BitArray _softLockedRegions => b_softLockedRegions.Value;
+    private readonly BorrowedBitArray b_hardLockedRegions = BorrowedBitArray.ForRegions();
+    private readonly BitArray _hardLockedRegions;
 
-    private readonly Borrowed<List<LocationVector>> b_prevMovementLog = new(); private List<LocationVector> _prevMovementLog => b_prevMovementLog.Value;
-    private readonly Borrowed<List<LocationVector>> b_movementLog = new(); private List<LocationVector> _movementLog => b_movementLog.Value;
+    private readonly BorrowedBitArray b_softLockedRegions = BorrowedBitArray.ForRegions();
+    private readonly BitArray _softLockedRegions;
 
-    private readonly Borrowed<Queue<LocationKey>> b_pathToTarget = new(); private Queue<LocationKey> _pathToTarget => b_pathToTarget.Value;
 
-    private readonly Borrowed<List<ItemKey>> b_receivedItemsOrder = new(); private List<ItemKey> _receivedItemsOrder => b_receivedItemsOrder.Value;
-    private readonly BorrowedArray<int> b_receivedItems = new(GameDefinitions.Instance.AllItems.Length); private Span<int> _receivedItems => b_receivedItems.Value;
+    private readonly Borrowed<List<LocationVector>> b_prevMovementLog = new();
+    private readonly List<LocationVector> _prevMovementLog;
 
-    private readonly Borrowed<List<LocationKey>> b_checkedLocationsOrder = new(); private List<LocationKey> _checkedLocationsOrder => b_checkedLocationsOrder.Value;
-    private readonly BorrowedBitArray b_checkedLocations = BorrowedBitArray.ForLocations(); private BitArray _checkedLocations => b_checkedLocations.Value;
-    private readonly BorrowedArray<int> b_regionUncheckedLocationsCount = new(GameDefinitions.Instance.AllRegions.Length); private Span<int> _regionUncheckedLocationsCount => b_regionUncheckedLocationsCount.Value;
+    private readonly Borrowed<List<LocationVector>> b_movementLog = new();
+    private readonly List<LocationVector> _movementLog;
 
-    private readonly Borrowed<List<LocationKey>> b_priorityPriorityLocations = new(); private List<LocationKey> _priorityPriorityLocations => b_priorityPriorityLocations.Value;
-    private readonly Borrowed<List<LocationKey>> b_priorityLocations = new(); private List<LocationKey> _priorityLocations => b_priorityLocations.Value;
 
-    private readonly Borrowed<List<LocationKey>> b_prevPath = new(); private List<LocationKey> _prevPath => b_prevPath.Value;
+    private readonly Borrowed<Queue<LocationKey>> b_pathToTarget = new();
+    private readonly Queue<LocationKey> _pathToTarget;
+
+
+    private readonly Borrowed<List<ItemKey>> b_receivedItemsOrder = new();
+    private readonly List<ItemKey> _receivedItemsOrder;
+
+    private readonly BorrowedArray<int> b_receivedItems = new(GameDefinitions.Instance.AllItems.Length);
+    private readonly ArraySegment<int> _receivedItems;
+
+
+    private readonly Borrowed<List<LocationKey>> b_checkedLocationsOrder = new();
+    private readonly List<LocationKey> _checkedLocationsOrder;
+
+    private readonly BorrowedBitArray b_checkedLocations = BorrowedBitArray.ForLocations();
+    private readonly BitArray _checkedLocations;
+
+    private readonly BorrowedArray<int> b_regionUncheckedLocationsCount = new(GameDefinitions.Instance.AllRegions.Length);
+    private readonly ArraySegment<int> _regionUncheckedLocationsCount;
+
+
+    private readonly Borrowed<List<LocationKey>> b_priorityPriorityLocations = new();
+    private readonly List<LocationKey> _priorityPriorityLocations;
+
+    private readonly Borrowed<List<LocationKey>> b_priorityLocations = new();
+    private readonly List<LocationKey> _priorityLocations;
+
+
+    private readonly Borrowed<List<LocationKey>> b_prevPath = new();
+    private readonly List<LocationKey> _prevPath;
 
     public Game(Prng.State prngState)
         : this(prngState, null)
@@ -34,12 +59,23 @@ public sealed partial class Game : IDisposable
 
     public Game(Prng.State prngState, GameInstrumentation? instrumentation)
     {
-        _hardLockedRegions.SetAll(true);
+        _hardLockedRegions = b_hardLockedRegions.Value; _hardLockedRegions.SetAll(true);
+        _softLockedRegions = b_softLockedRegions.Value; _softLockedRegions.SetAll(true);
+        _prevMovementLog = b_prevMovementLog.Value; _prevMovementLog.Clear(); _prevMovementLog.EnsureCapacity(GameDefinitions.Instance.AllLocations.Length);
+        _movementLog = b_movementLog.Value; _movementLog.Clear(); _movementLog.EnsureCapacity(GameDefinitions.Instance.AllLocations.Length);
+        _pathToTarget = b_pathToTarget.Value; _pathToTarget.Clear(); _pathToTarget.EnsureCapacity(GameDefinitions.Instance.AllLocations.Length);
+        _receivedItemsOrder = b_receivedItemsOrder.Value; _receivedItemsOrder.Clear(); _receivedItemsOrder.EnsureCapacity(GameDefinitions.Instance.AllLocations.Length); // yes locations
+        _receivedItems = b_receivedItems.Value; _receivedItems.AsSpan().Clear();
+        _checkedLocationsOrder = b_checkedLocationsOrder.Value; _checkedLocationsOrder.Clear(); _checkedLocationsOrder.EnsureCapacity(GameDefinitions.Instance.AllLocations.Length);
+        _checkedLocations = b_checkedLocations.Value; _checkedLocations.SetAll(false);
+        _regionUncheckedLocationsCount = b_regionUncheckedLocationsCount.Value; _regionUncheckedLocationsCount.AsSpan().Clear();
+        _priorityPriorityLocations = b_priorityPriorityLocations.Value; _priorityPriorityLocations.Clear(); _priorityPriorityLocations.EnsureCapacity(GameDefinitions.Instance.AllLocations.Length);
+        _priorityLocations = b_priorityLocations.Value; _priorityLocations.Clear(); _priorityLocations.EnsureCapacity(GameDefinitions.Instance.AllLocations.Length);
+        _prevPath = b_prevPath.Value; _prevPath.Clear(); _prevPath.EnsureCapacity(GameDefinitions.Instance.AllLocations.Length);
+
         _hardLockedRegions[GameDefinitions.Instance.StartRegion.N] = false;
-        _softLockedRegions.SetAll(true);
         _softLockedRegions[GameDefinitions.Instance.StartRegion.N] = false;
 
-        _receivedItems.Clear();
         Span<int> regionUncheckedLocationsCount = _regionUncheckedLocationsCount;
         foreach (ref readonly RegionDefinitionModel region in GameDefinitions.Instance.AllRegions.AsSpan())
         {
@@ -80,32 +116,25 @@ public sealed partial class Game : IDisposable
     }
 }
 
-public sealed class Borrowed<T> : IDisposable
+public readonly struct Borrowed<T> : IDisposable
     where T : class, new()
 {
     private static readonly ObjectPool<T> s_pool = ObjectPool.Create<T>();
 
-    private T? _obj = s_pool.Get();
+    public Borrowed()
+    {
+        Value = s_pool.Get();
+    }
 
     public void Dispose()
     {
-        if (Interlocked.Exchange(ref _obj, null) is { } obj)
-        {
-            s_pool.Return(obj);
-        }
+        s_pool.Return(Value);
     }
 
-    public T Value
-    {
-        get
-        {
-            ObjectDisposedException.ThrowIf(_obj is null, this);
-            return _obj;
-        }
-    }
+    public T Value { get; }
 }
 
-public sealed class BorrowedBitArray : IDisposable
+public readonly struct BorrowedBitArray : IDisposable
 {
     private static readonly ObjectPool<BitArray> s_regionBitArray = new DefaultObjectPool<BitArray>(new AnonymousPolicy<BitArray>(() => new(GameDefinitions.Instance.AllRegions.Length)));
 
@@ -113,13 +142,10 @@ public sealed class BorrowedBitArray : IDisposable
 
     private readonly ObjectPool<BitArray> _pool;
 
-    private BitArray? _obj;
-
     private BorrowedBitArray(ObjectPool<BitArray> pool)
     {
         _pool = pool;
-        _obj = pool.Get();
-        _obj.SetAll(false);
+        Value = pool.Get();
     }
 
     public static BorrowedBitArray ForRegions()
@@ -134,51 +160,25 @@ public sealed class BorrowedBitArray : IDisposable
 
     public void Dispose()
     {
-        if (Interlocked.Exchange(ref _obj, null) is { } obj)
-        {
-            _pool.Return(obj);
-        }
+        _pool.Return(Value);
     }
 
-    public BitArray Value
-    {
-        get
-        {
-            ObjectDisposedException.ThrowIf(_obj is null, this);
-            return _obj;
-        }
-    }
+    public BitArray Value { get; }
 }
 
-public sealed class BorrowedArray<T> : IDisposable
+public readonly struct BorrowedArray<T> : IDisposable
 {
-    private T[]? _value;
-
-    private readonly int _length;
-
     public BorrowedArray(int length)
     {
-        _value = ArrayPool<T>.Shared.Rent(length);
-        _length = length;
-        Array.Clear(_value, 0, _length);
+        Value = new(ArrayPool<T>.Shared.Rent(length), 0, length);
     }
 
     public void Dispose()
     {
-        if (Interlocked.Exchange(ref _value, null) is { } array)
-        {
-            ArrayPool<T>.Shared.Return(array);
-        }
+        ArrayPool<T>.Shared.Return(Value.Array!);
     }
 
-    public Span<T> Value
-    {
-        get
-        {
-            ObjectDisposedException.ThrowIf(_value is null, this);
-            return _value.AsSpan(0, _length);
-        }
-    }
+    public ArraySegment<T> Value { get; }
 }
 
 file sealed class AnonymousPolicy<T> : PooledObjectPolicy<T>
