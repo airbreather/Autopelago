@@ -92,9 +92,9 @@ public sealed partial class Game
     public ReadOnlyBitArray LocationIsChecked { get; }
     public ReadOnlyCollection<LocationKey> CheckedLocations { get; }
 
-    public ReadOnlyCollection<LocationKey> PriorityPriorityLocations => _priorityPriorityLocations.AsReadOnly();
+    public ReadOnlyCollection<LocationKey> PriorityPriorityLocations { get; }
 
-    public ReadOnlyCollection<LocationKey> PriorityLocations => _priorityLocations.AsReadOnly();
+    public ReadOnlyCollection<LocationKey> PriorityLocations { get; }
 
     public FrozenDictionary<ArchipelagoItemFlags, ReadOnlyBitArray> SpoilerData
     {
@@ -589,7 +589,7 @@ public sealed partial class Game
     {
         using Lock.Scope _ = EnterLockScope();
         EnsureStarted();
-        using Borrowed<BitArray> borrowed = BorrowLocationsBitArrayDefaultFalse();
+        using Borrowed<BitArray> borrowed = BorrowLocationsBitArray();
         BitArray locationIsNewlyChecked = borrowed.Value;
         foreach (LocationKey location in newLocations)
         {

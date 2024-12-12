@@ -1,5 +1,6 @@
 using System.Buffers;
 using System.Collections;
+using System.Collections.Concurrent;
 using System.Linq.Expressions;
 using System.Reflection;
 using System.Runtime.InteropServices;
@@ -10,12 +11,8 @@ namespace Autopelago;
 
 public sealed partial class Game : IDisposable
 {
-    private static readonly DefaultObjectPool<BitArray> s_regionBitArrayPoolDefaultTrue = new(new BitArrayPoolPolicy(GameDefinitions.Instance.AllRegions.Length, true));
-
-    private static readonly DefaultObjectPool<BitArray> s_locationBitArrayPoolDefaultFalse = new(new BitArrayPoolPolicy(GameDefinitions.Instance.AllLocations.Length, false));
-
-    private readonly BitArray _hardLockedRegions = s_regionBitArrayPoolDefaultTrue.Get();
-    private readonly BitArray _softLockedRegions = s_regionBitArrayPoolDefaultTrue.Get();
+    private readonly BitArray _hardLockedRegions = Pools.RegionBitArray.Get();
+    private readonly BitArray _softLockedRegions = Pools.RegionBitArray.Get();
 
     private readonly List<LocationVector> _prevMovementLog = Pools<List<LocationVector>>.Get(MaxMovementsPerStep);
     private readonly List<LocationVector> _movementLog = Pools<List<LocationVector>>.Get(MaxMovementsPerStep);
@@ -26,7 +23,7 @@ public sealed partial class Game : IDisposable
     private readonly ArraySegment<int> _receivedItems = RentArray<int>(GameDefinitions.Instance.AllItems.Length);
 
     private readonly List<LocationKey> _checkedLocationsOrder = Pools<List<LocationKey>>.Get(GameDefinitions.Instance.AllLocations.Length);
-    private readonly BitArray _checkedLocations = s_locationBitArrayPoolDefaultFalse.Get();
+    private readonly BitArray _checkedLocations = Pools.LocationBitArray.Get();
     private readonly ArraySegment<int> _regionUncheckedLocationsCount = RentArray<int>(GameDefinitions.Instance.AllRegions.Length);
 
     private readonly List<LocationKey> _priorityPriorityLocations = Pools<List<LocationKey>>.Get(GameDefinitions.Instance.AllLocations.Length);
@@ -41,7 +38,9 @@ public sealed partial class Game : IDisposable
 
     public Game(Prng.State prngState, GameInstrumentation? instrumentation)
     {
+        _hardLockedRegions.SetAll(true);
         _hardLockedRegions[GameDefinitions.Instance.StartRegion.N] = false;
+        _softLockedRegions.SetAll(true);
         _softLockedRegions[GameDefinitions.Instance.StartRegion.N] = false;
 
         _receivedItems.AsSpan().Clear();
@@ -63,6 +62,8 @@ public sealed partial class Game : IDisposable
         ReceivedItems = new(_receivedItemsOrder);
         LocationIsChecked = new(_checkedLocations);
         CheckedLocations = new(_checkedLocationsOrder);
+        PriorityPriorityLocations = new(_priorityPriorityLocations);
+        PriorityLocations = new(_priorityLocations);
     }
 
     public void Dispose()
@@ -73,7 +74,7 @@ public sealed partial class Game : IDisposable
         Pools<List<LocationKey>>.Return(_priorityPriorityLocations);
 
         ArrayPool<int>.Shared.Return(_regionUncheckedLocationsCount.Array!);
-        s_locationBitArrayPoolDefaultFalse.Return(_checkedLocations);
+        Pools.LocationBitArray.Return(_checkedLocations);
         Pools<List<LocationKey>>.Return(_checkedLocationsOrder);
 
         ArrayPool<int>.Shared.Return(_receivedItems.Array!);
@@ -84,25 +85,30 @@ public sealed partial class Game : IDisposable
         Pools<List<LocationVector>>.Return(_movementLog);
         Pools<List<LocationVector>>.Return(_prevMovementLog);
 
-        s_regionBitArrayPoolDefaultTrue.Return(_softLockedRegions);
-        s_regionBitArrayPoolDefaultTrue.Return(_hardLockedRegions);
+        Pools.RegionBitArray.Return(_softLockedRegions);
+        Pools.RegionBitArray.Return(_hardLockedRegions);
     }
 
     private static ArraySegment<T> RentArray<T>(int length)
     {
         T[] array = ArrayPool<T>.Shared.Rent(length);
         ArraySegment<T> segment = new(array, 0, length);
+        segment.AsSpan().Clear();
         return segment;
     }
 
-    private static Borrowed<BitArray> BorrowLocationsBitArrayDefaultFalse()
+    private static Borrowed<BitArray> BorrowLocationsBitArray()
     {
-        return new(s_locationBitArrayPoolDefaultFalse.Get(), s_locationBitArrayPoolDefaultFalse);
+        Borrowed<BitArray> result = new(Pools.LocationBitArray.Get(), Pools.LocationBitArray);
+        result.Value.SetAll(false);
+        return result;
     }
 
-    private static Borrowed<BitArray> BorrowRegionsBitArrayDefaultTrue()
+    private static Borrowed<BitArray> BorrowRegionsBitArray()
     {
-        return new(s_regionBitArrayPoolDefaultTrue.Get(), s_regionBitArrayPoolDefaultTrue);
+        Borrowed<BitArray> result = new(Pools.RegionBitArray.Get(), Pools.RegionBitArray);
+        result.Value.SetAll(false);
+        return result;
     }
 
     private static Borrowed<T> Borrow<T>()
@@ -136,21 +142,19 @@ file static class Pools<T> where T : class, new()
 {
     private static readonly Action<T, int>? s_ensureCapacity = GetEnsureCapacityMethod();
 
-    private static readonly DefaultObjectPool<T> s_pool = new(new DefaultPooledObjectPolicy<T>());
-
     public static Borrowed<T> GetWrapped()
     {
-        return new(Get(), s_pool);
+        return new(Pools.Easy<T>().Get(), Pools.Easy<T>());
     }
 
     public static T Get()
     {
-        return s_pool.Get();
+        return Pools.Easy<T>().Get();
     }
 
     public static T Get(int capacity)
     {
-        T result = s_pool.Get();
+        T result = Pools.Easy<T>().Get();
         try
         {
             s_ensureCapacity?.Invoke(result, capacity);
@@ -158,14 +162,14 @@ file static class Pools<T> where T : class, new()
         }
         catch
         {
-            s_pool.Return(result);
+            Pools.Easy<T>().Return(result);
             throw;
         }
     }
 
     public static void Return(T obj)
     {
-        s_pool.Return(obj);
+        Pools.Easy<T>().Return(obj);
     }
 
     private static Action<T, int>? GetEnsureCapacityMethod()
@@ -183,26 +187,62 @@ file static class Pools<T> where T : class, new()
     }
 }
 
-file sealed class BitArrayPoolPolicy : PooledObjectPolicy<BitArray>
+file static class Pools
 {
-    private readonly int _length;
+    public static readonly ObjectPool<BitArray> RegionBitArray = new MyPool<BitArray>(() => new(GameDefinitions.Instance.AllRegions.Length));
 
-    private readonly bool _defaultValue;
+    public static readonly ObjectPool<BitArray> LocationBitArray = new MyPool<BitArray>(() => new(GameDefinitions.Instance.AllLocations.Length));
 
-    public BitArrayPoolPolicy(int length, bool defaultValue)
+    public static ObjectPool<T> Easy<T>()
+        where T : class, new()
     {
-        _length = length;
-        _defaultValue = defaultValue;
+        return BulkPools<T>.Pool;
     }
 
-    public override BitArray Create()
+    private static class BulkPools<T>
+        where T : class, new()
     {
-        return new(_length, _defaultValue);
+        public static readonly ObjectPool<T> Pool = new MyPool<T>(() => new());
+    }
+}
+
+file sealed class MyPool<T> : ObjectPool<T>
+    where T : class
+{
+    private static readonly Action<T>? s_clear = GetClearMethod();
+
+    private readonly ConcurrentBag<T> _bag = [];
+    private readonly Func<T> _create;
+
+    public MyPool(Func<T> create)
+    {
+        _create = create;
     }
 
-    public override bool Return(BitArray obj)
+    public override T Get()
     {
-        obj.SetAll(_defaultValue);
-        return true;
+        return _bag.TryTake(out T? item) ? item : _create();
+    }
+
+    public override void Return(T obj)
+    {
+        if (_bag.Count < 100)
+        {
+            s_clear?.Invoke(obj);
+            _bag.Add(obj);
+        }
+    }
+
+    private static Action<T>? GetClearMethod()
+    {
+        MethodInfo? method = typeof(T).GetMethod("Clear", BindingFlags.Instance | BindingFlags.Public, []);
+        if (method is null)
+        {
+            return null;
+        }
+
+        ParameterExpression thisParam = Expression.Parameter(typeof(T), "this");
+        MethodCallExpression methodCall = Expression.Call(thisParam, method);
+        return Expression.Lambda<Action<T>>(methodCall, thisParam).Compile();
     }
 }
