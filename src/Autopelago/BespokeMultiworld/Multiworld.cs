@@ -1,5 +1,6 @@
 using System.Collections.Frozen;
 using System.Collections.Immutable;
+using System.Collections.ObjectModel;
 using System.Runtime.InteropServices;
 
 namespace Autopelago.BespokeMultiworld;
@@ -8,9 +9,9 @@ public sealed class Multiworld : IDisposable
 {
     public required ImmutableArray<World> Slots { get; init; }
 
-    public required ImmutableArray<FrozenDictionary<LocationKey, WorldItem>> FullSpoilerData { get; init; }
+    public required ImmutableArray<ImmutableArray<WorldItem>> FullSpoilerData { get; init; }
 
-    public required ImmutableArray<FrozenDictionary<ArchipelagoItemFlags, FrozenSet<LocationKey>>> PartialSpoilerData { get; init; }
+    public required ImmutableArray<FrozenDictionary<ArchipelagoItemFlags, ReadOnlyBitArray>> PartialSpoilerData { get; init; }
 
     public void Dispose()
     {
@@ -22,7 +23,7 @@ public sealed class Multiworld : IDisposable
 
     public void Run()
     {
-        List<ItemDefinitionModel>[] sendNextRound = new List<ItemDefinitionModel>[Slots.Length];
+        List<ItemKey>[] sendNextRound = new List<ItemKey>[Slots.Length];
         for (int i = 0; i < Slots.Length; i++)
         {
             Slots[i].Game.InitializeSpoilerData(PartialSpoilerData[i]);
@@ -42,11 +43,12 @@ public sealed class Multiworld : IDisposable
                     if (prevCheckedLocations[i] >= 0)
                     {
                         // this is the first time we hit the goal, so auto-release.
-                        foreach ((LocationKey key, WorldItem itemToSend) in FullSpoilerData[i])
+                        ImmutableArray<WorldItem> spoilerData = FullSpoilerData[i];
+                        for (int j = 0; j < spoilerData.Length; j++)
                         {
-                            if (!slot.Game.CheckedLocations[key])
+                            if (!slot.Game.LocationIsChecked[j])
                             {
-                                sendNextRound[itemToSend.Slot].Add(itemToSend.Item);
+                                sendNextRound[spoilerData[j].Slot].Add(spoilerData[j].Item);
                             }
                         }
 
@@ -73,11 +75,11 @@ public sealed class Multiworld : IDisposable
                     continue;
                 }
 
-                CheckedLocations locs = Slots[i].Game.CheckedLocations;
+                ReadOnlyCollection<LocationKey> locs = Slots[i].Game.CheckedLocations;
                 for (int j = prevCheckedLocations[i]; j < locs.Count; j++)
                 {
-                    WorldItem itemToSend = FullSpoilerData[i][locs.Order[j].Key];
-                    sendNextRound[itemToSend.Slot].Add(GameDefinitions.Instance.ItemsByName[itemToSend.ItemName]);
+                    WorldItem itemToSend = FullSpoilerData[i][locs[j].N];
+                    sendNextRound[itemToSend.Slot].Add(itemToSend.Item);
                 }
 
                 prevCheckedLocations[i] = locs.Count;

@@ -7,7 +7,5 @@ public readonly record struct WorldItem
 {
     public required int Slot { get; init; }
 
-    public required string ItemName { get; init; }
-
-    public ItemDefinitionModel Item => GameDefinitions.Instance.ItemsByName[ItemName];
+    public required ItemKey Item { get; init; }
 }

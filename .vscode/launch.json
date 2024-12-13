@@ -10,7 +10,7 @@
             "request": "launch",
             "preLaunchTask": "build",
             // If you have changed target frameworks, make sure to update the program path.
-            "program": "${workspaceFolder}/src/Autopelago/bin/Debug/net8.0/Autopelago.dll",
+            "program": "${workspaceFolder}/src/Autopelago/bin/Debug/net9.0/Autopelago.dll",
             "launchSettingsFilePath": "${workspaceFolder}/src/Autopelago/Properties/launchSettings.json",
             "cwd": "${workspaceFolder}/src/Autopelago",
             // For more information about the 'console' field, see https://aka.ms/VSCode-CS-LaunchJson-Console

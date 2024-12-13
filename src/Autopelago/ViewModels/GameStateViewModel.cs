@@ -1,3 +1,4 @@
+using System.Collections;
 using System.Collections.Frozen;
 using System.Collections.Immutable;
 using System.Collections.ObjectModel;
@@ -43,7 +44,7 @@ public sealed partial class GameStateViewModel : ViewModelBase, IDisposable
         "'click me to see where I want to go'? what does that mean?",
     ];
 
-    private static readonly FrozenDictionary<string, int> s_progressionItemSortOrder = ProgressionItemSortOrder();
+    private static readonly FrozenDictionary<ItemKey, int> s_progressionItemSortOrder = ProgressionItemSortOrder();
 
     private readonly CompositeDisposable _disposables = [];
 
@@ -57,11 +58,11 @@ public sealed partial class GameStateViewModel : ViewModelBase, IDisposable
 
     [Reactive(SetModifier = AccessModifier.Private)] private int _ratCount;
 
-    [Reactive(SetModifier = AccessModifier.Private)] private LocationDefinitionModel _currentLocation = GameDefinitions.Instance.StartLocation;
+    [Reactive(SetModifier = AccessModifier.Private)] private LocationDefinitionModel _currentLocation = GameDefinitions.Instance[GameDefinitions.Instance.StartLocation];
 
     [Reactive(SetModifier = AccessModifier.Private)] private Point _currentPoint;
 
-    [Reactive(SetModifier = AccessModifier.Private)] private LocationDefinitionModel _targetLocation = GameDefinitions.Instance.StartLocation;
+    [Reactive(SetModifier = AccessModifier.Private)] private LocationDefinitionModel _targetLocation = GameDefinitions.Instance[GameDefinitions.Instance.StartLocation];
 
     [Reactive(SetModifier = AccessModifier.Private)] private Point _targetPoint;
 
@@ -110,13 +111,18 @@ public sealed partial class GameStateViewModel : ViewModelBase, IDisposable
 
         LandmarkRegions =
         [
-            .. GameDefinitions.Instance.LandmarkRegions.Keys
-                .Select(key => new LandmarkRegionViewModel(key)),
+            .. GameDefinitions.Instance.AllRegions
+                .OfType<LandmarkRegionDefinitionModel>()
+                .Select(r => new LandmarkRegionViewModel(r.Key)),
         ];
 
-        FrozenDictionary<string, CollectableItemViewModel> progressionItemInPanelLookup = ProgressionItemsInPanel.ToFrozenDictionary(i => i.Model.Name);
-        FrozenDictionary<string, LandmarkRegionViewModel> landmarkRegionsLookup = LandmarkRegions.ToFrozenDictionary(l => l.RegionKey);
-        FrozenDictionary<string, ImmutableArray<GameRequirementToolTipViewModel>> toolTipsByItem = (
+        CollectableItemViewModel?[] progressionItemInPanelLookup = new CollectableItemViewModel?[GameDefinitions.Instance.AllItems.Length];
+        foreach (CollectableItemViewModel item in ProgressionItemsInPanel)
+        {
+            progressionItemInPanelLookup[item.Model.Key.N] = item;
+        }
+
+        FrozenDictionary<ItemKey, ImmutableArray<GameRequirementToolTipViewModel>> toolTipsByItem = (
             from loc in LandmarkRegions
             from tt in loc.GameRequirementToolTipSource.DescendantsAndSelf()
             where tt.Model is ReceivedItemRequirement
@@ -130,16 +136,21 @@ public sealed partial class GameStateViewModel : ViewModelBase, IDisposable
                select (((RatCountRequirement)tt.Model).RatCount, tt),
         ];
 
-        FrozenDictionary<LocationKey, FillerLocationViewModel> fillerLocationLookup = GameDefinitions.Instance.FillerRegions.Values
-            .SelectMany(r => new FillerRegionViewModel(r).Locations)
-            .ToFrozenDictionary(l => l.Model.Key);
+        FillerLocations =
+        [
+            .. GameDefinitions.Instance.AllRegions
+                .Skip(LandmarkRegions.Length)
+                .Cast<FillerRegionDefinitionModel>()
+                .SelectMany(r => new FillerRegionViewModel(r).Locations),
+        ];
 
-        FrozenDictionary<LocationKey, Point> locationPointLookup = GameDefinitions.Instance.LocationsByKey
-            .ToFrozenDictionary(kvp => kvp.Key, kvp => landmarkRegionsLookup.TryGetValue(kvp.Key.RegionKey, out LandmarkRegionViewModel? landmark)
-                ? landmark.CanvasLocation
-                : fillerLocationLookup[kvp.Key].Point);
-
-        FillerLocations = [.. fillerLocationLookup.Values];
+        ImmutableArray<Point> locationPointLookup =
+        [
+            .. GameDefinitions.Instance.AllLocations
+                .Select(l => l.Key.N < LandmarkRegions.Length
+                    ? LandmarkRegions[l.Key.N].CanvasLocation
+                    : FillerLocations[l.Key.N - LandmarkRegions.Length].Point),
+        ];
 
         _disposables.Add(provider.Paused
             .Subscribe(paused => Paused = paused));
@@ -162,8 +173,8 @@ public sealed partial class GameStateViewModel : ViewModelBase, IDisposable
                 HasConfidence = g.HasConfidence;
                 if (g.TargetLocationReason == TargetLocationReason.PriorityPriority)
                 {
-                    MovingToSmart = g.SpoilerData[ArchipelagoItemFlags.LogicalAdvancement].Contains(g.TargetLocation.Key);
-                    MovingToConspiratorial = g.SpoilerData[ArchipelagoItemFlags.Trap].Contains(g.TargetLocation.Key);
+                    MovingToSmart = g.SpoilerData[ArchipelagoItemFlags.LogicalAdvancement][g.TargetLocation.N];
+                    MovingToConspiratorial = g.SpoilerData[ArchipelagoItemFlags.Trap][g.TargetLocation.N];
                 }
                 else
                 {
@@ -171,8 +182,8 @@ public sealed partial class GameStateViewModel : ViewModelBase, IDisposable
                     MovingToConspiratorial = false;
                 }
 
-                CurrentLocation = g.CurrentLocation;
-                TargetLocation = g.TargetLocation;
+                CurrentLocation = GameDefinitions.Instance[g.CurrentLocation];
+                TargetLocation = GameDefinitions.Instance[g.TargetLocation];
                 if (g.RatCount != prevRatCount)
                 {
                     prevRatCount = g.RatCount;
@@ -182,15 +193,15 @@ public sealed partial class GameStateViewModel : ViewModelBase, IDisposable
                     }
                 }
 
-                foreach (ItemDefinitionModel item in g.ReceivedItems.Skip(prevReceivedItemsCount))
+                foreach (ItemKey item in g.ReceivedItems.Skip(prevReceivedItemsCount))
                 {
-                    if (!progressionItemInPanelLookup.TryGetValue(item.Name, out CollectableItemViewModel? viewModel))
+                    if (progressionItemInPanelLookup[item.N] is not CollectableItemViewModel viewModel)
                     {
                         continue;
                     }
 
                     viewModel.Collected = true;
-                    if (!toolTipsByItem.TryGetValue(viewModel.ItemKey, out ImmutableArray<GameRequirementToolTipViewModel> tooltips))
+                    if (!toolTipsByItem.TryGetValue(viewModel.Model.Key, out ImmutableArray<GameRequirementToolTipViewModel> tooltips))
                     {
                         continue;
                     }
@@ -203,27 +214,27 @@ public sealed partial class GameStateViewModel : ViewModelBase, IDisposable
 
                 prevReceivedItemsCount = g.ReceivedItems.Count;
 
-                foreach (LocationDefinitionModel location in g.CheckedLocations.Order.Skip(prevCheckedLocationsCount))
+                foreach (LocationKey location in g.CheckedLocations.Skip(prevCheckedLocationsCount))
                 {
-                    if (landmarkRegionsLookup.TryGetValue(location.Key.RegionKey, out LandmarkRegionViewModel? landmarkViewModel))
+                    if (location.N < LandmarkRegions.Length)
                     {
-                        landmarkViewModel.Checked = true;
+                        LandmarkRegions[location.N].Checked = true;
                     }
-                    else if (fillerLocationLookup.TryGetValue(location.Key, out FillerLocationViewModel? fillerViewModel))
+                    else
                     {
-                        fillerViewModel.Checked = true;
+                        FillerLocations[location.N - LandmarkRegions.Length].Checked = true;
                     }
                 }
 
                 prevCheckedLocationsCount = g.CheckedLocations.Count;
 
-                if (g.IsCompleted && !wasCompleted && landmarkRegionsLookup.TryGetValue(GameDefinitions.Instance.GoalRegion.Key, out LandmarkRegionViewModel? goalViewModel))
+                if (g.IsCompleted && !wasCompleted)
                 {
-                    goalViewModel.Checked = true;
+                    LandmarkRegions[GameDefinitions.Instance.GoalRegion.N].Checked = true;
                 }
 
                 wasCompleted = g.IsCompleted;
-                TargetPoint = locationPointLookup[g.TargetLocation.Key] + FillerRegionViewModel.ToCenter;
+                TargetPoint = locationPointLookup[g.TargetLocation.N] + FillerRegionViewModel.ToCenter;
             })
             .DisposeWith(_disposables);
 
@@ -241,7 +252,7 @@ public sealed partial class GameStateViewModel : ViewModelBase, IDisposable
                 Point[] pathPoints =
                 [
                     .. g.CalculateRoute(g.CurrentLocation, g.TargetLocation)
-                        .Select(l => locationPointLookup[l.Key] + FillerRegionViewModel.ToCenter),
+                        .Select(l => locationPointLookup[l.N] + FillerRegionViewModel.ToCenter),
                 ];
                 if (!CurrentPathPoints.SequenceEqual(pathPoints))
                 {
@@ -256,8 +267,8 @@ public sealed partial class GameStateViewModel : ViewModelBase, IDisposable
             .Switch()
             .Subscribe(v =>
             {
-                Point previousPoint = locationPointLookup[v.PreviousLocation.Key];
-                CurrentPoint = locationPointLookup[v.CurrentLocation.Key];
+                Point previousPoint = locationPointLookup[v.PreviousLocation.N];
+                CurrentPoint = locationPointLookup[v.CurrentLocation.N];
                 double trueAngle = previousPoint == CurrentPoint
                     ? 0
                     : Math.Atan2(CurrentPoint.Y - previousPoint.Y, CurrentPoint.X - previousPoint.X) * 180 / Math.PI;
@@ -311,10 +322,10 @@ public sealed partial class GameStateViewModel : ViewModelBase, IDisposable
 
     public ImmutableArray<CollectableItemViewModel> ProgressionItemsInPanel { get; } =
     [
-        .. GameDefinitions.Instance.ProgressionItemsByItemKey.Keys
-            .Where(itemKey => !s_hiddenProgressionItems.Contains(itemKey))
-            .OrderBy(itemKey => s_progressionItemSortOrder[itemKey])
-            .Select(key => new CollectableItemViewModel(key)),
+        .. GameDefinitions.Instance.ProgressionItemsByYamlKey
+            .Where(kvp => !s_hiddenProgressionItems.Contains(kvp.Key))
+            .OrderBy(kvp => s_progressionItemSortOrder[kvp.Value])
+            .Select(kvp => new CollectableItemViewModel(kvp.Key)),
     ];
 
     public ImmutableArray<LandmarkRegionViewModel> LandmarkRegions { get; }
@@ -331,29 +342,65 @@ public sealed partial class GameStateViewModel : ViewModelBase, IDisposable
         RatThought = nextRatThought;
     }
 
-    private static FrozenDictionary<string, int> ProgressionItemSortOrder()
+    private static FrozenDictionary<ItemKey, int> ProgressionItemSortOrder()
     {
-        Dictionary<string, int> result = [];
+        Dictionary<ItemKey, int> result = new(GameDefinitions.Instance.ProgressionItemsByYamlKey.Count);
 
-        HashSet<RegionDefinitionModel> seenRegions = [];
-        Queue<RegionDefinitionModel> regions = [];
+        BitArray visitedRegions = new(GameDefinitions.Instance.AllRegions.Length);
+        Queue<RegionKey> regions = [];
         regions.Enqueue(GameDefinitions.Instance.StartRegion);
-        while (regions.TryDequeue(out RegionDefinitionModel? region))
+        while (regions.TryDequeue(out RegionKey region))
         {
-            if (region is LandmarkRegionDefinitionModel landmark)
+            ref readonly RegionDefinitionModel regionDefinition = ref GameDefinitions.Instance[region];
+            if (regionDefinition is LandmarkRegionDefinitionModel landmark)
             {
-                landmark.Requirement.VisitItemKeys(itemKey => result.Add(itemKey, result.Count));
+                VisitItemKeys(landmark.Requirement);
             }
 
-            foreach (RegionExitDefinitionModel exit in region.Exits)
+            foreach (RegionKey exit in regionDefinition.Connected.Forward)
             {
-                if (seenRegions.Add(exit.Region))
+                if (!visitedRegions[exit.N])
                 {
-                    regions.Enqueue(exit.Region);
+                    visitedRegions[exit.N] = true;
+                    regions.Enqueue(exit);
                 }
             }
         }
 
         return result.ToFrozenDictionary();
+
+        void VisitItemKeys(GameRequirement req)
+        {
+            switch (req)
+            {
+                case AllChildrenGameRequirement all:
+                    foreach (GameRequirement child in all.Children)
+                    {
+                        VisitItemKeys(child);
+                    }
+
+                    break;
+
+                case AnyChildGameRequirement any:
+                    foreach (GameRequirement child in any.Children)
+                    {
+                        VisitItemKeys(child);
+                    }
+
+                    break;
+
+                case AnyTwoChildrenGameRequirement any2:
+                    foreach (GameRequirement child in any2.Children)
+                    {
+                        VisitItemKeys(child);
+                    }
+
+                    break;
+
+                case ReceivedItemRequirement item:
+                    result.Add(item.ItemKey, result.Count);
+                    break;
+            }
+        }
     }
 }

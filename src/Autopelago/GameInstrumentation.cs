@@ -1,5 +1,4 @@
 using System.Collections.Concurrent;
-using System.Collections.Frozen;
 using System.Collections.Immutable;
 using System.Collections.ObjectModel;
 using System.Runtime.InteropServices;
@@ -14,18 +13,9 @@ public struct LocationAttemptTraceEvent
     private const ushort Mask5 = ((1 << 5) - 1);
     private const ushort Mask6 = ((1 << 6) - 1);
 
-    private static readonly ImmutableArray<LocationDefinitionModel> s_locationIndex = [.. GameDefinitions.Instance.LocationsByName.OrderBy(kvp => kvp.Key).Select(kvp => kvp.Value)];
-
-    private static readonly FrozenDictionary<LocationDefinitionModel, ushort> s_locationLookup = s_locationIndex.Select((l, i) => (l, i)).ToFrozenDictionary(t => t.l, t => checked((ushort)(t.i)));
-
     public required ushort StepNumber { get; init; }
 
-    private readonly ushort _location;
-    public required LocationDefinitionModel Location
-    {
-        get => s_locationIndex[_location];
-        init => _location = s_locationLookup[value];
-    }
+    public required LocationKey Location { get; init; }
 
     // store the next 3 numbers in two bytes (16 bits)
     private readonly ushort _counts;
@@ -164,7 +154,7 @@ public sealed class GameInstrumentation : IDisposable
         _stepNumber++;
     }
 
-    public void TraceLocationAttempt(LocationDefinitionModel location, byte roll, bool hasLucky, bool hasUnlucky, bool hasStylish, byte ratCount, byte abilityCheckDC, byte mercyModifier, bool success)
+    public void TraceLocationAttempt(LocationKey location, byte roll, bool hasLucky, bool hasUnlucky, bool hasStylish, byte ratCount, byte abilityCheckDC, byte mercyModifier, bool success)
     {
         _locationAttempts.Add(new()
         {

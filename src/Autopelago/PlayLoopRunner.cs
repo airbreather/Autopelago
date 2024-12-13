@@ -1,4 +1,3 @@
-using System.Collections.Frozen;
 using System.Collections.Immutable;
 using System.Diagnostics;
 using System.Reactive.Disposables;
@@ -30,7 +29,7 @@ public sealed class PlayLoopRunner : IDisposable
 
     private readonly BehaviorSubject<Game> _gameUpdates;
 
-    private readonly FrozenDictionary<LocationDefinitionModel, long> _locationIds;
+    private readonly ImmutableArray<long> _locationIds;
 
     private readonly ArchipelagoPacketProvider _packets;
 
@@ -125,9 +124,9 @@ public sealed class PlayLoopRunner : IDisposable
             _gameUpdates.OnNext(game);
 
             List<long> locationIds = [];
-            foreach (LocationDefinitionModel location in game.CheckedLocations.Order.Skip(prevCheckedLocationsCount))
+            foreach (LocationKey location in game.CheckedLocations.Skip(prevCheckedLocationsCount))
             {
-                locationIds.Add(_locationIds[location]);
+                locationIds.Add(_locationIds[location.N]);
             }
 
             if (locationIds.Count > 0)

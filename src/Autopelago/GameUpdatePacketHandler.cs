@@ -92,7 +92,7 @@ public sealed class GameUpdatePacketHandler : ArchipelagoPacketHandler, IDisposa
     private async ValueTask HandleAsync(ReceivedItemsPacketModel receivedItems, ArchipelagoPacketProvider sender)
     {
         Game game = _gameUpdates.Value;
-        ImmutableArray<ItemDefinitionModel> convertedItems = ImmutableArray.CreateRange(receivedItems.Items, (item, itemsReverseMapping) => itemsReverseMapping[item.Item], _contextUpdates.Value.ItemsById);
+        ImmutableArray<ItemKey> convertedItems = ImmutableArray.CreateRange(receivedItems.Items, (item, itemsReverseMapping) => itemsReverseMapping[item.Item], _contextUpdates.Value.ItemsById);
         for (int i = receivedItems.Index; i < game.ReceivedItems.Count; i++)
         {
             if (convertedItems[i - receivedItems.Index] != game.ReceivedItems[i])
@@ -101,7 +101,7 @@ public sealed class GameUpdatePacketHandler : ArchipelagoPacketHandler, IDisposa
             }
         }
 
-        ImmutableArray<ItemDefinitionModel> newItems = convertedItems[(game.ReceivedItems.Count - receivedItems.Index)..];
+        ImmutableArray<ItemKey> newItems = convertedItems[(game.ReceivedItems.Count - receivedItems.Index)..];
         int priorityPriorityLocationCountBefore = game.PriorityPriorityLocations.Count;
         game.ReceiveItems(newItems.AsSpan());
         _gameUpdates.OnNext(game);
@@ -111,7 +111,7 @@ public sealed class GameUpdatePacketHandler : ArchipelagoPacketHandler, IDisposa
         {
             foreach (LocationKey newPriorityLocation in game.PriorityPriorityLocations.Skip(priorityPriorityLocationCountBefore))
             {
-                newPackets.Add(new SayPacketModel { Text = s_newTargetPhrases[Random.Shared.Next(s_newTargetPhrases.Length)].Replace("{LOCATION}", GameDefinitions.Instance.LocationsByKey[newPriorityLocation].Name), });
+                newPackets.Add(new SayPacketModel { Text = s_newTargetPhrases[Random.Shared.Next(s_newTargetPhrases.Length)].Replace("{LOCATION}", GameDefinitions.Instance[newPriorityLocation].Name), });
             }
         }
 
@@ -214,13 +214,14 @@ public sealed class GameUpdatePacketHandler : ArchipelagoPacketHandler, IDisposa
         if (cmd.StartsWith("go ", StringComparison.OrdinalIgnoreCase))
         {
             string loc = cmd["go ".Length..].Trim('"');
-            if (GameDefinitions.Instance.LocationsByNameCaseInsensitive.TryGetValue(loc, out LocationDefinitionModel? toPrioritize))
+            if (GameDefinitions.Instance.LocationsByNameCaseInsensitive.TryGetValue(loc, out LocationKey toPrioritize))
             {
-                string message = _gameUpdates.Value.AddPriorityLocation(toPrioritize.Key) switch
+                string locName = GameDefinitions.Instance[toPrioritize].Name;
+                string message = _gameUpdates.Value.AddPriorityLocation(toPrioritize) switch
                 {
-                    AddPriorityLocationResult.AlreadyPrioritized => $"Hey, {probablyPlayerAlias}, just so you know, I already had '{toPrioritize.Name}' on my radar. I'll get there when I can, no worries!",
-                    AddPriorityLocationResult.AddedUnreachable => $"I'll keep it in mind that '{toPrioritize.Name}' is important to you, '{probablyPlayerAlias}'. I can't get there just yet, though, so please be patient with me...",
-                    _ => $"All right, I'll get right over to '{toPrioritize.Name}', {probablyPlayerAlias}!",
+                    AddPriorityLocationResult.AlreadyPrioritized => $"Hey, {probablyPlayerAlias}, just so you know, I already had '{locName}' on my radar. I'll get there when I can, no worries!",
+                    AddPriorityLocationResult.AddedUnreachable => $"I'll keep it in mind that '{locName}' is important to you, '{probablyPlayerAlias}'. I can't get there just yet, though, so please be patient with me...",
+                    _ => $"All right, I'll get right over to '{locName}', {probablyPlayerAlias}!",
                 };
                 SayPacketModel say = new() { Text = message };
                 await sender.SendPacketsAsync([say]);
@@ -241,7 +242,7 @@ public sealed class GameUpdatePacketHandler : ArchipelagoPacketHandler, IDisposa
             SayPacketModel say = new()
             {
                 Text = removedOrNull is { } removed
-                    ? $"Oh, OK. I'll stop trying to get to '{GameDefinitions.Instance.LocationsByKey[removed].Name}', {probablyPlayerAlias}."
+                    ? $"Oh, OK. I'll stop trying to get to '{GameDefinitions.Instance[removed].Name}', {probablyPlayerAlias}."
                     : $"Um... excuse me, but... I don't see a '{loc}' to remove...",
             };
             await sender.SendPacketsAsync([say]);

@@ -51,10 +51,8 @@ public sealed class GameStateObservableProvider
                     g.Advance();
                     g.ReceiveItems([
                         .. g.CheckedLocations
-                            .Order
                             .Skip(prevCheckedLocationsCount)
-                            .Where(l => l.UnrandomizedItem is not null)
-                            .Select(l => l.UnrandomizedItem!),
+                            .Select(l => GameDefinitions.Instance[l].UnrandomizedItem),
                     ]);
                     prevCheckedLocationsCount = g.CheckedLocations.Count;
                     _currentGameState.OnNext(g);

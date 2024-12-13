@@ -1,4 +1,6 @@
+using System.Collections;
 using System.Collections.Frozen;
+using System.Collections.Immutable;
 using System.Reactive.Linq;
 using System.Reactive.Subjects;
 using System.Runtime.InteropServices;
@@ -28,11 +30,11 @@ public sealed record MultiworldInfo
 
     public required FrozenDictionary<int, SlotModel> SlotInfo { get; init; }
 
-    public required FrozenDictionary<LocationDefinitionModel, long> LocationIds { get; init; }
+    public required ImmutableArray<long> LocationIds { get; init; }
 
-    public required FrozenDictionary<long, LocationDefinitionModel> LocationsById { get; init; }
+    public required FrozenDictionary<long, LocationKey> LocationsById { get; init; }
 
-    public required FrozenDictionary<long, ItemDefinitionModel> ItemsById { get; init; }
+    public required FrozenDictionary<long, ItemKey> ItemsById { get; init; }
 
     public required FrozenDictionary<string, int> SlotByPlayerAlias { get; init; }
 }
@@ -57,11 +59,11 @@ public sealed class GameInitializer : ArchipelagoPacketHandler
 
     private FrozenDictionary<int, SlotModel>? _slotInfo;
 
-    private FrozenDictionary<LocationDefinitionModel, long>? _locationIds;
+    private ImmutableArray<long> _locationIds;
 
-    private FrozenDictionary<long, ItemDefinitionModel>? _itemsById;
+    private FrozenDictionary<long, ItemKey>? _itemsById;
 
-    private FrozenDictionary<long, LocationDefinitionModel>? _locationsById;
+    private FrozenDictionary<long, LocationKey>? _locationsById;
 
     private FrozenDictionary<string, int>? _slotByPlayerAlias;
 
@@ -122,7 +124,13 @@ public sealed class GameInitializer : ArchipelagoPacketHandler
     private async ValueTask HandleAsync(DataPackagePacketModel dataPackage, ArchipelagoPacketProvider sender)
     {
         GameDataModel autopelagoGameData = dataPackage.Data.Games["Autopelago"];
-        _locationIds = autopelagoGameData.LocationNameToId.ToFrozenDictionary(kvp => GameDefinitions.Instance.LocationsByName[kvp.Key], kvp => kvp.Value);
+        long[] locationIds = new long[GameDefinitions.Instance.AllItems.Length];
+        foreach ((string locationName, long locationId) in autopelagoGameData.LocationNameToId)
+        {
+            locationIds[GameDefinitions.Instance.LocationsByName[locationName].N] = locationId;
+        }
+
+        _locationIds = ImmutableCollectionsMarshal.AsImmutableArray(locationIds);
         _itemsById = autopelagoGameData.ItemNameToId.ToFrozenDictionary(kvp => kvp.Value, kvp => GameDefinitions.Instance.ItemsByName[kvp.Key]);
         _locationsById = autopelagoGameData.LocationNameToId.ToFrozenDictionary(kvp => kvp.Value, kvp => GameDefinitions.Instance.LocationsByName[kvp.Key]);
 
@@ -164,12 +172,12 @@ public sealed class GameInitializer : ArchipelagoPacketHandler
         _slotByPlayerAlias = connected.Players.ToFrozenDictionary(p => p.Alias, p => p.Slot);
         LocationScoutsPacketModel locationScouts = new()
         {
-            Locations = _locationsById!.Where(kvp => !kvp.Value.RewardIsFixed).Select(kvp => kvp.Key).ToArray(),
+            Locations = _locationsById!.Where(kvp => !GameDefinitions.Instance[kvp.Value].RewardIsFixed).Select(kvp => kvp.Key).ToArray(),
         };
 
         GetPacketModel getPacket = new() { Keys = [AurasKey] };
         await sender.SendPacketsAsync([locationScouts, getPacket]);
-        LocationDefinitionModel[] checkedLocations =
+        LocationKey[] checkedLocations =
         [
             .. connected.CheckedLocations.Select(locationId => _locationsById![locationId]),
         ];
@@ -182,10 +190,21 @@ public sealed class GameInitializer : ArchipelagoPacketHandler
         foreach (ItemModel networkItem in locationInfo.Locations)
         {
             (CollectionsMarshal.GetValueRefOrAddDefault(spoilerData, networkItem.Flags, out _) ??= [])
-                .Add(_locationsById![networkItem.Location].Key);
+                .Add(_locationsById![networkItem.Location]);
         }
 
-        _game.InitializeSpoilerData(spoilerData.ToFrozenDictionary(kvp => kvp.Key, kvp => kvp.Value.ToFrozenSet()));
+        _game.InitializeSpoilerData(spoilerData.ToFrozenDictionary(kvp => kvp.Key, kvp => ToReadOnlyBitArray(kvp.Value)));
+    }
+
+    private static ReadOnlyBitArray ToReadOnlyBitArray(HashSet<LocationKey> locations)
+    {
+        BitArray result = new(GameDefinitions.Instance.AllLocations.Length);
+        foreach (LocationKey loc in locations)
+        {
+            result[loc.N] = true;
+        }
+
+        return new(result);
     }
 
     private void Handle(RoomUpdatePacketModel roomUpdate)
@@ -229,7 +248,7 @@ public sealed class GameInitializer : ArchipelagoPacketHandler
         if (_generalItemNameMapping is not { } generalItemNameMapping ||
             _generalLocationNameMapping is not { } generalLocationNameMapping ||
             _slotInfo is not { } slotInfo ||
-            _locationIds is not { } locationIds ||
+            _locationIds is not { IsDefault: false } locationIds ||
             _locationsById is not { } locationsById ||
             _itemsById is not { } itemsById ||
             _slotByPlayerAlias is not { } slotByPlayerAlias)

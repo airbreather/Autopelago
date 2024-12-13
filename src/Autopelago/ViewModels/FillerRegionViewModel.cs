@@ -12,7 +12,7 @@ public sealed class FillerRegionViewModel : ViewModelBase
     internal static readonly Vector ToCenter = new Point(16, 16) / 2;
 
 #pragma warning disable format
-    private static readonly FrozenDictionary<string, ImmutableArray<Point>> s_definingPoints = new Dictionary<string, Point[]>
+    private static readonly FrozenDictionary<RegionKey, ImmutableArray<Point>> s_definingPoints = new Dictionary<string, Point[]>
     {
         ["Menu"] = [new(0, 77), new(57, 77)],
         ["before_prawn_stars"] = [new(61, 74), new(90, 74), new(90, 34), new(101, 34)],
@@ -56,7 +56,9 @@ public sealed class FillerRegionViewModel : ViewModelBase
         ["after_space_opera"] = [new(184, 346), new(242, 354)],
         ["before_asteroid_with_pants"] = [new(195, 400), new(231, 406)],
         ["after_minotaur_labyrinth"] = [new(195, 398), new(207, 386), new(209, 385), new(216, 378), new(218, 377), new(226, 369), new(228, 368), new(236, 360), new(238, 359), new(242, 355)],
-    }.ToFrozenDictionary(kvp => kvp.Key, kvp => ConvertDefiningPoints(kvp.Key, kvp.Value));
+    }
+        .Select(kvp => KeyValuePair.Create(GameDefinitions.Instance.RegionsByYamlKey[kvp.Key], kvp.Value))
+        .ToFrozenDictionary(kvp => kvp.Key, kvp => ConvertDefiningPoints(kvp.Key, kvp.Value));
 #pragma warning restore format
 
     public FillerRegionViewModel(FillerRegionDefinitionModel model)
@@ -77,7 +79,7 @@ public sealed class FillerRegionViewModel : ViewModelBase
 
         ImmutableArray<FillerLocationViewModel>.Builder locationsBuilder = ImmutableArray.CreateBuilder<FillerLocationViewModel>(Model.Locations.Length);
         locationsBuilder.Count = Model.Locations.Length;
-        ReadOnlySpan<Vector> transforms = model.Key == GameDefinitions.Instance.StartRegion.Key
+        ReadOnlySpan<Vector> transforms = model.Key == GameDefinitions.Instance.StartRegion
             ? [new(0, 3), default, new(0, -3), default]
             : [default, default, default, default];
         for (int i = 0; i < Model.Locations.Length; i++)
@@ -94,7 +96,7 @@ public sealed class FillerRegionViewModel : ViewModelBase
 
     public ImmutableArray<FillerLocationViewModel> Locations { get; }
 
-    private static ImmutableArray<Point> ConvertDefiningPoints(string regionKey, ReadOnlySpan<Point> definingPointsOrig)
+    private static ImmutableArray<Point> ConvertDefiningPoints(RegionKey regionKey, ReadOnlySpan<Point> definingPointsOrig)
     {
         // the starting and ending points are RIGHT on top of their corresponding landmark locations
         // (by design, since that's how I figured them out). this makes the filler dots hard to read
@@ -131,7 +133,7 @@ public sealed class FillerRegionViewModel : ViewModelBase
 
         const double paddingAtBeginning = 8;
         const double paddingAtEnd = 8;
-        if (regionKey == GameDefinitions.Instance.StartRegion.Key)
+        if (regionKey == GameDefinitions.Instance.StartRegion)
         {
             // start region needs less padding at the start
             const double startRegionPaddingAtBeginning = 2;

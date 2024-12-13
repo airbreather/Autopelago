@@ -8,9 +8,9 @@ public sealed partial class FillerLocationViewModel : ViewModelBase
 {
     [Reactive] private bool _checked;
 
-    public FillerLocationViewModel(LocationDefinitionModel model, Point point)
+    public FillerLocationViewModel(LocationKey location, Point point)
     {
-        Model = model;
+        Model = GameDefinitions.Instance[location];
         Point = point;
         PointWhenRenderingDot = point + FillerRegionViewModel.ToCenter;
     }

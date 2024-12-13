@@ -39,8 +39,8 @@ public static class DataCollector
 
         Prng.State state = seed;
         Prng.State[] multiworldSeeds = new Prng.State[numSeeds];
-        ImmutableArray<FrozenDictionary<LocationKey, WorldItem>>[] allSpoilerData = new ImmutableArray<FrozenDictionary<LocationKey, WorldItem>>[multiworldSeeds.Length];
-        ImmutableArray<FrozenDictionary<ArchipelagoItemFlags, FrozenSet<LocationKey>>>[] partialSpoilerData = new ImmutableArray<FrozenDictionary<ArchipelagoItemFlags, FrozenSet<LocationKey>>>[multiworldSeeds.Length];
+        ImmutableArray<ImmutableArray<WorldItem>>[] allSpoilerData = new ImmutableArray<ImmutableArray<WorldItem>>[multiworldSeeds.Length];
+        ImmutableArray<FrozenDictionary<ArchipelagoItemFlags, ReadOnlyBitArray>>[] partialSpoilerData = new ImmutableArray<FrozenDictionary<ArchipelagoItemFlags, ReadOnlyBitArray>>[multiworldSeeds.Length];
         for (int i = 0; i < multiworldSeeds.Length; i++)
         {
             multiworldSeeds[i] = state;
@@ -53,8 +53,20 @@ public static class DataCollector
             UInt128 archipelagoSeed = new(Prng.Next(ref multiworldSeeds[i]), Prng.Next(ref multiworldSeeds[i]));
             allSpoilerData[i] = await PlaythroughGenerator.GenerateAsync(scienceDir, archipelagoSeed, numSlotsPerSeed, cancellationToken2);
             partialSpoilerData[i] = ImmutableArray.CreateRange(allSpoilerData[i], val => val
-                .GroupBy(kvp => kvp.Value.Item.ArchipelagoFlags, kvp => kvp.Key)
-                .ToFrozenDictionary(grp => grp.Key, grp => grp.ToFrozenSet()));
+                .Select((item, j) => KeyValuePair.Create(new ItemKey { N = j }, item))
+                .GroupBy(kvp => GameDefinitions.Instance[kvp.Value.Item].ArchipelagoFlags, kvp => kvp.Key)
+                .ToFrozenDictionary(grp => grp.Key, ToSpoilerData));
+
+            ReadOnlyBitArray ToSpoilerData(IEnumerable<ItemKey> items)
+            {
+                BitArray spoilerData = new(GameDefinitions.Instance.AllItems.Length);
+                foreach (ItemKey item in items)
+                {
+                    spoilerData[item.N] = true;
+                }
+
+                return new(spoilerData);
+            }
         });
 
         ImmutableArray<LocationAttemptTraceEvent>[] locationAttempts = new ImmutableArray<LocationAttemptTraceEvent>[checked(numSeeds * numSlotsPerSeed * numRunsPerSeed)];
@@ -192,8 +204,9 @@ public static class DataCollector
                 {
                     foreach (LocationAttemptTraceEvent l in locationAttempts[(i * numRunsPerSeed * numSlotsPerSeed) + (j * numSlotsPerSeed) + k])
                     {
+                        RegionLocationKey regionLocation = GameDefinitions.Instance[l.Location].RegionLocationKey;
                         sb.Clear();
-                        sb.Append($"{i},{j},{k},{l.StepNumber},{l.Location.Key.RegionKey},{l.Location.Key.N},{l.AbilityCheckDC},{l.RatCount},{l.MercyModifier},{(l.HasLucky ? 1 : 0)},{(l.HasUnlucky ? 1 : 0)},{(l.HasStylish ? 1 : 0)},{l.D20},{(l.Success ? 1 : 0)}");
+                        sb.Append($"{i},{j},{k},{l.StepNumber},{GameDefinitions.Instance.Region[regionLocation].YamlKey},{regionLocation.N},{l.AbilityCheckDC},{l.RatCount},{l.MercyModifier},{(l.HasLucky ? 1 : 0)},{(l.HasUnlucky ? 1 : 0)},{(l.HasStylish ? 1 : 0)},{l.D20},{(l.Success ? 1 : 0)}");
                         await outLocationAttempts.WriteLineAsync(sb, cancellationToken);
                     }
                 }

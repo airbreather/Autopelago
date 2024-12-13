@@ -14,7 +14,7 @@ public sealed class EndingFanfareViewModel : ViewModelBase, IDisposable
         MoonCommaThe.DisposeWith(_disposables);
     }
 
-    public LandmarkRegionViewModel MoonCommaThe { get; } = new("moon_comma_the");
+    public LandmarkRegionViewModel MoonCommaThe { get; } = new(GameDefinitions.Instance.GoalRegion);
 
     public void Dispose()
     {

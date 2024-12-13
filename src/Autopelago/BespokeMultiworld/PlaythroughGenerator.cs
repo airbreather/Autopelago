@@ -1,7 +1,7 @@
-using System.Collections.Frozen;
 using System.Collections.Immutable;
 using System.Diagnostics;
 using System.IO.Compression;
+using System.Runtime.InteropServices;
 using System.Text;
 using System.Text.RegularExpressions;
 
@@ -18,19 +18,24 @@ public static partial class PlaythroughGenerator
         name: {SlotName}
         """;
 
-    public static async Task<ImmutableArray<FrozenDictionary<LocationKey, WorldItem>>> GenerateAsync(string scienceDir, UInt128 archipelagoSeed, int slotCount, CancellationToken cancellationToken)
+    public static async Task<ImmutableArray<ImmutableArray<WorldItem>>> GenerateAsync(string scienceDir, UInt128 archipelagoSeed, int slotCount, CancellationToken cancellationToken)
     {
         byte[] spoilerLogData = await GenerateSpoilerLogForRunAsync(scienceDir, archipelagoSeed, slotCount, cancellationToken);
         using MemoryStream ms = new(spoilerLogData);
         using StreamReader rd = new(ms, Encoding.UTF8, detectEncodingFromByteOrderMarks: true, leaveOpen: true);
 
-        return
-        [
-            .. ReadSpoilerData()
-                .GroupBy(tup => tup.Location.Slot)
-                .OrderBy(grp => grp.Key)
-                .Select(grp => grp.ToFrozenDictionary(tup => tup.Location.Location, tup => tup.Item)),
-        ];
+        WorldItem[][] result = new WorldItem[slotCount][];
+        for (int i = 0; i < result.Length; i++)
+        {
+            result[i] = new WorldItem[GameDefinitions.Instance.AllLocations.Length];
+        }
+
+        foreach ((WorldLocation location, WorldItem item) in ReadSpoilerData())
+        {
+            result[location.Slot][location.Location.N] = item;
+        }
+
+        return [.. result.Select(ImmutableCollectionsMarshal.AsImmutableArray)];
         IEnumerable<(WorldLocation Location, WorldItem Item)> ReadSpoilerData()
         {
             while (true)
@@ -56,13 +61,13 @@ public static partial class PlaythroughGenerator
             string? prevLine = rd.ReadLine();
             while (prevLine is not null && LocationLine().Match(prevLine) is { Success: true } match)
             {
-                LocationKey location = GameDefinitions.Instance.LocationsByName[match.Groups["locationName"].Value].Key;
+                LocationKey location = GameDefinitions.Instance.LocationsByName[match.Groups["locationName"].Value];
                 int locationSlot = int.Parse(match.Groups["locationPlayer"].Value);
                 string itemName = match.Groups["itemName"].Value;
                 int itemSlot = int.Parse(match.Groups["itemPlayer"].Value);
                 yield return (
                     new() { Slot = locationSlot, Location = location },
-                    new() { Slot = itemSlot, ItemName = itemName }
+                    new() { Slot = itemSlot, Item = GameDefinitions.Instance.ItemsByName[itemName] }
                 );
 
                 prevLine = rd.ReadLine();
