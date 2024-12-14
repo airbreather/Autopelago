@@ -1,4 +1,3 @@
-using System.Collections;
 using System.Collections.Frozen;
 using System.Collections.Immutable;
 using System.Reactive.Linq;
@@ -193,18 +192,18 @@ public sealed class GameInitializer : ArchipelagoPacketHandler
                 .Add(_locationsById![networkItem.Location]);
         }
 
-        _game.InitializeSpoilerData(spoilerData.ToFrozenDictionary(kvp => kvp.Key, kvp => ToReadOnlyBitArray(kvp.Value)));
+        _game.InitializeSpoilerData(spoilerData.ToFrozenDictionary(kvp => kvp.Key, kvp => ToLocationsBitArray(kvp.Value)));
     }
 
-    private static ReadOnlyBitArray ToReadOnlyBitArray(HashSet<LocationKey> locations)
+    private static BitArray384 ToLocationsBitArray(HashSet<LocationKey> locations)
     {
-        BitArray result = new(GameDefinitions.Instance.AllLocations.Length);
+        BitArray384 result = new(GameDefinitions.Instance.AllLocations.Length);
         foreach (LocationKey loc in locations)
         {
             result[loc.N] = true;
         }
 
-        return new(result);
+        return result;
     }
 
     private void Handle(RoomUpdatePacketModel roomUpdate)

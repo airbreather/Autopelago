@@ -11,7 +11,7 @@ public sealed class Multiworld : IDisposable
 
     public required ImmutableArray<ImmutableArray<WorldItem>> FullSpoilerData { get; init; }
 
-    public required ImmutableArray<FrozenDictionary<ArchipelagoItemFlags, ReadOnlyBitArray>> PartialSpoilerData { get; init; }
+    public required ImmutableArray<FrozenDictionary<ArchipelagoItemFlags, BitArray384>> PartialSpoilerData { get; init; }
 
     public void Dispose()
     {

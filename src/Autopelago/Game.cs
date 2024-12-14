@@ -1,4 +1,3 @@
-using System.Collections;
 using System.Collections.Frozen;
 using System.Collections.Immutable;
 using System.Collections.ObjectModel;
@@ -71,11 +70,17 @@ public sealed partial class Game
 
     private readonly GameInstrumentation? _instrumentation;
 
+    private BitArray128 _hardLockedRegions = new(GameDefinitions.Instance.AllRegions.Length);
+
+    private BitArray128 _softLockedRegions = new(GameDefinitions.Instance.AllRegions.Length);
+
+    private BitArray384 _checkedLocations = new(GameDefinitions.Instance.AllLocations.Length);
+
     private int _actionBalanceAfterPreviousStep;
 
     private bool _initializedAuraData;
 
-    private FrozenDictionary<ArchipelagoItemFlags, ReadOnlyBitArray>? _spoilerData;
+    private FrozenDictionary<ArchipelagoItemFlags, BitArray384>? _spoilerData;
 
     public ReadOnlyCollection<LocationVector> PreviousStepMovementLog { get; }
 
@@ -89,14 +94,14 @@ public sealed partial class Game
     public ReadOnlyCollection<ItemKey> ReceivedItems { get; }
 
     private bool _checkedLocationsInitialized;
-    public ReadOnlyBitArray LocationIsChecked { get; }
+    public BitArray384 LocationIsChecked => _checkedLocations;
     public ReadOnlyCollection<LocationKey> CheckedLocations { get; }
 
     public ReadOnlyCollection<LocationKey> PriorityPriorityLocations { get; }
 
     public ReadOnlyCollection<LocationKey> PriorityLocations { get; }
 
-    public FrozenDictionary<ArchipelagoItemFlags, ReadOnlyBitArray> SpoilerData
+    public FrozenDictionary<ArchipelagoItemFlags, BitArray384> SpoilerData
     {
         get
         {
@@ -278,7 +283,7 @@ public sealed partial class Game
         _receivedItemsInitialized = true;
     }
 
-    public void InitializeSpoilerData(FrozenDictionary<ArchipelagoItemFlags, ReadOnlyBitArray> spoilerData)
+    public void InitializeSpoilerData(FrozenDictionary<ArchipelagoItemFlags, BitArray384> spoilerData)
     {
         using Lock.Scope _ = EnterLockScope();
         if (_spoilerData is not null)
@@ -591,9 +596,7 @@ public sealed partial class Game
     {
         using Lock.Scope _ = EnterLockScope();
         EnsureStarted();
-        using BorrowedBitArray locationIsNewlyCheckedBorrow = BorrowedBitArray.ForLocations();
-        BitArray locationIsNewlyChecked = locationIsNewlyCheckedBorrow.Value;
-        locationIsNewlyChecked.SetAll(false);
+        BitArray384 locationIsNewlyChecked = new(GameDefinitions.Instance.AllLocations.Length);
         foreach (LocationKey location in newLocations)
         {
             if (_checkedLocations[location.N])
@@ -692,19 +695,13 @@ public sealed partial class Game
 
                     case "smart":
                     case "conspiratorial":
-                        ArchipelagoItemFlags flags = aura == "smart" ? ArchipelagoItemFlags.LogicalAdvancement : ArchipelagoItemFlags.Trap;
-                        using (Borrowed<List<LocationKey>> closestLocationsWithItemFlagsBorrow = GetClosestLocationsWithItemFlags(CurrentLocation, flags))
+                        if (recalculateAccess)
                         {
-                            foreach (LocationKey loc in closestLocationsWithItemFlagsBorrow.Value)
-                            {
-                                if (!_priorityPriorityLocations.Contains(loc))
-                                {
-                                    _priorityPriorityLocations.Add(loc);
-                                    break;
-                                }
-                            }
+                            RecalculateClearable();
+                            recalculateAccess = false;
                         }
 
+                        AddPriorityPriorityLocationFor(aura == "smart" ? ArchipelagoItemFlags.LogicalAdvancement : ArchipelagoItemFlags.Trap);
                         break;
 
                     case "confident":

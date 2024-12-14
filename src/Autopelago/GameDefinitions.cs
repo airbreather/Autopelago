@@ -1,4 +1,3 @@
-using System.Collections;
 using System.Collections.Frozen;
 using System.Collections.Immutable;
 using System.Reflection;
@@ -47,7 +46,7 @@ public sealed class GameDefinitions
 
     public required FrozenDictionary<string, LocationKey> LocationsByNameCaseInsensitive { get; init; }
 
-    public required FrozenDictionary<ArchipelagoItemFlags, ReadOnlyBitArray> UnrandomizedSpoilerData { get; init; }
+    public required FrozenDictionary<ArchipelagoItemFlags, BitArray384> UnrandomizedSpoilerData { get; init; }
 
     private byte LandmarkRegionCount { get; init; }
 
@@ -77,15 +76,15 @@ public sealed class GameDefinitions
         return key.N < LandmarkRegionCount;
     }
 
-    private static ReadOnlyBitArray ToSpoilerArray(IEnumerable<LocationKey> locations, int locationCount)
+    private static BitArray384 ToSpoilerArray(IEnumerable<LocationKey> locations, int locationCount)
     {
-        BitArray result = new(locationCount);
+        BitArray384 result = new(locationCount);
         foreach (LocationKey loc in locations)
         {
             result[loc.N] = true;
         }
 
-        return new(result);
+        return result;
     }
 
     private static GameDefinitions LoadFromEmbeddedResource()

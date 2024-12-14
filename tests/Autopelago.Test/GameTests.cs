@@ -1,6 +1,6 @@
 using System.Buffers.Text;
-using System.Collections;
 using System.Collections.Frozen;
+using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 using System.Text;
 
@@ -559,7 +559,7 @@ public sealed class GameTests
             _ => throw null!,
         };
 
-        FrozenDictionary<ArchipelagoItemFlags, ReadOnlyBitArray> spoilerData = CreateSpoiler([
+        FrozenDictionary<ArchipelagoItemFlags, BitArray384> spoilerData = CreateSpoiler([
             (GameDefinitions.Instance.StartLocation, targetFlags),
             (GameDefinitions.Instance[beforePrawnStars].Locations[0], targetFlags),
             (GameDefinitions.Instance[beforePrawnStars].Locations[^1], targetFlags),
@@ -790,9 +790,9 @@ public sealed class GameTests
         }
     }
 
-    private static FrozenDictionary<ArchipelagoItemFlags, ReadOnlyBitArray> CreateSpoiler(ReadOnlySpan<(LocationKey Location, ArchipelagoItemFlags Flags)> defined)
+    private static FrozenDictionary<ArchipelagoItemFlags, BitArray384> CreateSpoiler(ReadOnlySpan<(LocationKey Location, ArchipelagoItemFlags Flags)> defined)
     {
-        Dictionary<ArchipelagoItemFlags, BitArray> result = new()
+        Dictionary<ArchipelagoItemFlags, BitArray384> result = new()
         {
             [ArchipelagoItemFlags.None] = new(GameDefinitions.Instance.AllLocations.Length),
             [ArchipelagoItemFlags.ImportantNonAdvancement] = new(GameDefinitions.Instance.AllLocations.Length),
@@ -801,11 +801,16 @@ public sealed class GameTests
         };
         foreach ((LocationKey location, ArchipelagoItemFlags flags) in defined)
         {
-            result[flags][location.N] = true;
+            ref BitArray384 spoilerArray = ref CollectionsMarshal.GetValueRefOrNullRef(result, flags);
+            if (Unsafe.IsNullRef(ref spoilerArray))
+            {
+                throw new InvalidOperationException("Not one of the recognized flags!");
+            }
+
+            spoilerArray[location.N] = true;
         }
 
-        return result
-            .ToFrozenDictionary(kvp => kvp.Key, kvp => new ReadOnlyBitArray(kvp.Value));
+        return result.ToFrozenDictionary();
     }
 
     private static Prng.State EnsureSeedProducesInitialD20Sequence(ulong seed, ReadOnlySpan<int> exactVals)

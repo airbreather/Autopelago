@@ -1,5 +1,4 @@
 using System.Buffers;
-using System.Collections;
 
 using Microsoft.Extensions.ObjectPool;
 
@@ -7,13 +6,6 @@ namespace Autopelago;
 
 public sealed partial class Game : IDisposable
 {
-    private readonly BorrowedBitArray _hardLockedRegionsBorrow = BorrowedBitArray.ForRegions();
-    private readonly BitArray _hardLockedRegions;
-
-    private readonly BorrowedBitArray _softLockedRegionsBorrow = BorrowedBitArray.ForRegions();
-    private readonly BitArray _softLockedRegions;
-
-
     private readonly Borrowed<List<LocationVector>> _prevMovementLogBorrow = new();
     private readonly List<LocationVector> _prevMovementLog;
 
@@ -35,8 +27,6 @@ public sealed partial class Game : IDisposable
     private readonly Borrowed<List<LocationKey>> _checkedLocationsOrderBorrow = new();
     private readonly List<LocationKey> _checkedLocationsOrder;
 
-    private readonly BorrowedBitArray _checkedLocationsBorrow = BorrowedBitArray.ForLocations();
-    private readonly BitArray _checkedLocations;
 
     private readonly BorrowedArray<int> _regionUncheckedLocationsCountBorrow = new(GameDefinitions.Instance.AllRegions.Length);
     private readonly ArraySegment<int> _regionUncheckedLocationsCount;
@@ -59,20 +49,19 @@ public sealed partial class Game : IDisposable
 
     public Game(Prng.State prngState, GameInstrumentation? instrumentation)
     {
-        _hardLockedRegions = _hardLockedRegionsBorrow.Value; _hardLockedRegions.SetAll(true);
-        _softLockedRegions = _softLockedRegionsBorrow.Value; _softLockedRegions.SetAll(true);
         _prevMovementLog = _prevMovementLogBorrow.Value; _prevMovementLog.Clear(); _prevMovementLog.EnsureCapacity(MaxMovementsPerStep);
         _movementLog = _movementLogBorrow.Value; _movementLog.Clear(); _movementLog.EnsureCapacity(MaxMovementsPerStep);
         _pathToTarget = _pathToTargetBorrow.Value; _pathToTarget.Clear();
         _receivedItemsOrder = _receivedItemsOrderBorrow.Value; _receivedItemsOrder.Clear(); _receivedItemsOrder.EnsureCapacity(GameDefinitions.Instance.AllLocations.Length);
         _receivedItems = _receivedItemsBorrow.Value; _receivedItems.AsSpan().Clear();
         _checkedLocationsOrder = _checkedLocationsOrderBorrow.Value; _checkedLocationsOrder.Clear(); _checkedLocationsOrder.EnsureCapacity(GameDefinitions.Instance.AllLocations.Length);
-        _checkedLocations = _checkedLocationsBorrow.Value; _checkedLocations.SetAll(false);
         _regionUncheckedLocationsCount = _regionUncheckedLocationsCountBorrow.Value; _regionUncheckedLocationsCount.AsSpan().Clear();
         _priorityPriorityLocations = _priorityPriorityLocationsBorrow.Value; _priorityPriorityLocations.Clear();
         _priorityLocations = _priorityLocationsBorrow.Value; _priorityLocations.Clear();
         _prevPath = _prevPathBorrow.Value; _prevPath.Clear();
 
+        _hardLockedRegions.SetAll(true);
+        _softLockedRegions.SetAll(true);
         _hardLockedRegions[GameDefinitions.Instance.StartRegion.N] = false;
         _softLockedRegions[GameDefinitions.Instance.StartRegion.N] = false;
 
@@ -92,7 +81,6 @@ public sealed partial class Game : IDisposable
         });
         PreviousStepMovementLog = _prevMovementLog.AsReadOnly();
         ReceivedItems = new(_receivedItemsOrder);
-        LocationIsChecked = new(_checkedLocations);
         CheckedLocations = new(_checkedLocationsOrder);
         PriorityPriorityLocations = new(_priorityPriorityLocations);
         PriorityLocations = new(_priorityLocations);
@@ -100,15 +88,12 @@ public sealed partial class Game : IDisposable
 
     public void Dispose()
     {
-        _hardLockedRegionsBorrow.Dispose();
-        _softLockedRegionsBorrow.Dispose();
         _prevMovementLogBorrow.Dispose();
         _movementLogBorrow.Dispose();
         _pathToTargetBorrow.Dispose();
         _receivedItemsOrderBorrow.Dispose();
         _receivedItemsBorrow.Dispose();
         _checkedLocationsOrderBorrow.Dispose();
-        _checkedLocationsBorrow.Dispose();
         _regionUncheckedLocationsCountBorrow.Dispose();
         _priorityPriorityLocationsBorrow.Dispose();
         _priorityLocationsBorrow.Dispose();
@@ -132,38 +117,6 @@ public readonly struct Borrowed<T> : IDisposable
     }
 
     public T Value { get; }
-}
-
-public readonly struct BorrowedBitArray : IDisposable
-{
-    private static readonly ObjectPool<BitArray> s_regionBitArray = new AggressivelyTunedObjectPool<BitArray>(() => new(GameDefinitions.Instance.AllRegions.Length));
-
-    private static readonly ObjectPool<BitArray> s_locationBitArray = new AggressivelyTunedObjectPool<BitArray>(() => new(GameDefinitions.Instance.AllLocations.Length));
-
-    private readonly ObjectPool<BitArray> _pool;
-
-    private BorrowedBitArray(ObjectPool<BitArray> pool)
-    {
-        _pool = pool;
-        Value = pool.Get();
-    }
-
-    public static BorrowedBitArray ForRegions()
-    {
-        return new(s_regionBitArray);
-    }
-
-    public static BorrowedBitArray ForLocations()
-    {
-        return new(s_locationBitArray);
-    }
-
-    public void Dispose()
-    {
-        _pool.Return(Value);
-    }
-
-    public BitArray Value { get; }
 }
 
 public readonly struct BorrowedArray<T> : IDisposable
@@ -221,10 +174,9 @@ public readonly struct BorrowedArray<T> : IDisposable
 // overhead on top of that. In fact, I did experiment with using [ThreadStatic] directly, and it WAS
 // a significant relative improvement. However, I cannot justify going that far. The fraction of the
 // time spent in ThreadLocal<T>.get_Value is perfectly acceptable, and although I CAN make it work,
-// the downside risk is too great. Minimally, I would have to create a whole separate pool for the
-// second BitArray, which hints at the issue: it is quite useful to be able to create new instances
-// of this pool and have them function fully independently of one another. With [ThreadStatic], I
-// must either accept that there is effectively only one pool per type of T, or basically wind up
+// the downside risk is too great. It may be quite useful to be able to create new instances of this
+// pool and have them function fully independently of one another. With [ThreadStatic], I must
+// either accept that there is effectively only one pool per type of T, or basically wind up
 // reimplementing a worse version of ThreadLocal<T>. The impact at the time of writing is minimal,
 // because "only one pool per type of T" is basically how it functions already at the next level of
 // abstraction, but I would prefer to keep this fact there, not have it influence this.

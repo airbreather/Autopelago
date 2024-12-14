@@ -224,8 +224,8 @@
       "ZstdSharp.Port": {
         "type": "Direct",
         "requested": "[*, )",
-        "resolved": "0.8.3",
-        "contentHash": "yyhx83UIMGrixyXFWtsnpR/5iE589vktaTLhl5FR9qgA4CCyn9RNZMIs2EoP+eCm/E443RueB6wk28ZrR9Oi2g=="
+        "resolved": "0.8.4",
+        "contentHash": "eieSXq3kakCUXbgdxkKaRqWS6hF0KBJcqok9LlDCs60GOyrynLvPOcQ0pRw7shdPF7lh/VepJ9cP9n9HHc759g=="
       },
       "Avalonia.Angle.Windows.Natives": {
         "type": "Transitive",

@@ -15,11 +15,11 @@
       "TUnit": {
         "type": "Direct",
         "requested": "[*-*, )",
-        "resolved": "0.4.99",
-        "contentHash": "asRnWZQnJNmlxaBIh8ozpay1Bp4A9a9sTLUDfnYRiUB0GjLoagxVXSK7IMRtplOfCH/PMiAtDsX3pULUEEd7ZA==",
+        "resolved": "0.4.105",
+        "contentHash": "YixmBgx/K81ze0WONzs5hMv75j3rNiEJXFzM27GK0138uwFfFkl4QpyJIcRJ/WxxefajuASYeAKS1ZHGyPPylQ==",
         "dependencies": {
-          "TUnit.Assertions": "0.4.99",
-          "TUnit.Engine": "0.4.99"
+          "TUnit.Assertions": "0.4.105",
+          "TUnit.Engine": "0.4.105"
         }
       },
       "Avalonia": {
@@ -434,24 +434,24 @@
       },
       "TUnit.Assertions": {
         "type": "Transitive",
-        "resolved": "0.4.99",
-        "contentHash": "2zKHwfwjAIZ12SwC4eZ2NtqnOQgi0u1Z7XH5CAX3e2x84OK26D5KN3XNvxWCo+GKdiltu0/5oYryJ1XQO4WObg=="
+        "resolved": "0.4.105",
+        "contentHash": "FKt5DUozcebgjR6LQHPCfa++AzH/6C5IPsGt+pbj5ufSbVF1N4EuidlPCOKy5JbZnCeHrMREahWVRwLk8zClMQ=="
       },
       "TUnit.Core": {
         "type": "Transitive",
-        "resolved": "0.4.99",
-        "contentHash": "HcrQWTnj2llyK+IyB5p2bDVuRpeD6dt8V9WMVipFS5GQ6cvy3+Pb2+tRFvF+fu5JxrKFN+5+t/t3McHs1fWTHQ=="
+        "resolved": "0.4.105",
+        "contentHash": "zroav4mb6Koo5VGwp6rs5D2gzqjXs9sJQPNRcwtdwSIHSFA8DnT3XYnbokhwSntBwcHa4/dsl689U+kJU6kS+g=="
       },
       "TUnit.Engine": {
         "type": "Transitive",
-        "resolved": "0.4.99",
-        "contentHash": "iVPg6mx/XmH2meilcL9sjXTm/z8NcOjdljl1WYPUZgPlPsQEftAvOrv+0xOI9l7zit+fUqeQ8o0qIAdcjuw+AA==",
+        "resolved": "0.4.105",
+        "contentHash": "waxln2crfwIn3n0cT0MZlkuFOEYgf21helX62C1P3wcSEyKRttIb/8aYXIllfYKXZoStY7VCbcY3YaAVkml84Q==",
         "dependencies": {
           "EnumerableAsyncProcessor": "1.4.0",
           "Microsoft.Testing.Extensions.TrxReport.Abstractions": "1.4.3",
           "Microsoft.Testing.Platform": "1.4.3",
           "Microsoft.Testing.Platform.MSBuild": "1.4.3",
-          "TUnit.Core": "0.4.99"
+          "TUnit.Core": "0.4.105"
         }
       },
       "YamlDotNet": {
@@ -461,8 +461,8 @@
       },
       "ZstdSharp.Port": {
         "type": "Transitive",
-        "resolved": "0.8.3",
-        "contentHash": "yyhx83UIMGrixyXFWtsnpR/5iE589vktaTLhl5FR9qgA4CCyn9RNZMIs2EoP+eCm/E443RueB6wk28ZrR9Oi2g=="
+        "resolved": "0.8.4",
+        "contentHash": "eieSXq3kakCUXbgdxkKaRqWS6hF0KBJcqok9LlDCs60GOyrynLvPOcQ0pRw7shdPF7lh/VepJ9cP9n9HHc759g=="
       },
       "autopelago": {
         "type": "Project",

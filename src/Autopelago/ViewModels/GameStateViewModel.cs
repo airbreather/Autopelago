@@ -1,4 +1,3 @@
-using System.Collections;
 using System.Collections.Frozen;
 using System.Collections.Immutable;
 using System.Collections.ObjectModel;
@@ -346,7 +345,7 @@ public sealed partial class GameStateViewModel : ViewModelBase, IDisposable
     {
         Dictionary<ItemKey, int> result = new(GameDefinitions.Instance.ProgressionItemsByYamlKey.Count);
 
-        BitArray visitedRegions = new(GameDefinitions.Instance.AllRegions.Length);
+        BitArray128 visitedRegions = new(GameDefinitions.Instance.AllRegions.Length);
         Queue<RegionKey> regions = [];
         regions.Enqueue(GameDefinitions.Instance.StartRegion);
         while (regions.TryDequeue(out RegionKey region))

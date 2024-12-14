@@ -1,4 +1,3 @@
-using System.Collections;
 using System.Runtime.InteropServices;
 
 namespace Autopelago;
@@ -93,7 +92,7 @@ public sealed partial class Game
             return result;
         }
 
-        if (FindClosestUncheckedLocation(CurrentLocation) is LocationKey closestReachableUnchecked)
+        if (FindClosestUncheckedLocation() is LocationKey closestReachableUnchecked)
         {
             TargetLocation = closestReachableUnchecked;
             return TargetLocationReason.ClosestReachableUnchecked;
@@ -103,18 +102,23 @@ public sealed partial class Game
         return TargetLocationReason.NowhereUsefulToMove;
     }
 
-    private LocationKey? FindClosestUncheckedLocation(LocationKey currentLocation)
+    private LocationKey? FindClosestUncheckedLocation()
+    {
+        return FindClosestUncheckedLocation(in BitArray384.AllTrue, in BitArray384.AllFalse);
+    }
+
+    private LocationKey? FindClosestUncheckedLocation(in BitArray384 includes, in BitArray384 excludes)
     {
         // quick short-circuit: often, this will get called while we're already standing on exactly
         // the closest unchecked location (perhaps because we failed at clearing it). let's optimize
         // for that case here, even though it should not affect correctness.
-        if (!_checkedLocations[currentLocation.N])
+        if (!_checkedLocations[CurrentLocation.N] && includes[CurrentLocation.N] && !excludes[CurrentLocation.N])
         {
-            return currentLocation;
+            return CurrentLocation;
         }
 
         // we're not already LITERALLY standing on an unchecked location, so do the full version.
-        ref readonly LocationDefinitionModel currentLocationDefinition = ref GameDefinitions.Instance[currentLocation];
+        ref readonly LocationDefinitionModel currentLocationDefinition = ref GameDefinitions.Instance[CurrentLocation];
         RegionLocationKey currentRegionLocation = currentLocationDefinition.RegionLocationKey;
         ref readonly RegionDefinitionModel currentRegionDefinition = ref GameDefinitions.Instance[currentRegionLocation.Region];
         int backwardLocationsInCurrentRegion = currentRegionLocation.N;
@@ -132,25 +136,25 @@ public sealed partial class Game
             // this won't necessarily be the final answer, but it will be a solid upper bound.
             for (int i = 1; i <= forwardLocationsInCurrentRegion; i++)
             {
-                if (_checkedLocations[currentLocation.N + i])
+                if (_checkedLocations[CurrentLocation.N + i] || !includes[CurrentLocation.N + i] || excludes[CurrentLocation.N + i])
                 {
                     continue;
                 }
 
                 bestDistance = i;
-                bestLocationKey = new() { N = currentLocation.N + i };
+                bestLocationKey = new() { N = CurrentLocation.N + i };
                 break;
             }
 
             for (int i = 1; i <= backwardLocationsInCurrentRegion && i < bestDistance; i++)
             {
-                if (_checkedLocations[currentLocation.N - i])
+                if (_checkedLocations[CurrentLocation.N - i] || !includes[CurrentLocation.N - i] || excludes[CurrentLocation.N - i])
                 {
                     continue;
                 }
 
                 bestDistance = i;
-                bestLocationKey = new() { N = currentLocation.N - i };
+                bestLocationKey = new() { N = CurrentLocation.N - i };
                 break;
             }
         }
@@ -174,9 +178,7 @@ public sealed partial class Game
         using Borrowed<PriorityQueue<(RegionKey ConnectedRegion, Direction Direction), int>> borrowedPq = new();
         PriorityQueue<(RegionKey ConnectedRegion, Direction Direction), int> pq = borrowedPq.Value;
         pq.Clear();
-        using var visitedRegionsBorrow = BorrowedBitArray.ForRegions();
-        BitArray visitedRegions = visitedRegionsBorrow.Value;
-        visitedRegions.SetAll(false);
+        BitArray384 visitedRegions = new(GameDefinitions.Instance.AllRegions.Length);
         visitedRegions[currentRegionLocation.Region.N] = true;
         foreach ((RegionKey connected, Direction direction) in currentRegionDefinition.Connected.All)
         {
@@ -206,7 +208,7 @@ public sealed partial class Game
                 {
                     for (int i = 0; i < connectedRegionDefinition.Locations.Length && extraDistance + i < bestDistance; i++)
                     {
-                        if (_checkedLocations[connectedRegionDefinition.Locations[i].N])
+                        if (_checkedLocations[connectedRegionDefinition.Locations[i].N] || !includes[connectedRegionDefinition.Locations[i].N] || excludes[connectedRegionDefinition.Locations[i].N])
                         {
                             continue;
                         }
@@ -219,7 +221,7 @@ public sealed partial class Game
                 {
                     for (int i = 0; i < connectedRegionDefinition.Locations.Length && extraDistance + i < bestDistance; i++)
                     {
-                        if (_checkedLocations[connectedRegionDefinition.Locations[^(i + 1)].N])
+                        if (_checkedLocations[connectedRegionDefinition.Locations[^(i + 1)].N] || !includes[connectedRegionDefinition.Locations[^(i + 1)].N] || excludes[connectedRegionDefinition.Locations[^(i + 1)].N])
                         {
                             continue;
                         }
@@ -316,7 +318,7 @@ public sealed partial class Game
         ref readonly LocationDefinitionModel targetLocationDefinition = ref GameDefinitions.Instance[targetLocation];
         RegionLocationKey currentRegionLocation = currentLocationDefinition.RegionLocationKey;
         RegionLocationKey targetRegionLocation = targetLocationDefinition.RegionLocationKey;
-        BitArray lockedRegions = startled
+        BitArray128 lockedRegions = startled
             ? _softLockedRegions
             : _hardLockedRegions;
         if (lockedRegions[targetRegionLocation.Region.N])
@@ -447,40 +449,18 @@ public sealed partial class Game
         }
     }
 
-    private Borrowed<List<LocationKey>> GetClosestLocationsWithItemFlags(LocationKey currentLocation, ArchipelagoItemFlags flags)
+    private void AddPriorityPriorityLocationFor(ArchipelagoItemFlags flags)
     {
-        Borrowed<List<LocationKey>> result = new();
-        result.Value.Clear();
-        ReadOnlyBitArray spoilerData = _spoilerData![flags];
-
-        // TODO: optimize this, it's getting late.
-        using var visitedLocationsBorrow = BorrowedBitArray.ForLocations();
-        BitArray visitedLocations = visitedLocationsBorrow.Value;
-        visitedLocations.SetAll(false);
-        using Borrowed<Queue<LocationKey>> qBorrow = new();
-        Queue<LocationKey> q = qBorrow.Value;
-        q.Clear();
-        q.Enqueue(currentLocation);
-        visitedLocations[currentLocation.N] = true;
-        while (q.TryDequeue(out LocationKey loc))
+        BitArray384 alreadyPrioritized = new(GameDefinitions.Instance.AllLocations.Length);
+        foreach (LocationKey already in _priorityPriorityLocations)
         {
-            if (spoilerData[loc.N] && !_checkedLocations[loc.N])
-            {
-                result.Value.Add(loc);
-            }
-
-            foreach ((LocationKey connectedLocation, _) in GameDefinitions.Instance[loc].Connected.All)
-            {
-                if (!(visitedLocations[connectedLocation.N] ||
-                      _hardLockedRegions[GameDefinitions.Instance.RegionKey[connectedLocation].N]))
-                {
-                    visitedLocations[connectedLocation.N] = true;
-                    q.Enqueue(connectedLocation);
-                }
-            }
+            alreadyPrioritized[already.N] = true;
         }
 
-        return result;
+        if (FindClosestUncheckedLocation(_spoilerData![flags], alreadyPrioritized) is LocationKey loc)
+        {
+            _priorityPriorityLocations.Add(loc);
+        }
     }
 
     private void RecalculateClearable()
@@ -489,8 +469,7 @@ public sealed partial class Game
         Queue<RegionKey> q = qBorrow.Value;
         q.Clear();
 
-        using var visitedRegionsBorrow = BorrowedBitArray.ForRegions();
-        BitArray visitedRegions = visitedRegionsBorrow.Value;
+        BitArray128 visitedRegions = new(GameDefinitions.Instance.AllRegions.Length);
         visitedRegions.SetAll(false);
 
         q.Enqueue(GameDefinitions.Instance.StartRegion);

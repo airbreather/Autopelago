@@ -40,7 +40,7 @@ public static class DataCollector
         Prng.State state = seed;
         Prng.State[] multiworldSeeds = new Prng.State[numSeeds];
         ImmutableArray<ImmutableArray<WorldItem>>[] allSpoilerData = new ImmutableArray<ImmutableArray<WorldItem>>[multiworldSeeds.Length];
-        ImmutableArray<FrozenDictionary<ArchipelagoItemFlags, ReadOnlyBitArray>>[] partialSpoilerData = new ImmutableArray<FrozenDictionary<ArchipelagoItemFlags, ReadOnlyBitArray>>[multiworldSeeds.Length];
+        ImmutableArray<FrozenDictionary<ArchipelagoItemFlags, BitArray384>>[] partialSpoilerData = new ImmutableArray<FrozenDictionary<ArchipelagoItemFlags, BitArray384>>[multiworldSeeds.Length];
         for (int i = 0; i < multiworldSeeds.Length; i++)
         {
             multiworldSeeds[i] = state;
@@ -53,19 +53,19 @@ public static class DataCollector
             UInt128 archipelagoSeed = new(Prng.Next(ref multiworldSeeds[i]), Prng.Next(ref multiworldSeeds[i]));
             allSpoilerData[i] = await PlaythroughGenerator.GenerateAsync(scienceDir, archipelagoSeed, numSlotsPerSeed, cancellationToken2);
             partialSpoilerData[i] = ImmutableArray.CreateRange(allSpoilerData[i], val => val
-                .Select((item, j) => KeyValuePair.Create(new ItemKey { N = j }, item))
+                .Select((item, j) => KeyValuePair.Create(new LocationKey { N = j }, item))
                 .GroupBy(kvp => GameDefinitions.Instance[kvp.Value.Item].ArchipelagoFlags, kvp => kvp.Key)
                 .ToFrozenDictionary(grp => grp.Key, ToSpoilerData));
 
-            ReadOnlyBitArray ToSpoilerData(IEnumerable<ItemKey> items)
+            BitArray384 ToSpoilerData(IEnumerable<LocationKey> locations)
             {
-                BitArray spoilerData = new(GameDefinitions.Instance.AllItems.Length);
-                foreach (ItemKey item in items)
+                BitArray384 spoilerData = new(GameDefinitions.Instance.AllLocations.Length);
+                foreach (LocationKey location in locations)
                 {
-                    spoilerData[item.N] = true;
+                    spoilerData[location.N] = true;
                 }
 
-                return new(spoilerData);
+                return spoilerData;
             }
         });
 
