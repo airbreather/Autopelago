@@ -86,6 +86,11 @@ public struct BitArray384
     [InlineArray(384 >> 6)]
     private struct Bits384
     {
-        private ulong _element0;
+        // https://github.com/dotnet/roslyn/issues/71500
+#pragma warning disable IDE0044 // Add readonly modifier
+#pragma warning disable IDE0051 // Remove unused private members
+        private ulong _field;
+#pragma warning restore IDE0051
+#pragma warning restore IDE0044
     }
 }
