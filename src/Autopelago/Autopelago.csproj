@@ -35,6 +35,8 @@
     <PackageReference Include="Serilog" Version="*" />
     <PackageReference Include="Serilog.Sinks.Async" Version="*" />
     <PackageReference Include="Serilog.Sinks.Console" Version="*" />
+    <PackageReference Include="Spectre.Console" Version="*" />
+    <PackageReference Include="Spectre.Console.Cli" Version="*" />
     <PackageReference Include="YamlDotNet" Version="*" />
     <PackageReference Include="ZstdSharp.Port" Version="*" />
   </ItemGroup>
@@ -56,6 +58,10 @@
   <ItemGroup>
     <AvaloniaResource Include="Assets\**" />
     <EmbeddedResource Include="$(ProjectDir)../AutopelagoDefinitions.yml" LogicalName="AutopelagoDefinitions.yml" />
+
+    <Compile Remove="Infrastructure/GameSettings.Linux.cs" Condition=" '$([System.OperatingSystem]::IsLinux())' != 'true' " />
+    <Compile Remove="Infrastructure/GameSettings.MacOS.cs" Condition=" '$([System.OperatingSystem]::IsMacOS())' != 'true' " />
+    <Compile Remove="Infrastructure/GameSettings.Windows.cs" Condition=" '$([System.OperatingSystem]::IsWindows())' != 'true' " />
   </ItemGroup>
 
 </Project>

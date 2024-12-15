@@ -11,15 +11,17 @@ using Autopelago.BespokeMultiworld;
 
 using Serilog;
 
+using Spectre.Console.Cli;
+
 using ZstdSharp;
 using ZstdSharp.Unsafe;
 
-namespace Autopelago;
+namespace Autopelago.Infrastructure;
 
 [JsonSerializable(typeof(Prng.State))]
 public sealed partial class PrngStateSerializerContext : JsonSerializerContext;
 
-public static class DataCollector
+internal sealed class SimulateCommand : CancelableAsyncCommand<SimulateSettings>
 {
     private static readonly FileStreamOptions s_create = new()
     {
@@ -29,16 +31,21 @@ public static class DataCollector
         Options = FileOptions.Asynchronous,
     };
 
-    public static async Task RunAsync(string scienceDir, int numSeeds, int numSlotsPerSeed, int numRunsPerSeed, Prng.State seed, CancellationToken cancellationToken)
+    public override async Task<int> ExecuteAsync(CommandContext context, SimulateSettings settings, CancellationToken cancellationToken)
     {
-        scienceDir = scienceDir.Replace("$HOME", Environment.GetFolderPath(Environment.SpecialFolder.UserProfile));
+        Log.Logger = new LoggerConfiguration()
+            .WriteTo.Console()
+            .Enrich.FromLogContext()
+            .CreateLogger();
+
+        string scienceDir = settings.ScienceDir.Replace("$HOME", Environment.GetFolderPath(Environment.SpecialFolder.UserProfile));
         Compressor compressor = new(10);
         compressor.SetParameter(ZSTD_cParameter.ZSTD_c_nbWorkers, Environment.ProcessorCount);
         Directory.CreateDirectory(Path.GetDirectoryName(PlaythroughGenerator.Paths.ResultFile(scienceDir))!);
         await using StreamWriter outLocationAttempts = new(new CompressionStream(new FileStream(PlaythroughGenerator.Paths.ResultFile(scienceDir), s_create), compressor, preserveCompressor: false, leaveOpen: false), Encoding.UTF8);
 
-        Prng.State state = seed;
-        Prng.State[] multiworldSeeds = new Prng.State[numSeeds];
+        Prng.State state = Prng.State.Start(settings.OverallSeed);
+        Prng.State[] multiworldSeeds = new Prng.State[settings.NumSeeds];
         ImmutableArray<FrozenDictionary<LocationKey, WorldItem>>[] allSpoilerData = new ImmutableArray<FrozenDictionary<LocationKey, WorldItem>>[multiworldSeeds.Length];
         ImmutableArray<FrozenDictionary<ArchipelagoItemFlags, FrozenSet<LocationKey>>>[] partialSpoilerData = new ImmutableArray<FrozenDictionary<ArchipelagoItemFlags, FrozenSet<LocationKey>>>[multiworldSeeds.Length];
         for (int i = 0; i < multiworldSeeds.Length; i++)
@@ -51,16 +58,16 @@ public static class DataCollector
         await Parallel.ForAsync(0, multiworldSeeds.Length, cancellationToken, async (i, cancellationToken2) =>
         {
             UInt128 archipelagoSeed = new(Prng.Next(ref multiworldSeeds[i]), Prng.Next(ref multiworldSeeds[i]));
-            allSpoilerData[i] = await PlaythroughGenerator.GenerateAsync(scienceDir, archipelagoSeed, numSlotsPerSeed, cancellationToken2);
+            allSpoilerData[i] = await PlaythroughGenerator.GenerateAsync(scienceDir, archipelagoSeed, settings.NumSlotsPerSeed, cancellationToken2);
             partialSpoilerData[i] = ImmutableArray.CreateRange(allSpoilerData[i], val => val
                 .GroupBy(kvp => kvp.Value.Item.ArchipelagoFlags, kvp => kvp.Key)
                 .ToFrozenDictionary(grp => grp.Key, grp => grp.ToFrozenSet()));
         });
 
-        ImmutableArray<LocationAttemptTraceEvent>[] locationAttempts = new ImmutableArray<LocationAttemptTraceEvent>[checked(numSeeds * numSlotsPerSeed * numRunsPerSeed)];
+        ImmutableArray<LocationAttemptTraceEvent>[] locationAttempts = new ImmutableArray<LocationAttemptTraceEvent>[checked(settings.NumSeeds * settings.NumSlotsPerSeed * settings.NumRunsPerSeed)];
         TimeSpan reportInterval = TimeSpan.FromMilliseconds(400);
         long startTimestamp = Stopwatch.GetTimestamp();
-        int[] completed = new int[numSeeds * 1024];
+        int[] completed = new int[settings.NumSeeds * 1024];
         CancellationTokenSource cancelReports = new();
         Task reportTask = Task.Run(() =>
         {
@@ -71,7 +78,7 @@ public static class DataCollector
             {
                 try
                 {
-                    BitArray remaining = new(numSeeds, true);
+                    BitArray remaining = new(settings.NumSeeds, true);
                     int lastLineLength = 0;
                     StringBuilder remainingSeedsMessage = new();
                     while (!cancelReports.IsCancellationRequested)
@@ -83,13 +90,13 @@ public static class DataCollector
                         {
                             if (!remaining[i])
                             {
-                                done += numRunsPerSeed;
+                                done += settings.NumRunsPerSeed;
                                 continue;
                             }
 
                             int cmp = Volatile.Read(in completed[i * 1024]);
                             done += cmp;
-                            if (cmp < numRunsPerSeed)
+                            if (cmp < settings.NumRunsPerSeed)
                             {
                                 if (++reportedNum < 10)
                                 {
@@ -117,7 +124,7 @@ public static class DataCollector
 
                         TimeSpan elapsed = Stopwatch.GetElapsedTime(startTimestamp);
                         TimeSpan estimatedRemaining = done > 0
-                            ? ((numSeeds * numRunsPerSeed) - done) * (elapsed / done)
+                            ? ((settings.NumSeeds * settings.NumRunsPerSeed) - done) * (elapsed / done)
                             : TimeSpan.FromHours(10);
                         remainingSeedsMessage.Length = Math.Max(0, remainingSeedsMessage.Length - 2);
                         string msg = $"\r{elapsed.FormatMyWay()}, done {done}, rem {estimatedRemaining.FormatMyWay()} to finish: {remainingSeedsMessage}";
@@ -138,7 +145,7 @@ public static class DataCollector
                 }
             }
         }, cancelReports.Token);
-        Parallel.For(0, numSeeds * numRunsPerSeed, new ParallelOptions { CancellationToken = cancellationToken }, (ij, loopState) =>
+        Parallel.For(0, settings.NumSeeds * settings.NumRunsPerSeed, new ParallelOptions { CancellationToken = cancellationToken }, (ij, loopState) =>
         {
             if (loopState.ShouldExitCurrentIteration)
             {
@@ -147,10 +154,10 @@ public static class DataCollector
 
             try
             {
-                int i = Math.DivRem(ij, numRunsPerSeed, out int j);
+                int i = Math.DivRem(ij, settings.NumRunsPerSeed, out int j);
                 Prng.State multiworldPrngState = multiworldSeeds[i];
                 World[] slotsMutable = new World[allSpoilerData[i].Length];
-                for (int k = 0; k < numSlotsPerSeed; k++)
+                for (int k = 0; k < settings.NumSlotsPerSeed; k++)
                 {
                     slotsMutable[k] = new(multiworldPrngState);
                 }
@@ -159,9 +166,9 @@ public static class DataCollector
                 using Multiworld multiworld = new() { Slots = slots, FullSpoilerData = allSpoilerData[i], PartialSpoilerData = partialSpoilerData[i], };
 
                 multiworld.Run();
-                for (int k = 0; k < numSlotsPerSeed; k++)
+                for (int k = 0; k < settings.NumSlotsPerSeed; k++)
                 {
-                    locationAttempts[(i * numRunsPerSeed * numSlotsPerSeed) + (j * numSlotsPerSeed) + k] = [.. slots[k].Instrumentation.Attempts];
+                    locationAttempts[(i * settings.NumRunsPerSeed * settings.NumSlotsPerSeed) + (j * settings.NumSlotsPerSeed) + k] = [.. slots[k].Instrumentation.Attempts];
                 }
 
                 Interlocked.Increment(ref completed[i * 1024]);
@@ -183,18 +190,20 @@ public static class DataCollector
         }
 
         await outLocationAttempts.WriteLineAsync("SeedNumber,IterationNumber,SlotNumber,StepNumber,Region,N,AbilityCheckDC,RatCount,MercyModifier,HasLucky,HasUnlucky,HasStylish,Roll,Success");
-        for (int i = 0; i < numSeeds; i++)
+        for (int i = 0; i < settings.NumSeeds; i++)
         {
-            for (int j = 0; j < numRunsPerSeed; j++)
+            for (int j = 0; j < settings.NumRunsPerSeed; j++)
             {
-                for (int k = 0; k < numSlotsPerSeed; k++)
+                for (int k = 0; k < settings.NumSlotsPerSeed; k++)
                 {
-                    foreach (LocationAttemptTraceEvent l in locationAttempts[(i * numRunsPerSeed * numSlotsPerSeed) + (j * numSlotsPerSeed) + k])
+                    foreach (LocationAttemptTraceEvent l in locationAttempts[(i * settings.NumRunsPerSeed * settings.NumSlotsPerSeed) + (j * settings.NumSlotsPerSeed) + k])
                     {
                         await outLocationAttempts.WriteLineAsync($"{i},{j},{k},{l.StepNumber},{l.Location.Key.RegionKey},{l.Location.Key.N},{l.AbilityCheckDC},{l.RatCount},{l.MercyModifier},{(l.HasLucky ? 1 : 0)},{(l.HasUnlucky ? 1 : 0)},{(l.HasStylish ? 1 : 0)},{l.D20},{(l.Success ? 1 : 0)}");
                     }
                 }
             }
         }
+
+        return 0;
     }
 }
