@@ -2,6 +2,7 @@ on:
   push:
     branches:
       - main
+      - aot
 
 jobs:
   build-and-test:
@@ -20,14 +21,9 @@ jobs:
         run: dotnet restore --locked-mode
 
       - name: Build
-        shell: bash
         run: |
-          pids=()
           dotnet format --no-restore --verify-no-changes & pids+=($!)
           dotnet build --no-restore -c Release & pids+=($!)
-          dotnet publish src/Autopelago/Autopelago.csproj --no-restore -c Release -r win-x64 -o dist/Autopelago_win-x64 & pids+=($!)
-          dotnet publish src/Autopelago/Autopelago.csproj --no-restore -c Release -r linux-x64 -o dist/Autopelago_linux-x64 & pids+=($!)
-          dotnet publish src/Autopelago/Autopelago.csproj --no-restore -c Release -r osx-x64 -o dist/Autopelago_osx-x64 & pids+=($!)
           failure=false
           for pid in ${pids[*]}; do
               if ! wait $pid; then
@@ -48,32 +44,37 @@ jobs:
           path: TestResults
         if: always()
 
-      - name: Prepare release directory
-        shell: bash
-        run: |
-          pushd dist;
-          mkdir release;
-          shopt -s dotglob
-          pids=()
-          (cd Autopelago_win-x64; zip -9 -r ../release/Autopelago_win-x64.zip *) & pids+=($!)
-          (cd Autopelago_linux-x64; tar -cf - * | zstd --ultra -22 -T0 -o ../release/Autopelago_linux-x64.tar.zst) & pids+=($!)
-          echo "RELEASE_NUMBER=$(date -u +%Y%m%d%H%M%S)" >> "$GITHUB_ENV";
-          failure=false
-          for pid in ${pids[*]}; do
-              if ! wait $pid; then
-                failure=true
-              fi
-          done
-          if $failure; then
-            exit 1
-          fi
-          popd;
+  publish:
+    strategy:
+      matrix:
+        os:
+          - runner: ubuntu-latest
+            rid: linux-x64
+
+          - runner: windows-latest
+            rid: win-x64
+
+    runs-on: ${{ matrix.os.runner }}
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          global-json-file: global.json
+
+      - name: Restore
+        run: dotnet restore --locked-mode
+
+      - name: Publish
+        run: dotnet publish src/Autopelago/Autopelago.csproj --no-restore -c Release -r ${{ matrix.os.rid }} -o dist/release
 
       - name: Upload release
         uses: actions/upload-artifact@v4
         with:
-          name: game-clients
+          name: ${{ matrix.os.rid }}
           path: dist/release/**
           if-no-files-found: 'error'
-          compression-level: '0' # these files are already compressed.
           include-hidden-files: 'true' # if we made any, then they'd be needed.

@@ -7,9 +7,25 @@ using YamlDotNet.Serialization;
 
 namespace Autopelago;
 
+// normally, we're expected to use source generation for this
+[YamlStaticContext]
+[YamlSerializable(typeof(Dummy))]
+public partial class TrivialYamlStaticContext
+{
+    public sealed class Dummy
+    {
+        public int V0 { get; set; }
+
+        public string? V1 { get; set; }
+
+        public string[]? V2 { get; set; }
+    }
+}
+
 public static class YamlHelper
 {
-    private static readonly IDeserializer s_deserializer = new DeserializerBuilder().Build();
+    private static readonly IDeserializer s_deserializer = new StaticDeserializerBuilder(new TrivialYamlStaticContext())
+        .Build();
 
     public static bool TryGetValue<T>(this YamlMappingNode node, string key, [NotNullWhen(true)] out T? value)
     {

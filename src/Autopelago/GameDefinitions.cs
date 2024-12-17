@@ -4,6 +4,8 @@ using System.Reflection;
 using System.Runtime.InteropServices;
 using System.Text;
 
+using YamlDotNet.Core;
+using YamlDotNet.Core.Events;
 using YamlDotNet.RepresentationModel;
 using YamlDotNet.Serialization;
 
@@ -91,7 +93,10 @@ public sealed class GameDefinitions
     {
         using Stream yamlStream = Assembly.GetExecutingAssembly().GetManifestResourceStream("AutopelagoDefinitions.yml")!;
         using StreamReader yamlReader = new(yamlStream, Encoding.UTF8);
-        YamlMappingNode map = new DeserializerBuilder().Build().Deserialize<YamlMappingNode>(yamlReader);
+        Parser parser = new(yamlReader);
+        while (!(parser.MoveNext() && parser.Accept<MappingStart>(out MappingStart? _))) ;
+        YamlMappingNode map = new();
+        ((IYamlConvertible)map).Read(parser, typeof(YamlMappingNode), null!);
 
         YamlMappingNode itemsMap = (YamlMappingNode)map["items"];
         YamlMappingNode regionsMap = (YamlMappingNode)map["regions"];

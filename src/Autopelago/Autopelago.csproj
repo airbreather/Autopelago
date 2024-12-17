@@ -9,6 +9,8 @@
     <AvaloniaUseCompiledBindingsByDefault>true</AvaloniaUseCompiledBindingsByDefault>
     <RuntimeIdentifiers>win-x64;linux-x64;osx-x64</RuntimeIdentifiers>
     <ApplicationIcon>Assets/Images/Autopelago.ico</ApplicationIcon>
+    <PublishAot>true</PublishAot>
+    <TrimMode>partial</TrimMode>
 
     <LangVersion>preview</LangVersion>
   </PropertyGroup>
@@ -22,14 +24,14 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="Avalonia" Version="*" />
-    <PackageReference Include="Avalonia.Controls.ColorPicker" Version="*" />
-    <PackageReference Include="Avalonia.Desktop" Version="*" />
-    <PackageReference Include="Avalonia.Diagnostics" Version="*" />
-    <PackageReference Include="Avalonia.Fonts.Inter" Version="*" />
-    <PackageReference Include="Avalonia.ReactiveUI" Version="*" />
+    <PackageReference Include="Avalonia" Version="11.3.999-cibuild0053952-alpha" />
+    <PackageReference Include="Avalonia.Controls.ColorPicker" Version="11.3.999-cibuild0053952-alpha" />
+    <PackageReference Include="Avalonia.Desktop" Version="11.3.999-cibuild0053952-alpha" />
+    <PackageReference Include="Avalonia.Diagnostics" Version="11.3.999-cibuild0053952-alpha" />
+    <PackageReference Include="Avalonia.Fonts.Inter" Version="11.3.999-cibuild0053952-alpha" />
+    <PackageReference Include="Avalonia.ReactiveUI" Version="11.3.999-cibuild0053952-alpha" />
     <PackageReference Include="Avalonia.Svg.Skia" Version="*" />
-    <PackageReference Include="Avalonia.Themes.Fluent" Version="*" />
+    <PackageReference Include="Avalonia.Themes.Fluent" Version="11.3.999-cibuild0053952-alpha" />
     <PackageReference Include="Material.Icons.Avalonia" Version="*" />
     <PackageReference Include="Microsoft.Extensions.ObjectPool" Version="*" />
     <PackageReference Include="ReactiveUI.SourceGenerators" Version="*" PrivateAssets="all" />
@@ -38,6 +40,7 @@
     <PackageReference Include="Serilog.Sinks.Console" Version="*" />
     <PackageReference Include="Spectre.Console" Version="*" />
     <PackageReference Include="Spectre.Console.Cli" Version="*" />
+    <PackageReference Include="Vecc.YamlDotNet.Analyzers.StaticGenerator" Version="*" PrivateAssets="all" />
     <PackageReference Include="YamlDotNet" Version="*" />
     <PackageReference Include="ZstdSharp.Port" Version="*" />
   </ItemGroup>
@@ -54,6 +57,11 @@
     <PackageReference Include="SkiaSharp.NativeAssets.macOS" Version="*" />
     <PackageReference Include="SkiaSharp.NativeAssets.WebAssembly" Version="*" />
     <PackageReference Include="SkiaSharp.NativeAssets.Win32" Version="*" />
+
+    <!-- what is up with these? why can't the SDK find them itself? -->
+    <PackageReference Include="runtime.linux-x64.Microsoft.DotNet.ILCompiler" Version="*" PrivateAssets="all" />
+    <PackageReference Include="runtime.osx-x64.Microsoft.DotNet.ILCompiler" Version="*" PrivateAssets="all" />
+    <PackageReference Include="runtime.win-x64.Microsoft.DotNet.ILCompiler" Version="*" PrivateAssets="all" />
   </ItemGroup>
 
   <ItemGroup>
