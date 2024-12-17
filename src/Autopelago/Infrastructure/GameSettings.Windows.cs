@@ -1,3 +1,5 @@
+using System.ComponentModel;
+
 using Avalonia;
 
 using Spectre.Console.Cli;
