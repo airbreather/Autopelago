@@ -137,21 +137,24 @@ public sealed class PlayLoopRunner : IDisposable
 
             if (game.TargetLocationReason == TargetLocationReason.NowhereUsefulToMove)
             {
-                if (prevBlockedReportTimestampOrNull is long prevBlockedReportTimestamp)
+                if (!game.IsCompleted)
                 {
-                    if (Stopwatch.GetElapsedTime(prevBlockedReportTimestamp).TotalMinutes >= 15)
+                    if (prevBlockedReportTimestampOrNull is long prevBlockedReportTimestamp)
                     {
-                        prevBlockedReportTimestampOrNull = null;
+                        if (Stopwatch.GetElapsedTime(prevBlockedReportTimestamp).TotalMinutes >= 15)
+                        {
+                            prevBlockedReportTimestampOrNull = null;
+                        }
                     }
-                }
 
-                if (prevBlockedReportTimestampOrNull is null)
-                {
-                    await _packets.SendPacketsAsync([new SayPacketModel
+                    if (prevBlockedReportTimestampOrNull is null)
                     {
-                        Text = s_blockedMessages[Random.Shared.Next(s_blockedMessages.Length)],
-                    }]);
-                    prevBlockedReportTimestampOrNull = Stopwatch.GetTimestamp();
+                        await _packets.SendPacketsAsync([new SayPacketModel
+                        {
+                            Text = s_blockedMessages[Random.Shared.Next(s_blockedMessages.Length)],
+                        }]);
+                        prevBlockedReportTimestampOrNull = Stopwatch.GetTimestamp();
+                    }
                 }
             }
             else
@@ -168,6 +171,11 @@ public sealed class PlayLoopRunner : IDisposable
 
             if (game.IsCompleted && !wasCompleted)
             {
+                await _packets.SendPacketsAsync([new SayPacketModel
+                {
+                    Text = "Yeah, I did it! er... WE did it!",
+                }]);
+
                 StatusUpdatePacketModel statusUpdate = new() { Status = ArchipelagoClientStatus.Goal };
                 await _packets.SendPacketsAsync([statusUpdate]);
                 _gameUpdates.OnNext(game);

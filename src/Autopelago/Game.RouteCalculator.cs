@@ -44,7 +44,8 @@ public sealed partial class Game
 
         TargetLocationReason result = default;
         LocationKey? priorityTargetLocation = null;
-        if (!_hardLockedRegions[GameDefinitions.Instance.GoalRegion.N])
+        if (!(_hardLockedRegions[GameDefinitions.Instance.GoalRegion.N] ||
+              (HasCompletedGoal && ContinueAfterGoalCompletion)))
         {
             priorityTargetLocation = GameDefinitions.Instance.GoalLocation;
             result = TargetLocationReason.GoMode;

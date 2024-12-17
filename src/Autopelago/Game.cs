@@ -82,6 +82,28 @@ public sealed partial class Game
 
     private FrozenDictionary<ArchipelagoItemFlags, BitArray384>? _spoilerData;
 
+    private bool? _continueAfterGoalCompletion;
+    public bool ContinueAfterGoalCompletion
+    {
+        get
+        {
+            using Lock.Scope _ = EnterLockScope();
+            EnsureStarted();
+            return _continueAfterGoalCompletion.GetValueOrDefault();
+        }
+
+        set
+        {
+            using Lock.Scope _ = EnterLockScope();
+            if (_continueAfterGoalCompletion.HasValue)
+            {
+                throw new InvalidOperationException("Already set.");
+            }
+
+            _continueAfterGoalCompletion = value;
+        }
+    }
+
     public ReadOnlyCollection<LocationVector> PreviousStepMovementLog { get; }
 
     public LocationKey CurrentLocation { get; private set; } = GameDefinitions.Instance.StartLocation;
@@ -182,7 +204,27 @@ public sealed partial class Game
 
     public bool HasStarted { get; private set; }
 
-    public bool IsCompleted => CurrentLocation == GameDefinitions.Instance.GoalLocation;
+    public bool HasCompletedGoal
+    {
+        get
+        {
+            using Lock.Scope _ = EnterLockScope();
+            EnsureStarted();
+            return _checkedLocations[GameDefinitions.Instance.GoalLocation.N];
+        }
+    }
+
+    public bool IsCompleted
+    {
+        get
+        {
+            using Lock.Scope _ = EnterLockScope();
+            EnsureStarted();
+            return _continueAfterGoalCompletion == true
+                ? _checkedLocations.HasAllSet
+                : _checkedLocations[GameDefinitions.Instance.GoalLocation.N];
+        }
+    }
 
     private static int GetPermanentRollModifier(int ratCount)
     {
@@ -371,6 +413,7 @@ public sealed partial class Game
             return;
         }
 
+        _continueAfterGoalCompletion ??= false;
         _checkedLocationsInitialized = true;
         _receivedItemsInitialized = true;
         _ratCount = null;
@@ -523,12 +566,7 @@ public sealed partial class Game
 
                 if (success)
                 {
-                    _checkedLocations[CurrentLocation.N] = true;
-                    _checkedLocationsOrder.Add(CurrentLocation);
-                    --_regionUncheckedLocationsCount[GameDefinitions.Instance.RegionKey[CurrentLocation].N];
-                    _softLockedRegions[GameDefinitions.Instance.RegionKey[CurrentLocation].N] = false;
-                    MercyModifier = 0;
-                    bumpMercyModifierForNextTime = false;
+                    MarkCurrentLocationChecked();
                 }
 
                 _instrumentation?.TraceLocationAttempt(CurrentLocation, roll, hasLucky, hasUnlucky, hasStylish, (byte)RatCount, (byte)GameDefinitions.Instance[CurrentLocation].AbilityCheckDC, (byte)immediateMercyModifier, success);
@@ -548,6 +586,10 @@ public sealed partial class Game
 
                     case TargetLocationReason.PriorityPriority:
                         _priorityPriorityLocations.Remove(TargetLocation);
+                        break;
+
+                    case TargetLocationReason.GoMode when CurrentLocation == GameDefinitions.Instance.GoalLocation:
+                        MarkCurrentLocationChecked();
                         break;
                 }
             }
@@ -589,6 +631,16 @@ public sealed partial class Game
         if (bumpMercyModifierForNextTime)
         {
             ++MercyModifier;
+        }
+
+        void MarkCurrentLocationChecked()
+        {
+            _checkedLocations[CurrentLocation.N] = true;
+            _checkedLocationsOrder.Add(CurrentLocation);
+            --_regionUncheckedLocationsCount[GameDefinitions.Instance.RegionKey[CurrentLocation].N];
+            _softLockedRegions[GameDefinitions.Instance.RegionKey[CurrentLocation].N] = false;
+            MercyModifier = 0;
+            bumpMercyModifierForNextTime = false;
         }
     }
 

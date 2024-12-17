@@ -114,6 +114,8 @@ public sealed record RoomInfoPacketModel : ArchipelagoPacketModel
 
     public required bool Password { get; init; }
 
+    public required MultiworldPermissionsModel Permissions { get; init; }
+
     public required int HintCost { get; init; }
 
     public required int LocationCheckPoints { get; init; }
@@ -126,6 +128,24 @@ public sealed record RoomInfoPacketModel : ArchipelagoPacketModel
     public required string SeedName { get; init; }
 
     public required double Time { get; init; }
+}
+
+[Flags]
+public enum Permissions
+{
+    None = 0,
+    AtWill = 1 << 0,
+    AfterGoal = 1 << 1,
+    Auto = 1 << 2,
+}
+
+public sealed record MultiworldPermissionsModel
+{
+    public required Permissions Release { get; init; }
+
+    public required Permissions Collect { get; init; }
+
+    public required Permissions Remaining { get; init; }
 }
 
 public sealed record GetDataPackagePacketModel : ArchipelagoPacketModel

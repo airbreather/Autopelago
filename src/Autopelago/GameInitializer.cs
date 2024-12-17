@@ -114,8 +114,9 @@ public sealed class GameInitializer : ArchipelagoPacketHandler
         }
     }
 
-    private static async ValueTask HandleAsync(RoomInfoPacketModel roomInfo, ArchipelagoPacketProvider sender)
+    private async ValueTask HandleAsync(RoomInfoPacketModel roomInfo, ArchipelagoPacketProvider sender)
     {
+        _game.ContinueAfterGoalCompletion = !roomInfo.Permissions.Release.HasFlag(Permissions.Auto);
         GetDataPackagePacketModel getDataPackage = new() { Games = roomInfo.Games };
         await sender.SendPacketsAsync([getDataPackage]);
     }

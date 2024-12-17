@@ -19,17 +19,15 @@ public sealed class GameTests
             .Select(aura => GameDefinitions.Instance.AllItems.First(i => i.AurasGranted.SequenceEqual([aura])))
             .ToFrozenDictionary(i => i.AurasGranted[0], i => i.Key);
 
-    public static Prng.State[] RandomSeeds()
+    public static IEnumerable<(Prng.State Seed, bool ContinueAfterGoalCompletion)> UnrandomizedTestCases()
     {
         Prng.State seedSeed = Prng.State.Start();
-        Prng.State[] seeds = new Prng.State[100];
-        foreach (ref Prng.State seed in seeds.AsSpan())
+        for (int i = 0; i < 100; i++)
         {
-            seed = seedSeed;
+            yield return (seedSeed, false);
+            yield return (seedSeed, true);
             Prng.Next(ref seedSeed);
         }
-
-        return seeds;
     }
 
     [Test]
@@ -129,10 +127,11 @@ public sealed class GameTests
     }
 
     [Test]
-    [MethodDataSource(nameof(RandomSeeds))]
-    public async ValueTask GameShouldBeWinnable(Prng.State seed)
+    [MethodDataSource(nameof(UnrandomizedTestCases))]
+    public async ValueTask GameShouldBeWinnable(Prng.State seed, bool continueAfterGoalCompletion)
     {
         using Game game = new(seed);
+        game.ContinueAfterGoalCompletion = continueAfterGoalCompletion;
         int advancesSoFar = 0;
         List<ItemKey> newReceivedItems = [];
         while (true)
@@ -158,6 +157,12 @@ public sealed class GameTests
 
             ++advancesSoFar;
             await Assert.That(advancesSoFar).IsLessThan(40_000).Because("If you can't win in 40k steps, then you're useless.");
+        }
+
+        if (continueAfterGoalCompletion)
+        {
+            // the only way for the game to complete in this situation is if ALL are checked.
+            await Assert.That(game.LocationIsChecked.HasAllSet).IsTrue();
         }
     }
 
