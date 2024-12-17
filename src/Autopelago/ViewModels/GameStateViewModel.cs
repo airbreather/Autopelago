@@ -47,8 +47,6 @@ public sealed partial class GameStateViewModel : ViewModelBase, IDisposable
 
     private readonly CompositeDisposable _disposables = [];
 
-    [Reactive] private string _slotName = "";
-
     [Reactive] private string _ratThought = s_ratThoughts[0];
 
     [Reactive] private bool _playerIsActivated;
@@ -94,6 +92,8 @@ public sealed partial class GameStateViewModel : ViewModelBase, IDisposable
 
     public GameStateViewModel(GameStateObservableProvider provider)
     {
+        SlotName = provider.Settings.Slot;
+
         if (Design.IsDesignMode)
         {
             // ain't nobody got time for dat
@@ -310,6 +310,8 @@ public sealed partial class GameStateViewModel : ViewModelBase, IDisposable
     }
 
     public static TimeSpan MovementAnimationTime { get; } = TimeSpan.FromSeconds(0.1);
+
+    public string SlotName { get; }
 
     public Bitmap PlayerToken { get; }
 

@@ -43,7 +43,6 @@ public sealed partial class MainWindowViewModel : ViewModelBase, IDisposable
                 _shouldSaveSettings.OnNext(Unit.Default);
                 gameStateViewModel = new(provider)
                 {
-                    SlotName = settings.Slot,
                     BackToMainMenuCommand = backToMainMenuCommand,
                 };
                 provider.GameComplete.Subscribe(_ => ContentViewModel = EndingFanfare);
