@@ -185,6 +185,8 @@ public abstract record ConnectResponsePacketModel : ArchipelagoPacketModel
 
 public sealed record ConnectedPacketModel : ConnectResponsePacketModel
 {
+    private static readonly JsonElement s_emptyObject = CreateJsonElementForEmptyObject();
+
     public required int Team { get; init; }
 
     public required int Slot { get; init; }
@@ -195,11 +197,17 @@ public sealed record ConnectedPacketModel : ConnectResponsePacketModel
 
     public required ImmutableArray<long> CheckedLocations { get; init; }
 
-    public Dictionary<string, JsonElement> SlotData { get; init; } = [];
+    public JsonElement SlotData { get; init; } = s_emptyObject;
 
     public Dictionary<int, SlotModel> SlotInfo { get; init; } = [];
 
     public required int HintPoints { get; init; }
+
+    private static JsonElement CreateJsonElementForEmptyObject()
+    {
+        using JsonDocument document = JsonDocument.Parse("{}");
+        return document.RootElement.Clone();
+    }
 }
 
 public sealed record ConnectionRefusedPacketModel : ConnectResponsePacketModel

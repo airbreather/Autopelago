@@ -17,6 +17,8 @@ public sealed class GameDefinitions
     {
     }
 
+    public required string VersionStamp { get; init; }
+
     // EVERYTHING must be derived from these first few collections. this is important to minimize
     // how much work #52 will be!
     public required ImmutableArray<ItemDefinitionModel> AllItems { get; init; }
@@ -95,6 +97,7 @@ public sealed class GameDefinitions
         using StreamReader yamlReader = new(yamlStream, Encoding.UTF8);
         YamlMappingNode map = new DeserializerBuilder().Build().Deserialize<YamlMappingNode>(yamlReader);
 
+        string versionStamp = map["version_stamp"].To<string>();
         YamlMappingNode itemsMap = (YamlMappingNode)map["items"];
         YamlMappingNode regionsMap = (YamlMappingNode)map["regions"];
 
@@ -103,6 +106,8 @@ public sealed class GameDefinitions
         ItemKey goalItem = items.AllItems.First(i => i.Name == "Victory").Key;
         return new()
         {
+            VersionStamp = versionStamp,
+
             AllItems = items.AllItems,
             AllLocations = regions.AllLocations,
             AllRegions = regions.AllRegions,

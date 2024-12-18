@@ -21,6 +21,11 @@ public sealed class GameAndContext
     public required MultiworldInfo Context { get; init; }
 }
 
+public sealed record AutopelagoWorldMetadata
+{
+    public required string VersionStamp { get; init; }
+}
+
 public sealed record MultiworldInfo
 {
     public required FrozenDictionary<string, FrozenDictionary<long, string>> GeneralItemNameMapping { get; init; }
@@ -41,6 +46,10 @@ public sealed record MultiworldInfo
 [JsonSerializable(typeof(AuraData))]
 [JsonSerializable(typeof(JsonElement))]
 public sealed partial class AuraDataSerializationContext : JsonSerializerContext;
+
+[JsonSerializable(typeof(AutopelagoWorldMetadata))]
+[JsonSourceGenerationOptions(PropertyNamingPolicy = JsonKnownNamingPolicy.SnakeCaseLower)]
+public sealed partial class AutopelagoWorldMetadataSerializationContext : JsonSerializerContext;
 
 public sealed class GameInitializer : ArchipelagoPacketHandler
 {
@@ -167,6 +176,18 @@ public sealed class GameInitializer : ArchipelagoPacketHandler
         }
 
         ConnectedPacketModel connected = (ConnectedPacketModel)connectResponse;
+
+        if (connected.SlotData.Deserialize(AutopelagoWorldMetadataSerializationContext.Default.AutopelagoWorldMetadata) is not { } autopelagoWorldMetadata ||
+            autopelagoWorldMetadata.VersionStamp != GameDefinitions.Instance.VersionStamp)
+        {
+            throw new InvalidOperationException($"""
+Client and .apworld are from different versions! This client wants to see '{GameDefinitions.Instance.VersionStamp}'.
+To check this yourself, open the .apworld file in 7-zip or something like that, look near the top of
+its 'AutopelagoDefinitions.yml' file for a "version_stamp". If it's not there, or if its value isn't
+the one we were looking for (again, '{GameDefinitions.Instance.VersionStamp}'), then that's why this happened.
+""");
+        }
+
         _slotInfo = connected.SlotInfo.ToFrozenDictionary();
         _slotByPlayerAlias = connected.Players.ToFrozenDictionary(p => p.Alias, p => p.Slot);
         LocationScoutsPacketModel locationScouts = new()
