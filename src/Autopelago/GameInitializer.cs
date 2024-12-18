@@ -1,5 +1,6 @@
 using System.Collections.Frozen;
 using System.Collections.Immutable;
+using System.Diagnostics.CodeAnalysis;
 using System.Reactive.Linq;
 using System.Reactive.Subjects;
 using System.Runtime.InteropServices;
@@ -177,14 +178,18 @@ public sealed class GameInitializer : ArchipelagoPacketHandler
 
         ConnectedPacketModel connected = (ConnectedPacketModel)connectResponse;
 
-        if (connected.SlotData.Deserialize(AutopelagoWorldMetadataSerializationContext.Default.AutopelagoWorldMetadata) is not { } autopelagoWorldMetadata ||
-            autopelagoWorldMetadata.VersionStamp != GameDefinitions.Instance.VersionStamp)
+        if (!(TryDeserialize(connected.SlotData, out AutopelagoWorldMetadata? autopelagoWorldMetadata) &&
+              autopelagoWorldMetadata.VersionStamp == GameDefinitions.Instance.VersionStamp))
         {
             throw new InvalidOperationException($"""
+
+
 Client and .apworld are from different versions! This client wants to see '{GameDefinitions.Instance.VersionStamp}'.
 To check this yourself, open the .apworld file in 7-zip or something like that, look near the top of
 its 'AutopelagoDefinitions.yml' file for a "version_stamp". If it's not there, or if its value isn't
 the one we were looking for (again, '{GameDefinitions.Instance.VersionStamp}'), then that's why this happened.
+
+
 """);
         }
 
@@ -202,6 +207,20 @@ the one we were looking for (again, '{GameDefinitions.Instance.VersionStamp}'), 
             .. connected.CheckedLocations.Select(locationId => _locationsById![locationId]),
         ];
         _game.InitializeCheckedLocations(checkedLocations);
+    }
+
+    private static bool TryDeserialize(JsonElement json, [NotNullWhen(true)] out AutopelagoWorldMetadata? result)
+    {
+        try
+        {
+            result = json.Deserialize<AutopelagoWorldMetadata>(AutopelagoWorldMetadataSerializationContext.Default.AutopelagoWorldMetadata);
+        }
+        catch (JsonException)
+        {
+            result = null;
+        }
+
+        return result is not null;
     }
 
     private void Handle(LocationInfoPacketModel locationInfo)
