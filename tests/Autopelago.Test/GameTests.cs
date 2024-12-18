@@ -19,13 +19,12 @@ public sealed class GameTests
             .Select(aura => GameDefinitions.Instance.AllItems.First(i => i.AurasGranted.SequenceEqual([aura])))
             .ToFrozenDictionary(i => i.AurasGranted[0], i => i.Key);
 
-    public static IEnumerable<(Prng.State Seed, bool ContinueAfterGoalCompletion)> UnrandomizedTestCases()
+    public static IEnumerable<Prng.State> UnrandomizedTestCases()
     {
         Prng.State seedSeed = Prng.State.Start();
         for (int i = 0; i < 100; i++)
         {
-            yield return (seedSeed, false);
-            yield return (seedSeed, true);
+            yield return (seedSeed);
             Prng.Next(ref seedSeed);
         }
     }
@@ -128,10 +127,9 @@ public sealed class GameTests
 
     [Test]
     [MethodDataSource(nameof(UnrandomizedTestCases))]
-    public async ValueTask GameShouldBeWinnable(Prng.State seed, bool continueAfterGoalCompletion)
+    public async ValueTask GameShouldBeWinnable(Prng.State seed)
     {
         using Game game = new(seed);
-        game.ContinueAfterGoalCompletion = continueAfterGoalCompletion;
         int advancesSoFar = 0;
         List<ItemKey> newReceivedItems = [];
         while (true)
@@ -159,11 +157,8 @@ public sealed class GameTests
             await Assert.That(advancesSoFar).IsLessThan(40_000).Because("If you can't win in 40k steps, then you're useless.");
         }
 
-        if (continueAfterGoalCompletion)
-        {
-            // the only way for the game to complete in this situation is if ALL are checked.
-            await Assert.That(game.LocationIsChecked.HasAllSet).IsTrue();
-        }
+        // the only way for the game to complete in this situation is if ALL are checked.
+        await Assert.That(game.LocationIsChecked.HasAllSet).IsTrue();
     }
 
     [Test]
@@ -426,10 +421,15 @@ public sealed class GameTests
         game.ReceiveItems([finalRandomizedItem]);
         HashSet<LocationKey> fixedRewardsGranted = [];
         int advancesSoFar = 0;
-        while (!game.IsCompleted)
+        while (true)
         {
             game.PrngState = s_highRolls;
             game.Advance();
+            if (game.HasCompletedGoal)
+            {
+                break;
+            }
+
             await Assert.That(GameDefinitions.Instance.Region[game.TargetLocation]).IsAssignableTo<LandmarkRegionDefinitionModel>();
             foreach (LocationKey checkedLocation in game.CheckedLocations)
             {

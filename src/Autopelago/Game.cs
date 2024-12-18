@@ -82,28 +82,6 @@ public sealed partial class Game
 
     private FrozenDictionary<ArchipelagoItemFlags, BitArray384>? _spoilerData;
 
-    private bool? _continueAfterGoalCompletion;
-    public bool ContinueAfterGoalCompletion
-    {
-        get
-        {
-            using Lock.Scope _ = EnterLockScope();
-            EnsureStarted();
-            return _continueAfterGoalCompletion.GetValueOrDefault();
-        }
-
-        set
-        {
-            using Lock.Scope _ = EnterLockScope();
-            if (_continueAfterGoalCompletion.HasValue)
-            {
-                throw new InvalidOperationException("Already set.");
-            }
-
-            _continueAfterGoalCompletion = value;
-        }
-    }
-
     public ReadOnlyCollection<LocationVector> PreviousStepMovementLog { get; }
 
     public LocationKey CurrentLocation { get; private set; } = GameDefinitions.Instance.StartLocation;
@@ -204,27 +182,9 @@ public sealed partial class Game
 
     public bool HasStarted { get; private set; }
 
-    public bool HasCompletedGoal
-    {
-        get
-        {
-            using Lock.Scope _ = EnterLockScope();
-            EnsureStarted();
-            return _checkedLocations[GameDefinitions.Instance.GoalLocation.N];
-        }
-    }
+    public bool HasCompletedGoal => _receivedItems[GameDefinitions.Instance.GoalItem.N] > 0;
 
-    public bool IsCompleted
-    {
-        get
-        {
-            using Lock.Scope _ = EnterLockScope();
-            EnsureStarted();
-            return _continueAfterGoalCompletion == true
-                ? _checkedLocations.HasAllSet
-                : _checkedLocations[GameDefinitions.Instance.GoalLocation.N];
-        }
-    }
+    public bool IsCompleted => _checkedLocations.HasAllSet;
 
     private static int GetPermanentRollModifier(int ratCount)
     {
@@ -413,7 +373,6 @@ public sealed partial class Game
             return;
         }
 
-        _continueAfterGoalCompletion ??= false;
         _checkedLocationsInitialized = true;
         _receivedItemsInitialized = true;
         _ratCount = null;
@@ -426,14 +385,21 @@ public sealed partial class Game
     public void Advance()
     {
         EnsureStarted();
-        if (IsCompleted)
-        {
-            return;
-        }
-
         using Lock.Scope _ = EnterLockScope();
         if (IsCompleted)
         {
+            if (CurrentLocation != GameDefinitions.Instance.GoalLocation)
+            {
+                CurrentLocation = GameDefinitions.Instance.GoalLocation;
+                TargetLocation = GameDefinitions.Instance.GoalLocation;
+                _prevMovementLog.Clear();
+                _prevMovementLog.Add(new()
+                {
+                    PreviousLocation = GameDefinitions.Instance.GoalLocation,
+                    CurrentLocation = GameDefinitions.Instance.GoalLocation,
+                });
+            }
+
             return;
         }
 

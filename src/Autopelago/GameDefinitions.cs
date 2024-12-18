@@ -36,6 +36,8 @@ public sealed class GameDefinitions
 
     public required LocationKey GoalLocation { get; init; }
 
+    public required ItemKey GoalItem { get; init; }
+
     public required ImmutableArray<ItemKey> ItemsWithNonzeroRatCounts { get; init; }
 
     public required FrozenDictionary<string, RegionKey> RegionsByYamlKey { get; init; }
@@ -98,6 +100,7 @@ public sealed class GameDefinitions
 
         ItemDefinitionsModel items = ItemDefinitionsModel.DeserializeFrom(itemsMap);
         RegionDefinitionsModel regions = RegionDefinitionsModel.DeserializeFrom(regionsMap, items);
+        ItemKey goalItem = items.AllItems.First(i => i.Name == "Victory").Key;
         return new()
         {
             AllItems = items.AllItems,
@@ -106,12 +109,8 @@ public sealed class GameDefinitions
             ProgressionItemsByYamlKey = items.ProgressionItemsByYamlKey,
 
             StartLocation = regions.AllLocations.First(l => l.Connected.Backward.IsEmpty).Key,
-            GoalLocation = regions.AllLocations
-                .First(l =>
-                    l.Connected.Forward.IsEmpty &&
-                    l.Connected.Backward.All(pl =>
-                        regions.AllLocations[pl.N].Connected.Forward.Length == 1)
-                ).Key,
+            GoalLocation = regions.AllLocations.First(l => l.UnrandomizedItem == goalItem).Key,
+            GoalItem = goalItem,
             ItemsWithNonzeroRatCounts = items.ItemsWithNonzeroRatCounts,
             RegionsByYamlKey = regions.AllRegions.ToFrozenDictionary(r => r.YamlKey, r => r.Key),
             ItemsByName = items.AllItems.ToFrozenDictionary(i => i.Name, i => i.Key),
@@ -175,8 +174,23 @@ public sealed class ItemDefinitionsModel
 
     public static ItemDefinitionsModel DeserializeFrom(YamlMappingNode itemsMap)
     {
-        List<ItemDefinitionModel> allItems = [];
-        Dictionary<string, ItemKey> keyedItems = [];
+        List<ItemDefinitionModel> allItems =
+        [
+            new()
+            {
+                Key = new() { N = 0 },
+                ArchipelagoFlags = ArchipelagoItemFlags.LogicalAdvancement,
+                AssociatedGame = null,
+                AurasGranted = [],
+                FlavorText = null,
+                Name = "Victory",
+                RatCount = 0,
+            },
+        ];
+        Dictionary<string, ItemKey> keyedItems = new()
+        {
+            ["Victory"] = new() { N = 0 },
+        };
 
         foreach ((YamlNode keyNode, YamlNode valueNode) in itemsMap)
         {

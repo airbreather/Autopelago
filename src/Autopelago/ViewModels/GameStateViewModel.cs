@@ -24,6 +24,9 @@ public sealed partial class GameStateViewModel : ViewModelBase, IDisposable
 
         // this one is fixed and doesn't really get sent by others.
         "blackbird",
+
+        // this one is half-fake.
+        "Victory",
     }.ToFrozenSet();
 
     private static readonly ImmutableArray<string> s_ratThoughts =

@@ -75,6 +75,7 @@ public sealed class PlayLoopRunner : IDisposable
         Game game = _gameUpdates.Value;
         bool wasGoMode = false;
         bool wasCompleted = false;
+        bool hadCompletedGoal = false;
         long prevStartTimestamp = _timeProvider.GetTimestamp();
         long? prevBlockedReportTimestampOrNull = null;
         TimeSpan nextFullInterval = NextInterval();
@@ -169,6 +170,14 @@ public sealed class PlayLoopRunner : IDisposable
                 }
             }
 
+            if (game.HasCompletedGoal && !hadCompletedGoal)
+            {
+                StatusUpdatePacketModel statusUpdate = new() { Status = ArchipelagoClientStatus.Goal };
+                await _packets.SendPacketsAsync([statusUpdate]);
+                _gameUpdates.OnNext(game);
+                hadCompletedGoal = true;
+            }
+
             if (game.IsCompleted && !wasCompleted)
             {
                 await _packets.SendPacketsAsync([new SayPacketModel
@@ -176,8 +185,6 @@ public sealed class PlayLoopRunner : IDisposable
                     Text = "Yeah, I did it! er... WE did it!",
                 }]);
 
-                StatusUpdatePacketModel statusUpdate = new() { Status = ArchipelagoClientStatus.Goal };
-                await _packets.SendPacketsAsync([statusUpdate]);
                 _gameUpdates.OnNext(game);
                 wasCompleted = true;
             }
