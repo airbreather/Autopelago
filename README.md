@@ -23,6 +23,7 @@ There are the usual Archipelago parameters, plus a couple more described below i
 Of course, you need to use an Archipelago server that supports this game (probably via an `apworld`) to actually get this going. Instructions for that are outside the scope of this document for now.
 
 ## The Game
+![The MOST excellent picture of the MOST excellent game that plays itself.](doc/game-screen.webp)
 
 Once connected, a rat will autonomously move across the game world, sending location checks along the way. Its own items that it receives will be more-or-less what you expect:
 
@@ -33,6 +34,8 @@ Once connected, a rat will autonomously move across the game world, sending loca
 For the most part, the rat just moves around the map every several seconds, trying to complete a check at each location it reaches. These attempts get easier the more "rats" that they've received, but locations further along the path will be harder, so it balances out.
 
 ### Menu Screen
+
+![An excellent picture of an even more excellent settings screen.](doc/menu-screen.webp)
 
 - Host / Port / Slot / Password: Standard inputs that you need for any Archipelago game.
 - Min. Step / Max. Step: Number of seconds that the rat spends between actions. Smaller numbers will send location checks faster.
