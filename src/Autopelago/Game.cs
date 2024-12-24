@@ -24,7 +24,7 @@ public enum AddPriorityLocationResult
     AddedUnreachable,
 }
 
-public sealed record AuraData
+public sealed record ServerSavedState
 {
     public int FoodFactor { get; init; }
 
@@ -41,6 +41,8 @@ public sealed record AuraData
     public bool HasConfidence { get; init; }
 
     public int MercyModifier { get; init; }
+
+    public string CurrentLocation { get; init; } = GameDefinitions.Instance[GameDefinitions.Instance.StartLocation].Name;
 
     public ImmutableArray<string> PriorityPriorityLocations { get; init; } = [];
 
@@ -78,7 +80,7 @@ public sealed partial class Game
 
     private int _actionBalanceAfterPreviousStep;
 
-    private bool _initializedAuraData;
+    private bool _initializedServerSavedState;
 
     private FrozenDictionary<ArchipelagoItemFlags, BitArray384>? _spoilerData;
 
@@ -151,12 +153,12 @@ public sealed partial class Game
         }
     }
 
-    public AuraData AuraData
+    public ServerSavedState ServerSavedState
     {
         get
         {
             using Lock.Scope _ = EnterLockScope();
-            if (!_initializedAuraData)
+            if (!_initializedServerSavedState)
             {
                 throw new InvalidOperationException("Game has not started yet.");
             }
@@ -171,6 +173,7 @@ public sealed partial class Game
                 StartledCounter = StartledCounter,
                 MercyModifier = MercyModifier,
                 HasConfidence = HasConfidence,
+                CurrentLocation = GameDefinitions.Instance[CurrentLocation].Name,
                 PriorityPriorityLocations = [.. _priorityPriorityLocations.Select(l => GameDefinitions.Instance[l].Name)],
                 PriorityLocations = [.. _priorityLocations.Select(l => GameDefinitions.Instance[l].Name)],
             };
@@ -296,29 +299,36 @@ public sealed partial class Game
         _spoilerData = spoilerData;
     }
 
-    public void InitializeAuraData(AuraData auraData)
+    public void InitializeServerSavedState(ServerSavedState serverSavedState)
     {
         using Lock.Scope _ = EnterLockScope();
-        if (_initializedAuraData)
+        if (_initializedServerSavedState)
         {
-            throw new InvalidOperationException("Aura data has already been initialized.");
+            throw new InvalidOperationException("Server saved state has already been initialized.");
         }
 
-        FoodFactor = auraData.FoodFactor;
-        LuckFactor = auraData.LuckFactor;
-        EnergyFactor = auraData.EnergyFactor;
-        StyleFactor = auraData.StyleFactor;
-        DistractionCounter = auraData.DistractionCounter;
-        StartledCounter = auraData.StartledCounter;
-        MercyModifier = auraData.MercyModifier;
-        HasConfidence = auraData.HasConfidence;
+        FoodFactor = serverSavedState.FoodFactor;
+        LuckFactor = serverSavedState.LuckFactor;
+        EnergyFactor = serverSavedState.EnergyFactor;
+        StyleFactor = serverSavedState.StyleFactor;
+        DistractionCounter = serverSavedState.DistractionCounter;
+        StartledCounter = serverSavedState.StartledCounter;
+        MercyModifier = serverSavedState.MercyModifier;
+        HasConfidence = serverSavedState.HasConfidence;
+        CurrentLocation = GameDefinitions.Instance.LocationsByName[serverSavedState.CurrentLocation];
+        _prevMovementLog.Clear();
+        _prevMovementLog.Add(new()
+        {
+            PreviousLocation = CurrentLocation,
+            CurrentLocation = CurrentLocation,
+        });
         _priorityPriorityLocations.AddRange(
-            auraData.PriorityPriorityLocations.Select(l => GameDefinitions.Instance.LocationsByName[l])
+            serverSavedState.PriorityPriorityLocations.Select(l => GameDefinitions.Instance.LocationsByName[l])
         );
         _priorityLocations.AddRange(
-            auraData.PriorityLocations.Select(l => GameDefinitions.Instance.LocationsByName[l])
+            serverSavedState.PriorityLocations.Select(l => GameDefinitions.Instance.LocationsByName[l])
         );
-        _initializedAuraData = true;
+        _initializedServerSavedState = true;
     }
 
     public AddPriorityLocationResult? AddPriorityLocation(LocationKey toPrioritize)
@@ -377,7 +387,7 @@ public sealed partial class Game
         _receivedItemsInitialized = true;
         _ratCount = null;
         _spoilerData ??= GameDefinitions.Instance.UnrandomizedSpoilerData;
-        _initializedAuraData = true;
+        _initializedServerSavedState = true;
         HasStarted = true;
         RecalculateClearable();
     }

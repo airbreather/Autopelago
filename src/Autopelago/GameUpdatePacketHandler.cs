@@ -117,15 +117,15 @@ public sealed class GameUpdatePacketHandler : ArchipelagoPacketHandler, IDisposa
 
         newPackets.Add(new SetPacketModel
         {
-            Key = AurasKey,
+            Key = ServerSavedStateKey,
             Operations =
             [
                 new()
                 {
                     Operation = ArchipelagoDataStorageOperationType.Replace,
                     Value = JsonSerializer.SerializeToNode(
-                        game.AuraData,
-                        AuraDataSerializationContext.Default.AuraData
+                        game.ServerSavedState,
+                        ServerSavedStateSerializationContext.Default.ServerSavedState
                     )!,
                 },
             ],

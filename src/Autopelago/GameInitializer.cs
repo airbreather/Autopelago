@@ -44,9 +44,9 @@ public sealed record MultiworldInfo
     public required FrozenDictionary<string, int> SlotByPlayerAlias { get; init; }
 }
 
-[JsonSerializable(typeof(AuraData))]
+[JsonSerializable(typeof(ServerSavedState))]
 [JsonSerializable(typeof(JsonElement))]
-public sealed partial class AuraDataSerializationContext : JsonSerializerContext;
+public sealed partial class ServerSavedStateSerializationContext : JsonSerializerContext;
 
 [JsonSerializable(typeof(AutopelagoWorldMetadata))]
 [JsonSourceGenerationOptions(PropertyNamingPolicy = JsonKnownNamingPolicy.SnakeCaseLower)]
@@ -200,7 +200,7 @@ the one we were looking for (again, '{GameDefinitions.Instance.VersionStamp}'), 
             Locations = _locationsById!.Where(kvp => !GameDefinitions.Instance[kvp.Value].RewardIsFixed).Select(kvp => kvp.Key).ToArray(),
         };
 
-        GetPacketModel getPacket = new() { Keys = [AurasKey] };
+        GetPacketModel getPacket = new() { Keys = [ServerSavedStateKey] };
         await sender.SendPacketsAsync([locationScouts, getPacket]);
         LocationKey[] checkedLocations =
         [
@@ -266,22 +266,22 @@ the one we were looking for (again, '{GameDefinitions.Instance.VersionStamp}'), 
 
     private void Handle(RetrievedPacketModel retrieved)
     {
-        if (!retrieved.Keys.TryGetValue(AurasKey, out JsonElement auras))
+        if (!retrieved.Keys.TryGetValue(ServerSavedStateKey, out JsonElement serverSavedStateData))
         {
             return;
         }
 
         try
         {
-            if (auras.Deserialize(AuraDataSerializationContext.Default.AuraData) is { } auraData)
+            if (serverSavedStateData.Deserialize(ServerSavedStateSerializationContext.Default.ServerSavedState) is { } serverSavedState)
             {
-                _game.InitializeAuraData(auraData);
+                _game.InitializeServerSavedState(serverSavedState);
             }
         }
         catch (Exception ex)
         {
             // don't permanently stick the rat into an oddball state.
-            Log.Fatal(ex, "Failed to deserialize auras: {Auras}", JsonSerializer.SerializeToNode(auras, AuraDataSerializationContext.Default.JsonElement)?.ToJsonString() ?? "(null)");
+            Log.Fatal(ex, "Failed to deserialize previous state: {State}", JsonSerializer.SerializeToNode(serverSavedStateData, ServerSavedStateSerializationContext.Default.JsonElement)?.ToJsonString() ?? "(null)");
         }
 
         if (_generalItemNameMapping is not { } generalItemNameMapping ||
