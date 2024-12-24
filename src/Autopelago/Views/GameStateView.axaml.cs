@@ -1,3 +1,5 @@
+using System.Reactive.Threading.Tasks;
+
 using Autopelago.ViewModels;
 
 using Avalonia;
@@ -56,6 +58,18 @@ public partial class GameStateView : ReactiveUserControl<GameStateViewModel>
         if (ViewModel is { } viewModel)
         {
             viewModel.PlayerIsActivated = !viewModel.PlayerIsActivated;
+        }
+    }
+
+    private async void OnItemClicked(object? sender, PointerPressedEventArgs e)
+    {
+        if (ViewModel is { } viewModel)
+        {
+            CollectableItemViewModel item = (CollectableItemViewModel)(((Control)e.Source!).DataContext!);
+            if ((await viewModel.ConfirmItemHintCommand.Execute(item).ToTask()) == ConfirmItemHintResult.Ok)
+            {
+                _ = 0;
+            }
         }
     }
 }

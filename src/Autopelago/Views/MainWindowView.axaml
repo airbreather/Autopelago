@@ -12,6 +12,15 @@
     Title="Autopelago"
     Icon="/Assets/Images/Autopelago.ico"
     MinWidth="200"
-    MinHeight="150"
-    Content="{Binding ContentViewModel}">
+    MinHeight="150">
+    <Panel>
+        <ContentControl Content="{Binding ContentViewModel}" />
+        <Border Opacity="0.5" Background="White" IsVisible="{Binding DialogPopoverContent, Converter={x:Static ObjectConverters.IsNotNull}}" />
+        <Border MaxWidth="400" MaxHeight="300"
+                HorizontalAlignment="Center" VerticalAlignment="Center"
+                IsVisible="{Binding DialogPopoverContent, Converter={x:Static ObjectConverters.IsNotNull}}"
+                Background="{DynamicResource SystemRegionBrush}">
+            <ContentControl Content="{Binding DialogPopoverContent}" />
+        </Border>
+    </Panel>
 </reactiveUi:ReactiveWindow>

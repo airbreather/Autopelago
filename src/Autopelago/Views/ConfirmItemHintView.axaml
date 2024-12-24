@@ -1,0 +1,27 @@
+<reactiveUi:ReactiveUserControl
+    xmlns="https://github.com/avaloniaui"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:viewModels="using:Autopelago.ViewModels"
+    xmlns:reactiveUi="http://reactiveui.net"
+    Classes="GamerFont"
+    x:Class="Autopelago.Views.ConfirmItemHintView"
+    x:DataType="viewModels:ConfirmItemHintViewModel"
+    x:TypeArguments="viewModels:ConfirmItemHintViewModel">
+    <Grid ColumnDefinitions="*,*" RowDefinitions="*,Auto">
+        <TextBlock Margin="5" Grid.Column="0" Grid.Row="0" Grid.ColumnSpan="2"
+                   TextWrapping="WrapWithOverflow"
+                   TextTrimming="CharacterEllipsis">
+            Request a hint for <LineBreak/><Run Foreground="Yellow" Text="{Binding Item.Model.Name, FallbackValue={x:Null}}" />?
+        </TextBlock>
+        <Button Margin="5" Grid.Column="0" Grid.Row="1" HorizontalAlignment="Center"
+                Command="{Binding SetResultCommand}"
+                CommandParameter="{x:Static viewModels:ConfirmItemHintResult.Ok}"
+                IsDefault="True"
+                Content="OK" />
+        <Button Margin="5" Grid.Column="1" Grid.Row="1" HorizontalAlignment="Center"
+                Command="{Binding SetResultCommand}"
+                CommandParameter="{x:Static viewModels:ConfirmItemHintResult.Cancel}"
+                IsCancel="True"
+                Content="Cancel" />
+    </Grid>
+</reactiveUi:ReactiveUserControl>
