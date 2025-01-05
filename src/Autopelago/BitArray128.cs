@@ -1,12 +1,13 @@
 using System.Collections;
 using System.Diagnostics;
+using System.Diagnostics.CodeAnalysis;
 using System.Runtime.InteropServices;
 
 namespace Autopelago;
 
 [StructLayout(LayoutKind.Auto, Pack = 1)]
 [DebuggerTypeProxy(typeof(BitArray128DebugView))]
-public struct BitArray128
+public struct BitArray128 : IEquatable<BitArray128>
 {
     private readonly byte _length;
 
@@ -60,6 +61,38 @@ public struct BitArray128
     public void Clear()
     {
         _bits = UInt128.Zero;
+    }
+
+    public static bool operator ==(BitArray128 left, BitArray128 right)
+    {
+        return left.Equals(right);
+    }
+
+    public static bool operator !=(BitArray128 left, BitArray128 right)
+    {
+        return !(left == right);
+    }
+
+    public readonly bool Equals(BitArray128 other)
+    {
+        return
+            Length == other.Length &&
+            _bits == other._bits;
+    }
+
+    public override bool Equals([NotNullWhen(true)] object? obj)
+    {
+        return
+            obj is BitArray128 other &&
+            Equals(other);
+    }
+
+    public override int GetHashCode()
+    {
+        return HashCode.Combine(
+            Length,
+            _bits
+        );
     }
 
     private sealed class BitArray128DebugView

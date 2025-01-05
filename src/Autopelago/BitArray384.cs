@@ -104,8 +104,23 @@ public struct BitArray384 : IEquatable<BitArray384>
         _bits = default;
     }
 
+    public static bool operator ==(BitArray384 left, BitArray384 right)
+    {
+        return left.Equals(right);
+    }
+
+    public static bool operator !=(BitArray384 left, BitArray384 right)
+    {
+        return !(left == right);
+    }
+
     public readonly bool Equals(BitArray384 other)
     {
+        if (Length != other.Length)
+        {
+            return false;
+        }
+
         ReadOnlySpan<ulong> span1 = this._bits;
         ReadOnlySpan<ulong> span2 = other._bits;
         return span1.SequenceEqual(span2);
