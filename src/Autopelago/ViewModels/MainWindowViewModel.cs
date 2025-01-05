@@ -4,6 +4,8 @@ using System.Reactive.Subjects;
 using ReactiveUI;
 using ReactiveUI.SourceGenerators;
 
+using Serilog;
+
 namespace Autopelago.ViewModels;
 
 public sealed partial class MainWindowViewModel : ViewModelBase, IDisposable
@@ -55,6 +57,7 @@ public sealed partial class MainWindowViewModel : ViewModelBase, IDisposable
                     cts = new();
                     oldCts.Cancel();
                     ContentViewModel = Error;
+                    Log.Error(ex, "Unhandled exception");
                 });
                 ContentViewModel = gameStateViewModel;
                 provider.RunAsync(cts.Token);
