@@ -25,6 +25,8 @@ public sealed class GameAndContext
 public sealed record AutopelagoWorldMetadata
 {
     public required string VersionStamp { get; init; }
+
+    public required string VictoryLocationName { get; init; }
 }
 
 public sealed record MultiworldInfo
@@ -193,11 +195,17 @@ the one we were looking for (again, '{GameDefinitions.Instance.VersionStamp}'), 
 """);
         }
 
+        _game.InitializeVictoryLocation(GameDefinitions.Instance.LocationsByName[autopelagoWorldMetadata.VictoryLocationName]);
+        GameDefinitions.Instance.TryGetLandmarkRegion(_game.VictoryLocation, out RegionKey victoryLandmark);
+        BitArray384 locationIsReachable = GameDefinitions.Instance.GetLocationsBeforeVictoryLandmark(victoryLandmark);
         _slotInfo = connected.SlotInfo.ToFrozenDictionary();
         _slotByPlayerAlias = connected.Players.ToFrozenDictionary(p => p.Alias, p => p.Slot);
         LocationScoutsPacketModel locationScouts = new()
         {
-            Locations = _locationsById!.Where(kvp => !GameDefinitions.Instance[kvp.Value].RewardIsFixed).Select(kvp => kvp.Key).ToArray(),
+            Locations = _locationsById!
+                .Where(kvp => locationIsReachable[kvp.Value.N])
+                .Select(kvp => kvp.Key)
+                .ToArray(),
         };
 
         GetPacketModel getPacket = new() { Keys = [ServerSavedStateKey] };
@@ -225,7 +233,14 @@ the one we were looking for (again, '{GameDefinitions.Instance.VersionStamp}'), 
 
     private void Handle(LocationInfoPacketModel locationInfo)
     {
-        Dictionary<ArchipelagoItemFlags, HashSet<LocationKey>> spoilerData = [];
+        Dictionary<ArchipelagoItemFlags, HashSet<LocationKey>> spoilerData = new()
+        {
+            // these two are always needed for Smart / Conspiratorial, regardless of what's in the
+            // actual multiworld (e.g., maybe all traps are nonlocal).
+            [ArchipelagoItemFlags.LogicalAdvancement] = [],
+            [ArchipelagoItemFlags.Trap] = [],
+        };
+
         foreach (ItemModel networkItem in locationInfo.Locations)
         {
             (CollectionsMarshal.GetValueRefOrAddDefault(spoilerData, networkItem.Flags, out _) ??= [])

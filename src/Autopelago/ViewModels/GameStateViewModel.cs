@@ -23,7 +23,7 @@ public sealed partial class GameStateViewModel : ViewModelBase, IDisposable
         "pack_rat", "rat_pack",
 
         // this one is fixed and doesn't really get sent by others.
-        "blackbird",
+        "moon_shoes",
 
         // this one is half-fake.
         "Victory",
@@ -50,9 +50,15 @@ public sealed partial class GameStateViewModel : ViewModelBase, IDisposable
 
     private readonly CompositeDisposable _disposables = [];
 
+    [ObservableAsProperty] private int _mapHeight = 450;
+
+    [ObservableAsProperty] private Rect _mapRect = new(0, 0, 300, 450);
+
     [Reactive] private string _ratThought = s_ratThoughts[0];
 
     [Reactive] private bool _playerIsActivated;
+
+    [Reactive] private bool _gameIsCompleted;
 
     [Reactive] private bool _paused;
 
@@ -60,9 +66,13 @@ public sealed partial class GameStateViewModel : ViewModelBase, IDisposable
 
     [Reactive(SetModifier = AccessModifier.Private)] private LocationDefinitionModel _currentLocation = GameDefinitions.Instance[GameDefinitions.Instance.StartLocation];
 
+    [Reactive(SetModifier = AccessModifier.Private)] private string _currentLocationName = GameDefinitions.Instance[GameDefinitions.Instance.StartLocation].Name;
+
     [Reactive(SetModifier = AccessModifier.Private)] private Point _currentPoint;
 
     [Reactive(SetModifier = AccessModifier.Private)] private LocationDefinitionModel _targetLocation = GameDefinitions.Instance[GameDefinitions.Instance.StartLocation];
+
+    [Reactive(SetModifier = AccessModifier.Private)] private string _targetLocationName = GameDefinitions.Instance[GameDefinitions.Instance.StartLocation].Name;
 
     [Reactive(SetModifier = AccessModifier.Private)] private Point _targetPoint;
 
@@ -88,6 +98,8 @@ public sealed partial class GameStateViewModel : ViewModelBase, IDisposable
 
     [Reactive(SetModifier = AccessModifier.Private)] private bool _movingToConspiratorial;
 
+    [Reactive(SetModifier = AccessModifier.Private)] private bool _showMoonFlag;
+
     public GameStateViewModel()
         : this(new(Settings.ForDesigner))
     {
@@ -109,6 +121,62 @@ public sealed partial class GameStateViewModel : ViewModelBase, IDisposable
 
         this.ObservableForProperty(x => x.Paused)
             .Subscribe(paused => provider.SetPaused(paused.Value))
+            .DisposeWith(_disposables);
+
+        provider.CurrentGameState
+            .Select(g => g.LocationIsRelevant)
+            .DistinctUntilChanged()
+            .Subscribe(locationIsRelevant =>
+            {
+                foreach (FillerLocationViewModel filler in FillerLocations)
+                {
+                    filler.Relevant = locationIsRelevant[filler.Model.Key.N];
+                }
+
+                HashSet<ItemKey> relevantItems = [];
+                foreach (LandmarkRegionViewModel landmark in LandmarkRegions)
+                {
+                    if (!locationIsRelevant[landmark.Location.Key.N])
+                    {
+                        continue;
+                    }
+
+                    landmark.GameRequirementToolTipSource.Model.Visit(r =>
+                    {
+                        if (r is ReceivedItemRequirement item)
+                        {
+                            relevantItems.Add(item.ItemKey);
+                        }
+
+                        return true;
+                    });
+                }
+
+                foreach (CollectableItemViewModel item in ProgressionItemsInPanel)
+                {
+                    item.Relevant = relevantItems.Contains(item.Model.Key);
+                }
+            })
+            .DisposeWith(_disposables);
+
+        IObservable<int> mapHeightObservable = provider.CurrentGameState
+            .Select(g => g.VictoryLocation)
+            .DistinctUntilChanged()
+            .Select(l => GameDefinitions.Instance[l].Name switch
+            {
+                "Captured Goldfish" => 148,
+                "Secret Cache" => 301,
+                _ => 450,
+            })
+            .StartWith(450);
+
+        _mapHeightHelper = mapHeightObservable
+            .ToProperty(this, x => x.MapHeight)
+            .DisposeWith(_disposables);
+
+        _mapRectHelper = mapHeightObservable
+            .Select(h => new Rect(0, 0, 300, h))
+            .ToProperty(this, x => x.MapRect)
             .DisposeWith(_disposables);
 
         LandmarkRegions =
@@ -160,11 +228,11 @@ public sealed partial class GameStateViewModel : ViewModelBase, IDisposable
         int prevRatCount = 0;
         int prevReceivedItemsCount = 0;
         int prevCheckedLocationsCount = 0;
-        bool wasCompleted = false;
         provider.CurrentGameState
             .ObserveOn(AvaloniaScheduler.Instance)
             .Subscribe(g =>
             {
+                GameIsCompleted = g.IsCompleted;
                 RatCount = g.RatCount;
                 FoodFactor = g.FoodFactor;
                 EnergyFactor = g.EnergyFactor;
@@ -186,6 +254,17 @@ public sealed partial class GameStateViewModel : ViewModelBase, IDisposable
 
                 CurrentLocation = GameDefinitions.Instance[g.CurrentLocation];
                 TargetLocation = GameDefinitions.Instance[g.TargetLocation];
+                if (g.IsCompleted && GameDefinitions.Instance[g.VictoryLocation].Name == "Snakes on a Planet")
+                {
+                    CurrentLocationName = "Moon, The";
+                    TargetLocationName = "Moon, The";
+                }
+                else
+                {
+                    CurrentLocationName = CurrentLocation.Name;
+                    TargetLocationName = TargetLocation.Name;
+                }
+
                 if (g.RatCount != prevRatCount)
                 {
                     prevRatCount = g.RatCount;
@@ -229,14 +308,11 @@ public sealed partial class GameStateViewModel : ViewModelBase, IDisposable
                 }
 
                 prevCheckedLocationsCount = g.CheckedLocations.Count;
-
-                if (g.IsCompleted && !wasCompleted)
-                {
-                    LandmarkRegions[GameDefinitions.Instance.GoalRegion.N].Checked = true;
-                }
-
-                wasCompleted = g.IsCompleted;
                 TargetPoint = locationPointLookup[g.TargetLocation.N] + FillerRegionViewModel.ToCenter;
+                if (g.HasCompletedGoal)
+                {
+                    ShowMoonFlag = GameDefinitions.Instance[g.VictoryLocation].Name == "Snakes on a Planet";
+                }
             })
             .DisposeWith(_disposables);
 
@@ -244,7 +320,7 @@ public sealed partial class GameStateViewModel : ViewModelBase, IDisposable
             .CombineLatest(this.ObservableForProperty(x => x.PlayerIsActivated))
             .Subscribe(chg =>
             {
-                if (!chg.Second.Value)
+                if (!chg.Second.Value || chg.First.IsCompleted)
                 {
                     CurrentPathPoints.Clear();
                     return;
@@ -267,8 +343,17 @@ public sealed partial class GameStateViewModel : ViewModelBase, IDisposable
         provider.CurrentGameState
             .Select(SpaceOut)
             .Switch()
-            .Subscribe(v =>
+            .Subscribe(gv =>
             {
+                (Game gameState, LocationVector v) = gv;
+                if (gameState.IsCompleted && GameDefinitions.Instance[gameState.VictoryLocation].Name == "Snakes on a Planet")
+                {
+                    CurrentPoint = LandmarkRegionViewModel.MoonLocation;
+                    RelativeAngle = 0;
+                    ScaleX = 1;
+                    return;
+                }
+
                 Point previousPoint = locationPointLookup[v.PreviousLocation.N];
                 CurrentPoint = locationPointLookup[v.CurrentLocation.N];
                 double trueAngle = previousPoint == CurrentPoint
@@ -287,21 +372,21 @@ public sealed partial class GameStateViewModel : ViewModelBase, IDisposable
                 }
             })
             .DisposeWith(_disposables);
-        IObservable<LocationVector> SpaceOut(Game gameState)
+        IObservable<(Game G, LocationVector V)> SpaceOut(Game gameState)
         {
             ReadOnlyCollection<LocationVector> locations = gameState.PreviousStepMovementLog;
             if (locations.Count < 2)
             {
-                return locations.ToObservable();
+                return locations.Select(v => (gameState, v)).ToObservable();
             }
 
-            return Observable.Create<LocationVector>(async (obs, cancellationToken) =>
+            return Observable.Create<(Game G, LocationVector V)>(async (obs, cancellationToken) =>
             {
-                obs.OnNext(locations[0]);
+                obs.OnNext((gameState, locations[0]));
                 for (int i = 1; i < locations.Count; i++)
                 {
                     await Task.Delay(MovementAnimationTime, cancellationToken);
-                    obs.OnNext(locations[i]);
+                    obs.OnNext((gameState, locations[i]));
                 }
             });
         }
@@ -313,6 +398,8 @@ public sealed partial class GameStateViewModel : ViewModelBase, IDisposable
     }
 
     public static TimeSpan MovementAnimationTime { get; } = TimeSpan.FromSeconds(0.1);
+
+    public BitmapPair MoonFlag { get; } = new("moon_comma_the");
 
     public string SlotName { get; }
 

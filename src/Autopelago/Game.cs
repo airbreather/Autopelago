@@ -99,9 +99,27 @@ public sealed partial class Game
     public BitArray384 LocationIsChecked => _checkedLocations;
     public ReadOnlyCollection<LocationKey> CheckedLocations { get; }
 
+    private BitArray384 _locationIsRelevant;
+    public BitArray384 LocationIsRelevant => _locationIsRelevant;
+
     public ReadOnlyCollection<LocationKey> PriorityPriorityLocations { get; }
 
     public ReadOnlyCollection<LocationKey> PriorityLocations { get; }
+
+    private LocationKey _victoryLocation = LocationKey.Nonexistent;
+    public LocationKey VictoryLocation
+    {
+        get
+        {
+            using Lock.Scope _ = EnterLockScope();
+            if (_victoryLocation == LocationKey.Nonexistent)
+            {
+                throw new InvalidOperationException("Game has not started yet.");
+            }
+
+            return _victoryLocation;
+        }
+    }
 
     public FrozenDictionary<ArchipelagoItemFlags, BitArray384> SpoilerData
     {
@@ -185,9 +203,9 @@ public sealed partial class Game
 
     public bool HasStarted { get; private set; }
 
-    public bool HasCompletedGoal => _receivedItems[GameDefinitions.Instance.GoalItem.N] > 0;
+    public bool HasCompletedGoal => _checkedLocations[_victoryLocation.N];
 
-    public bool IsCompleted => _checkedLocations.HasAllSet;
+    public bool IsCompleted => _checkedLocations.TrueCount == _locationIsRelevant.TrueCount;
 
     private static int GetPermanentRollModifier(int ratCount)
     {
@@ -263,7 +281,7 @@ public sealed partial class Game
 
             _checkedLocations[location.N] = true;
             _checkedLocationsOrder.Add(location);
-            --_regionUncheckedLocationsCount[GameDefinitions.Instance.RegionKey[location].N];
+            --_regionUncheckedLocationsCount[GameDefinitions.Instance.Region[location].N];
         }
 
         _checkedLocationsInitialized = true;
@@ -331,6 +349,29 @@ public sealed partial class Game
         _initializedServerSavedState = true;
     }
 
+    public void InitializeVictoryLocation(LocationKey victoryLocation)
+    {
+        using Lock.Scope __ = EnterLockScope();
+        if (_victoryLocation != LocationKey.Nonexistent)
+        {
+            throw new InvalidOperationException("Victory location has already been initialized.");
+        }
+
+        ReadOnlySpan<LocationKey> allowedLocations =
+        [
+            GameDefinitions.Instance[GameDefinitions.Instance.RegionsByYamlKey["captured_goldfish"]].Locations[0],
+            GameDefinitions.Instance[GameDefinitions.Instance.RegionsByYamlKey["secret_cache"]].Locations[0],
+            GameDefinitions.Instance[GameDefinitions.Instance.RegionsByYamlKey["snakes_on_a_planet"]].Locations[0],
+        ];
+
+        if (!allowedLocations.Contains(victoryLocation))
+        {
+            throw new InvalidDataException("Location is not allowed to be a victory location.");
+        }
+
+        _victoryLocation = victoryLocation;
+    }
+
     public AddPriorityLocationResult? AddPriorityLocation(LocationKey toPrioritize)
     {
         using Lock.Scope _ = EnterLockScope();
@@ -341,7 +382,7 @@ public sealed partial class Game
         }
 
         _priorityLocations.Add(toPrioritize);
-        return _hardLockedRegions[GameDefinitions.Instance.RegionKey[toPrioritize].N]
+        return _hardLockedRegions[GameDefinitions.Instance.Region[toPrioritize].N]
             ? AddPriorityLocationResult.AddedUnreachable
             : AddPriorityLocationResult.AddedReachable;
     }
@@ -388,6 +429,12 @@ public sealed partial class Game
         _ratCount = null;
         _spoilerData ??= GameDefinitions.Instance.UnrandomizedSpoilerData;
         _initializedServerSavedState = true;
+        if (_victoryLocation == LocationKey.Nonexistent)
+        {
+            _victoryLocation = GameDefinitions.Instance[GameDefinitions.Instance.RegionsByYamlKey["snakes_on_a_planet"]].Locations[0];
+        }
+
+        _locationIsRelevant = GameDefinitions.Instance.GetLocationsBeforeVictoryLandmark(GameDefinitions.Instance.Region[_victoryLocation]);
         HasStarted = true;
         RecalculateClearable();
     }
@@ -398,15 +445,15 @@ public sealed partial class Game
         using Lock.Scope _ = EnterLockScope();
         if (IsCompleted)
         {
-            if (CurrentLocation != GameDefinitions.Instance.GoalLocation)
+            if (CurrentLocation != _victoryLocation)
             {
-                CurrentLocation = GameDefinitions.Instance.GoalLocation;
-                TargetLocation = GameDefinitions.Instance.GoalLocation;
+                CurrentLocation = _victoryLocation;
+                TargetLocation = _victoryLocation;
                 _prevMovementLog.Clear();
                 _prevMovementLog.Add(new()
                 {
-                    PreviousLocation = GameDefinitions.Instance.GoalLocation,
-                    CurrentLocation = GameDefinitions.Instance.GoalLocation,
+                    PreviousLocation = _victoryLocation,
+                    CurrentLocation = _victoryLocation,
                 });
             }
 
@@ -564,7 +611,7 @@ public sealed partial class Game
                         _priorityPriorityLocations.Remove(TargetLocation);
                         break;
 
-                    case TargetLocationReason.GoMode when CurrentLocation == GameDefinitions.Instance.GoalLocation:
+                    case TargetLocationReason.GoMode when CurrentLocation == _victoryLocation:
                         MarkCurrentLocationChecked();
                         break;
                 }
@@ -613,8 +660,8 @@ public sealed partial class Game
         {
             _checkedLocations[CurrentLocation.N] = true;
             _checkedLocationsOrder.Add(CurrentLocation);
-            --_regionUncheckedLocationsCount[GameDefinitions.Instance.RegionKey[CurrentLocation].N];
-            _softLockedRegions[GameDefinitions.Instance.RegionKey[CurrentLocation].N] = false;
+            --_regionUncheckedLocationsCount[GameDefinitions.Instance.Region[CurrentLocation].N];
+            _softLockedRegions[GameDefinitions.Instance.Region[CurrentLocation].N] = false;
             MercyModifier = 0;
             bumpMercyModifierForNextTime = false;
         }
@@ -635,7 +682,7 @@ public sealed partial class Game
             _checkedLocations[location.N] = true;
             _checkedLocationsOrder.Add(location);
             locationIsNewlyChecked[location.N] = true;
-            RegionKey region = GameDefinitions.Instance.RegionKey[location];
+            RegionKey region = GameDefinitions.Instance.Region[location];
             _softLockedRegions[region.N] = false;
             --_regionUncheckedLocationsCount[region.N];
         }

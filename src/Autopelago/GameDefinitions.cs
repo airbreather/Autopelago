@@ -36,10 +36,6 @@ public sealed class GameDefinitions
     // the same ergonomic benefits can come from making wrappers for those arrays.
     public required LocationKey StartLocation { get; init; }
 
-    public required LocationKey GoalLocation { get; init; }
-
-    public required ItemKey GoalItem { get; init; }
-
     public required ImmutableArray<ItemKey> ItemsWithNonzeroRatCounts { get; init; }
 
     public required FrozenDictionary<string, RegionKey> RegionsByYamlKey { get; init; }
@@ -62,22 +58,54 @@ public sealed class GameDefinitions
 
     public ref readonly LocationDefinitionModel this[RegionLocationKey key] => ref AllLocations.AsSpan()[AllRegions[key.Region.N].Locations[key.N].N];
 
-    public RegionKeyHelper RegionKey => new(AllLocations);
+    public RegionHelper Region => new(AllLocations);
 
-    public RegionHelper Region => new(AllLocations, AllRegions);
+    public RegionDefinitionHelper RegionDefinition => new(AllLocations, AllRegions);
 
-    public RegionLocationKey StartRegionLocation => this[StartLocation].RegionLocationKey;
-
-    public RegionLocationKey GoalRegionLocation => this[GoalLocation].RegionLocationKey;
-
-    public RegionKey StartRegion => StartRegionLocation.Region;
-
-    public RegionKey GoalRegion => GoalRegionLocation.Region;
+    public RegionKey StartRegion => this[StartLocation].RegionLocationKey.Region;
 
     public bool TryGetLandmarkRegion(LocationKey key, out RegionKey region)
     {
         region = new() { N = (byte)key.N };
         return key.N < LandmarkRegionCount;
+    }
+
+    public BitArray384 GetLocationsBeforeVictoryLandmark(RegionKey victoryRegion)
+    {
+        BitArray384 result = new(AllLocations.Length);
+        using Borrowed<Queue<RegionKey>> qBorrow = new();
+        Queue<RegionKey> q = qBorrow.Value;
+        q.Clear();
+
+        BitArray128 visitedRegions = new(Instance.AllRegions.Length);
+        visitedRegions.SetAll(false);
+
+        // ignore regions after the victory location.
+        foreach (RegionKey skipRegion in Instance[victoryRegion].Connected.Forward)
+        {
+            visitedRegions[skipRegion.N] = true;
+        }
+
+        q.Enqueue(Instance.StartRegion);
+        while (q.TryDequeue(out RegionKey region))
+        {
+            visitedRegions[region.N] = true;
+            foreach (LocationKey location in Instance[region].Locations)
+            {
+                result[location.N] = true;
+            }
+
+            foreach ((RegionKey connectedRegion, _) in Instance[region].Connected.All)
+            {
+                if (!visitedRegions[connectedRegion.N])
+                {
+                    visitedRegions[connectedRegion.N] = true;
+                    q.Enqueue(connectedRegion);
+                }
+            }
+        }
+
+        return result;
     }
 
     private static BitArray384 ToSpoilerArray(IEnumerable<LocationKey> locations, int locationCount)
@@ -103,7 +131,6 @@ public sealed class GameDefinitions
 
         ItemDefinitionsModel items = ItemDefinitionsModel.DeserializeFrom(itemsMap);
         RegionDefinitionsModel regions = RegionDefinitionsModel.DeserializeFrom(regionsMap, items);
-        ItemKey goalItem = items.AllItems.First(i => i.Name == "Victory").Key;
         return new()
         {
             VersionStamp = versionStamp,
@@ -114,8 +141,6 @@ public sealed class GameDefinitions
             ProgressionItemsByYamlKey = items.ProgressionItemsByYamlKey,
 
             StartLocation = regions.AllLocations.First(l => l.Connected.Backward.IsEmpty).Key,
-            GoalLocation = regions.AllLocations.First(l => l.UnrandomizedItem == goalItem).Key,
-            GoalItem = goalItem,
             ItemsWithNonzeroRatCounts = items.ItemsWithNonzeroRatCounts,
             RegionsByYamlKey = regions.AllRegions.ToFrozenDictionary(r => r.YamlKey, r => r.Key),
             ItemsByName = items.AllItems.ToFrozenDictionary(i => i.Name, i => i.Key),
@@ -129,11 +154,11 @@ public sealed class GameDefinitions
     }
 
     [StructLayout(LayoutKind.Auto)]
-    public readonly struct RegionKeyHelper
+    public readonly struct RegionHelper
     {
         private readonly ImmutableArray<LocationDefinitionModel> _allLocations;
 
-        internal RegionKeyHelper(ImmutableArray<LocationDefinitionModel> allLocations)
+        internal RegionHelper(ImmutableArray<LocationDefinitionModel> allLocations)
         {
             _allLocations = allLocations;
         }
@@ -142,13 +167,13 @@ public sealed class GameDefinitions
     }
 
     [StructLayout(LayoutKind.Auto)]
-    public readonly struct RegionHelper
+    public readonly struct RegionDefinitionHelper
     {
         private readonly ImmutableArray<LocationDefinitionModel> _allLocations;
 
         private readonly ImmutableArray<RegionDefinitionModel> _allRegions;
 
-        internal RegionHelper(ImmutableArray<LocationDefinitionModel> allLocations, ImmutableArray<RegionDefinitionModel> allRegions)
+        internal RegionDefinitionHelper(ImmutableArray<LocationDefinitionModel> allLocations, ImmutableArray<RegionDefinitionModel> allRegions)
         {
             _allLocations = allLocations;
             _allRegions = allRegions;
@@ -286,6 +311,8 @@ public readonly record struct ItemDefinitionModel
 {
     public required ItemKey Key { get; init; }
 
+    // I positively want to keep this around:
+    // ReSharper disable once UnusedAutoPropertyAccessor.Global
     public required string? AssociatedGame { get; init; }
 
     public required string Name { get; init; }
@@ -418,12 +445,6 @@ public readonly struct Connected<T>
     public ImmutableArray<T> Backward { get; }
 
     public ImmutableArray<(T Next, Direction Direction)> All { get; }
-
-    public ImmutableArray<T> this[Direction direction] => direction switch
-    {
-        Direction.TowardsGoal => Forward,
-        Direction.TowardsStart => Backward,
-    };
 }
 
 public sealed class RegionDefinitionsModel
@@ -518,10 +539,6 @@ public sealed class RegionDefinitionsModel
                     forward: [.. forward.Distinct().OrderBy(k => k.N)],
                     backward: [.. backward.Distinct().OrderBy(k => k.N)]
                 ),
-                ConnectedAsRegionLocations = new(
-                    forward: [.. forward.Distinct().Select(l => allLocations[l.N].RegionLocationKey).OrderBy(l => l.Region.N).ThenBy(l => l.N)],
-                    backward: [.. backward.Distinct().Select(l => allLocations[l.N].RegionLocationKey).OrderBy(l => l.Region.N).ThenBy(l => l.N)]
-                ),
             };
         }
 
@@ -577,9 +594,7 @@ public sealed record LandmarkRegionDefinitionModel : RegionDefinitionModel
             FlavorText = map.TryGetValue("flavor_text", out string? flavorText) ? flavorText : null,
             UnrandomizedItem = items.ProgressionItemsByYamlKey.GetValueOrDefault(map["unrandomized_item"].To<string>()),
             AbilityCheckDC = abilityCheckDC,
-            RewardIsFixed = map.TryGetValue("reward_is_fixed", out bool rewardIsFixed) && rewardIsFixed,
             Connected = new([], []), // we'll have to deal with this later.
-            ConnectedAsRegionLocations = new([], []), // we'll have to deal with this later.
         };
     }
 
@@ -660,9 +675,7 @@ public sealed record FillerRegionDefinitionModel : RegionDefinitionModel
                 Name = nameTemplate.Replace("{n}", $"{i + 1}"),
                 AbilityCheckDC = abilityCheckDC,
                 UnrandomizedItem = unrandomizedItems[i],
-                RewardIsFixed = false,
                 Connected = new([], []), // we'll have to deal with this later.
-                ConnectedAsRegionLocations = new([], []), // we'll have to deal with this later.
             };
         }
 
@@ -694,7 +707,7 @@ public sealed record FillerRegionDefinitionModel : RegionDefinitionModel
     {
         public required string Key { get; init; }
 
-        public int ItemCount { get; init; } = 1;
+        public int ItemCount { get; private init; } = 1;
 
         public static ItemRefModel DeserializeFrom(YamlNode node)
         {
@@ -728,11 +741,7 @@ public readonly record struct LocationDefinitionModel
 
     public required ItemKey UnrandomizedItem { get; init; }
 
-    public required bool RewardIsFixed { get; init; }
-
     public required Connected<LocationKey> Connected { get; init; }
-
-    public required Connected<RegionLocationKey> ConnectedAsRegionLocations { get; init; }
 
     public bool Equals(LocationDefinitionModel other)
     {
@@ -749,11 +758,6 @@ public readonly record struct LocationDefinitionModel
 
 public abstract record GameRequirement
 {
-    public virtual bool Satisfied(ReadOnlySpan<int> receivedItems)
-    {
-        return true;
-    }
-
     public static GameRequirement DeserializeFrom(YamlNode node, ItemDefinitionsModel lookup)
     {
         if (node is not YamlMappingNode { Children: [(YamlScalarNode keyNode, YamlNode valueNode)] })
@@ -771,6 +775,16 @@ public abstract record GameRequirement
             _ => throw new InvalidDataException($"Unrecognized requirement: {keyNode.Value}"),
         };
     }
+
+    public virtual bool Satisfied(ReadOnlySpan<int> receivedItems)
+    {
+        return true;
+    }
+
+    public virtual bool Visit(Func<GameRequirement, bool> visitor)
+    {
+        return visitor(this);
+    }
 }
 
 public sealed record AllChildrenGameRequirement : GameRequirement
@@ -787,6 +801,24 @@ public sealed record AllChildrenGameRequirement : GameRequirement
         foreach (GameRequirement child in Children)
         {
             if (!child.Satisfied(receivedItems))
+            {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    public override bool Visit(Func<GameRequirement, bool> visitor)
+    {
+        if (!visitor(this))
+        {
+            return false;
+        }
+
+        foreach (GameRequirement child in Children)
+        {
+            if (!child.Visit(visitor))
             {
                 return false;
             }
@@ -830,6 +862,24 @@ public sealed record AnyChildGameRequirement : GameRequirement
         return false;
     }
 
+    public override bool Visit(Func<GameRequirement, bool> visitor)
+    {
+        if (!visitor(this))
+        {
+            return false;
+        }
+
+        foreach (GameRequirement child in Children)
+        {
+            if (!child.Visit(visitor))
+            {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
     public bool Equals(AnyChildGameRequirement? other)
     {
         return
@@ -871,6 +921,24 @@ public sealed record AnyTwoChildrenGameRequirement : GameRequirement
         }
 
         return false;
+    }
+
+    public override bool Visit(Func<GameRequirement, bool> visitor)
+    {
+        if (!visitor(this))
+        {
+            return false;
+        }
+
+        foreach (GameRequirement child in Children)
+        {
+            if (!child.Visit(visitor))
+            {
+                return false;
+            }
+        }
+
+        return true;
     }
 
     public bool Equals(AnyTwoChildrenGameRequirement? other)

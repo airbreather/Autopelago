@@ -1,3 +1,6 @@
+using System.Collections;
+using System.Diagnostics;
+using System.Diagnostics.CodeAnalysis;
 using System.Numerics;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
@@ -6,7 +9,8 @@ namespace Autopelago;
 
 // 384 bits = 48 bytes = 6 ulong values.
 [StructLayout(LayoutKind.Auto)]
-public struct BitArray384
+[DebuggerTypeProxy(typeof(BitArray384DebugView))]
+public struct BitArray384 : IEquatable<BitArray384>
 {
     public static readonly BitArray384 AllFalse = new(384, false);
 
@@ -62,6 +66,23 @@ public struct BitArray384
 
     public readonly bool HasAnySet => ((ReadOnlySpan<ulong>)_bits).ContainsAnyExcept(0UL);
 
+    public readonly int TrueCount
+    {
+        get
+        {
+            ReadOnlySpan<ulong> bits = _bits;
+            int result = 0;
+            foreach (ulong val in bits)
+            {
+                result += BitOperations.PopCount(val);
+            }
+
+            return result;
+        }
+    }
+
+    public readonly int FalseCount => Length - TrueCount;
+
     public void SetAll(bool value)
     {
         if (value)
@@ -83,6 +104,33 @@ public struct BitArray384
         _bits = default;
     }
 
+    public readonly bool Equals(BitArray384 other)
+    {
+        ReadOnlySpan<ulong> span1 = this._bits;
+        ReadOnlySpan<ulong> span2 = other._bits;
+        return span1.SequenceEqual(span2);
+    }
+
+    public override bool Equals([NotNullWhen(true)] object? obj)
+    {
+        return
+            obj is BitArray384 other &&
+            Equals(other);
+    }
+
+    public override int GetHashCode()
+    {
+        return HashCode.Combine(
+            Length,
+            _bits[0],
+            _bits[1],
+            _bits[2],
+            _bits[3],
+            _bits[4],
+            _bits[5]
+        );
+    }
+
     [InlineArray(384 >> 6)]
     private struct Bits384
     {
@@ -92,5 +140,20 @@ public struct BitArray384
         private ulong _field;
 #pragma warning restore IDE0051
 #pragma warning restore IDE0044
+    }
+
+    private sealed class BitArray384DebugView
+    {
+        public BitArray384DebugView(BitArray384 bits)
+        {
+            Bits = new(bits.Length);
+            for (int i = 0; i < bits.Length; i++)
+            {
+                Bits[i] = bits[i];
+            }
+        }
+
+        [DebuggerBrowsable(DebuggerBrowsableState.RootHidden)]
+        public BitArray Bits { get; }
     }
 }

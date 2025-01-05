@@ -21,10 +21,10 @@
             <TextBlock FontSize="40">
                 u win.
             </TextBlock>
-            <views:SingleLandmarkRegionView Height="30" Width="30" ViewModel="{Binding MoonCommaThe}" />
+            <views:BitmapPairView Height="30" Width="30" ViewModel="{Binding MoonCommaThe}" />
         </StackPanel>
 
-        <Button Grid.Row="2"
+        <Button Grid.Row="1"
                 Classes="GamerFont"
                 HorizontalAlignment="Stretch"
                 HorizontalContentAlignment="Center"

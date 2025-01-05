@@ -44,9 +44,9 @@ public sealed partial class Game
 
         TargetLocationReason result = default;
         LocationKey? priorityTargetLocation = null;
-        if (!(_hardLockedRegions[GameDefinitions.Instance.GoalRegion.N] || HasCompletedGoal))
+        if (!(_hardLockedRegions[_victoryLocation.N] || HasCompletedGoal))
         {
-            priorityTargetLocation = GameDefinitions.Instance.GoalLocation;
+            priorityTargetLocation = _victoryLocation;
             result = TargetLocationReason.GoMode;
         }
 
@@ -54,7 +54,7 @@ public sealed partial class Game
         {
             foreach (LocationKey l in _priorityPriorityLocations)
             {
-                if (!_hardLockedRegions[GameDefinitions.Instance.RegionKey[l].N])
+                if (!_hardLockedRegions[GameDefinitions.Instance.Region[l].N])
                 {
                     priorityTargetLocation = l;
                     result = TargetLocationReason.PriorityPriority;
@@ -66,7 +66,7 @@ public sealed partial class Game
             {
                 foreach (LocationKey l in _priorityLocations)
                 {
-                    if (!_hardLockedRegions[GameDefinitions.Instance.RegionKey[l].N])
+                    if (!_hardLockedRegions[GameDefinitions.Instance.Region[l].N])
                     {
                         priorityTargetLocation = l;
                         result = TargetLocationReason.Priority;
@@ -473,6 +473,13 @@ public sealed partial class Game
         visitedRegions.SetAll(false);
 
         q.Enqueue(GameDefinitions.Instance.StartRegion);
+
+        // ignore regions after the victory location.
+        foreach (RegionKey skipRegion in GameDefinitions.Instance.RegionDefinition[_victoryLocation].Connected.Forward)
+        {
+            visitedRegions[skipRegion.N] = true;
+        }
+
         while (q.TryDequeue(out RegionKey region))
         {
             visitedRegions[region.N] = true;
@@ -485,7 +492,7 @@ public sealed partial class Game
                     _softLockedRegions[region.N] = false;
                 }
 
-                if (!landmark.Requirement.Satisfied(_receivedItems) && landmark.Key != GameDefinitions.Instance.GoalRegion)
+                if (!landmark.Requirement.Satisfied(_receivedItems))
                 {
                     continue;
                 }

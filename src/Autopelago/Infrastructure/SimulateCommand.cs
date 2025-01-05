@@ -213,7 +213,7 @@ internal sealed class SimulateCommand : CancelableAsyncCommand<SimulateSettings>
                     {
                         RegionLocationKey regionLocation = GameDefinitions.Instance[l.Location].RegionLocationKey;
                         sb.Clear();
-                        sb.Append($"{i},{j},{k},{l.StepNumber},{GameDefinitions.Instance.Region[regionLocation].YamlKey},{regionLocation.N},{l.AbilityCheckDC},{l.RatCount},{l.MercyModifier},{(l.HasLucky ? 1 : 0)},{(l.HasUnlucky ? 1 : 0)},{(l.HasStylish ? 1 : 0)},{l.D20},{(l.Success ? 1 : 0)}");
+                        sb.Append($"{i},{j},{k},{l.StepNumber},{GameDefinitions.Instance.RegionDefinition[regionLocation].YamlKey},{regionLocation.N},{l.AbilityCheckDC},{l.RatCount},{l.MercyModifier},{(l.HasLucky ? 1 : 0)},{(l.HasUnlucky ? 1 : 0)},{(l.HasStylish ? 1 : 0)},{l.D20},{(l.Success ? 1 : 0)}");
                         await outLocationAttempts.WriteLineAsync(sb, cancellationToken);
                     }
                 }
