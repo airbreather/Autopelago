@@ -32,7 +32,7 @@
     },
     "big-science-long": {
       "commandName": "Project",
-      "commandLineArgs": "simulate $HOME/SCIENCE 1000 25 40 8675309 captured_goldfish",
+      "commandLineArgs": "simulate $HOME/SCIENCE 1000 25 40 8675309 snakes_on_a_planet",
       "dotnetRunMessages": true
     }
   }
