@@ -38,11 +38,12 @@ internal sealed class SimulateCommand : CancelableAsyncCommand<SimulateSettings>
             .Enrich.FromLogContext()
             .CreateLogger();
 
+        LocationKey victoryLocation = GameDefinitions.Instance[GameDefinitions.Instance.RegionsByYamlKey[settings.VictoryLocation]].Locations[0];
         string scienceDir = settings.ScienceDir.Replace("$HOME", Environment.GetFolderPath(Environment.SpecialFolder.UserProfile));
         Compressor compressor = new(10);
         compressor.SetParameter(ZSTD_cParameter.ZSTD_c_nbWorkers, Environment.ProcessorCount);
-        Directory.CreateDirectory(Path.GetDirectoryName(PlaythroughGenerator.Paths.ResultFile(scienceDir))!);
-        await using StreamWriter outLocationAttempts = new(new CompressionStream(new FileStream(PlaythroughGenerator.Paths.ResultFile(scienceDir), s_create), compressor, preserveCompressor: false, leaveOpen: false), Encoding.UTF8);
+        Directory.CreateDirectory(Path.GetDirectoryName(PlaythroughGenerator.Paths.ResultFile(scienceDir, settings.VictoryLocation))!);
+        await using StreamWriter outLocationAttempts = new(new CompressionStream(new FileStream(PlaythroughGenerator.Paths.ResultFile(scienceDir, settings.VictoryLocation), s_create), compressor, preserveCompressor: false, leaveOpen: false), Encoding.UTF8);
 
         Prng.State state = Prng.State.Start(settings.OverallSeed);
         Prng.State[] multiworldSeeds = new Prng.State[settings.NumSeeds];
@@ -58,7 +59,7 @@ internal sealed class SimulateCommand : CancelableAsyncCommand<SimulateSettings>
         await Parallel.ForAsync(0, multiworldSeeds.Length, cancellationToken, async (i, cancellationToken2) =>
         {
             UInt128 archipelagoSeed = new(Prng.Next(ref multiworldSeeds[i]), Prng.Next(ref multiworldSeeds[i]));
-            allSpoilerData[i] = await PlaythroughGenerator.GenerateAsync(scienceDir, archipelagoSeed, settings.NumSlotsPerSeed, cancellationToken2);
+            allSpoilerData[i] = await PlaythroughGenerator.GenerateAsync(scienceDir, archipelagoSeed, settings.NumSlotsPerSeed, settings.VictoryLocation, cancellationToken2);
             partialSpoilerData[i] = ImmutableArray.CreateRange(allSpoilerData[i], val => val
                 .Select((item, j) => KeyValuePair.Create(new LocationKey { N = j }, item))
                 .GroupBy(kvp => GameDefinitions.Instance[kvp.Value.Item].ArchipelagoFlags, kvp => kvp.Key)
@@ -171,7 +172,7 @@ internal sealed class SimulateCommand : CancelableAsyncCommand<SimulateSettings>
                 World[] slotsMutable = new World[allSpoilerData[i].Length];
                 for (int k = 0; k < settings.NumSlotsPerSeed; k++)
                 {
-                    slotsMutable[k] = new(multiworldPrngState);
+                    slotsMutable[k] = new(multiworldPrngState, victoryLocation);
                 }
 
                 ImmutableArray<World> slots = ImmutableCollectionsMarshal.AsImmutableArray(slotsMutable);

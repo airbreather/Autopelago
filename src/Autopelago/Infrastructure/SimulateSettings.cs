@@ -18,4 +18,7 @@ internal sealed class SimulateSettings : CommandSettings
 
     [CommandArgument(4, "<overall-seed>")]
     public required ulong OverallSeed { get; init; }
+
+    [CommandArgument(5, "<victory-location>")]
+    public required string VictoryLocation { get; init; }
 }

@@ -5,14 +5,34 @@
       "commandName": "Project",
       "dotnetRunMessages": true
     },
-    "science": {
+    "science-short": {
       "commandName": "Project",
-      "commandLineArgs": "simulate $HOME/SCIENCE 100 4 15 8675309",
+      "commandLineArgs": "simulate $HOME/SCIENCE 100 4 15 8675309 captured_goldfish",
       "dotnetRunMessages": true
     },
-    "big-science": {
+    "science-medium": {
       "commandName": "Project",
-      "commandLineArgs": "simulate $HOME/SCIENCE 1000 25 40 8675309",
+      "commandLineArgs": "simulate $HOME/SCIENCE 100 4 15 8675309 secret_cache",
+      "dotnetRunMessages": true
+    },
+    "science-long": {
+      "commandName": "Project",
+      "commandLineArgs": "simulate $HOME/SCIENCE 100 4 15 8675309 snakes_on_a_planet",
+      "dotnetRunMessages": true
+    },
+    "big-science-short": {
+      "commandName": "Project",
+      "commandLineArgs": "simulate $HOME/SCIENCE 1000 25 40 8675309 captured_goldfish",
+      "dotnetRunMessages": true
+    },
+    "big-science-medium": {
+      "commandName": "Project",
+      "commandLineArgs": "simulate $HOME/SCIENCE 1000 25 40 8675309 secret_cache",
+      "dotnetRunMessages": true
+    },
+    "big-science-long": {
+      "commandName": "Project",
+      "commandLineArgs": "simulate $HOME/SCIENCE 1000 25 40 8675309 captured_goldfish",
       "dotnetRunMessages": true
     }
   }
