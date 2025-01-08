@@ -17,7 +17,13 @@ public sealed partial class Game
         _pathToTarget.Clear();
         bool first = true;
         GetPath(CurrentLocation, TargetLocation);
-        _pathToTarget.EnsureCapacity(_prevPath.Count - 1);
+
+        // consider: why is this sometimes empty immediately after calling GetPath???
+        if (_prevPath.Count > 0)
+        {
+            _pathToTarget.EnsureCapacity(_prevPath.Count - 1);
+        }
+
         foreach (LocationKey l in _prevPath)
         {
             if (first)

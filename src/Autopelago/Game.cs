@@ -530,12 +530,12 @@ public sealed partial class Game
                 // combat this, every time the player decides to move, they can advance up to three
                 // whole spaces towards their target. this keeps the overall progression speed the
                 // same in dense areas.
-                for (int i = 0; i < MaxMovementsPerAction && CurrentLocation != TargetLocation; i++)
+                for (int i = 0; i < MaxMovementsPerAction && CurrentLocation != TargetLocation && _pathToTarget.TryDequeue(out LocationKey dequeued); i++)
                 {
                     _movementLog.Add(new()
                     {
                         PreviousLocation = CurrentLocation,
-                        CurrentLocation = _pathToTarget.Dequeue(),
+                        CurrentLocation = dequeued,
                     });
 
                     CurrentLocation = _movementLog[^1].CurrentLocation;
