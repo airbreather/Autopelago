@@ -149,8 +149,17 @@ public sealed class GameInitializer : ArchipelagoPacketHandler
         Dictionary<string, FrozenDictionary<long, string>> generalLocationNameMapping = [];
         foreach ((string gameName, GameDataModel gameData) in dataPackage.Data.Games)
         {
-            generalItemNameMapping.Add(gameName, gameData.ItemNameToId.ToFrozenDictionary(kvp => kvp.Value, kvp => kvp.Key));
-            generalLocationNameMapping.Add(gameName, gameData.LocationNameToId.ToFrozenDictionary(kvp => kvp.Value, kvp => kvp.Key));
+            // apparently, some unsupported games make it possible to have the name --> ID map show
+            // multiple entries for the same ID, and they handle it just fine despite the two places
+            // that I've found in the Archipelago documentation saying that these should be unique.
+            // I guess it's possible that the same ID can go by multiple names? Regardless, if this
+            // happens, then we can just pick one and move on.
+            generalItemNameMapping.Add(gameName, gameData.ItemNameToId
+                .GroupBy(kvp => kvp.Value, kvp => kvp.Key)
+                .ToFrozenDictionary(grp => grp.Key, grp => grp.MinBy(s => s.Length)!));
+            generalLocationNameMapping.Add(gameName, gameData.LocationNameToId
+                .GroupBy(kvp => kvp.Value, kvp => kvp.Key)
+                .ToFrozenDictionary(grp => grp.Key, grp => grp.MinBy(s => s.Length)!));
         }
 
         _generalItemNameMapping = generalItemNameMapping.ToFrozenDictionary();
