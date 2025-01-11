@@ -13,8 +13,6 @@ using Serilog.Context;
 
 namespace Autopelago;
 
-using static Constants;
-
 public sealed class GameAndContext
 {
     public required Game Game { get; init; }
@@ -31,6 +29,10 @@ public sealed record AutopelagoWorldMetadata
 
 public sealed record MultiworldInfo
 {
+    public required int TeamNumber { get; init; }
+
+    public required int SlotNumber { get; init; }
+
     public required FrozenDictionary<string, FrozenDictionary<long, string>> GeneralItemNameMapping { get; init; }
 
     public required FrozenDictionary<string, FrozenDictionary<long, string>> GeneralLocationNameMapping { get; init; }
@@ -44,6 +46,13 @@ public sealed record MultiworldInfo
     public required FrozenDictionary<long, ItemKey> ItemsById { get; init; }
 
     public required FrozenDictionary<string, int> SlotByPlayerAlias { get; init; }
+
+    public string ServerSavedStateKey => GetServerSavedStateKey(teamNumber: TeamNumber, slotNumber: SlotNumber);
+
+    public static string GetServerSavedStateKey(int teamNumber, int slotNumber)
+    {
+        return $"autopelago_{teamNumber}_{slotNumber}";
+    }
 }
 
 [JsonSerializable(typeof(ServerSavedState))]
@@ -87,6 +96,14 @@ public sealed class GameInitializer : ArchipelagoPacketHandler
     }
 
     public IObservable<GameAndContext> InitializedGame { get; }
+
+    private int? _teamNumber;
+    public int TeamNumber => _teamNumber ?? throw new InvalidOperationException("Team number has not been initialized yet.");
+
+    private int? _slotNumber;
+    public int SlotNumber => _slotNumber ?? throw new InvalidOperationException("Slot number has not been initialized yet.");
+
+    private string ServerSavedStateKey => MultiworldInfo.GetServerSavedStateKey(TeamNumber, SlotNumber);
 
     public override async ValueTask HandleAsync(ArchipelagoPacketModel nextPacket, ArchipelagoPacketProvider sender, CancellationToken cancellationToken)
     {
@@ -138,12 +155,18 @@ public sealed class GameInitializer : ArchipelagoPacketHandler
         long[] locationIds = new long[GameDefinitions.Instance.AllItems.Length];
         foreach ((string locationName, long locationId) in autopelagoGameData.LocationNameToId)
         {
-            locationIds[GameDefinitions.Instance.LocationsByName[locationName].N] = locationId;
+            // value might be missing from the dictionary if there's a version mismatch. this code
+            // runs BEFORE the explicit version mismatch check can possibly run, so we need to work
+            // around those situations for *just* a little while longer...
+            if (GameDefinitions.Instance.LocationsByName.TryGetValue(locationName, out LocationKey loc))
+            {
+                locationIds[loc.N] = locationId;
+            }
         }
 
         _locationIds = ImmutableCollectionsMarshal.AsImmutableArray(locationIds);
-        _itemsById = autopelagoGameData.ItemNameToId.ToFrozenDictionary(kvp => kvp.Value, kvp => GameDefinitions.Instance.ItemsByName[kvp.Key]);
-        _locationsById = autopelagoGameData.LocationNameToId.ToFrozenDictionary(kvp => kvp.Value, kvp => GameDefinitions.Instance.LocationsByName[kvp.Key]);
+        _itemsById = autopelagoGameData.ItemNameToId.ToFrozenDictionary(kvp => kvp.Value, kvp => GameDefinitions.Instance.ItemsByName.GetValueOrDefault(kvp.Key));
+        _locationsById = autopelagoGameData.LocationNameToId.ToFrozenDictionary(kvp => kvp.Value, kvp => GameDefinitions.Instance.LocationsByName.GetValueOrDefault(kvp.Key));
 
         Dictionary<string, FrozenDictionary<long, string>> generalItemNameMapping = [];
         Dictionary<string, FrozenDictionary<long, string>> generalLocationNameMapping = [];
@@ -203,6 +226,9 @@ the one we were looking for (again, '{GameDefinitions.Instance.VersionStamp}'), 
 
 """);
         }
+
+        _teamNumber = connected.Team;
+        _slotNumber = connected.Slot;
 
         _game.InitializeVictoryLocation(GameDefinitions.Instance.LocationsByName[autopelagoWorldMetadata.VictoryLocationName]);
         GameDefinitions.Instance.TryGetLandmarkRegion(_game.VictoryLocation, out RegionKey victoryLandmark);
@@ -327,6 +353,8 @@ the one we were looking for (again, '{GameDefinitions.Instance.VersionStamp}'), 
             Game = _game,
             Context = new()
             {
+                TeamNumber = TeamNumber,
+                SlotNumber = SlotNumber,
                 GeneralItemNameMapping = generalItemNameMapping,
                 GeneralLocationNameMapping = generalLocationNameMapping,
                 SlotInfo = slotInfo,

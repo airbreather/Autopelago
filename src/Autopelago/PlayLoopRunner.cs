@@ -31,6 +31,8 @@ public sealed class PlayLoopRunner : IDisposable
 
     private readonly ImmutableArray<long> _locationIds;
 
+    private readonly string _serverSavedStateKey;
+
     private readonly ArchipelagoPacketProvider _packets;
 
     private readonly Settings _settings;
@@ -42,6 +44,7 @@ public sealed class PlayLoopRunner : IDisposable
         _disposables.Add(_gameUpdates = new(game));
         GameUpdates = _gameUpdates.AsObservable();
         _locationIds = context.LocationIds;
+        _serverSavedStateKey = context.ServerSavedStateKey;
         _packets = packets;
         _settings = settings;
         _timeProvider = timeProvider;
@@ -169,6 +172,8 @@ public sealed class PlayLoopRunner : IDisposable
                     prevBlockedReportTimestampOrNull = null;
                 }
             }
+
+            await _packets.SendPacketsAsync([_packets.CreateUpdateStatePacket(game, _serverSavedStateKey)]);
 
             if (game.HasCompletedGoal && !hadCompletedGoal)
             {
