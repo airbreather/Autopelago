@@ -50,7 +50,7 @@ public sealed partial class Game
 
         TargetLocationReason result = default;
         LocationKey? priorityTargetLocation = null;
-        if (!(_hardLockedRegions[_victoryLocation.N] || HasCompletedGoal))
+        if (!(_hardLockedRegions[GameDefinitions.Instance.Region[_victoryLocation].N] || HasCompletedGoal))
         {
             priorityTargetLocation = _victoryLocation;
             result = TargetLocationReason.GoMode;
@@ -479,17 +479,9 @@ public sealed partial class Game
         visitedRegions.SetAll(false);
 
         q.Enqueue(GameDefinitions.Instance.StartRegion);
-
-        // ignore regions after the victory location.
-        foreach (RegionKey skipRegion in GameDefinitions.Instance.RegionDefinition[_victoryLocation].Connected.Forward)
-        {
-            visitedRegions[skipRegion.N] = true;
-        }
-
+        visitedRegions[GameDefinitions.Instance.StartRegion.N] = true;
         while (q.TryDequeue(out RegionKey region))
         {
-            visitedRegions[region.N] = true;
-
             if (GameDefinitions.Instance[region] is LandmarkRegionDefinitionModel landmark)
             {
                 if (_checkedLocations[region.N])
@@ -513,9 +505,14 @@ public sealed partial class Game
 
             foreach ((RegionKey connectedRegion, _) in GameDefinitions.Instance[region].Connected.All)
             {
-                if (!visitedRegions[connectedRegion.N])
+                if (visitedRegions[connectedRegion.N])
                 {
-                    visitedRegions[connectedRegion.N] = true;
+                    continue;
+                }
+
+                visitedRegions[connectedRegion.N] = true;
+                if (_locationIsRelevant[GameDefinitions.Instance[connectedRegion].Locations[0].N])
+                {
                     q.Enqueue(connectedRegion);
                 }
             }
