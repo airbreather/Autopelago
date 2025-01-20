@@ -21,6 +21,8 @@ public sealed partial class MainWindowViewModel : ViewModelBase, IDisposable
 
     [Reactive(SetModifier = AccessModifier.Private)] private object? _dialogPopoverContent;
 
+    private GameStateObservableProvider? _provider;
+
     public MainWindowViewModel()
     {
         CancellationTokenSource cts = new();
@@ -40,13 +42,13 @@ public sealed partial class MainWindowViewModel : ViewModelBase, IDisposable
         _connectCommandSubscription = SettingsSelection.ConnectCommand
             .Subscribe(settings =>
             {
-                GameStateObservableProvider provider = new(settings, TimeProvider.System);
+                GameStateObservableProvider provider = _provider = new(settings, TimeProvider.System);
 
                 _shouldSaveSettings.OnNext(Unit.Default);
                 GameStateViewModel gameStateViewModel = new(provider)
                 {
                     BackToMainMenuCommand = backToMainMenuCommand,
-                    ConfirmItemHintCommand = ConfirmItemHintCommand,
+                    RequestItemHintCommand = ConfirmItemHintCommand,
                 };
                 gameStateViewModelHolder.Disposable = gameStateViewModel;
 
@@ -82,14 +84,25 @@ public sealed partial class MainWindowViewModel : ViewModelBase, IDisposable
     public EndingFanfareViewModel EndingFanfare { get; }
 
     [ReactiveCommand]
-    private async Task<ConfirmItemHintResult> ConfirmItemHintAsync(CollectableItemViewModel item, CancellationToken cancellationToken)
+    private async Task<Unit> ConfirmItemHintAsync(CollectableItemViewModel item, CancellationToken cancellationToken)
     {
+        if (_provider is not { } provider)
+        {
+            return Unit.Default;
+        }
+
         ConfirmItemHintViewModel confirmViewModel = new()
         {
             Item = item,
         };
 
-        return await ShowDialogAsync(confirmViewModel, confirmViewModel.Result.AsObservable(), cancellationToken);
+        if (await ShowDialogAsync(confirmViewModel, confirmViewModel.Result.AsObservable(), cancellationToken) == ConfirmItemHintResult.Ok)
+        {
+            UserInitiatedActions actions = await provider.GetUserInitiatedActionsAsync();
+            await actions.RequestItemHintAsync(item.Model.Key);
+        }
+
+        return Unit.Default;
     }
 
     private async Task<TOutput> ShowDialogAsync<TInput, TOutput>(TInput input, IObservable<TOutput> close, CancellationToken cancellationToken)

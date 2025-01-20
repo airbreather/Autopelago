@@ -66,10 +66,7 @@ public partial class GameStateView : ReactiveUserControl<GameStateViewModel>
         if (ViewModel is { } viewModel)
         {
             CollectableItemViewModel item = (CollectableItemViewModel)(((Control)e.Source!).DataContext!);
-            if ((await viewModel.ConfirmItemHintCommand.Execute(item).ToTask()) == ConfirmItemHintResult.Ok)
-            {
-                _ = 0;
-            }
+            await viewModel.RequestItemHintCommand.Execute(item).ToTask();
         }
     }
 }

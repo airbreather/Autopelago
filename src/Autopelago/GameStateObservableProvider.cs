@@ -21,6 +21,8 @@ public sealed class GameStateObservableProvider
 
     private readonly TimeProvider _timeProvider;
 
+    private readonly TaskCompletionSource<UserInitiatedActions> _userInitiatedActions = new();
+
     public GameStateObservableProvider(Settings settings)
         : this(settings, TimeProvider.System)
     {
@@ -73,6 +75,11 @@ public sealed class GameStateObservableProvider
     public void SetPaused(bool paused)
     {
         _paused.OnNext(paused);
+    }
+
+    public async ValueTask<UserInitiatedActions> GetUserInitiatedActionsAsync()
+    {
+        return await _userInitiatedActions.Task;
     }
 
     public async void RunAsync(CancellationToken cancellationToken)
@@ -140,6 +147,7 @@ public sealed class GameStateObservableProvider
             })
             .Subscribe(_currentGameState);
 
+        _userInitiatedActions.TrySetResult(new(packets));
         await Task.WhenAll(runPacketLoopTask, runPlayLoopTask);
     }
 }
