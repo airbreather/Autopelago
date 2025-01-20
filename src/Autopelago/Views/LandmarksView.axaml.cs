@@ -52,9 +52,18 @@ public partial class LandmarksView : ReactiveUserControl<GameStateViewModel>
             .Select(v => v.Value!);
 
         viewModelChanges
-            .Subscribe(v => _customVisual.SendHandlerMessage(v.LandmarkRegions))
+            .Subscribe(v =>
+            {
+                if (!v.TileAnimations)
+                {
+                    _customVisual.SendHandlerMessage(LandmarksVisualHandler.PauseMessage);
+                }
+
+                _customVisual.SendHandlerMessage(v.LandmarkRegions);
+            })
             .DisposeWith(_disposables);
         viewModelChanges
+            .Where(v => v.TileAnimations)
             .Select(v => v.ObservableForProperty(x => x.Paused, skipInitial: false))
             .Switch()
             .Subscribe(v => _customVisual.SendHandlerMessage(v.Value ? LandmarksVisualHandler.PauseMessage : LandmarksVisualHandler.ResumeMessage))
@@ -249,23 +258,26 @@ public sealed class LandmarksVisualHandler : CompositionCustomVisualHandler
     public override void OnAnimationFrameUpdate()
     {
         RegisterForNextAnimationFrameUpdate();
-        if (_pausedAt.HasValue || !_initialized)
+        if (!_initialized)
         {
             return;
         }
 
         bool tickFrame = false;
-        if (CompositionNow - _lastUpdate > TimeSpan.FromMilliseconds(500))
+        if (!_pausedAt.HasValue)
         {
-            _showA = !_showA;
-            if (_size.HasValue)
+            if (CompositionNow - _lastUpdate > TimeSpan.FromMilliseconds(500))
             {
-                Invalidate();
-                _lastUpdate = CompositionNow;
-                return;
-            }
+                _showA = !_showA;
+                if (_size.HasValue)
+                {
+                    Invalidate();
+                    _lastUpdate = CompositionNow;
+                    return;
+                }
 
-            tickFrame = true;
+                tickFrame = true;
+            }
         }
 
         Span<Rect> buf = stackalloc Rect[2];

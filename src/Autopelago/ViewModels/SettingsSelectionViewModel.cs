@@ -30,6 +30,10 @@ public sealed partial class SettingsSelectionViewModel : ViewModelBase, IDisposa
 
     [Reactive] private bool _ratChat = true;
 
+    [Reactive] private bool _tileAnimations = true;
+
+    [Reactive] private bool _playerAnimations = true;
+
     [Reactive(SetModifier = AccessModifier.Private)] private bool _playerTokenSelectorOpen;
 
     public SettingsSelectionViewModel()
@@ -85,6 +89,8 @@ public sealed partial class SettingsSelectionViewModel : ViewModelBase, IDisposa
             MinStepSeconds = MinStepSeconds,
             MaxStepSeconds = MaxStepSeconds,
             RatChat = RatChat,
+            TileAnimations = TileAnimations,
+            PlayerAnimations = PlayerAnimations,
             PlayerToken = PlayerToken.Kind,
             PlayerTokenColor = PlayerToken.Color,
         };
@@ -97,6 +103,8 @@ public sealed partial class SettingsSelectionViewModel : ViewModelBase, IDisposa
             MinStepSeconds = value.MinStepSeconds;
             MaxStepSeconds = value.MaxStepSeconds;
             RatChat = value.RatChat;
+            TileAnimations = value.TileAnimations;
+            PlayerAnimations = value.PlayerAnimations;
             PlayerToken.Kind = value.PlayerToken;
             PlayerToken.Color = value.PlayerTokenColor;
         }

@@ -15,6 +15,8 @@ public sealed record Settings
         MinStepSeconds = 20,
         MaxStepSeconds = 30,
         RatChat = true,
+        TileAnimations = true,
+        PlayerAnimations = true,
     };
 
     public static readonly Settings ForDesigner = new()
@@ -26,6 +28,8 @@ public sealed record Settings
         MinStepSeconds = 1,
         MaxStepSeconds = 1,
         RatChat = true,
+        TileAnimations = true,
+        PlayerAnimations = true,
     };
 
     public required string Host { get; init; }
@@ -42,6 +46,10 @@ public sealed record Settings
     public required decimal MaxStepSeconds { get; init; }
 
     public required bool RatChat { get; init; } = true;
+
+    public bool TileAnimations { get; set; } = true;
+
+    public bool PlayerAnimations { get; set; } = true;
 
     public PlayerTokenKind PlayerToken { get; init; }
 

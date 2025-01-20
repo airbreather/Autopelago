@@ -17,7 +17,7 @@
 
     <SplitView Margin="5" IsPaneOpen="{Binding PlayerTokenSelectorOpen}" PanePlacement="Right"
                Pane="{Binding PlayerToken}" DisplayMode="Inline">
-        <Grid RowDefinitions="Auto,Auto,Auto,Auto,Auto,Auto,Auto" IsSharedSizeScope="True">
+        <Grid RowDefinitions="Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto" IsSharedSizeScope="True">
             <Grid.ColumnDefinitions>
                 <ColumnDefinition Width="Auto" SharedSizeGroup="Henry" />
                 <ColumnDefinition Width="*" />
@@ -62,7 +62,15 @@
                 Send messages using Archipelago chat
             </CheckBox>
 
-            <Button Margin="0,5,0,0" Grid.Row="6" Grid.Column="0" Grid.ColumnSpan="3"
+            <CheckBox Margin="0,5,0,0" Grid.Row="6" Grid.Column="0" Grid.ColumnSpan="3" IsChecked="{Binding TileAnimations}">
+                Enable tile animations
+            </CheckBox>
+
+            <CheckBox Margin="0,5,0,0" Grid.Row="7" Grid.Column="0" Grid.ColumnSpan="3" IsChecked="{Binding PlayerAnimations}">
+                Enable rat animations
+            </CheckBox>
+
+            <Button Margin="0,5,0,0" Grid.Row="8" Grid.Column="0" Grid.ColumnSpan="3"
                     HorizontalAlignment="Stretch" HorizontalContentAlignment="Center"
                     IsDefault="True" Command="{Binding ConnectCommand}">
                 <TextBlock Text="Connect" />

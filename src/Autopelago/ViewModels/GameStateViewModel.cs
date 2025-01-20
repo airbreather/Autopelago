@@ -116,6 +116,9 @@ public sealed partial class GameStateViewModel : ViewModelBase, IDisposable
             provider.SetPaused(true);
         }
 
+        PlayerAnimations = provider.Settings.PlayerAnimations;
+        TileAnimations = provider.Settings.TileAnimations;
+
         PlayerToken = PlayerTokens.For(provider.Settings.PlayerToken, new(provider.Settings.PlayerTokenColor.ToUInt32()))
             .DisposeWith(_disposables);
 
@@ -406,6 +409,10 @@ public sealed partial class GameStateViewModel : ViewModelBase, IDisposable
     public Bitmap PlayerToken { get; }
 
     public Points CurrentPathPoints { get; } = [];
+
+    public bool PlayerAnimations { get; }
+
+    public bool TileAnimations { get; }
 
     public required ReactiveCommand<Unit, Unit> BackToMainMenuCommand { get; init; }
 

@@ -61,7 +61,7 @@
             <Setter Property="Effect">
                 <DropShadowEffect OffsetX="1.5" OffsetY="1.5" BlurRadius="1" />
             </Setter>
-            <Style Selector="^.notPaused">
+            <Style Selector="^.notPaused.canAnimate">
                 <Style.Animations>
                     <Animation Duration="0:0:1"
                                IterationCount="Infinite">
@@ -102,7 +102,7 @@
                 <DropShadowEffect OffsetX="2.8" OffsetY="2.8" Opacity="0.8" />
             </Setter>
         </Style>
-        <Style Selector="Polyline.toTargetLocation[IsVisible=true]">
+        <Style Selector="Polyline.toTargetLocation[IsVisible=true].canAnimate">
             <Style.Animations>
                 <Animation Duration="0:0:1"
                            IterationCount="Infinite">
@@ -304,6 +304,7 @@
                                         </ItemsControl.ItemTemplate>
                                     </ItemsControl>
                                     <Polyline Classes="toTargetLocation"
+                                              Classes.canAnimate="{Binding PlayerAnimations}"
                                               Stroke="Red"
                                               StrokeThickness="1"
                                               Points="{Binding CurrentPathPoints}">
@@ -368,6 +369,7 @@
                                                               IsVisible="{Binding ShowMoonFlag}" ViewModel="{Binding MoonFlag}" />
                                         <Image Classes="player"
                                                Classes.notPaused="{Binding !Paused}"
+                                               Classes.canAnimate="{Binding PlayerAnimations}"
                                                PointerMoved="OnPointerMovedOverControlWithToolTip"
                                                Width="16" Canvas.Left="{Binding CurrentPoint.X, Mode=OneWay}"
                                                Height="16" Canvas.Top="{Binding CurrentPoint.Y, Mode=OneWay}"
