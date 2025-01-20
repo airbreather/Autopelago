@@ -18,6 +18,8 @@ public sealed partial class CollectableItemViewModel : ViewModelBase, IDisposabl
 
     [Reactive] private bool _collected;
 
+    [Reactive] private bool _relevant = true;
+
     [Reactive] private Bitmap? _image;
 
     public CollectableItemViewModel(string yamlKey)
@@ -35,7 +37,7 @@ public sealed partial class CollectableItemViewModel : ViewModelBase, IDisposabl
         _saturatedImage = new(AssetLoader.Open(new($"avares://Autopelago/Assets/Images/{yamlKey}.webp")));
         using SKBitmap bmp = SKBitmap.Decode(AssetLoader.Open(new($"avares://Autopelago/Assets/Images/{yamlKey}.webp")));
         bmp.SetImmutable();
-        _desaturatedImage = ToAvaloniaDesaturated(bmp);
+        _desaturatedImage = bmp.ToAvaloniaDesaturated();
 
         _updateImageSubscription = this
             .WhenAnyValue(x => x.Collected)

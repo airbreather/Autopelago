@@ -97,7 +97,7 @@
                 <Setter Property="Fill" Value="Gray" />
             </Style>
         </Style>
-        <Style Selector="views|SingleLandmarkRegionView.landmark">
+        <Style Selector="views|BitmapPairView.landmark">
             <Setter Property="Effect">
                 <DropShadowEffect OffsetX="2.8" OffsetY="2.8" Opacity="0.8" />
             </Setter>
@@ -205,7 +205,7 @@
                         </ItemsControl.ItemsPanel>
                         <ItemsControl.ItemTemplate>
                             <DataTemplate>
-                                <Border Margin="5" Padding="2" CornerRadius="8" Classes="tracker-box item" Classes.collected="{Binding Collected}"
+                                <Border IsVisible="{Binding Relevant}" Margin="5" Padding="2" CornerRadius="8" Classes="tracker-box item" Classes.collected="{Binding Collected}"
                                         ToolTip.VerticalOffset="0" PointerMoved="OnPointerMovedOverControlWithToolTip">
                                     <ToolTip.Tip>
                                         <StackPanel>
@@ -255,8 +255,8 @@
                                                 <Border Margin="0,5,0,0" Padding="4" Classes="tracker-box item">
                                                     <Grid ColumnDefinitions="Auto,*" RowDefinitions="*, Auto">
                                                         <!-- Note: coordinates are NOT scaled like everything else on the map. -->
-                                                        <views:SingleLandmarkRegionView VerticalAlignment="Top" Height="64" Width="64"
-                                                                                        ViewModel="{Binding .}" />
+                                                        <views:BitmapPairView VerticalAlignment="Top" Height="64" Width="64"
+                                                                              ViewModel="{Binding SaturatedImages}" />
                                                         <ContentControl Margin="5,0,0,0"
                                                                         Grid.Row="0"
                                                                         Grid.Column="1"
@@ -274,12 +274,17 @@
                                             </StackPanel>
                                         </DataTemplate>
                                     </Panel.Resources>
-
-                                    <Svg Width="300" Height="450" Path="/Assets/Images/map.svg" />
+                                    <Panel Width="300" Height="{Binding MapHeight}">
+                                        <Svg Width="300" Height="450" VerticalAlignment="Top" Path="/Assets/Images/map.svg">
+                                            <Svg.Clip>
+                                                <RectangleGeometry Rect="{Binding MapRect}" />
+                                            </Svg.Clip>
+                                        </Svg>
+                                    </Panel>
                                     <ItemsControl ItemsSource="{Binding FillerLocations, Mode=OneTime}">
                                         <ItemsControl.ItemsPanel>
                                             <ItemsPanelTemplate>
-                                                <Canvas Width="300" Height="450" />
+                                                <Canvas Width="300" Height="{Binding MapHeight}" />
                                             </ItemsPanelTemplate>
                                         </ItemsControl.ItemsPanel>
                                         <ItemsControl.Styles>
@@ -290,7 +295,7 @@
                                         </ItemsControl.Styles>
                                         <ItemsControl.ItemTemplate>
                                             <DataTemplate>
-                                                <Border Classes="fillerLocation" RenderTransform="translate(-1.5px, -1.5px)" BorderBrush="Black" BorderThickness="0.5">
+                                                <Border Classes="fillerLocation" IsVisible="{Binding Relevant}" RenderTransform="translate(-1.5px, -1.5px)" BorderBrush="Black" BorderThickness="0.5">
                                                     <Rectangle Classes="fillerLocation"
                                                                Classes.checked="{Binding Checked}"
                                                                Width="1.6" Height="1.6" />
@@ -301,13 +306,19 @@
                                     <Polyline Classes="toTargetLocation"
                                               Stroke="Red"
                                               StrokeThickness="1"
-                                              IsVisible="{Binding PlayerIsActivated}"
-                                              Points="{Binding CurrentPathPoints}" />
-                                    <views:LandmarksView Width="300" Height="450" ViewModel="{Binding .}" />
+                                              Points="{Binding CurrentPathPoints}">
+                                        <Polyline.IsVisible>
+                                            <MultiBinding Converter="{x:Static BoolConverters.And}">
+                                                <Binding Path="PlayerIsActivated" />
+                                                <Binding Path="!GameIsCompleted" />
+                                            </MultiBinding>
+                                        </Polyline.IsVisible>
+                                    </Polyline>
+                                    <views:LandmarksView Width="300" Height="{Binding MapHeight}" ViewModel="{Binding .}" />
                                     <ItemsControl ItemsSource="{Binding LandmarkRegions, Mode=OneTime}">
                                         <ItemsControl.ItemsPanel>
                                             <ItemsPanelTemplate>
-                                                <Canvas Width="300" Height="450" />
+                                                <Canvas Width="300" Height="{Binding ViewModel.MapHeight, RelativeSource={RelativeSource FindAncestor, AncestorType=views:GameStateView}, FallbackValue=450}" />
                                             </ItemsPanelTemplate>
                                         </ItemsControl.ItemsPanel>
                                         <ItemsControl.Styles>
@@ -338,14 +349,23 @@
                                             </DataTemplate>
                                         </ItemsControl.ItemTemplate>
                                     </ItemsControl>
-                                    <Path IsVisible="{Binding PlayerIsActivated}"
-                                          Stroke="Red" StrokeThickness="1" Data="M -2 -2 L 2 2 M 2 -2 L -2 2">
+                                    <Path Stroke="Red" StrokeThickness="1" Data="M -2 -2 L 2 2 M 2 -2 L -2 2">
                                         <Path.RenderTransform>
                                             <TranslateTransform X="{Binding TargetPoint.X}"
                                                                 Y="{Binding TargetPoint.Y}" />
                                         </Path.RenderTransform>
+                                        <Path.IsVisible>
+                                            <MultiBinding Converter="{x:Static BoolConverters.And}">
+                                                <Binding Path="PlayerIsActivated" />
+                                                <Binding Path="!GameIsCompleted" />
+                                            </MultiBinding>
+                                        </Path.IsVisible>
                                     </Path>
-                                    <Canvas Width="300" Height="450">
+                                    <Canvas Width="300" Height="{Binding MapHeight}">
+                                        <views:BitmapPairView Width="16" Height="16"
+                                                              Canvas.Left="{Binding X, Source={x:Static viewModels:LandmarkRegionViewModel.MoonLocation}}"
+                                                              Canvas.Top="{Binding Y, Source={x:Static viewModels:LandmarkRegionViewModel.MoonLocation}}"
+                                                              IsVisible="{Binding ShowMoonFlag}" ViewModel="{Binding MoonFlag}" />
                                         <Image Classes="player"
                                                Classes.notPaused="{Binding !Paused}"
                                                PointerMoved="OnPointerMovedOverControlWithToolTip"
@@ -388,10 +408,10 @@
                                                           RowDefinitions="Auto,Auto,*,Auto"
                                                           ColumnDefinitions="Auto,*">
                                                       <TextBlock Grid.Row="0" Grid.Column="0" Margin="5,0,0,0" VerticalAlignment="Center" Text="●" />
-                                                      <TextBlock Grid.Row="0" Grid.Column="1" Margin="2,0,0,0" Text="{Binding CurrentLocation.Name, StringFormat='At \'{0}\'.'}" />
+                                                      <TextBlock Grid.Row="0" Grid.Column="1" Margin="2,0,0,0" Text="{Binding CurrentLocationName, StringFormat='At \'{0}\'.'}" />
                                                       <TextBlock Grid.Row="1" Grid.Column="0" Margin="5,10,0,0" VerticalAlignment="Center" Text="●" />
-                                                      <TextBlock Grid.Row="1" Grid.Column="1" Margin="2,10,0,0" Text="{Binding TargetLocation.Name, StringFormat='Going to \'{0}\'.'}" />
-                                                      <TextBlock Grid.Row="3" Margin="5,20,0,0" Grid.ColumnSpan="2" Classes="tooltip small" Text="{Binding RatThought}" />
+                                                      <TextBlock Grid.Row="1" Grid.Column="1" Margin="2,10,0,0" Text="{Binding TargetLocationName, StringFormat='Going to \'{0}\'.'}" />
+                                                      <TextBlock Grid.Row="3" Grid.Column="0" Margin="5,20,0,0" Grid.ColumnSpan="2" Classes="tooltip small" Text="{Binding RatThought}" />
                                                     </Grid>
                                                   </Grid>
                                                 </Border>

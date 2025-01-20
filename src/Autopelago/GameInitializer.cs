@@ -13,8 +13,6 @@ using Serilog.Context;
 
 namespace Autopelago;
 
-using static Constants;
-
 public sealed class GameAndContext
 {
     public required Game Game { get; init; }
@@ -25,10 +23,16 @@ public sealed class GameAndContext
 public sealed record AutopelagoWorldMetadata
 {
     public required string VersionStamp { get; init; }
+
+    public required string VictoryLocationName { get; init; }
 }
 
 public sealed record MultiworldInfo
 {
+    public required int TeamNumber { get; init; }
+
+    public required int SlotNumber { get; init; }
+
     public required FrozenDictionary<string, FrozenDictionary<long, string>> GeneralItemNameMapping { get; init; }
 
     public required FrozenDictionary<string, FrozenDictionary<long, string>> GeneralLocationNameMapping { get; init; }
@@ -42,6 +46,13 @@ public sealed record MultiworldInfo
     public required FrozenDictionary<long, ItemKey> ItemsById { get; init; }
 
     public required FrozenDictionary<string, int> SlotByPlayerAlias { get; init; }
+
+    public string ServerSavedStateKey => GetServerSavedStateKey(teamNumber: TeamNumber, slotNumber: SlotNumber);
+
+    public static string GetServerSavedStateKey(int teamNumber, int slotNumber)
+    {
+        return $"autopelago_{teamNumber}_{slotNumber}";
+    }
 }
 
 [JsonSerializable(typeof(ServerSavedState))]
@@ -85,6 +96,14 @@ public sealed class GameInitializer : ArchipelagoPacketHandler
     }
 
     public IObservable<GameAndContext> InitializedGame { get; }
+
+    private int? _teamNumber;
+    public int TeamNumber => _teamNumber ?? throw new InvalidOperationException("Team number has not been initialized yet.");
+
+    private int? _slotNumber;
+    public int SlotNumber => _slotNumber ?? throw new InvalidOperationException("Slot number has not been initialized yet.");
+
+    private string ServerSavedStateKey => MultiworldInfo.GetServerSavedStateKey(TeamNumber, SlotNumber);
 
     public override async ValueTask HandleAsync(ArchipelagoPacketModel nextPacket, ArchipelagoPacketProvider sender, CancellationToken cancellationToken)
     {
@@ -136,19 +155,34 @@ public sealed class GameInitializer : ArchipelagoPacketHandler
         long[] locationIds = new long[GameDefinitions.Instance.AllItems.Length];
         foreach ((string locationName, long locationId) in autopelagoGameData.LocationNameToId)
         {
-            locationIds[GameDefinitions.Instance.LocationsByName[locationName].N] = locationId;
+            // value might be missing from the dictionary if there's a version mismatch. this code
+            // runs BEFORE the explicit version mismatch check can possibly run, so we need to work
+            // around those situations for *just* a little while longer...
+            if (GameDefinitions.Instance.LocationsByName.TryGetValue(locationName, out LocationKey loc))
+            {
+                locationIds[loc.N] = locationId;
+            }
         }
 
         _locationIds = ImmutableCollectionsMarshal.AsImmutableArray(locationIds);
-        _itemsById = autopelagoGameData.ItemNameToId.ToFrozenDictionary(kvp => kvp.Value, kvp => GameDefinitions.Instance.ItemsByName[kvp.Key]);
-        _locationsById = autopelagoGameData.LocationNameToId.ToFrozenDictionary(kvp => kvp.Value, kvp => GameDefinitions.Instance.LocationsByName[kvp.Key]);
+        _itemsById = autopelagoGameData.ItemNameToId.ToFrozenDictionary(kvp => kvp.Value, kvp => GameDefinitions.Instance.ItemsByName.GetValueOrDefault(kvp.Key));
+        _locationsById = autopelagoGameData.LocationNameToId.ToFrozenDictionary(kvp => kvp.Value, kvp => GameDefinitions.Instance.LocationsByName.GetValueOrDefault(kvp.Key));
 
         Dictionary<string, FrozenDictionary<long, string>> generalItemNameMapping = [];
         Dictionary<string, FrozenDictionary<long, string>> generalLocationNameMapping = [];
         foreach ((string gameName, GameDataModel gameData) in dataPackage.Data.Games)
         {
-            generalItemNameMapping.Add(gameName, gameData.ItemNameToId.ToFrozenDictionary(kvp => kvp.Value, kvp => kvp.Key));
-            generalLocationNameMapping.Add(gameName, gameData.LocationNameToId.ToFrozenDictionary(kvp => kvp.Value, kvp => kvp.Key));
+            // apparently, some unsupported games make it possible to have the name --> ID map show
+            // multiple entries for the same ID, and they handle it just fine despite the two places
+            // that I've found in the Archipelago documentation saying that these should be unique.
+            // I guess it's possible that the same ID can go by multiple names? Regardless, if this
+            // happens, then we can just pick one and move on.
+            generalItemNameMapping.Add(gameName, gameData.ItemNameToId
+                .GroupBy(kvp => kvp.Value, kvp => kvp.Key)
+                .ToFrozenDictionary(grp => grp.Key, grp => grp.MinBy(s => s.Length)!));
+            generalLocationNameMapping.Add(gameName, gameData.LocationNameToId
+                .GroupBy(kvp => kvp.Value, kvp => kvp.Key)
+                .ToFrozenDictionary(grp => grp.Key, grp => grp.MinBy(s => s.Length)!));
         }
 
         _generalItemNameMapping = generalItemNameMapping.ToFrozenDictionary();
@@ -159,7 +193,7 @@ public sealed class GameInitializer : ArchipelagoPacketHandler
             Game = "Autopelago",
             Name = _settings.Slot,
             Uuid = Guid.NewGuid(),
-            Version = new(new("0.5.0")),
+            Version = new(new("0.5.1")),
             ItemsHandling = ArchipelagoItemsHandlingFlags.All,
             Tags = ["AP"],
             SlotData = true,
@@ -193,11 +227,20 @@ the one we were looking for (again, '{GameDefinitions.Instance.VersionStamp}'), 
 """);
         }
 
+        _teamNumber = connected.Team;
+        _slotNumber = connected.Slot;
+
+        _game.InitializeVictoryLocation(GameDefinitions.Instance.LocationsByName[autopelagoWorldMetadata.VictoryLocationName]);
+        GameDefinitions.Instance.TryGetLandmarkRegion(_game.VictoryLocation, out RegionKey victoryLandmark);
+        BitArray384 locationIsReachable = GameDefinitions.Instance.GetLocationsBeforeVictoryLandmark(victoryLandmark);
         _slotInfo = connected.SlotInfo.ToFrozenDictionary();
         _slotByPlayerAlias = connected.Players.ToFrozenDictionary(p => p.Alias, p => p.Slot);
         LocationScoutsPacketModel locationScouts = new()
         {
-            Locations = _locationsById!.Where(kvp => !GameDefinitions.Instance[kvp.Value].RewardIsFixed).Select(kvp => kvp.Key).ToArray(),
+            Locations = _locationsById!
+                .Where(kvp => locationIsReachable[kvp.Value.N])
+                .Select(kvp => kvp.Key)
+                .ToArray(),
         };
 
         GetPacketModel getPacket = new() { Keys = [ServerSavedStateKey] };
@@ -225,7 +268,14 @@ the one we were looking for (again, '{GameDefinitions.Instance.VersionStamp}'), 
 
     private void Handle(LocationInfoPacketModel locationInfo)
     {
-        Dictionary<ArchipelagoItemFlags, HashSet<LocationKey>> spoilerData = [];
+        Dictionary<ArchipelagoItemFlags, HashSet<LocationKey>> spoilerData = new()
+        {
+            // these two are always needed for Smart / Conspiratorial, regardless of what's in the
+            // actual multiworld (e.g., maybe all traps are nonlocal).
+            [ArchipelagoItemFlags.LogicalAdvancement] = [],
+            [ArchipelagoItemFlags.Trap] = [],
+        };
+
         foreach (ItemModel networkItem in locationInfo.Locations)
         {
             (CollectionsMarshal.GetValueRefOrAddDefault(spoilerData, networkItem.Flags, out _) ??= [])
@@ -303,6 +353,8 @@ the one we were looking for (again, '{GameDefinitions.Instance.VersionStamp}'), 
             Game = _game,
             Context = new()
             {
+                TeamNumber = TeamNumber,
+                SlotNumber = SlotNumber,
                 GeneralItemNameMapping = generalItemNameMapping,
                 GeneralLocationNameMapping = generalLocationNameMapping,
                 SlotInfo = slotInfo,

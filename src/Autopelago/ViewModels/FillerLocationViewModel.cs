@@ -8,6 +8,8 @@ public sealed partial class FillerLocationViewModel : ViewModelBase
 {
     [Reactive] private bool _checked;
 
+    [Reactive] private bool _relevant = true;
+
     public FillerLocationViewModel(LocationKey location, Point point)
     {
         Model = GameDefinitions.Instance[location];

@@ -17,7 +17,13 @@ public sealed partial class Game
         _pathToTarget.Clear();
         bool first = true;
         GetPath(CurrentLocation, TargetLocation);
-        _pathToTarget.EnsureCapacity(_prevPath.Count - 1);
+
+        // consider: why is this sometimes empty immediately after calling GetPath???
+        if (_prevPath.Count > 0)
+        {
+            _pathToTarget.EnsureCapacity(_prevPath.Count - 1);
+        }
+
         foreach (LocationKey l in _prevPath)
         {
             if (first)
@@ -44,9 +50,9 @@ public sealed partial class Game
 
         TargetLocationReason result = default;
         LocationKey? priorityTargetLocation = null;
-        if (!(_hardLockedRegions[GameDefinitions.Instance.GoalRegion.N] || HasCompletedGoal))
+        if (!(_hardLockedRegions[GameDefinitions.Instance.Region[_victoryLocation].N] || HasCompletedGoal))
         {
-            priorityTargetLocation = GameDefinitions.Instance.GoalLocation;
+            priorityTargetLocation = _victoryLocation;
             result = TargetLocationReason.GoMode;
         }
 
@@ -54,7 +60,7 @@ public sealed partial class Game
         {
             foreach (LocationKey l in _priorityPriorityLocations)
             {
-                if (!_hardLockedRegions[GameDefinitions.Instance.RegionKey[l].N])
+                if (!_hardLockedRegions[GameDefinitions.Instance.Region[l].N])
                 {
                     priorityTargetLocation = l;
                     result = TargetLocationReason.PriorityPriority;
@@ -66,7 +72,7 @@ public sealed partial class Game
             {
                 foreach (LocationKey l in _priorityLocations)
                 {
-                    if (!_hardLockedRegions[GameDefinitions.Instance.RegionKey[l].N])
+                    if (!_hardLockedRegions[GameDefinitions.Instance.Region[l].N])
                     {
                         priorityTargetLocation = l;
                         result = TargetLocationReason.Priority;
@@ -473,10 +479,9 @@ public sealed partial class Game
         visitedRegions.SetAll(false);
 
         q.Enqueue(GameDefinitions.Instance.StartRegion);
+        visitedRegions[GameDefinitions.Instance.StartRegion.N] = true;
         while (q.TryDequeue(out RegionKey region))
         {
-            visitedRegions[region.N] = true;
-
             if (GameDefinitions.Instance[region] is LandmarkRegionDefinitionModel landmark)
             {
                 if (_checkedLocations[region.N])
@@ -485,7 +490,7 @@ public sealed partial class Game
                     _softLockedRegions[region.N] = false;
                 }
 
-                if (!landmark.Requirement.Satisfied(_receivedItems) && landmark.Key != GameDefinitions.Instance.GoalRegion)
+                if (!landmark.Requirement.Satisfied(_receivedItems))
                 {
                     continue;
                 }
@@ -500,9 +505,14 @@ public sealed partial class Game
 
             foreach ((RegionKey connectedRegion, _) in GameDefinitions.Instance[region].Connected.All)
             {
-                if (!visitedRegions[connectedRegion.N])
+                if (visitedRegions[connectedRegion.N])
                 {
-                    visitedRegions[connectedRegion.N] = true;
+                    continue;
+                }
+
+                visitedRegions[connectedRegion.N] = true;
+                if (_locationIsRelevant[GameDefinitions.Instance[connectedRegion].Locations[0].N])
+                {
                     q.Enqueue(connectedRegion);
                 }
             }

@@ -4,15 +4,12 @@ using System.Reactive.Disposables;
 using System.Reactive.Linq;
 using System.Reactive.Subjects;
 using System.Text;
-using System.Text.Json;
 using System.Text.RegularExpressions;
 
 using Serilog;
 using Serilog.Context;
 
 namespace Autopelago;
-
-using static Constants;
 
 public sealed class GameUpdatePacketHandler : ArchipelagoPacketHandler, IDisposable
 {
@@ -32,6 +29,8 @@ public sealed class GameUpdatePacketHandler : ArchipelagoPacketHandler, IDisposa
 
     private readonly BehaviorSubject<MultiworldInfo> _contextUpdates;
 
+    private readonly string _serverSavedStateKey;
+
     public GameUpdatePacketHandler(Settings settings, Game game, MultiworldInfo initialContext)
     {
         _settings = settings;
@@ -39,6 +38,7 @@ public sealed class GameUpdatePacketHandler : ArchipelagoPacketHandler, IDisposa
         GameUpdates = _gameUpdates.AsObservable();
         _disposables.Add(_contextUpdates = new(initialContext));
         ContextUpdates = _contextUpdates.AsObservable();
+        _serverSavedStateKey = initialContext.ServerSavedStateKey;
     }
 
     public void Dispose()
@@ -115,21 +115,10 @@ public sealed class GameUpdatePacketHandler : ArchipelagoPacketHandler, IDisposa
             }
         }
 
-        newPackets.Add(new SetPacketModel
+        if (newPackets.Count > 0)
         {
-            Key = ServerSavedStateKey,
-            Operations =
-            [
-                new()
-                {
-                    Operation = ArchipelagoDataStorageOperationType.Replace,
-                    Value = JsonSerializer.SerializeToNode(
-                        game.ServerSavedState,
-                        ServerSavedStateSerializationContext.Default.ServerSavedState
-                    )!,
-                },
-            ],
-        });
+            newPackets.Add(sender.CreateUpdateStatePacket(game, _serverSavedStateKey));
+        }
 
         await sender.SendPacketsAsync([.. newPackets]);
     }
@@ -224,7 +213,7 @@ public sealed class GameUpdatePacketHandler : ArchipelagoPacketHandler, IDisposa
                     _ => $"All right, I'll get right over to '{locName}', {probablyPlayerAlias}!",
                 };
                 SayPacketModel say = new() { Text = message };
-                await sender.SendPacketsAsync([say]);
+                await sender.SendPacketsAsync([say, sender.CreateUpdateStatePacket(_gameUpdates.Value, _serverSavedStateKey)]);
             }
             else
             {
@@ -245,7 +234,7 @@ public sealed class GameUpdatePacketHandler : ArchipelagoPacketHandler, IDisposa
                     ? $"Oh, OK. I'll stop trying to get to '{GameDefinitions.Instance[removed].Name}', {probablyPlayerAlias}."
                     : $"Um... excuse me, but... I don't see a '{loc}' to remove...",
             };
-            await sender.SendPacketsAsync([say]);
+            await sender.SendPacketsAsync([say, sender.CreateUpdateStatePacket(_gameUpdates.Value, _serverSavedStateKey)]);
         }
         else if (cmd.StartsWith("help", StringComparison.OrdinalIgnoreCase))
         {

@@ -98,8 +98,8 @@ public sealed class GameTests
         ItemKey pizzaRat = GameDefinitions.Instance.ItemsByName["Pizza Rat"];
         ItemKey premiumCanOfPrawnFood = GameDefinitions.Instance.ItemsByName["Premium Can of Prawn Food"];
         LocationKey basketball = GameDefinitions.Instance.LocationsByName["Basketball"];
-        RegionKey beforePrawnStars = GameDefinitions.Instance.Region[GameDefinitions.Instance.LocationsByName["Prawn Stars"]].Connected.Backward[0];
-        RegionKey beforeAngryTurtles = GameDefinitions.Instance.Region[GameDefinitions.Instance.LocationsByName["Angry Turtles"]].Connected.Backward[0];
+        RegionKey beforePrawnStars = GameDefinitions.Instance.RegionDefinition[GameDefinitions.Instance.LocationsByName["Prawn Stars"]].Connected.Backward[0];
+        RegionKey beforeAngryTurtles = GameDefinitions.Instance.RegionDefinition[GameDefinitions.Instance.LocationsByName["Angry Turtles"]].Connected.Backward[0];
 
         using Game game = new(s_highRolls);
         game.InitializeReceivedItems([
@@ -116,7 +116,7 @@ public sealed class GameTests
         // basketball, then move, then complete that first location that we moved to.
         using (Assert.Multiple())
         {
-            await Assert.That(GameDefinitions.Instance.RegionKey[game.CurrentLocation])
+            await Assert.That(GameDefinitions.Instance.Region[game.CurrentLocation])
                 .IsEqualTo(beforePrawnStars)
                 .Or
                 .IsEqualTo(beforeAngryTurtles);
@@ -130,6 +130,12 @@ public sealed class GameTests
     public async ValueTask GameShouldBeWinnable(Prng.State seed)
     {
         using Game game = new(seed);
+        game.InitializeVictoryLocation(Prng.NextDouble(ref seed) switch
+        {
+            < 1 / 3.0 => GameDefinitions.Instance.LocationsByName["Captured Goldfish"],
+            < 2 / 3.0 => GameDefinitions.Instance.LocationsByName["Secret Cache"],
+            _ => GameDefinitions.Instance.LocationsByName["Snakes on a Planet"],
+        });
         int advancesSoFar = 0;
         List<ItemKey> newReceivedItems = [];
         while (true)
@@ -156,9 +162,6 @@ public sealed class GameTests
             ++advancesSoFar;
             await Assert.That(advancesSoFar).IsLessThan(40_000).Because("If you can't win in 40k steps, then you're useless.");
         }
-
-        // the only way for the game to complete in this situation is if ALL are checked.
-        await Assert.That(game.LocationIsChecked.HasAllSet).IsTrue();
     }
 
     [Test]
@@ -402,7 +405,6 @@ public sealed class GameTests
         ItemKey finalRandomizedItem = GameDefinitions.Instance.ProgressionItemsByYamlKey["mongoose_in_a_combat_spacecraft"];
         game.ReceiveItems([
             .. GameDefinitions.Instance.AllLocations
-                .Where(l => l is { RewardIsFixed: false })
                 .Select(l => l.UnrandomizedItem)
                 .Where(i => i != finalRandomizedItem),
         ]);
@@ -413,13 +415,12 @@ public sealed class GameTests
         for (int i = 0; i < 2; i++)
         {
             game.Advance();
-            await Assert.That(GameDefinitions.Instance.RegionKey[game.TargetLocation]).IsEqualTo(GameDefinitions.Instance.StartRegion);
+            await Assert.That(GameDefinitions.Instance.Region[game.TargetLocation]).IsEqualTo(GameDefinitions.Instance.StartRegion);
             game.PrngState = s_lowRolls;
         }
 
         // now give it that last randomized item and see it shoot for the moon all the way through.
         game.ReceiveItems([finalRandomizedItem]);
-        HashSet<LocationKey> fixedRewardsGranted = [];
         int advancesSoFar = 0;
         while (true)
         {
@@ -430,15 +431,7 @@ public sealed class GameTests
                 break;
             }
 
-            await Assert.That(GameDefinitions.Instance.Region[game.TargetLocation]).IsAssignableTo<LandmarkRegionDefinitionModel>();
-            foreach (LocationKey checkedLocation in game.CheckedLocations)
-            {
-                if (fixedRewardsGranted.Add(checkedLocation) && GameDefinitions.Instance[checkedLocation] is { RewardIsFixed: true, UnrandomizedItem: { } unrandomizedItem })
-                {
-                    game.ReceiveItems([unrandomizedItem]);
-                }
-            }
-
+            await Assert.That(GameDefinitions.Instance.RegionDefinition[game.TargetLocation]).IsAssignableTo<LandmarkRegionDefinitionModel>();
             ++advancesSoFar;
             await Assert.That(advancesSoFar).IsLessThan(1_000_000).Because("If you can't win in a million steps, then you're useless.");
         }
@@ -555,7 +548,7 @@ public sealed class GameTests
     [Property("Regression", "100")]
     public async ValueTask SmartShouldResolveToNearestReachableIfPossible([Matrix("smart", "conspiratorial")] string aura)
     {
-        RegionKey beforePrawnStars = GameDefinitions.Instance.Region[GameDefinitions.Instance.LocationsByName["Prawn Stars"]].Connected.Backward[0];
+        RegionKey beforePrawnStars = GameDefinitions.Instance.RegionDefinition[GameDefinitions.Instance.LocationsByName["Prawn Stars"]].Connected.Backward[0];
 
         ArchipelagoItemFlags targetFlags = aura switch
         {
@@ -604,7 +597,7 @@ public sealed class GameTests
     {
         ItemKey packRat = GameDefinitions.Instance.ItemsByName["Pack Rat"];
         LocationKey basketball = GameDefinitions.Instance.LocationsByName["Basketball"];
-        RegionKey beforePrawnStars = GameDefinitions.Instance.Region[GameDefinitions.Instance.LocationsByName["Prawn Stars"]].Connected.Backward[0];
+        RegionKey beforePrawnStars = GameDefinitions.Instance.RegionDefinition[GameDefinitions.Instance.LocationsByName["Prawn Stars"]].Connected.Backward[0];
 
         using Game game = new(s_lowRolls);
         game.InitializeReceivedItems(Enumerable.Repeat(packRat, 5));

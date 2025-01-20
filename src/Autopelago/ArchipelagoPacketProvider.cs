@@ -39,6 +39,25 @@ public sealed class ArchipelagoPacketProvider
         _settings = settings;
     }
 
+    public SetPacketModel CreateUpdateStatePacket(Game game, string serverSavedStateKey)
+    {
+        return new()
+        {
+            Key = serverSavedStateKey,
+            Operations =
+            [
+                new()
+                {
+                    Operation = ArchipelagoDataStorageOperationType.Replace,
+                    Value = JsonSerializer.SerializeToNode(
+                        game.ServerSavedState,
+                        ServerSavedStateSerializationContext.Default.ServerSavedState
+                    )!,
+                },
+            ],
+        };
+    }
+
     public async ValueTask<IDisposable> RegisterHandlerAsync(ArchipelagoPacketHandler handler)
     {
         ImmutableArray<ArchipelagoPacketModel> bufferedPackets = [];
@@ -156,10 +175,11 @@ public sealed class ArchipelagoPacketProvider
         if (!_settings.RatChat)
         {
             packets = packets.RemoveAll(packet => packet is SayPacketModel);
-            if (packets.IsEmpty)
-            {
-                return;
-            }
+        }
+
+        if (packets.IsEmpty)
+        {
+            return;
         }
 
         byte[] bytes = JsonSerializer.SerializeToUtf8Bytes(packets, s_packetsTypeInfo);

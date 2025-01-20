@@ -11,6 +11,8 @@ using Avalonia.Controls;
 using Avalonia.Controls.ApplicationLifetimes;
 using Avalonia.Markup.Xaml;
 
+using Serilog;
+
 namespace Autopelago;
 
 [JsonSourceGenerationOptions(
@@ -84,11 +86,25 @@ public sealed partial class App : Application
                 await using FileStream settingsStream = settingsFile.Open(s_readAsyncOptions);
                 initialState = JsonSerializer.Deserialize(settingsStream, typeInfo) ?? throw new JsonException();
             }
-            catch (IOException)
+            catch (FileNotFoundException)
             {
             }
-            catch (JsonException)
+            catch (IOException ex)
             {
+                Log.Error(ex, "Failed to restore previous settings.");
+            }
+            catch (UnauthorizedAccessException ex)
+            {
+                Log.Error(ex, "Failed to restore previous settings.");
+            }
+            catch (JsonException ex)
+            {
+                Log.Error(ex, "Failed to restore previous settings.");
+            }
+            catch (Exception ex)
+            {
+                Log.Fatal(ex, "Failed to restore previous settings.");
+                throw;
             }
         }
 

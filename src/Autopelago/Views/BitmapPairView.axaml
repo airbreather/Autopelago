@@ -1,0 +1,20 @@
+<reactiveUi:ReactiveUserControl
+    xmlns="https://github.com/avaloniaui"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:my="using:Autopelago"
+    xmlns:reactiveUi="http://reactiveui.net"
+    x:Class="Autopelago.Views.BitmapPairView"
+    x:DataType="my:BitmapPair"
+    x:TypeArguments="my:BitmapPair"
+    x:Name="ThisBitmapPairView">
+    <Panel DataContext="{Binding ViewModel, ElementName=ThisBitmapPairView}">
+        <Image Height="{Binding Height, ElementName=ThisBitmapPairView}" Width="{Binding Width, ElementName=ThisBitmapPairView}"
+               Source="{Binding A, Mode=OneTime}" IsVisible="{Binding ShowA, ElementName=ThisBitmapPairView}" />
+        <Image Height="{Binding Height, ElementName=ThisBitmapPairView}" Width="{Binding Width, ElementName=ThisBitmapPairView}"
+               Source="{Binding B, Mode=OneTime}" IsVisible="{Binding !ShowA, ElementName=ThisBitmapPairView}" />
+
+        <!-- Make sure that the tooltip for this control doesn't flicker. -->
+        <Rectangle Height="{Binding Height, ElementName=ThisBitmapPairView}" Width="{Binding Width, ElementName=ThisBitmapPairView}"
+                   Fill="#00FFFFFF" />
+    </Panel>
+</reactiveUi:ReactiveUserControl>

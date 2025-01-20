@@ -1,9 +1,13 @@
+using System.Collections;
+using System.Diagnostics;
+using System.Diagnostics.CodeAnalysis;
 using System.Runtime.InteropServices;
 
 namespace Autopelago;
 
 [StructLayout(LayoutKind.Auto, Pack = 1)]
-public struct BitArray128
+[DebuggerTypeProxy(typeof(BitArray128DebugView))]
+public struct BitArray128 : IEquatable<BitArray128>
 {
     private readonly byte _length;
 
@@ -43,6 +47,10 @@ public struct BitArray128
         get => _bits != UInt128.Zero;
     }
 
+    public readonly int TrueCount => (int)UInt128.PopCount(_bits);
+
+    public readonly int FalseCount => Length - TrueCount;
+
     public void SetAll(bool value)
     {
         _bits = value
@@ -53,5 +61,52 @@ public struct BitArray128
     public void Clear()
     {
         _bits = UInt128.Zero;
+    }
+
+    public static bool operator ==(BitArray128 left, BitArray128 right)
+    {
+        return left.Equals(right);
+    }
+
+    public static bool operator !=(BitArray128 left, BitArray128 right)
+    {
+        return !(left == right);
+    }
+
+    public readonly bool Equals(BitArray128 other)
+    {
+        return
+            Length == other.Length &&
+            _bits == other._bits;
+    }
+
+    public override bool Equals([NotNullWhen(true)] object? obj)
+    {
+        return
+            obj is BitArray128 other &&
+            Equals(other);
+    }
+
+    public override int GetHashCode()
+    {
+        return HashCode.Combine(
+            Length,
+            _bits
+        );
+    }
+
+    private sealed class BitArray128DebugView
+    {
+        public BitArray128DebugView(BitArray128 bits)
+        {
+            Bits = new(bits.Length);
+            for (int i = 0; i < bits.Length; i++)
+            {
+                Bits[i] = bits[i];
+            }
+        }
+
+        [DebuggerBrowsable(DebuggerBrowsableState.RootHidden)]
+        public BitArray Bits { get; }
     }
 }

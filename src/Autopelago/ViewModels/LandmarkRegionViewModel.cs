@@ -2,44 +2,21 @@ using System.Collections.Frozen;
 using System.Reactive.Disposables;
 
 using Avalonia;
-using Avalonia.Platform;
 
 using ReactiveUI;
 using ReactiveUI.SourceGenerators;
 
-using SkiaSharp;
-
 namespace Autopelago.ViewModels;
-
-public sealed class BitmapPair : ViewModelBase, IDisposable
-{
-    public void Dispose()
-    {
-        A.Dispose();
-        AImage.Dispose();
-        if (!ReferenceEquals(A, B))
-        {
-            B.Dispose();
-            BImage.Dispose();
-        }
-    }
-
-    public required SKBitmap A { get; init; }
-
-    public required SKBitmap B { get; init; }
-
-    public required SKImage AImage { get; init; }
-
-    public required SKImage BImage { get; init; }
-}
 
 public sealed partial class LandmarkRegionViewModel : ViewModelBase, IDisposable
 {
-    private static readonly BitmapPair s_yellowQuestImages = ReadFrames("yellow_quest").Saturated;
+    private static readonly BitmapPair s_yellowQuestImages = new("yellow_quest");
 
-    private static readonly BitmapPair s_grayQuestImages = ReadFrames("gray_quest").Saturated;
+    private static readonly BitmapPair s_grayQuestImages = new("gray_quest");
 
     private static readonly Vector s_toCenter = new Vector(16, 16) / 2;
+
+    public static readonly Point MoonLocation = new Point(284, 319) - s_toCenter;
 
     private static readonly FrozenDictionary<RegionKey, Point> s_canvasLocations = new Dictionary<string, Point>
     {
@@ -75,7 +52,6 @@ public sealed partial class LandmarkRegionViewModel : ViewModelBase, IDisposable
         ["minotaur_labyrinth"] = new(194, 399),
         ["asteroid_with_pants"] = new(232, 406),
         ["snakes_on_a_planet"] = new(243, 354),
-        ["moon_comma_the"] = new(284, 319),
     }.ToFrozenDictionary(kvp => GameDefinitions.Instance.RegionsByYamlKey[kvp.Key], kvp => kvp.Value);
 
     private readonly CompositeDisposable _disposables = [];
@@ -97,9 +73,10 @@ public sealed partial class LandmarkRegionViewModel : ViewModelBase, IDisposable
         GameRequirementToolTipSource = new(((LandmarkRegionDefinitionModel)GameDefinitions.Instance[region]).Requirement);
         CanvasLocation = s_canvasLocations[region] - s_toCenter;
 
-        (SaturatedImages, DesaturatedImages) = ReadFrames(Region.YamlKey);
-        _disposables.Add(SaturatedImages);
-        _disposables.Add(DesaturatedImages);
+        SaturatedImages = new(Region.YamlKey);
+        SaturatedImages.DisposeWith(_disposables);
+        DesaturatedImages = SaturatedImages.ToDesaturated();
+        DesaturatedImages.DisposeWith(_disposables);
 
         IDisposable whenRequirementSatisfied;
         _disposables.Add(whenRequirementSatisfied = GameRequirementToolTipSource.ObservableForProperty(x => x.Satisfied)
@@ -114,7 +91,7 @@ public sealed partial class LandmarkRegionViewModel : ViewModelBase, IDisposable
                 ShowGrayQuestImage = !satisfied.Value;
             }));
 
-        _disposables.Add(this.ObservableForProperty(x => x.Checked)
+        this.ObservableForProperty(x => x.Checked)
             .Subscribe(isChecked =>
             {
                 if (!isChecked.Value)
@@ -127,7 +104,8 @@ public sealed partial class LandmarkRegionViewModel : ViewModelBase, IDisposable
                 ShowDesaturatedImage = false;
                 ShowYellowQuestImage = false;
                 ShowGrayQuestImage = false;
-            }));
+            })
+            .DisposeWith(_disposables);
     }
 
     public void Dispose()
@@ -150,66 +128,4 @@ public sealed partial class LandmarkRegionViewModel : ViewModelBase, IDisposable
     public BitmapPair YellowQuestImages => s_yellowQuestImages;
 
     public BitmapPair GrayQuestImages => s_grayQuestImages;
-
-    private static (BitmapPair Saturated, BitmapPair Desaturated) ReadFrames(string regionKey)
-    {
-        using Stream data = AssetLoader.Open(new($"avares://Autopelago/Assets/Images/{regionKey}.webp"));
-        using SKCodec codec = SKCodec.Create(data);
-        SKImageInfo imageInfo = codec.Info;
-        SKCodecFrameInfo[] frameInfo = codec.FrameInfo;
-        SKBitmap[] saturated = new SKBitmap[2];
-        SKBitmap[] desaturated = new SKBitmap[2];
-        SKImage[] saturatedImages = new SKImage[2];
-        SKImage[] desaturatedImages = new SKImage[2];
-        if (frameInfo.Length is not (0 or 2))
-        {
-            throw new NotSupportedException("These were all supposed to be 1- or 2-frame images.");
-        }
-
-        for (int i = 0; i < frameInfo.Length; i++)
-        {
-            if (frameInfo[i].Duration != 500)
-            {
-                throw new NotSupportedException("These were all supposed to be 500ms.");
-            }
-
-            SKBitmap bmp = new(imageInfo);
-            codec.GetPixels(imageInfo, bmp.GetPixels(), new(i));
-            bmp.SetImmutable();
-            saturated[i] = bmp;
-            desaturated[i] = ToDesaturated(bmp);
-
-            saturatedImages[i] = SKImage.FromBitmap(bmp);
-            desaturatedImages[i] = SKImage.FromBitmap(desaturated[i]);
-        }
-
-        if (frameInfo.Length == 0)
-        {
-            SKBitmap bmp = new(imageInfo);
-            codec.GetPixels(imageInfo, bmp.GetPixels());
-            bmp.SetImmutable();
-            saturated[0] = saturated[1] = bmp;
-            desaturated[0] = desaturated[1] = ToDesaturated(bmp);
-            saturatedImages[0] = saturatedImages[1] = SKImage.FromBitmap(bmp);
-            desaturatedImages[0] = desaturatedImages[1] = SKImage.FromBitmap(desaturated[0]);
-        }
-
-        return
-        (
-            new()
-            {
-                A = saturated[0],
-                AImage = saturatedImages[0],
-                B = saturated[1],
-                BImage = saturatedImages[1],
-            },
-            new()
-            {
-                A = desaturated[0],
-                AImage = desaturatedImages[0],
-                B = desaturated[1],
-                BImage = desaturatedImages[1],
-            }
-        );
-    }
 }

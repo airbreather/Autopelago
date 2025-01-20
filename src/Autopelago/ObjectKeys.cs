@@ -1,5 +1,9 @@
+using System.Diagnostics;
+
 namespace Autopelago;
 
+[DebuggerDisplay("{GameDefinitions.Instance[this].Name}")]
+[DebuggerTypeProxy(typeof(RegionKeyDebugView))]
 public readonly record struct RegionKey
 {
     private readonly byte _n;
@@ -8,8 +12,21 @@ public readonly record struct RegionKey
         get => _n;
         init => _n = (byte)value;
     }
+
+    private readonly struct RegionKeyDebugView
+    {
+        public RegionKeyDebugView(RegionKey key)
+        {
+            Region = GameDefinitions.Instance[key];
+        }
+
+        [DebuggerBrowsable(DebuggerBrowsableState.RootHidden)]
+        public RegionDefinitionModel Region { get; }
+    }
 }
 
+[DebuggerDisplay("{GameDefinitions.Instance[this].Name}")]
+[DebuggerTypeProxy(typeof(LocationKeyDebugView))]
 public readonly record struct LocationKey
 {
     public static readonly LocationKey Nonexistent = new() { N = ushort.MaxValue };
@@ -20,8 +37,21 @@ public readonly record struct LocationKey
         get => _n;
         init => _n = (ushort)value;
     }
+
+    private readonly struct LocationKeyDebugView
+    {
+        public LocationKeyDebugView(LocationKey key)
+        {
+            Location = GameDefinitions.Instance[key];
+        }
+
+        [DebuggerBrowsable(DebuggerBrowsableState.RootHidden)]
+        public LocationDefinitionModel Location { get; }
+    }
 }
 
+[DebuggerDisplay("{GameDefinitions.Instance[this].Name}")]
+[DebuggerTypeProxy(typeof(RegionLocationKeyDebugView))]
 public readonly record struct RegionLocationKey
 {
     public required RegionKey Region { get; init; }
@@ -46,8 +76,21 @@ public readonly record struct RegionLocationKey
             N = n,
         };
     }
+
+    private readonly struct RegionLocationKeyDebugView
+    {
+        public RegionLocationKeyDebugView(RegionLocationKey key)
+        {
+            Location = GameDefinitions.Instance[key];
+        }
+
+        [DebuggerBrowsable(DebuggerBrowsableState.RootHidden)]
+        public LocationDefinitionModel Location { get; }
+    }
 }
 
+[DebuggerDisplay("{GameDefinitions.Instance[this].Name}")]
+[DebuggerTypeProxy(typeof(ItemKeyDebugView))]
 public readonly record struct ItemKey
 {
     private readonly ushort _n;
@@ -55,5 +98,16 @@ public readonly record struct ItemKey
     {
         get => _n;
         init => _n = (ushort)value;
+    }
+
+    private readonly struct ItemKeyDebugView
+    {
+        public ItemKeyDebugView(ItemKey key)
+        {
+            Item = GameDefinitions.Instance[key];
+        }
+
+        [DebuggerBrowsable(DebuggerBrowsableState.RootHidden)]
+        public ItemDefinitionModel Item { get; }
     }
 }

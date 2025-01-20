@@ -38,7 +38,7 @@ public sealed class Multiworld : IDisposable
             for (int i = 0; i < Slots.Length; i++)
             {
                 World slot = Slots[i];
-                if (slot.Game.IsCompleted)
+                if (slot.Game.HasCompletedGoal)
                 {
                     if (prevCheckedLocations[i] >= 0)
                     {
@@ -46,7 +46,7 @@ public sealed class Multiworld : IDisposable
                         ImmutableArray<WorldItem> spoilerData = FullSpoilerData[i];
                         for (int j = 0; j < spoilerData.Length; j++)
                         {
-                            if (!slot.Game.LocationIsChecked[j])
+                            if (slot.Game.LocationIsChecked[j] ^ slot.Game.LocationIsRelevant[j])
                             {
                                 sendNextRound[spoilerData[j].Slot].Add(spoilerData[j].Item);
                             }
