@@ -14,6 +14,7 @@ public sealed class UserInitiatedActions
         SayPacketModel say = new()
         {
             Text = $"!hint {GameDefinitions.Instance[item].Name}",
+            BypassRatChatMute = true,
         };
         await _packets.SendPacketsAsync([say]);
     }
