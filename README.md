@@ -37,14 +37,19 @@ For the most part, the rat just moves around the map every several seconds, tryi
 
 ![An excellent picture of an even more excellent settings screen.](doc/menu-screen.webp)
 
-- Host / Port / Slot / Password: Standard inputs that you need for any Archipelago game.
-- Min. Step / Max. Step: Number of seconds that the rat spends between actions. Smaller numbers will send location checks faster.
+- Slot / Host / Port / Password: Standard inputs that you need for any Archipelago game. See [the official docs](https://archipelago.gg/tutorial/Archipelago/setup/en#connection-info) for details.
+- Time Between Steps (sec.): Number of seconds that the rat spends between actions. Smaller numbers will send location checks faster.
+- Send unprompted messages using Archipelago chat: Whether or not the rat will send messages using Archipelago chat to let you know when something changes. This setting does not affect responses to commands or hints that you click to request.
+- Enable tile animations: Whether or not to animate the landmark tiles on the map background. Some clients running on slower hardware may wish to disable this, especially if they don't have a dedicated GPU.
+- Enable rat animations: Whether or not to animate the rat's wiggle on the map screen. Unlike "tile animations", this only has a modest performance impact.
 
 ## Commands
 
 The rat accepts commands telling it to focus on making specific location checks. To do this, send a chat message like `@RatName go "Before Basketball #5"`, where `RatName` is the rat's slot name and `"Before Basketball #5"` is the name of the location to check.
 
 If you no longer want it to focus a location, you can `@RatName stop "Before Basketball #5"` to have it remove that from the queue.
+
+`@RatName list` will show a list of locations that it's been asked to focus (up to the first 5).
 
 You can always run `@RatName help` to get a list of all commands.
 
@@ -80,6 +85,9 @@ The game screen has some information about the rat's situation. Here's what they
 ### Items Panel
 
 Down the left-hand side of the screen are icons that quickly show which (progression) items the rat has / has not received based on whether or not the icon is lit up.
+
+You can click any of these icons to send a `!hint` command for it:
+![An excellent picture of the map screen dimmed slightly behind a confirmation box asking, "Request a hint for Ninja Rat?", with "OK" and "Cancel" buttons.](doc/request-hint-confirm.webp)
 
 ### The Map Itself
 
