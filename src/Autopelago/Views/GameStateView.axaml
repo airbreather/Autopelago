@@ -217,9 +217,9 @@
                                                        IsVisible="{Binding Model.FlavorText, Mode=OneTime, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
                                         </StackPanel>
                                     </ToolTip.Tip>
-                                    <Grid>
+                                    <Panel PointerPressed="OnItemClicked">
                                         <Image Height="48" Width="48" Source="{Binding Image, Mode=OneWay}" />
-                                    </Grid>
+                                    </Panel>
                                 </Border>
                             </DataTemplate>
                         </ItemsControl.ItemTemplate>

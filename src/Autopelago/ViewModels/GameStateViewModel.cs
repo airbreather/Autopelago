@@ -416,6 +416,8 @@ public sealed partial class GameStateViewModel : ViewModelBase, IDisposable
 
     public required ReactiveCommand<Unit, Unit> BackToMainMenuCommand { get; init; }
 
+    public required ReactiveCommand<CollectableItemViewModel, Unit> RequestItemHintCommand { get; init; }
+
     public ImmutableArray<FillerLocationViewModel> FillerLocations { get; }
 
     public ImmutableArray<CollectableItemViewModel> ProgressionItemsInPanel { get; } =
