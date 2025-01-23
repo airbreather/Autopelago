@@ -189,7 +189,7 @@ public sealed class GameUpdatePacketHandler : ArchipelagoPacketHandler, IDisposa
         }
 
         string probablyPlayerAlias = cmd[..(tagIndex - ": ".Length)];
-        if (!_contextUpdates.Value.SlotByPlayerAlias.ContainsKey(probablyPlayerAlias))
+        if (probablyPlayerAlias != "[Server]" && !_contextUpdates.Value.SlotByPlayerAlias.ContainsKey(probablyPlayerAlias))
         {
             // this isn't necessarily an error or a mistaken assumption. it could just be that the
             // "@{SlotName}" happened partway through their message. don't test every single user's
@@ -208,11 +208,11 @@ public sealed class GameUpdatePacketHandler : ArchipelagoPacketHandler, IDisposa
                 string locName = GameDefinitions.Instance[toPrioritize].Name;
                 string message = _gameUpdates.Value.AddPriorityLocation(toPrioritize) switch
                 {
-                    AddPriorityLocationResult.AlreadyPrioritized => $"Hey, {probablyPlayerAlias}, just so you know, I already had '{locName}' on my radar. I'll get there when I can, no worries!",
-                    AddPriorityLocationResult.AddedUnreachable => $"I'll keep it in mind that '{locName}' is important to you, '{probablyPlayerAlias}'. I can't get there just yet, though, so please be patient with me...",
+                    AddPriorityLocationResult.AlreadyPrioritized => $"Hey, {probablyPlayerAlias}, just so you know, I already had '{locName}' on my radar, so that command didn't do anything.",
+                    AddPriorityLocationResult.AddedUnreachable => $"I'll keep it in mind that '{locName}' is important to you, {probablyPlayerAlias}. I can't get there just yet, though, so please be patient with me...",
                     _ => $"All right, I'll get right over to '{locName}', {probablyPlayerAlias}!",
                 };
-                SayPacketModel say = new() { Text = message };
+                SayPacketModel say = new() { Text = message, BypassRatChatMute = true };
                 await sender.SendPacketsAsync([say, sender.CreateUpdateStatePacket(_gameUpdates.Value, _serverSavedStateKey)]);
             }
             else
@@ -220,6 +220,7 @@ public sealed class GameUpdatePacketHandler : ArchipelagoPacketHandler, IDisposa
                 SayPacketModel say = new()
                 {
                     Text = $"Um... excuse me, but... I don't know what a '{loc}' is...",
+                    BypassRatChatMute = true,
                 };
                 await sender.SendPacketsAsync([say]);
             }
@@ -233,17 +234,70 @@ public sealed class GameUpdatePacketHandler : ArchipelagoPacketHandler, IDisposa
                 Text = removedOrNull is { } removed
                     ? $"Oh, OK. I'll stop trying to get to '{GameDefinitions.Instance[removed].Name}', {probablyPlayerAlias}."
                     : $"Um... excuse me, but... I don't see a '{loc}' to remove...",
+                BypassRatChatMute = true,
             };
             await sender.SendPacketsAsync([say, sender.CreateUpdateStatePacket(_gameUpdates.Value, _serverSavedStateKey)]);
+        }
+        else if (cmd.StartsWith("list", StringComparison.OrdinalIgnoreCase))
+        {
+            ImmutableArray<LocationKey> nextLocations = [.. _gameUpdates.Value.PriorityLocations];
+            BitArray128 hardLockedRegions = _gameUpdates.Value.HardLockedRegionsReadOnly;
+            if (nextLocations.IsEmpty)
+            {
+                SayPacketModel say = new()
+                {
+                    Text = "I don't have anything I'm trying to get to... oh no, was I supposed to?",
+                    BypassRatChatMute = true,
+                };
+                await sender.SendPacketsAsync([say]);
+            }
+            else if (nextLocations.Length == 1)
+            {
+                SayPacketModel say = new()
+                {
+                    Text = $"I'm focusing on trying to get to just 1 place: {LocationTag(nextLocations[0])}.",
+                    BypassRatChatMute = true,
+                };
+                await sender.SendPacketsAsync([say]);
+            }
+            else
+            {
+                ImmutableArray<SayPacketModel> packets =
+                [
+                    new()
+                    {
+                        Text = nextLocations.Length > 5
+                            ? $"I have a list of {nextLocations.Length} places that I'm going to focus on getting to. Here are the first 5:"
+                            : $"Here are the {nextLocations.Length} places that I'm going to focus on getting to:",
+                        BypassRatChatMute = true,
+                    },
+                    .. nextLocations.Take(5).Select((l, i) => new SayPacketModel
+                    {
+                        Text = $"{i + 1}. {LocationTag(l)}",
+                        BypassRatChatMute = true,
+                    }),
+                ];
+                await sender.SendPacketsAsync(packets.CastArray<ArchipelagoPacketModel>());
+            }
+
+            string LocationTag(LocationKey location)
+            {
+                ref readonly LocationDefinitionModel locationDefinition = ref GameDefinitions.Instance[location];
+                string reachable = hardLockedRegions[locationDefinition.RegionLocationKey.Region.N]
+                    ? "blocked"
+                    : "unblocked";
+                return $"'{locationDefinition.Name}' ({reachable})";
+            }
         }
         else if (cmd.StartsWith("help", StringComparison.OrdinalIgnoreCase))
         {
             ImmutableArray<SayPacketModel> packets =
             [
-                new() { Text = "Commands you can use are:" },
-                new() { Text = $"1. @{_settings.Slot} go LOCATION_NAME" },
-                new() { Text = $"2. @{_settings.Slot} stop LOCATION_NAME" },
-                new() { Text = "LOCATION_NAME refers to whatever text you got in your hint, like \"Basketball\" or \"Before Prawn Stars #12\"." },
+                new() { Text = "Commands you can use are:", BypassRatChatMute = true },
+                new() { Text = $"1. @{_settings.Slot} go LOCATION_NAME", BypassRatChatMute = true },
+                new() { Text = $"2. @{_settings.Slot} stop LOCATION_NAME", BypassRatChatMute = true },
+                new() { Text = $"3. @{_settings.Slot} list", BypassRatChatMute = true },
+                new() { Text = "LOCATION_NAME refers to whatever text you got in your hint, like \"Basketball\" or \"Before Prawn Stars #12\".", BypassRatChatMute = true },
             ];
             await sender.SendPacketsAsync(packets.CastArray<ArchipelagoPacketModel>());
         }
@@ -252,6 +306,7 @@ public sealed class GameUpdatePacketHandler : ArchipelagoPacketHandler, IDisposa
             SayPacketModel say = new()
             {
                 Text = $"Say \"@{_settings.Slot} help\" (without the quotes) for a list of commands.",
+                BypassRatChatMute = true,
             };
             await sender.SendPacketsAsync([say]);
         }

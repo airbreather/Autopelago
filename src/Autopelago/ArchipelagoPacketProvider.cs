@@ -174,7 +174,7 @@ public sealed class ArchipelagoPacketProvider
 
         if (!_settings.RatChat)
         {
-            packets = packets.RemoveAll(packet => packet is SayPacketModel);
+            packets = packets.RemoveAll(packet => packet is SayPacketModel { BypassRatChatMute: false });
         }
 
         if (packets.IsEmpty)

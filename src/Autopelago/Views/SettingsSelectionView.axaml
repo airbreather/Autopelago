@@ -59,7 +59,7 @@
             </Border>
 
             <CheckBox Margin="0,5,0,0" Grid.Row="5" Grid.Column="0" Grid.ColumnSpan="3" IsChecked="{Binding RatChat}">
-                Send messages using Archipelago chat
+                Send unprompted messages using Archipelago chat
             </CheckBox>
 
             <CheckBox Margin="0,5,0,0" Grid.Row="6" Grid.Column="0" Grid.ColumnSpan="3" IsChecked="{Binding TileAnimations}">

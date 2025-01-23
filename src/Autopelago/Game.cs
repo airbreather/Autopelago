@@ -73,8 +73,10 @@ public sealed partial class Game
     private readonly GameInstrumentation? _instrumentation;
 
     private BitArray128 _hardLockedRegions = new(GameDefinitions.Instance.AllRegions.Length);
+    public BitArray128 HardLockedRegionsReadOnly => _hardLockedRegions;
 
     private BitArray128 _softLockedRegions = new(GameDefinitions.Instance.AllRegions.Length);
+    public BitArray128 SoftLockedRegionsReadOnly => _softLockedRegions;
 
     private BitArray384 _checkedLocations = new(GameDefinitions.Instance.AllLocations.Length);
 

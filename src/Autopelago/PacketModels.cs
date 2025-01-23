@@ -367,6 +367,9 @@ public sealed record CountdownPrintJSONPacketModel : PrintJSONPacketModel
 public sealed record SayPacketModel : ArchipelagoPacketModel
 {
     public required string Text { get; init; }
+
+    [JsonIgnore]
+    public bool BypassRatChatMute { get; init; }
 }
 
 public sealed record LocationChecksPacketModel : ArchipelagoPacketModel
