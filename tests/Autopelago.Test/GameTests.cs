@@ -70,6 +70,7 @@ public sealed class GameTests
     }
 
     [Test]
+    [MatrixDataSource]
     public async ValueTask ShouldOnlyTryBasketballWithAtLeastFiveRats([Matrix(0, 7)] int ratCount)
     {
         ItemKey packRat = GameDefinitions.Instance.ItemsByName["Pack Rat"];
@@ -92,6 +93,7 @@ public sealed class GameTests
     }
 
     [Test]
+    [MatrixDataSource]
     public async ValueTask ShouldHeadFurtherAfterCompletingBasketball([Matrix(true, false)] bool unblockAngryTurtlesFirst)
     {
         ItemKey packRat = GameDefinitions.Instance.ItemsByName["Pack Rat"];
@@ -165,6 +167,7 @@ public sealed class GameTests
     }
 
     [Test]
+    [MatrixDataSource]
     public async ValueTask LuckyAuraShouldForceSuccess([Matrix(1, 2, 3)] int effectCount)
     {
         using Game game = new(s_lowRolls);
@@ -545,6 +548,7 @@ public sealed class GameTests
     }
 
     [Test]
+    [MatrixDataSource]
     [Property("Regression", "100")]
     public async ValueTask SmartShouldResolveToNearestReachableIfPossible([Matrix("smart", "conspiratorial")] string aura)
     {

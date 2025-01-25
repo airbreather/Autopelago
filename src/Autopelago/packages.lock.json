@@ -135,18 +135,18 @@
       "Material.Icons.Avalonia": {
         "type": "Direct",
         "requested": "[*, )",
-        "resolved": "2.1.10",
-        "contentHash": "dclTtNbnoLonYK/YI2vgYvOmLeqw08xHxL+ExOSGZEMJKt6k3F6SDmJ41tByOxgXAd+nIDh8V9FqC0FQSEp/CQ==",
+        "resolved": "2.2.0",
+        "contentHash": "kuYTSL3T1+R8KgoFk5kMzeQ2w9Ej1+ZoRD+lxkSTiFgjBX6sMkE1TC0CTeBDm9a8sjsICRZ8BakA59vdw35xSQ==",
         "dependencies": {
-          "Avalonia": "11.0.0-rc1.1",
-          "Material.Icons": "2.1.10"
+          "Avalonia": "11.0.0",
+          "Material.Icons": "2.2.0"
         }
       },
       "Microsoft.Extensions.ObjectPool": {
         "type": "Direct",
         "requested": "[*, )",
-        "resolved": "9.0.0",
-        "contentHash": "UbsU/gYe4nv1DeqMXIVzDfNNek7Sk2kKuAOXL/Y+sLcAR0HwFUqzg1EPiU88jeHNe0g81aPvvHbvHarQr3r9IA=="
+        "resolved": "9.0.1",
+        "contentHash": "r64veU9uYILp6pYqfo3qzRab8zLMALvXZgT4VRY79tXMLu8X79uTlJ6nqPLtPIVhfCPXycRh8ILyFz/gGBDQdQ=="
       },
       "ReactiveUI.SourceGenerators": {
         "type": "Direct",
@@ -339,8 +339,8 @@
       },
       "Material.Icons": {
         "type": "Transitive",
-        "resolved": "2.1.10",
-        "contentHash": "nQnLAoVb9lgxWd4OtDADPVzBxERB9UYQd0UWcrqjg0NKFf8oPMuDM2kkxpBKe/Wm6Ayx3C/t3j2+8R1Nscg0Kw=="
+        "resolved": "2.2.0",
+        "contentHash": "89LJDuaLOwCVf3UixpiDUXTgDj2gw0FP3/ZwIEPHrWevbOraHAZl5X7Z2tXfGnCJZivMv+Y5DXIhGrobXEwx3A=="
       },
       "MicroCom.Runtime": {
         "type": "Transitive",
