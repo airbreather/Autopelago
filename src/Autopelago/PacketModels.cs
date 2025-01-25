@@ -1,5 +1,4 @@
 using System.Collections.Immutable;
-using System.ComponentModel;
 using System.Diagnostics.CodeAnalysis;
 using System.Text.Json;
 using System.Text.Json.Nodes;
@@ -8,25 +7,44 @@ using System.Text.Json.Serialization.Metadata;
 
 namespace Autopelago;
 
+[JsonConverter(typeof(JsonStringEnumConverter))]
 public enum ArchipelagoDataStorageOperationType
 {
+    [JsonStringEnumMemberName("replace")]
     Replace,
+    [JsonStringEnumMemberName("default")]
     Default,
+    [JsonStringEnumMemberName("add")]
     Add,
+    [JsonStringEnumMemberName("mul")]
     Mul,
+    [JsonStringEnumMemberName("pow")]
     Pow,
+    [JsonStringEnumMemberName("mod")]
     Mod,
+    [JsonStringEnumMemberName("floor")]
     Floor,
+    [JsonStringEnumMemberName("ceil")]
     Ceil,
+    [JsonStringEnumMemberName("max")]
     Max,
+    [JsonStringEnumMemberName("min")]
     Min,
+    [JsonStringEnumMemberName("and")]
     And,
+    [JsonStringEnumMemberName("or")]
     Or,
+    [JsonStringEnumMemberName("xor")]
     Xor,
+    [JsonStringEnumMemberName("left_shift")]
     LeftShift,
+    [JsonStringEnumMemberName("right_shift")]
     RightShift,
+    [JsonStringEnumMemberName("remove")]
     Remove,
+    [JsonStringEnumMemberName("pop")]
     Pop,
+    [JsonStringEnumMemberName("update")]
     Update,
 }
 
@@ -523,23 +541,9 @@ public sealed record DataStorageOperationModel
 {
     public string Class = "DataStorageOperation";
 
-    [JsonIgnore]
     public required ArchipelagoDataStorageOperationType Operation { get; init; }
 
     public required JsonNode Value { get; init; }
-
-    // https://github.com/dotnet/runtime/issues/74385 means that we need to do SOMETHING if we want
-    // this to be an enum (and thus get the compile-time help). use this old trick to have it not
-    // NEED any extra framework support, just a few gray hairs here and there.
-    [Browsable(false)]
-    [EditorBrowsable(EditorBrowsableState.Never)]
-    [JsonPropertyName("operation")]
-    public string OperationForJson => Operation switch
-    {
-        ArchipelagoDataStorageOperationType.LeftShift => "left_shift",
-        ArchipelagoDataStorageOperationType.RightShift => "right_shift",
-        { } other => $"{$"{other}".ToLowerInvariant()}",
-    };
 }
 
 [JsonConverter(typeof(JSONMessagePartModelConverter))]
