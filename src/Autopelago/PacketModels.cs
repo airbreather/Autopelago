@@ -7,7 +7,7 @@ using System.Text.Json.Serialization.Metadata;
 
 namespace Autopelago;
 
-[JsonConverter(typeof(JsonStringEnumConverter))]
+[JsonConverter(typeof(JsonStringEnumConverter<ArchipelagoDataStorageOperationType>))]
 public enum ArchipelagoDataStorageOperationType
 {
     [JsonStringEnumMemberName("replace")]

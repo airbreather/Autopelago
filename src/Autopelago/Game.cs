@@ -104,6 +104,30 @@ public sealed partial class Game
     private BitArray384 _locationIsRelevant;
     public BitArray384 LocationIsRelevant => _locationIsRelevant;
 
+    private BuffTokens? _enabledBuffs;
+    public BuffTokens EnabledBuffs
+    {
+        get
+        {
+            using Lock.Scope _ = EnterLockScope();
+            return
+                _enabledBuffs ??
+                throw new InvalidOperationException("Game has not started yet.");
+        }
+    }
+
+    private TrapTokens? _enabledTraps;
+    public TrapTokens EnabledTraps
+    {
+        get
+        {
+            using Lock.Scope _ = EnterLockScope();
+            return
+                _enabledTraps ??
+                throw new InvalidOperationException("Game has not started yet.");
+        }
+    }
+
     public ReadOnlyCollection<LocationKey> PriorityPriorityLocations { get; }
 
     public ReadOnlyCollection<LocationKey> PriorityLocations { get; }
@@ -374,6 +398,31 @@ public sealed partial class Game
         _victoryLocation = victoryLocation;
     }
 
+    public void InitializeEnabledBuffsAndTraps(ImmutableArray<BuffTokens> enabledBuffs, ImmutableArray<TrapTokens> enabledTraps)
+    {
+        using Lock.Scope _ = EnterLockScope();
+        if (_enabledBuffs is not null)
+        {
+            throw new InvalidOperationException("Enabled buffs and traps have already been initialized.");
+        }
+
+        BuffTokens enabledBuffTokens = BuffTokens.None;
+        foreach (BuffTokens token in enabledBuffs)
+        {
+            enabledBuffTokens |= token;
+        }
+
+        _enabledBuffs = enabledBuffTokens;
+
+        TrapTokens enabledTrapTokens = TrapTokens.None;
+        foreach (TrapTokens token in enabledTraps)
+        {
+            enabledTrapTokens |= token;
+        }
+
+        _enabledTraps = enabledTrapTokens;
+    }
+
     public AddPriorityLocationResult? AddPriorityLocation(LocationKey toPrioritize)
     {
         using Lock.Scope _ = EnterLockScope();
@@ -437,6 +486,8 @@ public sealed partial class Game
         }
 
         _locationIsRelevant = GameDefinitions.Instance.GetLocationsBeforeVictoryLandmark(GameDefinitions.Instance.Region[_victoryLocation]);
+        _enabledBuffs ??= BuffTokens.All;
+        _enabledTraps ??= TrapTokens.All;
         HasStarted = true;
         RecalculateClearable();
     }
@@ -725,53 +776,53 @@ public sealed partial class Game
             {
                 switch (aura)
                 {
-                    case "upset_tummy" when HasConfidence:
-                    case "unlucky" when HasConfidence:
-                    case "sluggish" when HasConfidence:
-                    case "distracted" when HasConfidence:
-                    case "startled" when HasConfidence:
-                    case "conspiratorial" when HasConfidence:
+                    case "upset_tummy" when EnabledTraps.HasFlag(TrapTokens.UpsetTummy) && HasConfidence:
+                    case "unlucky" when EnabledTraps.HasFlag(TrapTokens.Unlucky) && HasConfidence:
+                    case "sluggish" when EnabledTraps.HasFlag(TrapTokens.Sluggish) && HasConfidence:
+                    case "distracted" when EnabledTraps.HasFlag(TrapTokens.Distracted) && HasConfidence:
+                    case "startled" when EnabledTraps.HasFlag(TrapTokens.Startled) && HasConfidence:
+                    case "conspiratorial" when EnabledTraps.HasFlag(TrapTokens.Conspiratorial) && HasConfidence:
                         subtractConfidence = true;
                         break;
 
-                    case "well_fed":
+                    case "well_fed" when EnabledBuffs.HasFlag(BuffTokens.WellFed):
                         ++foodMod;
                         break;
 
-                    case "upset_tummy":
+                    case "upset_tummy" when EnabledTraps.HasFlag(TrapTokens.UpsetTummy):
                         --foodMod;
                         break;
 
-                    case "lucky":
+                    case "lucky" when EnabledBuffs.HasFlag(BuffTokens.Lucky):
                         ++luckFactorMod;
                         break;
 
-                    case "unlucky":
+                    case "unlucky" when EnabledTraps.HasFlag(TrapTokens.Unlucky):
                         --luckFactorMod;
                         break;
 
-                    case "energized":
+                    case "energized" when EnabledBuffs.HasFlag(BuffTokens.Energized):
                         ++energyFactorMod;
                         break;
 
-                    case "sluggish":
+                    case "sluggish" when EnabledTraps.HasFlag(TrapTokens.Sluggish):
                         --energyFactorMod;
                         break;
 
-                    case "distracted":
+                    case "distracted" when EnabledTraps.HasFlag(TrapTokens.Distracted):
                         ++distractedMod;
                         break;
 
-                    case "stylish":
+                    case "stylish" when EnabledBuffs.HasFlag(BuffTokens.Stylish):
                         ++stylishMod;
                         break;
 
-                    case "startled":
+                    case "startled" when EnabledTraps.HasFlag(TrapTokens.Startled):
                         ++startledMod;
                         break;
 
-                    case "smart":
-                    case "conspiratorial":
+                    case "smart" when EnabledBuffs.HasFlag(BuffTokens.Smart):
+                    case "conspiratorial" when EnabledTraps.HasFlag(TrapTokens.Conspiratorial):
                         if (recalculateAccess)
                         {
                             RecalculateClearable();
@@ -781,7 +832,7 @@ public sealed partial class Game
                         AddPriorityPriorityLocationFor(aura == "smart" ? ArchipelagoItemFlags.LogicalAdvancement : ArchipelagoItemFlags.Trap);
                         break;
 
-                    case "confident":
+                    case "confident" when EnabledBuffs.HasFlag(BuffTokens.Confident):
                         addConfidence = true;
                         break;
                 }

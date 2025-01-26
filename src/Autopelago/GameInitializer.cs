@@ -25,6 +25,10 @@ public sealed record AutopelagoWorldMetadata
     public required string VersionStamp { get; init; }
 
     public required string VictoryLocationName { get; init; }
+
+    public required ImmutableArray<BuffTokens> EnabledBuffs { get; init; }
+
+    public required ImmutableArray<TrapTokens> EnabledTraps { get; init; }
 }
 
 public sealed record MultiworldInfo
@@ -233,6 +237,11 @@ the one we were looking for (again, '{GameDefinitions.Instance.VersionStamp}'), 
         _game.InitializeVictoryLocation(GameDefinitions.Instance.LocationsByName[autopelagoWorldMetadata.VictoryLocationName]);
         GameDefinitions.Instance.TryGetLandmarkRegion(_game.VictoryLocation, out RegionKey victoryLandmark);
         BitArray384 locationIsReachable = GameDefinitions.Instance.GetLocationsBeforeVictoryLandmark(victoryLandmark);
+        if (!autopelagoWorldMetadata.EnabledBuffs.IsDefault)
+        {
+            _game.InitializeEnabledBuffsAndTraps(autopelagoWorldMetadata.EnabledBuffs, autopelagoWorldMetadata.EnabledTraps);
+        }
+
         _slotInfo = connected.SlotInfo.ToFrozenDictionary();
         _slotByPlayerAlias = connected.Players.ToFrozenDictionary(p => p.Alias, p => p.Slot);
         LocationScoutsPacketModel locationScouts = new()
