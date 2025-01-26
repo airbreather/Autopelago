@@ -47,6 +47,16 @@ public sealed record Settings
 
     public required bool RatChat { get; init; } = true;
 
+    public bool RatChatForTargetChanges { get; set; } = true;
+
+    public bool RatChatForFirstBlocked { get; set; } = true;
+
+    public bool RatChatForStillBlocked { get; set; } = true;
+
+    public bool RatChatForUnblocked { get; set; } = true;
+
+    public bool RatChatForOneTimeEvents { get; set; } = true;
+
     public bool TileAnimations { get; set; } = true;
 
     public bool PlayerAnimations { get; set; } = true;

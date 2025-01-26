@@ -111,7 +111,10 @@ public sealed class GameUpdatePacketHandler : ArchipelagoPacketHandler, IDisposa
         {
             foreach (LocationKey newPriorityLocation in game.PriorityPriorityLocations.Skip(priorityPriorityLocationCountBefore))
             {
-                newPackets.Add(new SayPacketModel { Text = s_newTargetPhrases[Random.Shared.Next(s_newTargetPhrases.Length)].Replace("{LOCATION}", GameDefinitions.Instance[newPriorityLocation].Name), });
+                if (_settings.RatChat && _settings.RatChatForTargetChanges)
+                {
+                    newPackets.Add(new SayPacketModel { Text = s_newTargetPhrases[Random.Shared.Next(s_newTargetPhrases.Length)].Replace("{LOCATION}", GameDefinitions.Instance[newPriorityLocation].Name), });
+                }
             }
         }
 
@@ -212,17 +215,15 @@ public sealed class GameUpdatePacketHandler : ArchipelagoPacketHandler, IDisposa
                     AddPriorityLocationResult.AddedUnreachable => $"I'll keep it in mind that '{locName}' is important to you, {probablyPlayerAlias}. I can't get there just yet, though, so please be patient with me...",
                     _ => $"All right, I'll get right over to '{locName}', {probablyPlayerAlias}!",
                 };
-                SayPacketModel say = new() { Text = message, BypassRatChatMute = true };
+                SayPacketModel say = new() { Text = message };
                 await sender.SendPacketsAsync([say, sender.CreateUpdateStatePacket(_gameUpdates.Value, _serverSavedStateKey)]);
             }
             else
             {
-                SayPacketModel say = new()
+                await sender.SendPacketsAsync([new SayPacketModel
                 {
                     Text = $"Um... excuse me, but... I don't know what a '{loc}' is...",
-                    BypassRatChatMute = true,
-                };
-                await sender.SendPacketsAsync([say]);
+                }]);
             }
         }
         else if (cmd.StartsWith("stop ", StringComparison.OrdinalIgnoreCase))
@@ -234,7 +235,6 @@ public sealed class GameUpdatePacketHandler : ArchipelagoPacketHandler, IDisposa
                 Text = removedOrNull is { } removed
                     ? $"Oh, OK. I'll stop trying to get to '{GameDefinitions.Instance[removed].Name}', {probablyPlayerAlias}."
                     : $"Um... excuse me, but... I don't see a '{loc}' to remove...",
-                BypassRatChatMute = true,
             };
             await sender.SendPacketsAsync([say, sender.CreateUpdateStatePacket(_gameUpdates.Value, _serverSavedStateKey)]);
         }
@@ -244,19 +244,16 @@ public sealed class GameUpdatePacketHandler : ArchipelagoPacketHandler, IDisposa
             BitArray128 hardLockedRegions = _gameUpdates.Value.HardLockedRegionsReadOnly;
             if (nextLocations.IsEmpty)
             {
-                SayPacketModel say = new()
+                await sender.SendPacketsAsync([new SayPacketModel
                 {
                     Text = "I don't have anything I'm trying to get to... oh no, was I supposed to?",
-                    BypassRatChatMute = true,
-                };
-                await sender.SendPacketsAsync([say]);
+                }]);
             }
             else if (nextLocations.Length == 1)
             {
                 SayPacketModel say = new()
                 {
                     Text = $"I'm focusing on trying to get to just 1 place: {LocationTag(nextLocations[0])}.",
-                    BypassRatChatMute = true,
                 };
                 await sender.SendPacketsAsync([say]);
             }
@@ -269,12 +266,10 @@ public sealed class GameUpdatePacketHandler : ArchipelagoPacketHandler, IDisposa
                         Text = nextLocations.Length > 5
                             ? $"I have a list of {nextLocations.Length} places that I'm going to focus on getting to. Here are the first 5:"
                             : $"Here are the {nextLocations.Length} places that I'm going to focus on getting to:",
-                        BypassRatChatMute = true,
                     },
                     .. nextLocations.Take(5).Select((l, i) => new SayPacketModel
                     {
                         Text = $"{i + 1}. {LocationTag(l)}",
-                        BypassRatChatMute = true,
                     }),
                 ];
                 await sender.SendPacketsAsync(packets.CastArray<ArchipelagoPacketModel>());
@@ -293,22 +288,20 @@ public sealed class GameUpdatePacketHandler : ArchipelagoPacketHandler, IDisposa
         {
             ImmutableArray<SayPacketModel> packets =
             [
-                new() { Text = "Commands you can use are:", BypassRatChatMute = true },
-                new() { Text = $"1. @{_settings.Slot} go LOCATION_NAME", BypassRatChatMute = true },
-                new() { Text = $"2. @{_settings.Slot} stop LOCATION_NAME", BypassRatChatMute = true },
-                new() { Text = $"3. @{_settings.Slot} list", BypassRatChatMute = true },
-                new() { Text = "LOCATION_NAME refers to whatever text you got in your hint, like \"Basketball\" or \"Before Prawn Stars #12\".", BypassRatChatMute = true },
+                new() { Text = "Commands you can use are:" },
+                new() { Text = $"1. @{_settings.Slot} go LOCATION_NAME" },
+                new() { Text = $"2. @{_settings.Slot} stop LOCATION_NAME" },
+                new() { Text = $"3. @{_settings.Slot} list" },
+                new() { Text = "LOCATION_NAME refers to whatever text you got in your hint, like \"Basketball\" or \"Before Prawn Stars #12\"." },
             ];
             await sender.SendPacketsAsync(packets.CastArray<ArchipelagoPacketModel>());
         }
         else
         {
-            SayPacketModel say = new()
+            await sender.SendPacketsAsync([new SayPacketModel
             {
                 Text = $"Say \"@{_settings.Slot} help\" (without the quotes) for a list of commands.",
-                BypassRatChatMute = true,
-            };
-            await sender.SendPacketsAsync([say]);
+            }]);
         }
     }
 }

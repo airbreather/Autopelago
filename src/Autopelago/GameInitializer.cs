@@ -441,11 +441,10 @@ the one we were looking for (again, '{GameDefinitions.Instance.VersionStamp}'), 
         {
             if (message.Contains($"@{_settings.Slot}", StringComparison.InvariantCultureIgnoreCase))
             {
-                SayPacketModel say = new()
+                await sender.SendPacketsAsync([new SayPacketModel
                 {
                     Text = "Sorry, I'm still figuring stuff out, so I can't do anything with commands just yet. Try again later.",
-                };
-                await sender.SendPacketsAsync([say]);
+                }]);
             }
         }
     }

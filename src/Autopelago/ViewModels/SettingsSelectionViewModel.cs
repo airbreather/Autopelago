@@ -30,6 +30,16 @@ public sealed partial class SettingsSelectionViewModel : ViewModelBase, IDisposa
 
     [Reactive] private bool _ratChat = true;
 
+    [Reactive] private bool _ratChatForTargetChanges = true;
+
+    [Reactive] private bool _ratChatForFirstBlocked = true;
+
+    [Reactive] private bool _ratChatForStillBlocked = true;
+
+    [Reactive] private bool _ratChatForUnblocked = true;
+
+    [Reactive] private bool _ratChatForOneTimeEvents = true;
+
     [Reactive] private bool _tileAnimations = true;
 
     [Reactive] private bool _playerAnimations = true;
@@ -89,6 +99,11 @@ public sealed partial class SettingsSelectionViewModel : ViewModelBase, IDisposa
             MinStepSeconds = MinStepSeconds,
             MaxStepSeconds = MaxStepSeconds,
             RatChat = RatChat,
+            RatChatForTargetChanges = RatChatForTargetChanges,
+            RatChatForFirstBlocked = RatChatForFirstBlocked,
+            RatChatForStillBlocked = RatChatForStillBlocked,
+            RatChatForUnblocked = RatChatForUnblocked,
+            RatChatForOneTimeEvents = RatChatForOneTimeEvents,
             TileAnimations = TileAnimations,
             PlayerAnimations = PlayerAnimations,
             PlayerToken = PlayerToken.Kind,
@@ -103,6 +118,11 @@ public sealed partial class SettingsSelectionViewModel : ViewModelBase, IDisposa
             MinStepSeconds = value.MinStepSeconds;
             MaxStepSeconds = value.MaxStepSeconds;
             RatChat = value.RatChat;
+            RatChatForTargetChanges = value.RatChatForTargetChanges;
+            RatChatForFirstBlocked = value.RatChatForFirstBlocked;
+            RatChatForStillBlocked = value.RatChatForStillBlocked;
+            RatChatForUnblocked = value.RatChatForUnblocked;
+            RatChatForOneTimeEvents = value.RatChatForOneTimeEvents;
             TileAnimations = value.TileAnimations;
             PlayerAnimations = value.PlayerAnimations;
             PlayerToken.Kind = value.PlayerToken;

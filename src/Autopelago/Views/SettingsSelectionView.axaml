@@ -17,7 +17,7 @@
 
     <SplitView Margin="5" IsPaneOpen="{Binding PlayerTokenSelectorOpen}" PanePlacement="Right"
                Pane="{Binding PlayerToken}" DisplayMode="Inline">
-        <Grid RowDefinitions="Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto" IsSharedSizeScope="True">
+        <Grid RowDefinitions="Auto,Auto,Auto,Auto,Auto,*,Auto" IsSharedSizeScope="True">
             <Grid.ColumnDefinitions>
                 <ColumnDefinition Width="Auto" SharedSizeGroup="Henry" />
                 <ColumnDefinition Width="*" />
@@ -58,19 +58,50 @@
                 </Grid>
             </Border>
 
-            <CheckBox Margin="0,5,0,0" Grid.Row="5" Grid.Column="0" Grid.ColumnSpan="3" IsChecked="{Binding RatChat}">
-                Send unprompted messages using Archipelago chat
-            </CheckBox>
+            <ScrollViewer Grid.Row="5" Grid.Column="0" Grid.ColumnSpan="3" Margin="0,5,0,0" VerticalScrollBarVisibility="Auto">
+                <Grid RowDefinitions="Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto">
+                    <CheckBox Grid.Row="0" Grid.Column="0" IsChecked="{Binding TileAnimations}">
+                        Enable tile animations
+                    </CheckBox>
 
-            <CheckBox Margin="0,5,0,0" Grid.Row="6" Grid.Column="0" Grid.ColumnSpan="3" IsChecked="{Binding TileAnimations}">
-                Enable tile animations
-            </CheckBox>
+                    <CheckBox Margin="0,5,0,0" Grid.Row="1" Grid.Column="0" IsChecked="{Binding PlayerAnimations}">
+                        Enable rat animations
+                    </CheckBox>
 
-            <CheckBox Margin="0,5,0,0" Grid.Row="7" Grid.Column="0" Grid.ColumnSpan="3" IsChecked="{Binding PlayerAnimations}">
-                Enable rat animations
-            </CheckBox>
+                    <CheckBox Margin="0,5,0,0" Grid.Row="2" Grid.Column="0" IsChecked="{Binding RatChat}">
+                        Send chat messages...
+                    </CheckBox>
 
-            <Button Margin="0,5,0,0" Grid.Row="8" Grid.Column="0" Grid.ColumnSpan="3"
+                    <CheckBox Margin="30,5,0,0" Grid.Row="3" Grid.Column="0" IsChecked="{Binding RatChatForTargetChanges}" IsEnabled="{Binding RatChat}">
+                        when target changes
+                    </CheckBox>
+
+                    <CheckBox Margin="30,5,0,0" Grid.Row="4" Grid.Column="0" IsChecked="{Binding RatChatForFirstBlocked}" IsEnabled="{Binding RatChat}">
+                        when becoming blocked
+                    </CheckBox>
+
+                    <CheckBox Margin="30,5,0,0" Grid.Row="5" Grid.Column="0" IsChecked="{Binding RatChatForStillBlocked}">
+                        <CheckBox.IsEnabled>
+                            <MultiBinding Converter="{x:Static BoolConverters.And}">
+                                <Binding Path="RatChat" />
+                                <Binding Path="RatChatForFirstBlocked" />
+                            </MultiBinding>
+                        </CheckBox.IsEnabled>
+
+                        when STILL blocked
+                    </CheckBox>
+
+                    <CheckBox Margin="30,5,0,0" Grid.Row="6" Grid.Column="0" IsChecked="{Binding RatChatForUnblocked}" IsEnabled="{Binding RatChat}">
+                        when becoming unblocked
+                    </CheckBox>
+
+                    <CheckBox Margin="30,5,0,0" Grid.Row="7" Grid.Column="0" IsChecked="{Binding RatChatForOneTimeEvents}" IsEnabled="{Binding RatChat}">
+                        for one-time events
+                    </CheckBox>
+                </Grid>
+            </ScrollViewer>
+
+            <Button Margin="0,5,0,0" Grid.Row="6" Grid.Column="0" Grid.ColumnSpan="3"
                     HorizontalAlignment="Stretch" HorizontalContentAlignment="Center"
                     IsDefault="True" Command="{Binding ConnectCommand}">
                 <TextBlock Text="Connect" />

@@ -117,11 +117,14 @@ public sealed class PlayLoopRunner : IDisposable
             game.Advance();
             if (!wasGoMode && game.TargetLocationReason == TargetLocationReason.GoMode)
             {
-                SayPacketModel say = new()
+                if (_settings.RatChat && _settings.RatChatForOneTimeEvents)
                 {
-                    Text = "That's it! I have everything I need! The moon is in sight!",
-                };
-                await _packets.SendPacketsAsync([say]);
+                    await _packets.SendPacketsAsync([new SayPacketModel
+                    {
+                        Text = "That's it! I have everything I need! The goal is in sight!",
+                    }]);
+                }
+
                 wasGoMode = true;
             }
 
@@ -143,7 +146,7 @@ public sealed class PlayLoopRunner : IDisposable
             {
                 if (!game.IsCompleted)
                 {
-                    if (prevBlockedReportTimestampOrNull is long prevBlockedReportTimestamp)
+                    if (prevBlockedReportTimestampOrNull is long prevBlockedReportTimestamp && _settings.RatChatForFirstBlocked && _settings.RatChatForStillBlocked)
                     {
                         if (Stopwatch.GetElapsedTime(prevBlockedReportTimestamp).TotalMinutes >= 15)
                         {
@@ -153,10 +156,14 @@ public sealed class PlayLoopRunner : IDisposable
 
                     if (prevBlockedReportTimestampOrNull is null)
                     {
-                        await _packets.SendPacketsAsync([new SayPacketModel
+                        if (_settings.RatChat && _settings.RatChatForFirstBlocked)
                         {
-                            Text = s_blockedMessages[Random.Shared.Next(s_blockedMessages.Length)],
-                        }]);
+                            await _packets.SendPacketsAsync([new SayPacketModel
+                            {
+                                Text = s_blockedMessages[Random.Shared.Next(s_blockedMessages.Length)],
+                            }]);
+                        }
+
                         prevBlockedReportTimestampOrNull = Stopwatch.GetTimestamp();
                     }
                 }
@@ -165,10 +172,14 @@ public sealed class PlayLoopRunner : IDisposable
             {
                 if (prevBlockedReportTimestampOrNull is not null)
                 {
-                    await _packets.SendPacketsAsync([new SayPacketModel
+                    if (_settings.RatChat && _settings.RatChatForUnblocked)
                     {
-                        Text = s_unblockedMessages[Random.Shared.Next(s_unblockedMessages.Length)],
-                    }]);
+                        await _packets.SendPacketsAsync([new SayPacketModel
+                        {
+                            Text = s_unblockedMessages[Random.Shared.Next(s_unblockedMessages.Length)],
+                        }]);
+                    }
+
                     prevBlockedReportTimestampOrNull = null;
                 }
             }
@@ -185,10 +196,13 @@ public sealed class PlayLoopRunner : IDisposable
 
             if (game.IsCompleted && !wasCompleted)
             {
-                await _packets.SendPacketsAsync([new SayPacketModel
+                if (_settings.RatChat && _settings.RatChatForOneTimeEvents)
                 {
-                    Text = "Yeah, I did it! er... WE did it!",
-                }]);
+                    await _packets.SendPacketsAsync([new SayPacketModel
+                    {
+                        Text = "Yeah, I did it! er... WE did it!",
+                    }]);
+                }
 
                 _gameUpdates.OnNext(game);
                 wasCompleted = true;

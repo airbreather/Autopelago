@@ -11,11 +11,9 @@ public sealed class UserInitiatedActions
 
     public async ValueTask RequestItemHintAsync(ItemKey item)
     {
-        SayPacketModel say = new()
+        await _packets.SendPacketsAsync([new SayPacketModel
         {
             Text = $"!hint {GameDefinitions.Instance[item].Name}",
-            BypassRatChatMute = true,
-        };
-        await _packets.SendPacketsAsync([say]);
+        }]);
     }
 }
