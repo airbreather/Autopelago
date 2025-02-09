@@ -64,4 +64,9 @@ public static class Helper
         ms.Position = 0;
         return new(ms);
     }
+
+    public static string Roll(this WeightedRandomItems<WeightedString> items, Random? random = null)
+    {
+        return items.QueryByRoll((random ?? Random.Shared).NextDouble()).Message;
+    }
 }

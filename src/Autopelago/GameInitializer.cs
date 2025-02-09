@@ -29,6 +29,60 @@ public sealed record AutopelagoWorldMetadata
     public required ImmutableArray<BuffTokens> EnabledBuffs { get; init; }
 
     public required ImmutableArray<TrapTokens> EnabledTraps { get; init; }
+
+    [JsonPropertyName("msg_changed_target")]
+    public required ImmutableArray<WeightedString> ChangedTargetMessages { get; init; }
+
+    [JsonPropertyName("msg_enter_go_mode")]
+    public required ImmutableArray<WeightedString> EnteredGoModeMessages { get; init; }
+
+    [JsonPropertyName("msg_enter_bk")]
+    public required ImmutableArray<WeightedString> EnterBKMessages { get; init; }
+
+    [JsonPropertyName("msg_remind_bk")]
+    public required ImmutableArray<WeightedString> RemindBKMessages { get; init; }
+
+    [JsonPropertyName("msg_exit_bk")]
+    public required ImmutableArray<WeightedString> ExitBKMessages { get; init; }
+
+    [JsonPropertyName("msg_completed_goal")]
+    public required ImmutableArray<WeightedString> CompletedGoalMessages { get; init; }
+}
+
+[JsonConverter(typeof(WeightedStringConverter))]
+public sealed record WeightedString : IWeighted
+{
+    public required string Message { get; init; }
+
+    public required int Weight { get; init; }
+
+    internal sealed class WeightedStringConverter : JsonConverter<WeightedString>
+    {
+        public override WeightedString Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
+        {
+            if (!(reader.TokenType == JsonTokenType.StartArray &&
+                  reader.Read() && reader.TokenType == JsonTokenType.String && reader.GetString() is string message &&
+                  reader.Read() && reader.TokenType == JsonTokenType.Number && reader.TryGetInt32(out int weight) &&
+                  reader.Read() && reader.TokenType == JsonTokenType.EndArray))
+            {
+                throw new JsonException();
+            }
+
+            return new()
+            {
+                Message = message,
+                Weight = weight,
+            };
+        }
+
+        public override void Write(Utf8JsonWriter writer, WeightedString value, JsonSerializerOptions options)
+        {
+            writer.WriteStartArray();
+            writer.WriteStringValue(value.Message);
+            writer.WriteNumberValue(value.Weight);
+            writer.WriteEndArray();
+        }
+    }
 }
 
 public sealed record MultiworldInfo
@@ -50,6 +104,18 @@ public sealed record MultiworldInfo
     public required FrozenDictionary<long, ItemKey> ItemsById { get; init; }
 
     public required FrozenDictionary<string, int> SlotByPlayerAlias { get; init; }
+
+    public required WeightedRandomItems<WeightedString> ChangedTargetMessages { get; init; }
+
+    public required WeightedRandomItems<WeightedString> EnteredGoModeMessages { get; init; }
+
+    public required WeightedRandomItems<WeightedString> EnterBKMessages { get; init; }
+
+    public required WeightedRandomItems<WeightedString> RemindBKMessages { get; init; }
+
+    public required WeightedRandomItems<WeightedString> ExitBKMessages { get; init; }
+
+    public required WeightedRandomItems<WeightedString> CompletedGoalMessages { get; init; }
 
     public string ServerSavedStateKey => GetServerSavedStateKey(teamNumber: TeamNumber, slotNumber: SlotNumber);
 
@@ -90,6 +156,18 @@ public sealed class GameInitializer : ArchipelagoPacketHandler
     private FrozenDictionary<long, LocationKey>? _locationsById;
 
     private FrozenDictionary<string, int>? _slotByPlayerAlias;
+
+    private WeightedRandomItems<WeightedString>? _changedTargetMessages;
+
+    private WeightedRandomItems<WeightedString>? _enteredGoModeMessages;
+
+    private WeightedRandomItems<WeightedString>? _enterBKMessages;
+
+    private WeightedRandomItems<WeightedString>? _remindBKMessages;
+
+    private WeightedRandomItems<WeightedString>? _exitBKMessages;
+
+    private WeightedRandomItems<WeightedString>? _completedGoalMessages;
 
     public GameInitializer(Settings settings, IObserver<Exception> unhandledException)
     {
@@ -216,7 +294,7 @@ public sealed class GameInitializer : ArchipelagoPacketHandler
 
         ConnectedPacketModel connected = (ConnectedPacketModel)connectResponse;
 
-        if (!(TryDeserialize(connected.SlotData, out AutopelagoWorldMetadata? autopelagoWorldMetadata) &&
+        if (!(TryDeserialize(connected.SlotData, out AutopelagoWorldMetadata? autopelagoWorldMetadata, out JsonException? thrownException) &&
               autopelagoWorldMetadata.VersionStamp == GameDefinitions.Instance.VersionStamp))
         {
             throw new InvalidOperationException($"""
@@ -228,11 +306,17 @@ its 'AutopelagoDefinitions.yml' file for a "version_stamp". If it's not there, o
 the one we were looking for (again, '{GameDefinitions.Instance.VersionStamp}'), then that's why this happened.
 
 
-""");
+""", thrownException);
         }
 
         _teamNumber = connected.Team;
         _slotNumber = connected.Slot;
+        _changedTargetMessages = new(autopelagoWorldMetadata.ChangedTargetMessages);
+        _enteredGoModeMessages = new(autopelagoWorldMetadata.EnteredGoModeMessages);
+        _enterBKMessages = new(autopelagoWorldMetadata.EnterBKMessages);
+        _remindBKMessages = new(autopelagoWorldMetadata.RemindBKMessages);
+        _exitBKMessages = new(autopelagoWorldMetadata.ExitBKMessages);
+        _completedGoalMessages = new(autopelagoWorldMetadata.CompletedGoalMessages);
 
         _game.InitializeVictoryLocation(GameDefinitions.Instance.LocationsByName[autopelagoWorldMetadata.VictoryLocationName]);
         GameDefinitions.Instance.TryGetLandmarkRegion(_game.VictoryLocation, out RegionKey victoryLandmark);
@@ -261,15 +345,17 @@ the one we were looking for (again, '{GameDefinitions.Instance.VersionStamp}'), 
         _game.InitializeCheckedLocations(checkedLocations);
     }
 
-    private static bool TryDeserialize(JsonElement json, [NotNullWhen(true)] out AutopelagoWorldMetadata? result)
+    private static bool TryDeserialize(JsonElement json, [NotNullWhen(true)] out AutopelagoWorldMetadata? result, out JsonException? thrownException)
     {
+        thrownException = null;
         try
         {
             result = json.Deserialize<AutopelagoWorldMetadata>(AutopelagoWorldMetadataSerializationContext.Default.AutopelagoWorldMetadata);
         }
-        catch (JsonException)
+        catch (JsonException ex)
         {
             result = null;
+            thrownException = ex;
         }
 
         return result is not null;
@@ -349,7 +435,13 @@ the one we were looking for (again, '{GameDefinitions.Instance.VersionStamp}'), 
             _locationIds is not { IsDefault: false } locationIds ||
             _locationsById is not { } locationsById ||
             _itemsById is not { } itemsById ||
-            _slotByPlayerAlias is not { } slotByPlayerAlias)
+            _slotByPlayerAlias is not { } slotByPlayerAlias ||
+            _changedTargetMessages is not { } changedTargetMessages ||
+            _enteredGoModeMessages is not { } enteredGoModeMessages ||
+            _enterBKMessages is not { } enterBKMessages ||
+            _remindBKMessages is not { } remindBKMessages ||
+            _exitBKMessages is not { } exitBKMessages ||
+            _completedGoalMessages is not { } completedGoalMessages)
         {
             HandshakeException exception = new();
             _unhandledException.OnError(exception);
@@ -371,6 +463,12 @@ the one we were looking for (again, '{GameDefinitions.Instance.VersionStamp}'), 
                 LocationsById = locationsById,
                 ItemsById = itemsById,
                 SlotByPlayerAlias = slotByPlayerAlias,
+                ChangedTargetMessages = changedTargetMessages,
+                EnteredGoModeMessages = enteredGoModeMessages,
+                EnterBKMessages = enterBKMessages,
+                RemindBKMessages = remindBKMessages,
+                ExitBKMessages = exitBKMessages,
+                CompletedGoalMessages = completedGoalMessages,
             },
         });
         _initializedGame.OnCompleted();

@@ -109,11 +109,12 @@ public sealed class GameUpdatePacketHandler : ArchipelagoPacketHandler, IDisposa
         List<ArchipelagoPacketModel> newPackets = [];
         if (priorityPriorityLocationCountBefore != game.PriorityPriorityLocations.Count)
         {
+            WeightedRandomItems<WeightedString> changedTargetMessages = _contextUpdates.Value.ChangedTargetMessages;
             foreach (LocationKey newPriorityLocation in game.PriorityPriorityLocations.Skip(priorityPriorityLocationCountBefore))
             {
                 if (_settings.RatChat && _settings.RatChatForTargetChanges)
                 {
-                    newPackets.Add(new SayPacketModel { Text = s_newTargetPhrases[Random.Shared.Next(s_newTargetPhrases.Length)].Replace("{LOCATION}", GameDefinitions.Instance[newPriorityLocation].Name), });
+                    newPackets.Add(new SayPacketModel { Text = changedTargetMessages.Roll().Replace("{LOCATION}", GameDefinitions.Instance[newPriorityLocation].Name), });
                 }
             }
         }

@@ -9,25 +9,19 @@ namespace Autopelago;
 
 public sealed class PlayLoopRunner : IDisposable
 {
-    private static readonly ImmutableArray<string> s_blockedMessages =
-    [
-        "I don't have anything to do right now. Go team!",
-        "Hey, I'm completely stuck. But I still believe in you!",
-        "I've run out of things to do. How are you?",
-        "I'm out of things for now, gonna get a coffee. Anyone want something?",
-    ];
-
-    private static readonly ImmutableArray<string> s_unblockedMessages =
-    [
-        "Yippee, that's just what I needed!",
-        "I'm back! I knew you could do it!",
-        "Sweet, I'm unblocked! Thanks!",
-        "Squeak-squeak, it's rattin' time!",
-    ];
-
     private readonly CompositeDisposable _disposables = [];
 
     private readonly BehaviorSubject<Game> _gameUpdates;
+
+    private readonly WeightedRandomItems<WeightedString> _enterBKMessages;
+
+    private readonly WeightedRandomItems<WeightedString> _remindBKMessages;
+
+    private readonly WeightedRandomItems<WeightedString> _exitBKMessages;
+
+    private readonly WeightedRandomItems<WeightedString> _enteredGoModeMessages;
+
+    private readonly WeightedRandomItems<WeightedString> _completedGoalMessages;
 
     private readonly ImmutableArray<long> _locationIds;
 
@@ -45,6 +39,11 @@ public sealed class PlayLoopRunner : IDisposable
         GameUpdates = _gameUpdates.AsObservable();
         _locationIds = context.LocationIds;
         _serverSavedStateKey = context.ServerSavedStateKey;
+        _enterBKMessages = context.EnterBKMessages;
+        _remindBKMessages = context.RemindBKMessages;
+        _exitBKMessages = context.ExitBKMessages;
+        _enteredGoModeMessages = context.EnteredGoModeMessages;
+        _completedGoalMessages = context.CompletedGoalMessages;
         _packets = packets;
         _settings = settings;
         _timeProvider = timeProvider;
@@ -121,7 +120,7 @@ public sealed class PlayLoopRunner : IDisposable
                 {
                     await _packets.SendPacketsAsync([new SayPacketModel
                     {
-                        Text = "That's it! I have everything I need! The goal is in sight!",
+                        Text = _enteredGoModeMessages.Roll(),
                     }]);
                 }
 
@@ -146,21 +145,22 @@ public sealed class PlayLoopRunner : IDisposable
             {
                 if (!game.IsCompleted)
                 {
+                    bool remind = false;
                     if (prevBlockedReportTimestampOrNull is long prevBlockedReportTimestamp && _settings.RatChatForFirstBlocked && _settings.RatChatForStillBlocked)
                     {
                         if (Stopwatch.GetElapsedTime(prevBlockedReportTimestamp).TotalMinutes >= 15)
                         {
-                            prevBlockedReportTimestampOrNull = null;
+                            remind = true;
                         }
                     }
 
-                    if (prevBlockedReportTimestampOrNull is null)
+                    if (prevBlockedReportTimestampOrNull is null || remind)
                     {
                         if (_settings.RatChat && _settings.RatChatForFirstBlocked)
                         {
                             await _packets.SendPacketsAsync([new SayPacketModel
                             {
-                                Text = s_blockedMessages[Random.Shared.Next(s_blockedMessages.Length)],
+                                Text = (remind ? _remindBKMessages : _enterBKMessages).Roll(),
                             }]);
                         }
 
@@ -176,7 +176,7 @@ public sealed class PlayLoopRunner : IDisposable
                     {
                         await _packets.SendPacketsAsync([new SayPacketModel
                         {
-                            Text = s_unblockedMessages[Random.Shared.Next(s_unblockedMessages.Length)],
+                            Text = _exitBKMessages.Roll(),
                         }]);
                     }
 
@@ -200,7 +200,7 @@ public sealed class PlayLoopRunner : IDisposable
                 {
                     await _packets.SendPacketsAsync([new SayPacketModel
                     {
-                        Text = "Yeah, I did it! er... WE did it!",
+                        Text = _completedGoalMessages.Roll(),
                     }]);
                 }
 
