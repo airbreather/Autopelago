@@ -16,15 +16,19 @@ public sealed partial class CollectableItemViewModel : ViewModelBase, IDisposabl
 
     private readonly Bitmap _desaturatedImage;
 
+    [ObservableAsProperty] private bool _lactoseIntolerant;
+
     [Reactive] private bool _collected;
 
     [Reactive] private bool _relevant = true;
 
     [Reactive] private Bitmap? _image;
 
-    public CollectableItemViewModel(string yamlKey)
+    public CollectableItemViewModel(string yamlKey, IObservable<bool> lactoseIntolerant)
     {
         YamlKey = yamlKey;
+        _lactoseIntolerantHelper = lactoseIntolerant
+            .ToProperty(this, x => x.LactoseIntolerant);
         try
         {
             Model = GameDefinitions.Instance[GameDefinitions.Instance.ProgressionItemsByYamlKey[yamlKey]];

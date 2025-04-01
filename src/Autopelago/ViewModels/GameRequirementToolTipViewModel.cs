@@ -1,6 +1,12 @@
 using System.Collections.Immutable;
 using System.Reactive.Disposables;
 
+using Autopelago.Converters;
+
+using Avalonia;
+using Avalonia.Controls;
+using Avalonia.Data;
+
 using ReactiveUI;
 using ReactiveUI.SourceGenerators;
 
@@ -10,11 +16,15 @@ public sealed partial class GameRequirementToolTipViewModel : ViewModelBase, IDi
 {
     private readonly CompositeDisposable _subscription = [];
 
+    [ObservableAsProperty] private bool _lactoseIntolerant;
+
     [Reactive] private bool _satisfied;
 
-    public GameRequirementToolTipViewModel(GameRequirement req)
+    public GameRequirementToolTipViewModel(GameRequirement req, IObservable<bool> lactoseIntolerant)
     {
         Model = req;
+        _lactoseIntolerantHelper = lactoseIntolerant
+            .ToProperty(this, x => x.LactoseIntolerant);
         switch (req)
         {
             case RatCountRequirement { RatCount: 1 }:
@@ -26,12 +36,24 @@ public sealed partial class GameRequirementToolTipViewModel : ViewModelBase, IDi
                 break;
 
             case ReceivedItemRequirement { ItemKey: ItemKey itemKey }:
-                MyContent = GameDefinitions.Instance[itemKey].Name;
+                var item = GameDefinitions.Instance[itemKey];
+                MyContent = new ContentControl
+                {
+                    [!ContentControl.ContentProperty] = new MultiBinding
+                    {
+                        Bindings =
+                        [
+                            new Binding { Source = item },
+                            lactoseIntolerant.ToBinding(),
+                        ],
+                        Converter = new ItemNameConverter(),
+                    },
+                };
                 break;
 
             case AllChildrenGameRequirement { Children: ImmutableArray<GameRequirement> children }:
                 HeaderContent = "All:";
-                Children = ImmutableArray.CreateRange(children, child => new GameRequirementToolTipViewModel(child));
+                Children = ImmutableArray.CreateRange(children, child => new GameRequirementToolTipViewModel(child, lactoseIntolerant));
                 foreach (GameRequirementToolTipViewModel child in Children)
                 {
                     _subscription.Add(child
@@ -43,7 +65,7 @@ public sealed partial class GameRequirementToolTipViewModel : ViewModelBase, IDi
 
             case AnyChildGameRequirement { Children: ImmutableArray<GameRequirement> children }:
                 HeaderContent = "Any:";
-                Children = ImmutableArray.CreateRange(children, child => new GameRequirementToolTipViewModel(child));
+                Children = ImmutableArray.CreateRange(children, child => new GameRequirementToolTipViewModel(child, lactoseIntolerant));
                 foreach (GameRequirementToolTipViewModel child in Children)
                 {
                     _subscription.Add(child
@@ -55,7 +77,7 @@ public sealed partial class GameRequirementToolTipViewModel : ViewModelBase, IDi
 
             case AnyTwoChildrenGameRequirement { Children: ImmutableArray<GameRequirement> children }:
                 HeaderContent = "Any 2:";
-                Children = ImmutableArray.CreateRange(children, child => new GameRequirementToolTipViewModel(child));
+                Children = ImmutableArray.CreateRange(children, child => new GameRequirementToolTipViewModel(child, lactoseIntolerant));
                 foreach (GameRequirementToolTipViewModel child in Children)
                 {
                     _subscription.Add(child

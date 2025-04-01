@@ -147,6 +147,17 @@ public sealed partial class Game
         }
     }
 
+    private bool? _lactoseIntolerant;
+    public bool LactoseIntolerant
+    {
+        get
+        {
+            using Lock.Scope _ = EnterLockScope();
+            return _lactoseIntolerant ??
+                throw new InvalidOperationException("Game has not started yet.");
+        }
+    }
+
     public FrozenDictionary<ArchipelagoItemFlags, BitArray384> SpoilerData
     {
         get
@@ -398,6 +409,17 @@ public sealed partial class Game
         _victoryLocation = victoryLocation;
     }
 
+    public void InitializeLactoseIntolerance(bool lactoseIntolerant)
+    {
+        using Lock.Scope __ = EnterLockScope();
+        if (_lactoseIntolerant.HasValue)
+        {
+            throw new InvalidOperationException("Lactose intolerance has already been initialized.");
+        }
+
+        _lactoseIntolerant = lactoseIntolerant;
+    }
+
     public void InitializeEnabledBuffsAndTraps(ImmutableArray<BuffTokens> enabledBuffs, ImmutableArray<TrapTokens> enabledTraps)
     {
         using Lock.Scope _ = EnterLockScope();
@@ -488,6 +510,7 @@ public sealed partial class Game
         _locationIsRelevant = GameDefinitions.Instance.GetLocationsBeforeVictoryLandmark(GameDefinitions.Instance.Region[_victoryLocation]);
         _enabledBuffs ??= BuffTokens.All;
         _enabledTraps ??= TrapTokens.All;
+        _lactoseIntolerant ??= false;
         HasStarted = true;
         RecalculateClearable();
     }

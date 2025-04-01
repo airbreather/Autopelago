@@ -47,6 +47,9 @@ public sealed record AutopelagoWorldMetadata
 
     [JsonPropertyName("msg_completed_goal")]
     public required ImmutableArray<WeightedString> CompletedGoalMessages { get; init; }
+
+    [JsonPropertyName("lactose_intolerant")]
+    public required bool LactoseIntolerant { get; init; }
 }
 
 [JsonConverter(typeof(WeightedStringConverter))]
@@ -318,6 +321,7 @@ the one we were looking for (again, '{GameDefinitions.Instance.VersionStamp}'), 
         _exitBKMessages = new(autopelagoWorldMetadata.ExitBKMessages);
         _completedGoalMessages = new(autopelagoWorldMetadata.CompletedGoalMessages);
 
+        _game.InitializeLactoseIntolerance(autopelagoWorldMetadata.LactoseIntolerant);
         _game.InitializeVictoryLocation(GameDefinitions.Instance.LocationsByName[autopelagoWorldMetadata.VictoryLocationName]);
         GameDefinitions.Instance.TryGetLandmarkRegion(_game.VictoryLocation, out RegionKey victoryLandmark);
         BitArray384 locationIsReachable = GameDefinitions.Instance.GetLocationsBeforeVictoryLandmark(victoryLandmark);

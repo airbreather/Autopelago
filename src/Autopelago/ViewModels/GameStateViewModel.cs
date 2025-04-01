@@ -29,15 +29,32 @@ public sealed partial class GameStateViewModel : ViewModelBase, IDisposable
         "Victory",
     }.ToFrozenSet();
 
-    private static readonly ImmutableArray<string> s_ratThoughts =
+    private static readonly ImmutableArray<string> s_ratThoughtsNormal =
     [
+        "squeak squeak",
         "the moon looks cheesy today",
         "i could really go for some cheddar",
-        "squeak squeak",
         "wait, is there even air in space?",
         "i sure hope the moon hasn't gotten moldy",
         "wait... you can read my mind?",
         "did you know, real rats don't even like cheese all that much!",
+        "don't you DARE call me a mouse!",
+        "rat rat rat rat rat rat rat rat rat rat rat rat",
+        "i may live in a sewer, but i'm squeaky clean!",
+        "ahem, a little privacy please?",
+        "you're not a cat, are you? just checking...",
+        "'click me to see where I want to go'? what does that mean?",
+    ];
+
+    private static readonly ImmutableArray<string> s_ratThoughtsLactoseIntolerant =
+    [
+        "squeak squeak",
+        "the moon looks spidery today",
+        "i could really go for some spiders",
+        "wait, is there even air in space?",
+        "i sure hope the moon hasn't gotten moldy",
+        "wait... you can read my mind?",
+        "did you know, real rats don't even like spiders all that much!",
         "don't you DARE call me a mouse!",
         "rat rat rat rat rat rat rat rat rat rat rat rat",
         "i may live in a sewer, but i'm squeaky clean!",
@@ -54,7 +71,9 @@ public sealed partial class GameStateViewModel : ViewModelBase, IDisposable
 
     [ObservableAsProperty] private Rect _mapRect = new(0, 0, 300, 450);
 
-    [Reactive] private string _ratThought = s_ratThoughts[0];
+    [ObservableAsProperty] private bool _lactoseIntolerant;
+
+    [Reactive] private string _ratThought = s_ratThoughtsNormal[0];
 
     [Reactive] private bool _playerIsActivated;
 
@@ -126,6 +145,20 @@ public sealed partial class GameStateViewModel : ViewModelBase, IDisposable
             .Subscribe(paused => provider.SetPaused(paused.Value))
             .DisposeWith(_disposables);
 
+        IObservable<bool> lactoseIntolerant = provider.CurrentGameState
+            .Select(g => g.LactoseIntolerant);
+
+        _lactoseIntolerantHelper = lactoseIntolerant
+            .ToProperty(this, x => x.LactoseIntolerant)
+            .DisposeWith(_disposables);
+
+        this.ProgressionItemsInPanel = [
+            .. GameDefinitions.Instance.ProgressionItemsByYamlKey
+                .Where(kvp => !s_hiddenProgressionItems.Contains(kvp.Key))
+                .OrderBy(kvp => s_progressionItemSortOrder[kvp.Value])
+                .Select(kvp => new CollectableItemViewModel(kvp.Key, lactoseIntolerant)),
+        ];
+
         provider.CurrentGameState
             .Select(g => g.LocationIsRelevant)
             .DistinctUntilChanged()
@@ -186,7 +219,7 @@ public sealed partial class GameStateViewModel : ViewModelBase, IDisposable
         [
             .. GameDefinitions.Instance.AllRegions
                 .OfType<LandmarkRegionDefinitionModel>()
-                .Select(r => new LandmarkRegionViewModel(r.Key)),
+                .Select(r => new LandmarkRegionViewModel(r.Key, lactoseIntolerant)),
         ];
 
         CollectableItemViewModel?[] progressionItemInPanelLookup = new CollectableItemViewModel?[GameDefinitions.Instance.AllItems.Length];
@@ -420,23 +453,20 @@ public sealed partial class GameStateViewModel : ViewModelBase, IDisposable
 
     public ImmutableArray<FillerLocationViewModel> FillerLocations { get; }
 
-    public ImmutableArray<CollectableItemViewModel> ProgressionItemsInPanel { get; } =
-    [
-        .. GameDefinitions.Instance.ProgressionItemsByYamlKey
-            .Where(kvp => !s_hiddenProgressionItems.Contains(kvp.Key))
-            .OrderBy(kvp => s_progressionItemSortOrder[kvp.Value])
-            .Select(kvp => new CollectableItemViewModel(kvp.Key)),
-    ];
+    public ImmutableArray<CollectableItemViewModel> ProgressionItemsInPanel { get; }
 
     public ImmutableArray<LandmarkRegionViewModel> LandmarkRegions { get; }
 
     public void NextRatThought()
     {
+        ImmutableArray<string> ratThoughts = LactoseIntolerant
+            ? s_ratThoughtsLactoseIntolerant
+            : s_ratThoughtsNormal;
         string prevRatThought = RatThought;
         string nextRatThought = RatThought;
         while (nextRatThought == prevRatThought)
         {
-            nextRatThought = s_ratThoughts[Random.Shared.Next(s_ratThoughts.Length)];
+            nextRatThought = ratThoughts[Random.Shared.Next(ratThoughts.Length)];
         }
 
         RatThought = nextRatThought;

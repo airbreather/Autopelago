@@ -12,6 +12,7 @@
         <converters:BooleanToStringConverter x:Key="YNConverter" FalseValue="N" TrueValue="Y" />
         <x:Double x:Key="ToolTipContentMaxWidth">400</x:Double>
         <converters:NonZeroConverter x:Key="NonZeroConverter" />
+        <converters:ItemNameConverter x:Key="ItemNameConverter" />
     </Application.Resources>
 
     <Application.DataTemplates>

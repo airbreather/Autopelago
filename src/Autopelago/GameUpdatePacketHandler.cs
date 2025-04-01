@@ -13,14 +13,6 @@ namespace Autopelago;
 
 public sealed class GameUpdatePacketHandler : ArchipelagoPacketHandler, IDisposable
 {
-    private static readonly ImmutableArray<string> s_newTargetPhrases =
-    [
-        "Oh, hey, what's that thing over there at '{LOCATION}'?",
-        "There's something at '{LOCATION}', I'm sure of it!",
-        "Something at '{LOCATION}' smells good!",
-        "There's a rumor that something's going on at '{LOCATION}'!",
-    ];
-
     private readonly CompositeDisposable _disposables = [];
 
     private readonly Settings _settings;

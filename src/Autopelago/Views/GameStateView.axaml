@@ -209,8 +209,14 @@
                                         ToolTip.VerticalOffset="0" PointerMoved="OnPointerMovedOverControlWithToolTip">
                                     <ToolTip.Tip>
                                         <StackPanel>
-                                            <TextBlock Classes="tooltip big"
-                                                       Text="{Binding Model.Name, Mode=OneTime}" />
+                                            <TextBlock Classes="tooltip big">
+                                                <TextBlock.Text>
+                                                    <MultiBinding Converter="{StaticResource ItemNameConverter}">
+                                                        <Binding Path="Model" Mode="OneTime" />
+                                                        <Binding Path="LactoseIntolerant" />
+                                                    </MultiBinding>
+                                                </TextBlock.Text>
+                                            </TextBlock>
 
                                             <TextBlock Margin="0,5,0,0" Classes="tooltip small"
                                                        Text="{Binding Model.FlavorText, StringFormat='“{0}”', Mode=OneTime}"

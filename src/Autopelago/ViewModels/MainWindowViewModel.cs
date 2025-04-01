@@ -99,7 +99,7 @@ public sealed partial class MainWindowViewModel : ViewModelBase, IDisposable
         if (await ShowDialogAsync(confirmViewModel, confirmViewModel.Result.AsObservable(), cancellationToken) == ConfirmItemHintResult.Ok)
         {
             UserInitiatedActions actions = await provider.GetUserInitiatedActionsAsync();
-            await actions.RequestItemHintAsync(item.Model.Key);
+            await actions.RequestItemHintAsync(item.Model.Key, item.LactoseIntolerant);
         }
 
         return Unit.Default;

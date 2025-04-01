@@ -143,7 +143,11 @@ public sealed class GameDefinitions
             StartLocation = regions.AllLocations.First(l => l.Connected.Backward.IsEmpty).Key,
             ItemsWithNonzeroRatCounts = items.ItemsWithNonzeroRatCounts,
             RegionsByYamlKey = regions.AllRegions.ToFrozenDictionary(r => r.YamlKey, r => r.Key),
-            ItemsByName = items.AllItems.ToFrozenDictionary(i => i.Name, i => i.Key),
+            // ReSharper disable once InvokeAsExtensionMethod
+            ItemsByName = Enumerable.UnionBy(
+                items.AllItems.Select(i => KeyValuePair.Create(i.NormalName, i.Key)),
+                items.AllItems.Select(i => KeyValuePair.Create(i.LactoseIntolerantName, i.Key)),
+                kvp => kvp.Key).ToFrozenDictionary(),
             LocationsByName = regions.AllLocations.ToFrozenDictionary(l => l.Name, l => l.Key),
             LocationsByNameCaseInsensitive = regions.AllLocations.ToFrozenDictionary(l => l.Name, l => l.Key, StringComparer.InvariantCultureIgnoreCase),
             UnrandomizedSpoilerData = regions.AllLocations
@@ -213,7 +217,8 @@ public sealed class ItemDefinitionsModel
                 AssociatedGame = null,
                 AurasGranted = [],
                 FlavorText = null,
-                Name = "Victory",
+                NormalName = "Victory",
+                LactoseIntolerantName = "Victory",
                 RatCount = 0,
             },
         ];
@@ -315,7 +320,9 @@ public readonly record struct ItemDefinitionModel
     // ReSharper disable once UnusedAutoPropertyAccessor.Global
     public required string? AssociatedGame { get; init; }
 
-    public required string Name { get; init; }
+    public required string NormalName { get; init; }
+
+    public required string LactoseIntolerantName { get; init; }
 
     public required ArchipelagoItemFlags ArchipelagoFlags { get; init; }
 
@@ -329,38 +336,41 @@ public readonly record struct ItemDefinitionModel
     {
         return node switch
         {
-            YamlScalarNode scalar => DeserializeFrom(itemNum, scalar, archipelagoFlags, associatedGame, defaultRatCount),
             YamlSequenceNode sequence => DeserializeFrom(itemNum, sequence, archipelagoFlags, associatedGame, defaultRatCount),
             YamlMappingNode map => DeserializeFrom(itemNum, map, archipelagoFlags, associatedGame, defaultRatCount),
             _ => throw new InvalidDataException("Bad node type"),
         };
     }
 
-    private static ItemDefinitionModel DeserializeFrom(int itemNum, YamlScalarNode scalar, ArchipelagoItemFlags archipelagoFlags, string? associatedGame = null, int defaultRatCount = 0)
-    {
-        return new()
-        {
-            Key = new() { N = itemNum },
-            AssociatedGame = associatedGame,
-            Name = scalar.Value!,
-            ArchipelagoFlags = archipelagoFlags,
-            AurasGranted = [],
-            RatCount = defaultRatCount,
-        };
-    }
-
     private static ItemDefinitionModel DeserializeFrom(int itemNum, YamlSequenceNode sequence, ArchipelagoItemFlags archipelagoFlags, string? associatedGame = null, int defaultRatCount = 0)
     {
-        if (sequence.Children is not [YamlScalarNode { Value: string itemName }, YamlSequenceNode aurasGranted])
+        string normalItemName;
+        string lactoseIntolerantItemName;
+        YamlSequenceNode aurasGranted;
+        switch (sequence.Children)
         {
-            throw new InvalidDataException("Bad format.");
+            case [YamlScalarNode { Value: string itemName }, YamlSequenceNode aurasGranted0]:
+                normalItemName = itemName;
+                lactoseIntolerantItemName = itemName;
+                aurasGranted = aurasGranted0;
+                break;
+
+            case [YamlSequenceNode { Children: [YamlScalarNode { Value: string normalItemName0 }, YamlScalarNode { Value: string lactoseIntolerantItemName0 }] }, YamlSequenceNode aurasGranted0]:
+                normalItemName = normalItemName0;
+                lactoseIntolerantItemName = lactoseIntolerantItemName0;
+                aurasGranted = aurasGranted0;
+                break;
+
+            default:
+                throw new InvalidDataException("Bad format.");
         }
 
         return new()
         {
             Key = new() { N = itemNum },
             AssociatedGame = associatedGame,
-            Name = itemName,
+            NormalName = normalItemName,
+            LactoseIntolerantName = lactoseIntolerantItemName,
             ArchipelagoFlags = archipelagoFlags,
             AurasGranted = [.. aurasGranted.Select(a => ((YamlScalarNode)a).Value!)],
             RatCount = defaultRatCount,
@@ -369,7 +379,8 @@ public readonly record struct ItemDefinitionModel
 
     private static ItemDefinitionModel DeserializeFrom(int itemNum, YamlMappingNode map, ArchipelagoItemFlags archipelagoFlags, string? associatedGame = null, int defaultRatCount = 0)
     {
-        string? name = null;
+        string? normalName = null;
+        string? lactoseIntolerantName = null;
         int ratCount = defaultRatCount;
         string? flavorText = null;
         ImmutableArray<string> aurasGranted = [];
@@ -378,9 +389,18 @@ public readonly record struct ItemDefinitionModel
             string key = keyNode.To<string>();
             switch (key)
             {
-                case "name":
-                    name = valueNode.To<string>();
+                case "name" when valueNode is YamlScalarNode && valueNode.To<string?>() is string name:
+                    normalName = name;
+                    lactoseIntolerantName = name;
                     break;
+
+                case "name" when valueNode is YamlSequenceNode && valueNode.To<string[]?>() is [string normalName0, string lactoseIntolerantName0]:
+                    normalName = normalName0;
+                    lactoseIntolerantName = lactoseIntolerantName0;
+                    break;
+
+                case "name":
+                    throw new InvalidDataException($"Unrecognized name: {valueNode}");
 
                 case "auras_granted":
                     aurasGranted = [.. valueNode.To<string[]>()];
@@ -400,7 +420,8 @@ public readonly record struct ItemDefinitionModel
         {
             Key = new() { N = itemNum },
             AssociatedGame = associatedGame,
-            Name = name ?? throw new InvalidDataException("name is required."),
+            NormalName = normalName ?? throw new InvalidDataException("name is required."),
+            LactoseIntolerantName = lactoseIntolerantName ?? throw new InvalidDataException("name is required."),
             ArchipelagoFlags = archipelagoFlags,
             AurasGranted = aurasGranted,
             RatCount = ratCount,

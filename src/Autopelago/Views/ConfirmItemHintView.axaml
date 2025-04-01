@@ -11,7 +11,14 @@
         <TextBlock Margin="5" Grid.Column="0" Grid.Row="0" Grid.ColumnSpan="2"
                    TextWrapping="WrapWithOverflow"
                    TextTrimming="CharacterEllipsis">
-            Request a hint for <LineBreak/><Run Foreground="Yellow" Text="{Binding Item.Model.Name, FallbackValue={x:Null}}" />?
+            Request a hint for <LineBreak/><Run Foreground="Yellow">
+                <Run.Text>
+                    <MultiBinding Converter="{StaticResource ItemNameConverter}">
+                        <Binding Path="Item.Model" FallbackValue="{x:Null}" />
+                        <Binding Path="Item.LactoseIntolerant" FallbackValue="{x:False}" />
+                    </MultiBinding>
+                </Run.Text>
+            </Run>?
         </TextBlock>
         <Button Margin="5" Grid.Column="0" Grid.Row="1" HorizontalAlignment="Center"
                 Command="{Binding SetResultCommand}"

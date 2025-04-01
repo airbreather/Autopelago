@@ -9,11 +9,14 @@ public sealed class UserInitiatedActions
         _packets = packets;
     }
 
-    public async ValueTask RequestItemHintAsync(ItemKey item)
+    public async ValueTask RequestItemHintAsync(ItemKey item, bool lactoseIntolerant)
     {
+        string name = lactoseIntolerant
+            ? GameDefinitions.Instance[item].LactoseIntolerantName
+            : GameDefinitions.Instance[item].NormalName;
         await _packets.SendPacketsAsync([new SayPacketModel
         {
-            Text = $"!hint {GameDefinitions.Instance[item].Name}",
+            Text = $"!hint {name}",
         }]);
     }
 }

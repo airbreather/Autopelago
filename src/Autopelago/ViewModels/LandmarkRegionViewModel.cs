@@ -66,11 +66,11 @@ public sealed partial class LandmarkRegionViewModel : ViewModelBase, IDisposable
 
     [Reactive(SetModifier = AccessModifier.Private)] private bool _showGrayQuestImage = true;
 
-    public LandmarkRegionViewModel(RegionKey region)
+    public LandmarkRegionViewModel(RegionKey region, IObservable<bool> lactoseIntolerant)
     {
         Region = (LandmarkRegionDefinitionModel)GameDefinitions.Instance[region];
         Location = GameDefinitions.Instance[GameDefinitions.Instance[region].Locations[0]];
-        GameRequirementToolTipSource = new(((LandmarkRegionDefinitionModel)GameDefinitions.Instance[region]).Requirement);
+        GameRequirementToolTipSource = new(((LandmarkRegionDefinitionModel)GameDefinitions.Instance[region]).Requirement, lactoseIntolerant);
         CanvasLocation = s_canvasLocations[region] - s_toCenter;
 
         SaturatedImages = new(Region.YamlKey);
