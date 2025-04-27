@@ -129,12 +129,10 @@ public static class PlayerTokens
 
     private static SKBitmap Wrap(ILockedFramebuffer fb)
     {
-        if (fb.Format != PixelFormat.Bgra8888)
-        {
-            throw new NotSupportedException("i forgor");
-        }
-
-        SKImageInfo imageInfo = new(fb.Size.Width, fb.Size.Height, SKColorType.Bgra8888, SKAlphaType.Unpremul);
+        SKColorType colorType = fb.Format == PixelFormat.Bgra8888
+            ? SKColorType.Bgra8888
+            : fb.Format == PixelFormat.Rgba8888 ? SKColorType.Rgba8888 : throw new NotSupportedException("i forgor");
+        SKImageInfo imageInfo = new(fb.Size.Width, fb.Size.Height, colorType, SKAlphaType.Unpremul);
         SKBitmap bitmap = new(imageInfo);
         try
         {
