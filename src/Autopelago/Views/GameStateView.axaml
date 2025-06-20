@@ -456,7 +456,7 @@
                                       Width="32"
                                       Height="32"
                                       IsChecked="{Binding Paused}"
-                                      Content="{materialIcons:MaterialIconExt Pause, Size=24}" />
+                                      Content="{materialIcons:MaterialIconExt Pause, None, Size=24}" />
                     </Panel>
                 </TabItem>
                 <TabItem IsEnabled="False">
