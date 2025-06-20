@@ -69,8 +69,11 @@ public sealed class GameUpdatePacketHandler : ArchipelagoPacketHandler, IDisposa
 
         if (roomUpdate.Players is { } players)
         {
-            FrozenDictionary<string, int> slotByPlayerAlias = players.ToFrozenDictionary(p => p.Alias, p => p.Slot);
-            _contextUpdates.OnNext(_contextUpdates.Value with { SlotByPlayerAlias = slotByPlayerAlias });
+            _contextUpdates.OnNext(_contextUpdates.Value with
+            {
+                SlotByPlayerAlias = players.ToFrozenDictionary(p => p.Alias, p => p.Slot),
+                PlayerAliasBySlot = players.ToFrozenDictionary(p => p.Slot, p => p.Alias),
+            });
         }
 
         if (roomUpdate.CheckedLocations is { } checkedLocations)
@@ -158,12 +161,19 @@ public sealed class GameUpdatePacketHandler : ArchipelagoPacketHandler, IDisposa
                 }
             }
 
+            string taggedSlotOrAlias = $"@{_settings.Slot} ";
             string message = $"{messageTemplateBuilder}";
             Log.Information(message);
-            int tagIndex = message.IndexOf($"@{_settings.Slot}", StringComparison.InvariantCultureIgnoreCase);
+            int tagIndex = message.IndexOf(taggedSlotOrAlias, StringComparison.InvariantCultureIgnoreCase);
+            if (tagIndex < 0)
+            {
+                taggedSlotOrAlias = $"@{_contextUpdates.Value.PlayerAliasBySlot[_contextUpdates.Value.SlotNumber]} ";
+                tagIndex = message.IndexOf(taggedSlotOrAlias, StringComparison.InvariantCultureIgnoreCase);
+            }
+
             if (tagIndex >= 0)
             {
-                await ProcessChatCommand(message, tagIndex, sender);
+                await ProcessChatCommand(message, taggedSlotOrAlias, tagIndex, sender);
             }
         }
         finally
@@ -175,7 +185,7 @@ public sealed class GameUpdatePacketHandler : ArchipelagoPacketHandler, IDisposa
         }
     }
 
-    private async ValueTask ProcessChatCommand(string cmd, int tagIndex, ArchipelagoPacketProvider sender)
+    private async ValueTask ProcessChatCommand(string cmd, string taggedSlotOrAlias, int tagIndex, ArchipelagoPacketProvider sender)
     {
         // chat message format is "{UserAlias}: {Message}", so it needs to be at least this long.
         if (tagIndex <= ": ".Length)
@@ -195,7 +205,7 @@ public sealed class GameUpdatePacketHandler : ArchipelagoPacketHandler, IDisposa
         }
 
         // if we got here, then the entire rest of the message after "@{SlotName}" is the command.
-        cmd = Regex.Replace(cmd[tagIndex..], $"^@{_settings.Slot} ", "", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant | RegexOptions.Compiled);
+        cmd = Regex.Replace(cmd[tagIndex..].Normalize(), $"^{Regex.Escape(taggedSlotOrAlias.Normalize())}", "", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant | RegexOptions.Compiled);
         if (cmd.StartsWith("go ", StringComparison.OrdinalIgnoreCase))
         {
             string loc = cmd["go ".Length..].Trim('"');
@@ -282,9 +292,9 @@ public sealed class GameUpdatePacketHandler : ArchipelagoPacketHandler, IDisposa
             ImmutableArray<SayPacketModel> packets =
             [
                 new() { Text = "Commands you can use are:" },
-                new() { Text = $"1. @{_settings.Slot} go LOCATION_NAME" },
-                new() { Text = $"2. @{_settings.Slot} stop LOCATION_NAME" },
-                new() { Text = $"3. @{_settings.Slot} list" },
+                new() { Text = $"1. {taggedSlotOrAlias}go LOCATION_NAME" },
+                new() { Text = $"2. {taggedSlotOrAlias}stop LOCATION_NAME" },
+                new() { Text = $"3. {taggedSlotOrAlias}list" },
                 new() { Text = "LOCATION_NAME refers to whatever text you got in your hint, like \"Basketball\" or \"Before Prawn Stars #12\"." },
             ];
             await sender.SendPacketsAsync(packets.CastArray<ArchipelagoPacketModel>());
@@ -293,7 +303,7 @@ public sealed class GameUpdatePacketHandler : ArchipelagoPacketHandler, IDisposa
         {
             await sender.SendPacketsAsync([new SayPacketModel
             {
-                Text = $"Say \"@{_settings.Slot} help\" (without the quotes) for a list of commands.",
+                Text = $"Say \"{taggedSlotOrAlias}help\" (without the quotes) for a list of commands.",
             }]);
         }
     }

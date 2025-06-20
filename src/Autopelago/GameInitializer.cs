@@ -106,6 +106,8 @@ public sealed record MultiworldInfo
 
     public required FrozenDictionary<long, ItemKey> ItemsById { get; init; }
 
+    public required FrozenDictionary<int, string> PlayerAliasBySlot { get; init; }
+
     public required FrozenDictionary<string, int> SlotByPlayerAlias { get; init; }
 
     public required WeightedRandomItems<WeightedString> ChangedTargetMessages { get; init; }
@@ -159,6 +161,8 @@ public sealed class GameInitializer : ArchipelagoPacketHandler
     private FrozenDictionary<long, LocationKey>? _locationsById;
 
     private FrozenDictionary<string, int>? _slotByPlayerAlias;
+
+    private FrozenDictionary<int, string>? _playerAliasBySlot;
 
     private WeightedRandomItems<WeightedString>? _changedTargetMessages;
 
@@ -332,6 +336,7 @@ the one we were looking for (again, '{GameDefinitions.Instance.VersionStamp}'), 
 
         _slotInfo = connected.SlotInfo.ToFrozenDictionary();
         _slotByPlayerAlias = connected.Players.ToFrozenDictionary(p => p.Alias, p => p.Slot);
+        _playerAliasBySlot = connected.Players.ToFrozenDictionary(p => p.Slot, p => p.Alias);
         LocationScoutsPacketModel locationScouts = new()
         {
             Locations = _locationsById!
@@ -405,6 +410,7 @@ the one we were looking for (again, '{GameDefinitions.Instance.VersionStamp}'), 
         if (roomUpdate.Players is { } players)
         {
             _slotByPlayerAlias = players.ToFrozenDictionary(p => p.Alias, p => p.Slot);
+            _playerAliasBySlot = players.ToFrozenDictionary(p => p.Slot, p => p.Alias);
         }
     }
 
@@ -440,6 +446,7 @@ the one we were looking for (again, '{GameDefinitions.Instance.VersionStamp}'), 
             _locationsById is not { } locationsById ||
             _itemsById is not { } itemsById ||
             _slotByPlayerAlias is not { } slotByPlayerAlias ||
+            _playerAliasBySlot is not { } playerAliasBySlot ||
             _changedTargetMessages is not { } changedTargetMessages ||
             _enteredGoModeMessages is not { } enteredGoModeMessages ||
             _enterBKMessages is not { } enterBKMessages ||
@@ -467,6 +474,7 @@ the one we were looking for (again, '{GameDefinitions.Instance.VersionStamp}'), 
                 LocationsById = locationsById,
                 ItemsById = itemsById,
                 SlotByPlayerAlias = slotByPlayerAlias,
+                PlayerAliasBySlot = playerAliasBySlot,
                 ChangedTargetMessages = changedTargetMessages,
                 EnteredGoModeMessages = enteredGoModeMessages,
                 EnterBKMessages = enterBKMessages,
