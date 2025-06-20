@@ -282,7 +282,7 @@ public sealed class GameInitializer : ArchipelagoPacketHandler
             Game = "Autopelago",
             Name = _settings.Slot,
             Uuid = Guid.NewGuid(),
-            Version = new(new("0.5.1")),
+            Version = new(new("0.6.1")),
             ItemsHandling = ArchipelagoItemsHandlingFlags.All,
             Tags = ["AP"],
             SlotData = true,
