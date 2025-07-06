@@ -84,11 +84,6 @@
                 </Style.Animations>
             </Style>
         </Style>
-        <Style Selector="Border.fillerLocation">
-            <Setter Property="Effect">
-                <DropShadowEffect OffsetX="0.6" OffsetY="0.6" BlurRadius="1" />
-            </Setter>
-        </Style>
         <Style Selector="Rectangle.fillerLocation">
             <Style Selector="^:not(.checked)">
                 <Setter Property="Fill" Value="Yellow" />
@@ -96,11 +91,6 @@
             <Style Selector="^.checked">
                 <Setter Property="Fill" Value="Gray" />
             </Style>
-        </Style>
-        <Style Selector="views|BitmapPairView.landmark">
-            <Setter Property="Effect">
-                <DropShadowEffect OffsetX="2.8" OffsetY="2.8" Opacity="0.8" />
-            </Setter>
         </Style>
         <Style Selector="Polyline.toTargetLocation[IsVisible=true].canAnimate">
             <Style.Animations>
@@ -290,7 +280,11 @@
                                     <ItemsControl ItemsSource="{Binding FillerLocations, Mode=OneTime}">
                                         <ItemsControl.ItemsPanel>
                                             <ItemsPanelTemplate>
-                                                <Canvas Width="300" Height="{Binding MapHeight}" />
+                                                <Canvas Width="300" Height="{Binding MapHeight}">
+                                                    <Canvas.Effect>
+                                                        <DropShadowEffect OffsetX="0.6" OffsetY="0.6" BlurRadius="1" />
+                                                    </Canvas.Effect>
+                                                </Canvas>
                                             </ItemsPanelTemplate>
                                         </ItemsControl.ItemsPanel>
                                         <ItemsControl.Styles>
@@ -321,7 +315,11 @@
                                             </MultiBinding>
                                         </Polyline.IsVisible>
                                     </Polyline>
-                                    <views:LandmarksView Width="300" Height="{Binding MapHeight}" ViewModel="{Binding .}" />
+                                    <views:LandmarksView Width="300" Height="{Binding MapHeight}" ViewModel="{Binding .}">
+                                        <views:LandmarksView.Effect>
+                                            <DropShadowEffect OffsetX="2.8" OffsetY="2.8" Opacity="0.8" />
+                                        </views:LandmarksView.Effect>
+                                    </views:LandmarksView>
                                     <ItemsControl ItemsSource="{Binding LandmarkRegions, Mode=OneTime}">
                                         <ItemsControl.ItemsPanel>
                                             <ItemsPanelTemplate>
