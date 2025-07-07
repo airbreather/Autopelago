@@ -5,7 +5,8 @@
     "ng": "ng",
     "start": "ng serve",
     "build": "ng build",
-    "watch": "ng build --watch --configuration development"
+    "watch": "ng build --watch --configuration development",
+    "lint": "ng lint"
   },
   "prettier": {
     "overrides": [
@@ -29,9 +30,14 @@
     "tslib": "^2.3.0"
   },
   "devDependencies": {
+    "@angular-eslint/builder": "20.1.1",
     "@angular/build": "^20.0.5",
     "@angular/cli": "^20.0.5",
     "@angular/compiler-cli": "^20.0.0",
-    "typescript": "~5.8.2"
+    "@eslint/js": "^9.29.0",
+    "angular-eslint": "20.1.1",
+    "eslint": "^9.29.0",
+    "typescript": "~5.8.2",
+    "typescript-eslint": "8.34.1"
   }
 }

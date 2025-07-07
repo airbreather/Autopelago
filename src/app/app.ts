@@ -5,12 +5,10 @@ import { RouterOutlet } from '@angular/router';
   selector: 'app-root',
   imports: [RouterOutlet],
   template: `
-    <h1>Welcome to {{title}}!</h1>
-
     <router-outlet />
   `,
   styles: [],
 })
+// eslint-disable-next-line @typescript-eslint/no-extraneous-class
 export class App {
-  protected title = 'autopelago-ts';
 }
