@@ -1,1 +1,19 @@
 /* You can add global styles to this file, and also import other style files */
+
+/* Import PublicPixel font */
+@font-face {
+  font-family: 'PublicPixel';
+  src: url('/PublicPixel-z84yD.ttf') format('truetype');
+  font-weight: normal;
+  font-style: normal;
+}
+
+/* Set PublicPixel as the default font for all text */
+* {
+  font-family: 'PublicPixel', sans-serif;
+}
+
+/* Apply the font to the body element as well for better coverage */
+body {
+  font-family: 'PublicPixel', sans-serif;
+}
