@@ -1,13 +1,5 @@
-import {
-  Component,
-  computed,
-  effect,
-  ElementRef,
-  linkedSignal,
-  signal,
-  viewChild,
-  WritableSignal
-} from '@angular/core';
+import { Component, effect, ElementRef, inject, viewChild } from '@angular/core';
+import { ConnectScreenStore, createHostSelector } from '../store/connect-screen.store';
 
 @Component({
   selector: 'app-connect-screen',
@@ -21,13 +13,13 @@ import {
                id="slot"
                type="text"
                [value]="slot()"
-               (input)="slot.set(slotInput.value)" />
+               (input)="updateSlot(slotInput.value)" />
         <label for="host">Host:</label>
         <input #hostInput
                id="host"
                type="text"
                [value]="host()"
-               (input)="directHost.set(hostInput.value)" />
+               (input)="updateDirectHost(hostInput.value)" />
         <label for="port">Port:</label>
         <input #portInput
                id="port"
@@ -35,13 +27,13 @@ import {
                min="1"
                max="65535"
                [value]="port()"
-               (input)="port.set(portInput.valueAsNumber)" />
+               (input)="updatePort(portInput.valueAsNumber)" />
         <label for="password">Password:</label>
         <input #passwordInput
                id="password"
                type="password"
                [value]="password()"
-               (input)="password.set(passwordInput.value)" />
+               (input)="updatePassword(passwordInput.value)" />
         <fieldset class="inputs" [style.grid-column]="'span 2'">
           <legend>Time Between Steps (sec.)</legend>
           <label for="minTime">Minimum:</label>
@@ -49,13 +41,13 @@ import {
                  id="minTime"
                  type="number"
                  [value]="minTime()"
-                 (input)="minTime.set(minTimeInput.valueAsNumber)" />
+                 (input)="updateMinTime(minTimeInput.valueAsNumber)" />
           <label for="maxTime">Maximum:</label>
           <input #maxTimeInput
                  id="maxTime"
                  type="number"
                  [value]="maxTime()"
-                 (input)="maxTime.set(maxTimeInput.valueAsNumber)" />
+                 (input)="updateMaxTime(maxTimeInput.valueAsNumber)" />
         </fieldset>
       </div>
       <div class="inputs">
@@ -63,21 +55,21 @@ import {
                id="enableTileAnimations"
                type="checkbox"
                [checked]="enableTileAnimations()"
-               (input)="enableTileAnimations.set(enableTileAnimationsInput.checked)" />
+               (input)="updateEnableTileAnimations(enableTileAnimationsInput.checked)" />
         <label for="enableTileAnimations">Enable tile animations</label>
   
         <input #enableRatAnimationsInput
                id="enableRatAnimations"
                type="checkbox"
                [checked]="enableRatAnimations()"
-               (input)="enableRatAnimations.set(enableRatAnimationsInput.checked)" />
+               (input)="updateEnableRatAnimations(enableRatAnimationsInput.checked)" />
         <label for="enableRatAnimations">Enable rat animations</label>
   
         <input #sendChatMessagesInput
                id="sendChatMessages"
                type="checkbox"
                [checked]="sendChatMessages()"
-               (input)="sendChatMessages.set(sendChatMessagesInput.checked)" />
+               (input)="updateSendChatMessages(sendChatMessagesInput.checked)" />
         <label for="sendChatMessages">Send chat messages...</label>
       </div>
       <div class="inputs" [style.padding-left]="'20px'">
@@ -86,7 +78,7 @@ import {
                type="checkbox"
                [disabled]="!sendChatMessages()"
                [checked]="whenTargetChanges()"
-               (input)="whenTargetChanges.set(whenTargetChangesInput.checked)" />
+               (input)="updateWhenTargetChanges(whenTargetChangesInput.checked)" />
         <label for="whenTargetChanges">when target changes</label>
   
         <input #whenBecomingBlockedInput
@@ -94,7 +86,7 @@ import {
                type="checkbox"
                [disabled]="!sendChatMessages()"
                [checked]="whenBecomingBlocked()"
-               (input)="whenBecomingBlocked.set(whenBecomingBlockedInput.checked)" />
+               (input)="updateWhenBecomingBlocked(whenBecomingBlockedInput.checked)" />
         <label for="whenBecomingBlocked">when becoming blocked</label>
   
         <input #whenStillBlockedInput
@@ -102,7 +94,7 @@ import {
                type="checkbox"
                [disabled]="!(sendChatMessages() && whenBecomingBlocked())"
                [checked]="whenStillBlocked()"
-               (input)="whenStillBlocked.set(whenStillBlockedInput.checked)" />
+               (input)="updateWhenStillBlocked(whenStillBlockedInput.checked)" />
         <label for="whenStillBlocked">when STILL blocked</label>
   
         <input #whenBecomingUnblockedInput
@@ -110,7 +102,7 @@ import {
                type="checkbox"
                [disabled]="!sendChatMessages()"
                [checked]="whenBecomingUnblocked()"
-               (input)="whenBecomingUnblocked.set(whenBecomingUnblockedInput.checked)" />
+               (input)="updateWhenBecomingUnblocked(whenBecomingUnblockedInput.checked)" />
         <label for="whenBecomingUnblocked">when becoming unblocked</label>
   
         <input #forOneTimeEventsInput
@@ -118,7 +110,7 @@ import {
                type="checkbox"
                [disabled]="!sendChatMessages()"
                [checked]="forOneTimeEvents()"
-               (input)="forOneTimeEvents.set(forOneTimeEventsInput.checked)" />
+               (input)="updateForOneTimeEvents(forOneTimeEventsInput.checked)" />
         <label for="forOneTimeEvents">for one-time events</label>
       </div>
       <input class="submit-button" type="submit" value="Connect" [disabled]="!allInputs.checkValidity()" />
@@ -147,49 +139,25 @@ import {
   `
 })
 export class ConnectScreen {
-  readonly slot = signal('');
-  readonly directHost = signal('archipelago.gg');
-  readonly host = linkedSignal({
-    source: () => ({
-      direct: this.directHost(),
-      port: this.port(),
-      portFromHost: this.portFromHost(),
-    }),
-    computation: (source) => {
-      return source.portFromHost == source.port
-        ? source.direct
-        : source.direct.replace(/(:\d+)$/, '');
-    },
-  });
-  readonly portFromHost = computed(() => {
-    const m = /(?<=:)\d+$/.exec(this.directHost());
-    return m ? Number(m[0]) : null;
-  });
-  readonly port: WritableSignal<number> = linkedSignal({
-    source: () => this.portFromHost(),
-    computation: (source, previous) => {
-      if (source) {
-        return source;
-      }
+  private readonly store = inject(ConnectScreenStore);
 
-      if (previous) {
-        return previous.value;
-      }
+  // Expose store properties as getters for template access
+  readonly slot = this.store.slot;
+  readonly port = this.store.port;
+  readonly password = this.store.password;
+  readonly minTime = this.store.minTime;
+  readonly maxTime = this.store.maxTime;
+  readonly enableTileAnimations = this.store.enableTileAnimations;
+  readonly enableRatAnimations = this.store.enableRatAnimations;
+  readonly sendChatMessages = this.store.sendChatMessages;
+  readonly whenTargetChanges = this.store.whenTargetChanges;
+  readonly whenBecomingBlocked = this.store.whenBecomingBlocked;
+  readonly whenStillBlocked = this.store.whenStillBlocked;
+  readonly whenBecomingUnblocked = this.store.whenBecomingUnblocked;
+  readonly forOneTimeEvents = this.store.forOneTimeEvents;
 
-      return 65535;
-    },
-  });
-  readonly password = signal('');
-  readonly minTime = signal(20);
-  readonly maxTime = signal(30);
-  readonly enableTileAnimations = signal(true);
-  readonly enableRatAnimations = signal(true);
-  readonly sendChatMessages = signal(true);
-  readonly whenTargetChanges = signal(true);
-  readonly whenBecomingBlocked = signal(true);
-  readonly whenStillBlocked = signal(false);
-  readonly whenBecomingUnblocked = signal(true);
-  readonly forOneTimeEvents = signal(true);
+  // Computed properties from selectors
+  readonly host = createHostSelector(this.store);
 
   protected readonly minTimeInput = viewChild<ElementRef<HTMLInputElement>>('minTimeInput');
   protected readonly maxTimeInput = viewChild<ElementRef<HTMLInputElement>>('maxTimeInput');
@@ -207,4 +175,20 @@ export class ConnectScreen {
       }
     }
   });
+
+  // Store update methods
+  updateSlot = (value: string) => { this.store.updateSlot(value); };
+  updateDirectHost = (value: string) => { this.store.updateDirectHost(value); };
+  updatePassword = (value: string) => { this.store.updatePassword(value); };
+  updateMinTime = (value: number) => { this.store.updateMinTime(value); };
+  updateMaxTime = (value: number) => { this.store.updateMaxTime(value); };
+  updatePort = (value: number) => { this.store.updatePort(value); };
+  updateEnableTileAnimations = (value: boolean) => { this.store.updateEnableTileAnimations(value); };
+  updateEnableRatAnimations = (value: boolean) => { this.store.updateEnableRatAnimations(value); };
+  updateSendChatMessages = (value: boolean) => { this.store.updateSendChatMessages(value); };
+  updateWhenTargetChanges = (value: boolean) => { this.store.updateWhenTargetChanges(value); };
+  updateWhenBecomingBlocked = (value: boolean) => { this.store.updateWhenBecomingBlocked(value); };
+  updateWhenStillBlocked = (value: boolean) => { this.store.updateWhenStillBlocked(value); };
+  updateWhenBecomingUnblocked = (value: boolean) => { this.store.updateWhenBecomingUnblocked(value); };
+  updateForOneTimeEvents = (value: boolean) => { this.store.updateForOneTimeEvents(value); };
 }
