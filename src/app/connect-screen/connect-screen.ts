@@ -116,25 +116,21 @@ import {Component, computed, linkedSignal, signal, WritableSignal} from '@angula
     div:not(:first-child) {
       padding-top: 5px;
     }
-    
+
     .inputs {
       display: grid;
+      gap: calc(5rem/16);
       grid-template-columns: max-content 1fr;
-      grid-gap: 5px;
-    }
-    
-    input:invalid {
-      border: 2px dashed red;
-    }
-
-    input:valid {
-      border: 2px solid black;
+      
+      label {
+        align-self: center;
+      }
     }
   `
 })
 export class ConnectScreen {
   readonly slot = signal('');
-  readonly directHost = signal('archipelago.gg:65535');
+  readonly directHost = signal('archipelago.gg');
   readonly host = linkedSignal({
     source: () => ({
       direct: this.directHost(),

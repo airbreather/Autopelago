@@ -1,0 +1,43 @@
+// things from App.axaml
+$accent: #0073cf;
+$alt-high: black;
+$alt-low: black;
+$alt-medium: black;
+$alt-medium-high: black;
+$alt-medium-low: black;
+$base-high: white;
+$base-low: #404040;
+$base-medium: #a0a0a0;
+$base-medium-high: #b8b8b8;
+$base-medium-low: #707070;
+$chrome-alt-low: #b8b8b8;
+$chrome-black-high: black;
+$chrome-black-low: #b8b8b8;
+$chrome-black-medium: black;
+$chrome-black-medium-low: black;
+$chrome-disabled-high: #404040;
+$chrome-disabled-low: #a0a0a0;
+$chrome-gray: #888888;
+$chrome-high: #888888;
+$chrome-low: #1b1b1b;
+$chrome-medium: #242424;
+$chrome-medium-low: #373737;
+$chrome-white: white;
+$list-low: #242424;
+$list-medium: #404040;
+$region-color: #303030;
+
+// things from Avalonia.Themes.Fluent
+$system-control-background-alt-medium-low: $alt-medium-low;
+$system-control-foreground-base-high: $base-high;
+$system-control-foreground-base-medium: $base-medium;
+$system-control-highlight-accent: $accent;
+$system-region: $region-color;
+
+$text-control-background: $system-control-background-alt-medium-low;
+$text-control-border: $system-control-foreground-base-medium;
+$text-control-border-focused: $system-control-highlight-accent;
+$text-control-border-theme-thickness: 1px;
+$text-control-border-theme-thickness-focused: 2px;
+$text-control-foreground: $system-control-foreground-base-high;
+$text-control-theme-padding: calc(6rem/16) calc(6rem/16) calc(6rem/16) calc(10rem/16);

@@ -1,5 +1,8 @@
+@use 'theme';
+
 @font-face {
   font-family: 'PublicPixel';
+  //noinspection CssUnknownTarget
   src: url('/PublicPixel-z84yD.ttf') format('truetype');
   font-weight: normal;
   font-style: normal;
@@ -7,4 +10,21 @@
 
 * {
   font-family: 'PublicPixel', sans-serif;
+  color: theme.$text-control-foreground;
+}
+
+body {
+  background-color: theme.$system-region;
+}
+
+input[type='text'],input[type='password'],input[type='number'] {
+  background-color: theme.$text-control-background;
+  border: none;
+  outline: theme.$text-control-border solid theme.$text-control-border-theme-thickness;
+  padding: theme.$text-control-theme-padding;
+
+  &:focus-visible {
+    outline-color: theme.$text-control-border-focused;
+    outline-width: theme.$text-control-border-theme-thickness-focused;
+  }
 }
