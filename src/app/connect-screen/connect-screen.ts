@@ -1,118 +1,136 @@
-import {Component, computed, linkedSignal, signal, WritableSignal} from '@angular/core';
+import {
+  Component,
+  computed,
+  effect,
+  ElementRef,
+  linkedSignal,
+  signal,
+  viewChild,
+  WritableSignal
+} from '@angular/core';
 
 @Component({
   selector: 'app-connect-screen',
   standalone: true,
   template: `
-    <div class="inputs">
-      <label for="slot">Slot:</label>
-      <input #slotInput
-             required
-             id="slot"
-             type="text"
-             [value]="slot()"
-             (input)="slot.set(slotInput.value)" />
-      <label for="host">Host:</label>
-      <input #hostInput
-             id="host"
-             type="text"
-             [value]="host()"
-             (input)="directHost.set(hostInput.value)" />
-      <label for="port">Port:</label>
-      <input #portInput
-             id="port"
-             type="number"
-             min="1"
-             max="65535"
-             [value]="port()"
-             (input)="port.set(portInput.valueAsNumber)" />
-      <label for="password">Password:</label>
-      <input #passwordInput
-             id="password"
-             type="password"
-             [value]="password()"
-             (input)="password.set(passwordInput.value)" />
-      <fieldset class="inputs" [style.grid-column]="'span 2'">
-        <legend>Time Between Steps (sec.)</legend>
-        <label for="minTime">Minimum:</label>
-        <input #minTimeInput
-               id="minTime"
+    <form class="root">
+      <div class="inputs">
+        <label for="slot">Slot:</label>
+        <input #slotInput
+               required
+               id="slot"
+               type="text"
+               [value]="slot()"
+               (input)="slot.set(slotInput.value)" />
+        <label for="host">Host:</label>
+        <input #hostInput
+               id="host"
+               type="text"
+               [value]="host()"
+               (input)="directHost.set(hostInput.value)" />
+        <label for="port">Port:</label>
+        <input #portInput
+               id="port"
                type="number"
-               [value]="minTime()"
-               (input)="minTime.set(minTimeInput.valueAsNumber)" />
-        <label for="maxTime">Maximum:</label>
-        <input #maxTimeInput
-               id="maxTime"
-               type="number"
-               [value]="maxTime()"
-               (input)="maxTime.set(maxTimeInput.valueAsNumber)" />
-      </fieldset>
-    </div>
-    <div class="inputs">
-      <input #enableTileAnimationsInput
-             id="enableTileAnimations"
-             type="checkbox"
-             [checked]="enableTileAnimations()"
-             (input)="enableTileAnimations.set(enableTileAnimationsInput.checked)" />
-      <label for="enableTileAnimations">Enable tile animations</label>
-
-      <input #enableRatAnimationsInput
-             id="enableRatAnimations"
-             type="checkbox"
-             [checked]="enableRatAnimations()"
-             (input)="enableRatAnimations.set(enableRatAnimationsInput.checked)" />
-      <label for="enableRatAnimations">Enable rat animations</label>
-
-      <input #sendChatMessagesInput
-             id="sendChatMessages"
-             type="checkbox"
-             [checked]="sendChatMessages()"
-             (input)="sendChatMessages.set(sendChatMessagesInput.checked)" />
-      <label for="sendChatMessages">Send chat messages...</label>
-    </div>
-    <div class="inputs" [style.padding-left]="'20px'">
-      <input #whenTargetChangesInput
-             id="whenTargetChanges"
-             type="checkbox"
-             [disabled]="!sendChatMessages()"
-             [checked]="whenTargetChanges()"
-             (input)="whenTargetChanges.set(whenTargetChangesInput.checked)" />
-      <label for="whenTargetChanges">when target changes</label>
-
-      <input #whenBecomingBlockedInput
-             id="whenBecomingBlocked"
-             type="checkbox"
-             [disabled]="!sendChatMessages()"
-             [checked]="whenBecomingBlocked()"
-             (input)="whenBecomingBlocked.set(whenBecomingBlockedInput.checked)" />
-      <label for="whenBecomingBlocked">when becoming blocked</label>
-
-      <input #whenStillBlockedInput
-             id="whenStillBlocked"
-             type="checkbox"
-             [disabled]="!(sendChatMessages() && whenBecomingBlocked())"
-             [checked]="whenStillBlocked()"
-             (input)="whenStillBlocked.set(whenStillBlockedInput.checked)" />
-      <label for="whenStillBlocked">when STILL blocked</label>
-
-      <input #whenBecomingUnblockedInput
-             id="whenBecomingUnblocked"
-             type="checkbox"
-             [disabled]="!sendChatMessages()"
-             [checked]="whenBecomingUnblocked()"
-             (input)="whenBecomingUnblocked.set(whenBecomingUnblockedInput.checked)" />
-      <label for="whenBecomingUnblocked">when becoming unblocked</label>
-
-      <input #forOneTimeEventsInput
-             id="forOneTimeEvents"
-             type="checkbox"
-             [disabled]="!sendChatMessages()"
-             [checked]="forOneTimeEvents()"
-             (input)="forOneTimeEvents.set(forOneTimeEventsInput.checked)" />
-      <label for="forOneTimeEvents">for one-time events</label>
-    </div>
+               min="1"
+               max="65535"
+               [value]="port()"
+               (input)="port.set(portInput.valueAsNumber)" />
+        <label for="password">Password:</label>
+        <input #passwordInput
+               id="password"
+               type="password"
+               [value]="password()"
+               (input)="password.set(passwordInput.value)" />
+        <fieldset class="inputs" [style.grid-column]="'span 2'">
+          <legend>Time Between Steps (sec.)</legend>
+          <label for="minTime">Minimum:</label>
+          <input #minTimeInput
+                 id="minTime"
+                 type="number"
+                 [value]="minTime()"
+                 (input)="minTime.set(minTimeInput.valueAsNumber)" />
+          <label for="maxTime">Maximum:</label>
+          <input #maxTimeInput
+                 id="maxTime"
+                 type="number"
+                 [value]="maxTime()"
+                 (input)="maxTime.set(maxTimeInput.valueAsNumber)" />
+        </fieldset>
+      </div>
+      <div class="inputs">
+        <input #enableTileAnimationsInput
+               id="enableTileAnimations"
+               type="checkbox"
+               [checked]="enableTileAnimations()"
+               (input)="enableTileAnimations.set(enableTileAnimationsInput.checked)" />
+        <label for="enableTileAnimations">Enable tile animations</label>
+  
+        <input #enableRatAnimationsInput
+               id="enableRatAnimations"
+               type="checkbox"
+               [checked]="enableRatAnimations()"
+               (input)="enableRatAnimations.set(enableRatAnimationsInput.checked)" />
+        <label for="enableRatAnimations">Enable rat animations</label>
+  
+        <input #sendChatMessagesInput
+               id="sendChatMessages"
+               type="checkbox"
+               [checked]="sendChatMessages()"
+               (input)="sendChatMessages.set(sendChatMessagesInput.checked)" />
+        <label for="sendChatMessages">Send chat messages...</label>
+      </div>
+      <div class="inputs" [style.padding-left]="'20px'">
+        <input #whenTargetChangesInput
+               id="whenTargetChanges"
+               type="checkbox"
+               [disabled]="!sendChatMessages()"
+               [checked]="whenTargetChanges()"
+               (input)="whenTargetChanges.set(whenTargetChangesInput.checked)" />
+        <label for="whenTargetChanges">when target changes</label>
+  
+        <input #whenBecomingBlockedInput
+               id="whenBecomingBlocked"
+               type="checkbox"
+               [disabled]="!sendChatMessages()"
+               [checked]="whenBecomingBlocked()"
+               (input)="whenBecomingBlocked.set(whenBecomingBlockedInput.checked)" />
+        <label for="whenBecomingBlocked">when becoming blocked</label>
+  
+        <input #whenStillBlockedInput
+               id="whenStillBlocked"
+               type="checkbox"
+               [disabled]="!(sendChatMessages() && whenBecomingBlocked())"
+               [checked]="whenStillBlocked()"
+               (input)="whenStillBlocked.set(whenStillBlockedInput.checked)" />
+        <label for="whenStillBlocked">when STILL blocked</label>
+  
+        <input #whenBecomingUnblockedInput
+               id="whenBecomingUnblocked"
+               type="checkbox"
+               [disabled]="!sendChatMessages()"
+               [checked]="whenBecomingUnblocked()"
+               (input)="whenBecomingUnblocked.set(whenBecomingUnblockedInput.checked)" />
+        <label for="whenBecomingUnblocked">when becoming unblocked</label>
+  
+        <input #forOneTimeEventsInput
+               id="forOneTimeEvents"
+               type="checkbox"
+               [disabled]="!sendChatMessages()"
+               [checked]="forOneTimeEvents()"
+               (input)="forOneTimeEvents.set(forOneTimeEventsInput.checked)" />
+        <label for="forOneTimeEvents">for one-time events</label>
+      </div>
+      <input class="submit-button" type="submit" value="Connect" />
+    </form>
   `,
   styles: `
+    .root {
+      display: flex;
+      flex-direction: column;
+      margin: 5px;
+    }
+
     div:not(:first-child) {
       padding-top: 5px;
     }
@@ -125,6 +143,10 @@ import {Component, computed, linkedSignal, signal, WritableSignal} from '@angula
       label {
         align-self: center;
       }
+    }
+
+    .submit-button {
+      margin-top: 5px;
     }
   `
 })
@@ -173,5 +195,20 @@ export class ConnectScreen {
   readonly whenBecomingUnblocked = signal(true);
   readonly forOneTimeEvents = signal(true);
 
+  protected readonly minTimeInput = viewChild<ElementRef<HTMLInputElement>>('minTimeInput');
+  protected readonly maxTimeInput = viewChild<ElementRef<HTMLInputElement>>('maxTimeInput');
 
+  _ = effect(() => {
+    const minTimeInput = this.minTimeInput();
+    const maxTimeInput = this.maxTimeInput();
+    if (minTimeInput && maxTimeInput) {
+      if (this.minTime() > this.maxTime()) {
+        minTimeInput.nativeElement.setCustomValidity('Min cannot be greater than max.');
+        maxTimeInput.nativeElement.setCustomValidity('Min cannot be greater than max.');
+      } else {
+        minTimeInput.nativeElement.setCustomValidity('');
+        maxTimeInput.nativeElement.setCustomValidity('');
+      }
+    }
+  });
 }

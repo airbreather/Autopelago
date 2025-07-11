@@ -23,21 +23,24 @@ $chrome-low: #1b1b1b;
 $chrome-medium: #242424;
 $chrome-medium-low: #373737;
 $chrome-white: white;
+$error-text: #fff000;
 $list-low: #242424;
 $list-medium: #404040;
 $region-color: #303030;
 
 // things from Avalonia.Themes.Fluent
-$system-control-background-alt-medium-low: $alt-medium-low;
-$system-control-foreground-base-high: $base-high;
-$system-control-foreground-base-medium: $base-medium;
-$system-control-highlight-accent: $accent;
-$system-region: $region-color;
-
-$text-control-background: $system-control-background-alt-medium-low;
-$text-control-border: $system-control-foreground-base-medium;
-$text-control-border-focused: $system-control-highlight-accent;
+$text-control-background: $alt-medium-low;
+$text-control-border: $base-medium;
+$text-control-border-focused: $accent;
+$text-control-border-error: $error-text;
 $text-control-border-theme-thickness: 1px;
 $text-control-border-theme-thickness-focused: 2px;
-$text-control-foreground: $system-control-foreground-base-high;
+$text-control-foreground: $base-high;
 $text-control-theme-padding: calc(6rem/16) calc(6rem/16) calc(6rem/16) calc(10rem/16);
+
+$button-background: $base-low;
+$button-background-pointer-over: rgba($base-high, 0.1);
+$button-background-pressed: $base-medium-low;
+$button-foreground: $base-high;
+$control-corner-radius: calc(3rem/16);
+$button-padding: calc(6rem/16) calc(8rem/16);

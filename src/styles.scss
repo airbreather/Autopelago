@@ -9,22 +9,49 @@
 }
 
 * {
-  font-family: 'PublicPixel', sans-serif;
+  border-radius: theme.$control-corner-radius;
   color: theme.$text-control-foreground;
+  font-family: 'PublicPixel', sans-serif;
+}
+
+html {
+  height: 100vh;
 }
 
 body {
-  background-color: theme.$system-region;
+  background-color: theme.$region-color;
+  height: 100%;
 }
 
 input[type='text'],input[type='password'],input[type='number'] {
   background-color: theme.$text-control-background;
   border: none;
+  color: theme.$text-control-foreground;
   outline: theme.$text-control-border solid theme.$text-control-border-theme-thickness;
   padding: theme.$text-control-theme-padding;
 
   &:focus-visible {
     outline-color: theme.$text-control-border-focused;
     outline-width: theme.$text-control-border-theme-thickness-focused;
+  }
+
+  &:invalid {
+    outline-color: theme.$text-control-border-error;
+  }
+}
+
+input[type='submit'] {
+  background-color: theme.$button-background;
+  border: none;
+  color: theme.$button-foreground;
+  padding: theme.$button-padding;
+
+  &:hover,&:focus {
+    background-color: theme.$button-background-pointer-over;
+  }
+
+  &:active,&:focus:active {
+    background-color: theme.$button-background-pressed;
+    scale: 0.98;
   }
 }
