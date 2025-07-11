@@ -42,5 +42,6 @@ $button-background: $base-low;
 $button-background-pointer-over: rgba($base-high, 0.1);
 $button-background-pressed: $base-medium-low;
 $button-foreground: $base-high;
+$button-foreground-disabled: $base-medium-low;
 $control-corner-radius: calc(3rem/16);
 $button-padding: calc(6rem/16) calc(8rem/16);

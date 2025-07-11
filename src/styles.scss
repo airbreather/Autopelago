@@ -47,12 +47,18 @@ input[type='submit'] {
   color: theme.$button-foreground;
   padding: theme.$button-padding;
 
-  &:hover,&:focus {
-    background-color: theme.$button-background-pointer-over;
+  &:disabled {
+    color: theme.$button-foreground-disabled;
   }
 
-  &:active,&:focus:active {
-    background-color: theme.$button-background-pressed;
-    scale: 0.98;
+  &:not(:disabled) {
+    &:hover, &:focus {
+      background-color: theme.$button-background-pointer-over;
+    }
+
+    &:active, &:focus:active {
+      background-color: theme.$button-background-pressed;
+      scale: 0.98;
+    }
   }
 }

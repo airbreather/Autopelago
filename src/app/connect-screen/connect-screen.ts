@@ -13,7 +13,7 @@ import {
   selector: 'app-connect-screen',
   standalone: true,
   template: `
-    <form class="root">
+    <form #allInputs class="root">
       <div class="inputs">
         <label for="slot">Slot:</label>
         <input #slotInput
@@ -121,7 +121,7 @@ import {
                (input)="forOneTimeEvents.set(forOneTimeEventsInput.checked)" />
         <label for="forOneTimeEvents">for one-time events</label>
       </div>
-      <input class="submit-button" type="submit" value="Connect" />
+      <input class="submit-button" type="submit" value="Connect" [disabled]="!allInputs.checkValidity()" />
     </form>
   `,
   styles: `
@@ -129,10 +129,10 @@ import {
       display: flex;
       flex-direction: column;
       margin: 5px;
-    }
 
-    div:not(:first-child) {
-      padding-top: 5px;
+      >:not(:first-child) {
+        margin-top: 5px;
+      }
     }
 
     .inputs {
@@ -143,10 +143,6 @@ import {
       label {
         align-self: center;
       }
-    }
-
-    .submit-button {
-      margin-top: 5px;
     }
   `
 })
