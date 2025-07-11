@@ -9,6 +9,7 @@
 }
 
 * {
+  accent-color: theme.$accent;
   border-radius: theme.$control-corner-radius;
   color: theme.$text-control-foreground;
   font-family: 'PublicPixel', sans-serif;
@@ -27,8 +28,13 @@ input[type='text'],input[type='password'],input[type='number'] {
   background-color: theme.$text-control-background;
   border: none;
   color: theme.$text-control-foreground;
-  outline: theme.$text-control-border solid theme.$text-control-border-theme-thickness;
+  outline-style: solid;
   padding: theme.$text-control-theme-padding;
+
+  &:not(:focus-visible) {
+    outline-color: theme.$text-control-border;
+    outline-width: theme.$text-control-border-theme-thickness;
+  }
 
   &:focus-visible {
     outline-color: theme.$text-control-border-focused;
