@@ -28,13 +28,8 @@ input[type='text'],input[type='password'],input[type='number'] {
   background-color: theme.$text-control-background;
   border: none;
   color: theme.$text-control-foreground;
-  outline-style: solid;
+  outline: theme.$text-control-border solid theme.$text-control-border-theme-thickness;
   padding: theme.$text-control-theme-padding;
-
-  &:not(:focus-visible) {
-    outline-color: theme.$text-control-border;
-    outline-width: theme.$text-control-border-theme-thickness;
-  }
 
   &:focus-visible {
     outline-color: theme.$text-control-border-focused;
