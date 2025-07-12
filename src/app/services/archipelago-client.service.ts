@@ -3,37 +3,16 @@ import { Injectable, inject } from '@angular/core';
 import { BehaviorSubject, distinctUntilChanged, Observable } from 'rxjs';
 import { filter, mergeMap } from 'rxjs/operators';
 
-import { Client } from 'archipelago.js';
-
-import type {
-  PlayerEvents,
-  ItemEvents,
-  MessageEvents,
-  DeathEvents,
-  RoomStateEvents,
-  SocketEvents
-} from 'archipelago.js';
+import { Client, EventBasedManager } from 'archipelago.js';
 
 import { ConnectScreenStore } from '../store/connect-screen.store';
 
-// Advanced TypeScript utility types for inferring event types from manager names
-interface ClientManagerEventMap {
-  socket: SocketEvents;
-  room: RoomStateEvents;
-  messages: MessageEvents;
-  players: PlayerEvents;
-  items: ItemEvents;
-  deathLink: DeathEvents;
-}
+type EventsForManager<M extends keyof Client> = Client[M] extends EventBasedManager<infer E> ? E : never;
 
-type ManagerName = keyof ClientManagerEventMap & keyof Client;
-
-type EventsForManager<M extends ManagerName> = ClientManagerEventMap[M];
-
-type EventNameForManager<M extends ManagerName> = keyof EventsForManager<M> & string & Parameters<Client[M]['on']>[0];
+type EventNameForManager<M extends keyof Client> = keyof EventsForManager<M> & string;
 
 type EventArgsForManagerEvent<
-  M extends ManagerName,
+  M extends keyof Client,
   E extends EventNameForManager<M>
 > = EventsForManager<M>[E] extends unknown[] ? EventsForManager<M>[E] : never;
 
@@ -166,7 +145,7 @@ export class ArchipelagoClientService {
    * Helper method to create event observables that work with any connected client
    */
   #createEventObservable<
-    M extends ManagerName,
+    M extends keyof Client,
     E extends EventNameForManager<M>
   >(
     managerName: M,
@@ -179,7 +158,7 @@ export class ArchipelagoClientService {
    * Helper method to create event observables that require an authenticated client
    */
   #createAuthenticatedEventObservable<
-    M extends ManagerName,
+    M extends keyof Client,
     E extends EventNameForManager<M>
   >(
     managerName: M,
