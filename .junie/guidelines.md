@@ -2,41 +2,53 @@
 
 You are an expert in TypeScript, Angular, and scalable web application development. You write maintainable, performant, and accessible code following Angular and TypeScript best practices.
 
+## General Notes on the Environment
+- This project uses `bun` instead of `npm` / `npx` / `node`.
+- Command for a one-shot test to make sure everything compiles correctly: `bun run build`.
+- The ESLint configuration in this project is maximally strict. Regular use of `bun run lint` is expected. `bun run lint --fix` for issues with auto fixes.
+
 ## TypeScript Best Practices
-- Use strict type checking
-- Prefer type inference when the type is obvious
-- Avoid the `any` type; use `unknown` when type is uncertain
-- Follow these and all other rules according to the ESLint configuration
+- Use strict type checking.
+- Prefer type inference when the type is obvious.
+- Avoid the `any` type; use `unknown` when type is uncertain.
 
 ## Angular Best Practices
-- Always use standalone components over NgModules (this is the default)
-- Use signals for state management
-- Use resources (new in Angular 19, still experimental) for event handling and asynchronous operations.
-- Implement lazy loading for feature routes
-- Use NgOptimizedImage for all static images
+- Always use standalone components over NgModules (this is the default).
+- Use `signal`s for state management.
+- Favor using `resource`s (experimental in Angular 19/20) for asynchronous operations where appropriate.
+   - Where not appropriate (e.g., real-time streams of events that need to be consumed sequentially instead of only really caring about the latest one), directly using RxJS is still perfectly fine.
+- Implement lazy loading for feature routes.
+- This project is **ZONELESS**, so be mindful of when explicit change detection may be needed.
 
 ## Components
-- Keep components small and focused on a single responsibility
-- Use input(), output(), viewChild, etc., functions instead of decorators. *Note: in Angular 20, there are only very few reasons to use decorators on anything other than class definitions.*
-- Use computed() for derived state
-- Implement OnPush change detection strategy
-- Add meaningful accessibility attributes (ARIA) where the browser may otherwise make an incorrect inference
+- Keep components small and focused on a single responsibility.
+- Use `input()`, `output()`, `viewChild`, etc., functions instead of decorators. *Note: in Angular 20, there are only very few reasons to use decorators on anything other than class definitions.*
+- Use `computed()` for derived state.
+- Add meaningful accessibility attributes (ARIA) where the browser may otherwise make an incorrect inference.
 - Always use inline templates. *Note: most of the time, these will be refactored later, but keeping it together lets us get up and running more quickly.*
 
 ## State Management
-- Use signals for local component state
-- Use computed() for derived state
-- Consider NgRx Signals for complex application state
-- Avoid overusing services as global state containers
-- Keep state transformations pure and predictable
+- Use `signal`s for local component state.
+- Consider NgRx Signals for complex application state.
+- Avoid overusing services as global state containers.
+- Keep state transformations pure and predictable.
 
 ## Templates
-- Keep templates simple and avoid complex logic
-- Use structural directives (@if, @for) instead of *ngIf, *ngFor
-- Use the async pipe to handle observables (but remember, most of the time we should be using resources instead).
-- Implement proper error handling for async operations
+- Keep templates simple and avoid complex logic.
+- Use structural directives (`@if`, `@for`) instead of `*ngIf`, `*ngFor`.
+- Use the `async` pipe to handle observables (but remember, most of the time we should be using `resource`s instead).
+- Use Angular's global error handler for unhandled errors.
+- Implement proper error boundaries for async operations.
+- Consider user-friendly error messages for connection failures.
+
+## Performance
+- When writing a @for loop, it is preferable to add extra complexity to make a good `track` expression than to have Angular rebuild too much of the DOM because of a poorly written one.
+- Implement virtual scrolling for large lists.
 
 ## Services
-- Design services around a single responsibility
-- Use the providedIn: 'root' option for singleton services
-- Use the inject() function instead of constructor injection
+- Design services around a single responsibility.
+- Use the `providedIn: 'root'` option for singleton services.
+- Use the `inject()` function instead of constructor injection.
+
+## Testing
+- Do not add any automated testing at this time.
