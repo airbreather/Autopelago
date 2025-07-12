@@ -27,6 +27,7 @@
     "@angular/platform-browser": "^20.0.0",
     "@angular/router": "^20.0.0",
     "@ngrx/signals": "^19.2.1",
+    "archipelago.js": "^2.0.4",
     "normalize.css": "^8.0.1",
     "rxjs": "~7.8.0",
     "tslib": "^2.3.0"

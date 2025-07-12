@@ -11,6 +11,7 @@
         "@angular/platform-browser": "^20.0.0",
         "@angular/router": "^20.0.0",
         "@ngrx/signals": "^19.2.1",
+        "archipelago.js": "^2.0.4",
         "normalize.css": "^8.0.1",
         "rxjs": "~7.8.0",
         "tslib": "^2.3.0",
@@ -446,6 +447,8 @@
     "ansi-regex": ["ansi-regex@6.1.0", "", {}, "sha512-7HSX4QQb4CspciLpVFwyRe79O3xsIZDDLER21kERQ71oaPodF8jL725AgJMFAYbooIqolJoRLuM81SpeUkpkvA=="],
 
     "ansi-styles": ["ansi-styles@4.3.0", "", { "dependencies": { "color-convert": "^2.0.1" } }, "sha512-zbB9rCJAT1rbjiVDb2hqKFHNYLxgtk8NURxZ3IZwD3F6NtxbXZQCnnSi1Lkx+IDohdPlFp222wVALIheZJQSEg=="],
+
+    "archipelago.js": ["archipelago.js@2.0.4", "", {}, "sha512-Ysb3c+v2DD3tznY49886NJX5vUoPaQckzY2EHVEpBk2uWjIYq52YuXRWBVVlRE0N+VsKuQ4Ihf+bIjrQ9fwucA=="],
 
     "argparse": ["argparse@2.0.1", "", {}, "sha512-8+9WqebbFzpX9OR+Wa6O29asIogeRMzcGtAINdpMHHyAg10f05aSFVBbcEqGf/PXw1EjAZ+q2/bEBg3DvurK3Q=="],
 
