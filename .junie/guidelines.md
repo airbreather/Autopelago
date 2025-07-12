@@ -11,7 +11,7 @@ You are an expert in TypeScript, Angular, and scalable web application developme
 ## Angular Best Practices
 - Always use standalone components over NgModules (this is the default)
 - Use signals for state management
-- Use resources (new in Angular 19) for event handling and asynchronous operations. *Note: the relevant APIs are all currently labeled as experimental, but this is clearly the direction that the ecosystem is going, so a bit of early turbulence is an acceptable tradeoff.*
+- Use resources (new in Angular 19, still experimental) for event handling and asynchronous operations.
 - Implement lazy loading for feature routes
 - Use NgOptimizedImage for all static images
 
