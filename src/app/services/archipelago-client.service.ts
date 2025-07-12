@@ -16,6 +16,27 @@ import type {
 
 import { ConnectScreenStore } from '../store/connect-screen.store';
 
+// Advanced TypeScript utility types for inferring event types from manager names
+interface ClientManagerEventMap {
+  socket: SocketEvents;
+  room: RoomStateEvents;
+  messages: MessageEvents;
+  players: PlayerEvents;
+  items: ItemEvents;
+  deathLink: DeathEvents;
+}
+
+type ManagerName = keyof ClientManagerEventMap;
+
+type EventsForManager<M extends ManagerName> = ClientManagerEventMap[M];
+
+type EventNameForManager<M extends ManagerName> = keyof EventsForManager<M> & string;
+
+type EventArgsForManagerEvent<
+  M extends ManagerName,
+  E extends EventNameForManager<M>
+> = EventsForManager<M>[E] extends unknown[] ? EventsForManager<M>[E] : never;
+
 @Injectable({
   providedIn: 'root'
 })
@@ -45,61 +66,61 @@ export class ArchipelagoClientService {
   );
 
   // Player Events (require authentication)
-  readonly playerAliasUpdated$ = this.#createAuthenticatedEventObservable<PlayerEvents['aliasUpdated']>('players', 'aliasUpdated');
+  readonly playerAliasUpdated$ = this.#createAuthenticatedEventObservable('players', 'aliasUpdated');
 
   // Item Events (require authentication)
-  readonly itemsReceived$ = this.#createAuthenticatedEventObservable<ItemEvents['itemsReceived']>('items', 'itemsReceived');
-  readonly hintReceived$ = this.#createAuthenticatedEventObservable<ItemEvents['hintReceived']>('items', 'hintReceived');
-  readonly hintFound$ = this.#createAuthenticatedEventObservable<ItemEvents['hintFound']>('items', 'hintFound');
-  readonly hintsInitialized$ = this.#createAuthenticatedEventObservable<ItemEvents['hintsInitialized']>('items', 'hintsInitialized');
+  readonly itemsReceived$ = this.#createAuthenticatedEventObservable('items', 'itemsReceived');
+  readonly hintReceived$ = this.#createAuthenticatedEventObservable('items', 'hintReceived');
+  readonly hintFound$ = this.#createAuthenticatedEventObservable('items', 'hintFound');
+  readonly hintsInitialized$ = this.#createAuthenticatedEventObservable('items', 'hintsInitialized');
 
   // Message Events
-  readonly message$ = this.#createAuthenticatedEventObservable<MessageEvents['message']>('messages', 'message');
-  readonly itemSent$ = this.#createAuthenticatedEventObservable<MessageEvents['itemSent']>('messages', 'itemSent');
-  readonly itemCheated$ = this.#createAuthenticatedEventObservable<MessageEvents['itemCheated']>('messages', 'itemCheated');
-  readonly itemHinted$ = this.#createAuthenticatedEventObservable<MessageEvents['itemHinted']>('messages', 'itemHinted');
+  readonly message$ = this.#createAuthenticatedEventObservable('messages', 'message');
+  readonly itemSent$ = this.#createAuthenticatedEventObservable('messages', 'itemSent');
+  readonly itemCheated$ = this.#createAuthenticatedEventObservable('messages', 'itemCheated');
+  readonly itemHinted$ = this.#createAuthenticatedEventObservable('messages', 'itemHinted');
   // Connection events can happen before authentication, so use regular observable
-  readonly connected$ = this.#createEventObservable<MessageEvents['connected']>('messages', 'connected');
-  readonly disconnected$ = this.#createEventObservable<MessageEvents['disconnected']>('messages', 'disconnected');
+  readonly connected$ = this.#createEventObservable('messages', 'connected');
+  readonly disconnected$ = this.#createEventObservable('messages', 'disconnected');
   // Chat and other authenticated events
-  readonly chat$ = this.#createAuthenticatedEventObservable<MessageEvents['chat']>('messages', 'chat');
-  readonly serverChat$ = this.#createAuthenticatedEventObservable<MessageEvents['serverChat']>('messages', 'serverChat');
-  readonly tutorial$ = this.#createAuthenticatedEventObservable<MessageEvents['tutorial']>('messages', 'tutorial');
-  readonly tagsUpdated$ = this.#createAuthenticatedEventObservable<MessageEvents['tagsUpdated']>('messages', 'tagsUpdated');
-  readonly userCommand$ = this.#createAuthenticatedEventObservable<MessageEvents['userCommand']>('messages', 'userCommand');
-  readonly adminCommand$ = this.#createAuthenticatedEventObservable<MessageEvents['adminCommand']>('messages', 'adminCommand');
-  readonly goaled$ = this.#createAuthenticatedEventObservable<MessageEvents['goaled']>('messages', 'goaled');
-  readonly released$ = this.#createAuthenticatedEventObservable<MessageEvents['released']>('messages', 'released');
-  readonly collected$ = this.#createAuthenticatedEventObservable<MessageEvents['collected']>('messages', 'collected');
-  readonly countdown$ = this.#createAuthenticatedEventObservable<MessageEvents['countdown']>('messages', 'countdown');
+  readonly chat$ = this.#createAuthenticatedEventObservable('messages', 'chat');
+  readonly serverChat$ = this.#createAuthenticatedEventObservable('messages', 'serverChat');
+  readonly tutorial$ = this.#createAuthenticatedEventObservable('messages', 'tutorial');
+  readonly tagsUpdated$ = this.#createAuthenticatedEventObservable('messages', 'tagsUpdated');
+  readonly userCommand$ = this.#createAuthenticatedEventObservable('messages', 'userCommand');
+  readonly adminCommand$ = this.#createAuthenticatedEventObservable('messages', 'adminCommand');
+  readonly goaled$ = this.#createAuthenticatedEventObservable('messages', 'goaled');
+  readonly released$ = this.#createAuthenticatedEventObservable('messages', 'released');
+  readonly collected$ = this.#createAuthenticatedEventObservable('messages', 'collected');
+  readonly countdown$ = this.#createAuthenticatedEventObservable('messages', 'countdown');
 
   // Death Events (require authentication)
-  readonly deathReceived$ = this.#createAuthenticatedEventObservable<DeathEvents['deathReceived']>('deathLink', 'deathReceived');
+  readonly deathReceived$ = this.#createAuthenticatedEventObservable('deathLink', 'deathReceived');
 
   // Room State Events (require authentication)
-  readonly passwordUpdated$ = this.#createAuthenticatedEventObservable<RoomStateEvents['passwordUpdated']>('room', 'passwordUpdated');
-  readonly permissionsUpdated$ = this.#createAuthenticatedEventObservable<RoomStateEvents['permissionsUpdated']>('room', 'permissionsUpdated');
-  readonly locationCheckPointsUpdated$ = this.#createAuthenticatedEventObservable<RoomStateEvents['locationCheckPointsUpdated']>('room', 'locationCheckPointsUpdated');
-  readonly hintCostUpdated$ = this.#createAuthenticatedEventObservable<RoomStateEvents['hintCostUpdated']>('room', 'hintCostUpdated');
-  readonly hintPointsUpdated$ = this.#createAuthenticatedEventObservable<RoomStateEvents['hintPointsUpdated']>('room', 'hintPointsUpdated');
-  readonly locationsChecked$ = this.#createAuthenticatedEventObservable<RoomStateEvents['locationsChecked']>('room', 'locationsChecked');
+  readonly passwordUpdated$ = this.#createAuthenticatedEventObservable('room', 'passwordUpdated');
+  readonly permissionsUpdated$ = this.#createAuthenticatedEventObservable('room', 'permissionsUpdated');
+  readonly locationCheckPointsUpdated$ = this.#createAuthenticatedEventObservable('room', 'locationCheckPointsUpdated');
+  readonly hintCostUpdated$ = this.#createAuthenticatedEventObservable('room', 'hintCostUpdated');
+  readonly hintPointsUpdated$ = this.#createAuthenticatedEventObservable('room', 'hintPointsUpdated');
+  readonly locationsChecked$ = this.#createAuthenticatedEventObservable('room', 'locationsChecked');
 
   // Socket Events
-  readonly bounced$ = this.#createEventObservable<SocketEvents['bounced']>('socket', 'bounced');
-  readonly socketConnected$ = this.#createEventObservable<SocketEvents['connected']>('socket', 'connected');
-  readonly connectionRefused$ = this.#createEventObservable<SocketEvents['connectionRefused']>('socket', 'connectionRefused');
-  readonly dataPackage$ = this.#createEventObservable<SocketEvents['dataPackage']>('socket', 'dataPackage');
-  readonly invalidPacket$ = this.#createEventObservable<SocketEvents['invalidPacket']>('socket', 'invalidPacket');
-  readonly locationInfo$ = this.#createEventObservable<SocketEvents['locationInfo']>('socket', 'locationInfo');
-  readonly printJSON$ = this.#createEventObservable<SocketEvents['printJSON']>('socket', 'printJSON');
-  readonly receivedItems$ = this.#createEventObservable<SocketEvents['receivedItems']>('socket', 'receivedItems');
-  readonly retrieved$ = this.#createEventObservable<SocketEvents['retrieved']>('socket', 'retrieved');
-  readonly roomInfo$ = this.#createEventObservable<SocketEvents['roomInfo']>('socket', 'roomInfo');
-  readonly roomUpdate$ = this.#createEventObservable<SocketEvents['roomUpdate']>('socket', 'roomUpdate');
-  readonly setReply$ = this.#createEventObservable<SocketEvents['setReply']>('socket', 'setReply');
-  readonly receivedPacket$ = this.#createEventObservable<SocketEvents['receivedPacket']>('socket', 'receivedPacket');
-  readonly sentPackets$ = this.#createEventObservable<SocketEvents['sentPackets']>('socket', 'sentPackets');
-  readonly socketDisconnected$ = this.#createEventObservable<SocketEvents['disconnected']>('socket', 'disconnected');
+  readonly bounced$ = this.#createEventObservable('socket', 'bounced');
+  readonly socketConnected$ = this.#createEventObservable('socket', 'connected');
+  readonly connectionRefused$ = this.#createEventObservable('socket', 'connectionRefused');
+  readonly dataPackage$ = this.#createEventObservable('socket', 'dataPackage');
+  readonly invalidPacket$ = this.#createEventObservable('socket', 'invalidPacket');
+  readonly locationInfo$ = this.#createEventObservable('socket', 'locationInfo');
+  readonly printJSON$ = this.#createEventObservable('socket', 'printJSON');
+  readonly receivedItems$ = this.#createEventObservable('socket', 'receivedItems');
+  readonly retrieved$ = this.#createEventObservable('socket', 'retrieved');
+  readonly roomInfo$ = this.#createEventObservable('socket', 'roomInfo');
+  readonly roomUpdate$ = this.#createEventObservable('socket', 'roomUpdate');
+  readonly setReply$ = this.#createEventObservable('socket', 'setReply');
+  readonly receivedPacket$ = this.#createEventObservable('socket', 'receivedPacket');
+  readonly sentPackets$ = this.#createEventObservable('socket', 'sentPackets');
+  readonly socketDisconnected$ = this.#createEventObservable('socket', 'disconnected');
 
   /**
    * Creates an RxJS observable for a specific event from a specific manager.
@@ -144,20 +165,26 @@ export class ArchipelagoClientService {
   /**
    * Helper method to create event observables that work with any connected client
    */
-  #createEventObservable<T extends unknown[]>(
-    managerName: keyof Client,
-    eventName: string
-  ): Observable<T> {
+  #createEventObservable<
+    M extends ManagerName,
+    E extends EventNameForManager<M>
+  >(
+    managerName: M,
+    eventName: E
+  ): Observable<EventArgsForManagerEvent<M, E>> {
     return this.#createEventObservableFromSource(this.client$, managerName, eventName);
   }
 
   /**
    * Helper method to create event observables that require an authenticated client
    */
-  #createAuthenticatedEventObservable<T extends unknown[]>(
-    managerName: keyof Client,
-    eventName: string
-  ): Observable<T> {
+  #createAuthenticatedEventObservable<
+    M extends ManagerName,
+    E extends EventNameForManager<M>
+  >(
+    managerName: M,
+    eventName: E
+  ): Observable<EventArgsForManagerEvent<M, E>> {
     return this.#createEventObservableFromSource(this.authenticatedClient$, managerName, eventName);
   }
 
