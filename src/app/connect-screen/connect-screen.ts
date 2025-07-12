@@ -1,5 +1,7 @@
 import { Component, effect, ElementRef, inject, viewChild } from '@angular/core';
 import { ConnectScreenStore, createHostSelector } from '../store/connect-screen.store';
+import { ArchipelagoClientService } from '../services/archipelago-client.service';
+import { takeUntilDestroyed } from "@angular/core/rxjs-interop";
 
 @Component({
   selector: 'app-connect-screen',
@@ -57,14 +59,14 @@ import { ConnectScreenStore, createHostSelector } from '../store/connect-screen.
                [checked]="enableTileAnimations()"
                (input)="updateEnableTileAnimations(enableTileAnimationsInput.checked)" />
         <label for="enableTileAnimations">Enable tile animations</label>
-  
+
         <input #enableRatAnimationsInput
                id="enableRatAnimations"
                type="checkbox"
                [checked]="enableRatAnimations()"
                (input)="updateEnableRatAnimations(enableRatAnimationsInput.checked)" />
         <label for="enableRatAnimations">Enable rat animations</label>
-  
+
         <input #sendChatMessagesInput
                id="sendChatMessages"
                type="checkbox"
@@ -80,7 +82,7 @@ import { ConnectScreenStore, createHostSelector } from '../store/connect-screen.
                [checked]="whenTargetChanges()"
                (input)="updateWhenTargetChanges(whenTargetChangesInput.checked)" />
         <label for="whenTargetChanges">when target changes</label>
-  
+
         <input #whenBecomingBlockedInput
                id="whenBecomingBlocked"
                type="checkbox"
@@ -88,7 +90,7 @@ import { ConnectScreenStore, createHostSelector } from '../store/connect-screen.
                [checked]="whenBecomingBlocked()"
                (input)="updateWhenBecomingBlocked(whenBecomingBlockedInput.checked)" />
         <label for="whenBecomingBlocked">when becoming blocked</label>
-  
+
         <input #whenStillBlockedInput
                id="whenStillBlocked"
                type="checkbox"
@@ -96,7 +98,7 @@ import { ConnectScreenStore, createHostSelector } from '../store/connect-screen.
                [checked]="whenStillBlocked()"
                (input)="updateWhenStillBlocked(whenStillBlockedInput.checked)" />
         <label for="whenStillBlocked">when STILL blocked</label>
-  
+
         <input #whenBecomingUnblockedInput
                id="whenBecomingUnblocked"
                type="checkbox"
@@ -104,7 +106,7 @@ import { ConnectScreenStore, createHostSelector } from '../store/connect-screen.
                [checked]="whenBecomingUnblocked()"
                (input)="updateWhenBecomingUnblocked(whenBecomingUnblockedInput.checked)" />
         <label for="whenBecomingUnblocked">when becoming unblocked</label>
-  
+
         <input #forOneTimeEventsInput
                id="forOneTimeEvents"
                type="checkbox"
@@ -134,7 +136,7 @@ import { ConnectScreenStore, createHostSelector } from '../store/connect-screen.
       display: grid;
       gap: calc(5rem/16);
       grid-template-columns: max-content 1fr;
-      
+
       label {
         align-self: center;
       }
@@ -142,30 +144,35 @@ import { ConnectScreenStore, createHostSelector } from '../store/connect-screen.
   `
 })
 export class ConnectScreen {
-  private readonly store = inject(ConnectScreenStore);
+  readonly #store = inject(ConnectScreenStore);
+  readonly #archipelagoClient = inject(ArchipelagoClientService);
+
+  _ = this.#archipelagoClient.message$.pipe(takeUntilDestroyed()).subscribe(message => {
+    console.log(message);
+  });
 
   // Expose store properties as getters for template access
-  readonly slot = this.store.slot;
-  readonly port = this.store.port;
-  readonly password = this.store.password;
-  readonly minTime = this.store.minTime;
-  readonly maxTime = this.store.maxTime;
-  readonly enableTileAnimations = this.store.enableTileAnimations;
-  readonly enableRatAnimations = this.store.enableRatAnimations;
-  readonly sendChatMessages = this.store.sendChatMessages;
-  readonly whenTargetChanges = this.store.whenTargetChanges;
-  readonly whenBecomingBlocked = this.store.whenBecomingBlocked;
-  readonly whenStillBlocked = this.store.whenStillBlocked;
-  readonly whenBecomingUnblocked = this.store.whenBecomingUnblocked;
-  readonly forOneTimeEvents = this.store.forOneTimeEvents;
+  readonly slot = this.#store.slot;
+  readonly port = this.#store.port;
+  readonly password = this.#store.password;
+  readonly minTime = this.#store.minTime;
+  readonly maxTime = this.#store.maxTime;
+  readonly enableTileAnimations = this.#store.enableTileAnimations;
+  readonly enableRatAnimations = this.#store.enableRatAnimations;
+  readonly sendChatMessages = this.#store.sendChatMessages;
+  readonly whenTargetChanges = this.#store.whenTargetChanges;
+  readonly whenBecomingBlocked = this.#store.whenBecomingBlocked;
+  readonly whenStillBlocked = this.#store.whenStillBlocked;
+  readonly whenBecomingUnblocked = this.#store.whenBecomingUnblocked;
+  readonly forOneTimeEvents = this.#store.forOneTimeEvents;
 
   // Computed properties from selectors
-  readonly host = createHostSelector(this.store);
+  readonly host = createHostSelector(this.#store);
 
   protected readonly minTimeInput = viewChild<ElementRef<HTMLInputElement>>('minTimeInput');
   protected readonly maxTimeInput = viewChild<ElementRef<HTMLInputElement>>('maxTimeInput');
 
-  _ = effect(() => {
+  __ = effect(() => {
     const minTimeInput = this.minTimeInput();
     const maxTimeInput = this.maxTimeInput();
     if (minTimeInput && maxTimeInput) {
@@ -180,22 +187,29 @@ export class ConnectScreen {
   });
 
   // Store update methods
-  updateSlot = (value: string) => { this.store.updateSlot(value); };
-  updateDirectHost = (value: string) => { this.store.updateDirectHost(value); };
-  updatePassword = (value: string) => { this.store.updatePassword(value); };
-  updateMinTime = (value: number) => { this.store.updateMinTime(value); };
-  updateMaxTime = (value: number) => { this.store.updateMaxTime(value); };
-  updatePort = (value: number) => { this.store.updatePort(value); };
-  updateEnableTileAnimations = (value: boolean) => { this.store.updateEnableTileAnimations(value); };
-  updateEnableRatAnimations = (value: boolean) => { this.store.updateEnableRatAnimations(value); };
-  updateSendChatMessages = (value: boolean) => { this.store.updateSendChatMessages(value); };
-  updateWhenTargetChanges = (value: boolean) => { this.store.updateWhenTargetChanges(value); };
-  updateWhenBecomingBlocked = (value: boolean) => { this.store.updateWhenBecomingBlocked(value); };
-  updateWhenStillBlocked = (value: boolean) => { this.store.updateWhenStillBlocked(value); };
-  updateWhenBecomingUnblocked = (value: boolean) => { this.store.updateWhenBecomingUnblocked(value); };
-  updateForOneTimeEvents = (value: boolean) => { this.store.updateForOneTimeEvents(value); };
+  updateSlot = (value: string) => { this.#store.updateSlot(value); };
+  updateDirectHost = (value: string) => { this.#store.updateDirectHost(value); };
+  updatePassword = (value: string) => { this.#store.updatePassword(value); };
+  updateMinTime = (value: number) => { this.#store.updateMinTime(value); };
+  updateMaxTime = (value: number) => { this.#store.updateMaxTime(value); };
+  updatePort = (value: number) => { this.#store.updatePort(value); };
+  updateEnableTileAnimations = (value: boolean) => { this.#store.updateEnableTileAnimations(value); };
+  updateEnableRatAnimations = (value: boolean) => { this.#store.updateEnableRatAnimations(value); };
+  updateSendChatMessages = (value: boolean) => { this.#store.updateSendChatMessages(value); };
+  updateWhenTargetChanges = (value: boolean) => { this.#store.updateWhenTargetChanges(value); };
+  updateWhenBecomingBlocked = (value: boolean) => { this.#store.updateWhenBecomingBlocked(value); };
+  updateWhenStillBlocked = (value: boolean) => { this.#store.updateWhenStillBlocked(value); };
+  updateWhenBecomingUnblocked = (value: boolean) => { this.#store.updateWhenBecomingUnblocked(value); };
+  updateForOneTimeEvents = (value: boolean) => { this.#store.updateForOneTimeEvents(value); };
 
-  onConnect(event: SubmitEvent) {
+  async onConnect(event: SubmitEvent) {
     event.preventDefault();
+    try {
+      await this.#archipelagoClient.connect();
+      console.log('Successfully connected to Archipelago server!');
+    } catch (error) {
+      console.error('Failed to connect to Archipelago server:', error);
+      // TODO: Show user-friendly error message
+    }
   }
 }
