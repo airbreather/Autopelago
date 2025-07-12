@@ -1,7 +1,10 @@
 import { Injectable, inject } from '@angular/core';
+
 import { BehaviorSubject, distinctUntilChanged, Observable } from 'rxjs';
 import { filter, mergeMap } from 'rxjs/operators';
+
 import { Client } from 'archipelago.js';
+
 import type {
   PlayerEvents,
   ItemEvents,
@@ -10,6 +13,7 @@ import type {
   RoomStateEvents,
   SocketEvents
 } from 'archipelago.js';
+
 import { ConnectScreenStore } from '../store/connect-screen.store';
 
 @Injectable({

@@ -5,7 +5,6 @@ import { takeUntilDestroyed } from "@angular/core/rxjs-interop";
 
 @Component({
   selector: 'app-connect-screen',
-  standalone: true,
   template: `
     <form #allInputs class="root" (submit)="onConnect($event)">
       <div class="inputs">
