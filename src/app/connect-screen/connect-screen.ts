@@ -5,7 +5,7 @@ import { ConnectScreenStore, createHostSelector } from '../store/connect-screen.
   selector: 'app-connect-screen',
   standalone: true,
   template: `
-    <form #allInputs class="root">
+    <form #allInputs class="root" (submit)="onConnect($event)">
       <div class="inputs">
         <label for="slot">Slot:</label>
         <input #slotInput
@@ -113,7 +113,10 @@ import { ConnectScreenStore, createHostSelector } from '../store/connect-screen.
                (input)="updateForOneTimeEvents(forOneTimeEventsInput.checked)" />
         <label for="forOneTimeEvents">for one-time events</label>
       </div>
-      <input class="submit-button" type="submit" value="Connect" [disabled]="!allInputs.checkValidity()" />
+      <input class="submit-button"
+             type="submit"
+             [disabled]="!allInputs.checkValidity()"
+             value="Connect" />
     </form>
   `,
   styles: `
@@ -191,4 +194,8 @@ export class ConnectScreen {
   updateWhenStillBlocked = (value: boolean) => { this.store.updateWhenStillBlocked(value); };
   updateWhenBecomingUnblocked = (value: boolean) => { this.store.updateWhenBecomingUnblocked(value); };
   updateForOneTimeEvents = (value: boolean) => { this.store.updateForOneTimeEvents(value); };
+
+  onConnect(event: SubmitEvent) {
+    event.preventDefault();
+  }
 }

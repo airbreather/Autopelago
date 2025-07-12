@@ -1,5 +1,5 @@
-﻿import { signalStore, withState, withMethods, patchState } from '@ngrx/signals';
-import { computed } from '@angular/core';
+﻿import { signalStore, withState, withMethods, patchState, withHooks } from '@ngrx/signals';
+import { computed, effect } from '@angular/core';
 
 // Define the state interface
 export interface ConnectScreenState {
@@ -50,61 +50,41 @@ function loadFromStorage(): Partial<ConnectScreenState> {
   }
 }
 
-function saveToStorage(state: ConnectScreenState): void {
-  try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
-  } catch {
-    // Silently fail if localStorage is not available
-  }
-}
-
-// Interface for the store parameter within withMethods (only has state signals, not methods)
-interface StateSignals {
-  slot: () => string;
-  directHost: () => string;
-  port: () => number;
-  password: () => string;
-  minTime: () => number;
-  maxTime: () => number;
-  enableTileAnimations: () => boolean;
-  enableRatAnimations: () => boolean;
-  sendChatMessages: () => boolean;
-  whenTargetChanges: () => boolean;
-  whenBecomingBlocked: () => boolean;
-  whenStillBlocked: () => boolean;
-  whenBecomingUnblocked: () => boolean;
-  forOneTimeEvents: () => boolean;
-}
-
-function getCurrentState(store: StateSignals): ConnectScreenState {
-  return {
-    slot: store.slot(),
-    directHost: store.directHost(),
-    port: store.port(),
-    password: store.password(),
-    minTime: store.minTime(),
-    maxTime: store.maxTime(),
-    enableTileAnimations: store.enableTileAnimations(),
-    enableRatAnimations: store.enableRatAnimations(),
-    sendChatMessages: store.sendChatMessages(),
-    whenTargetChanges: store.whenTargetChanges(),
-    whenBecomingBlocked: store.whenBecomingBlocked(),
-    whenStillBlocked: store.whenStillBlocked(),
-    whenBecomingUnblocked: store.whenBecomingUnblocked(),
-    forOneTimeEvents: store.forOneTimeEvents(),
-  };
-}
-
 export const ConnectScreenStore = signalStore(
   { providedIn: 'root' },
   withState(() => ({
     ...initialState,
     ...loadFromStorage(),
   })),
+  withHooks({
+    onInit(store) {
+      effect(() => {
+        try {
+          localStorage.setItem(STORAGE_KEY, JSON.stringify({
+            slot: store.slot(),
+            directHost: store.directHost(),
+            port: store.port(),
+            password: store.password(),
+            minTime: store.minTime(),
+            maxTime: store.maxTime(),
+            enableTileAnimations: store.enableTileAnimations(),
+            enableRatAnimations: store.enableRatAnimations(),
+            sendChatMessages: store.sendChatMessages(),
+            whenTargetChanges: store.whenTargetChanges(),
+            whenBecomingBlocked: store.whenBecomingBlocked(),
+            whenStillBlocked: store.whenStillBlocked(),
+            whenBecomingUnblocked: store.whenBecomingUnblocked(),
+            forOneTimeEvents: store.forOneTimeEvents(),
+          }));
+        } catch {
+          // Silently fail if localStorage is not available
+        }
+      });
+    }
+  }),
   withMethods((store) => ({
     updateSlot(slot: string) {
       patchState(store, { slot });
-      saveToStorage(getCurrentState(store));
     },
 
     updateDirectHost(directHost: string) {
@@ -115,67 +95,54 @@ export const ConnectScreenStore = signalStore(
       } else {
         patchState(store, { directHost });
       }
-      saveToStorage(getCurrentState(store));
     },
 
     updatePassword(password: string) {
       patchState(store, { password });
-      saveToStorage(getCurrentState(store));
     },
 
     updateMinTime(minTime: number) {
       patchState(store, { minTime });
-      saveToStorage(getCurrentState(store));
     },
 
     updateMaxTime(maxTime: number) {
       patchState(store, { maxTime });
-      saveToStorage(getCurrentState(store));
     },
 
     updateEnableTileAnimations(enableTileAnimations: boolean) {
       patchState(store, { enableTileAnimations });
-      saveToStorage(getCurrentState(store));
     },
 
     updateEnableRatAnimations(enableRatAnimations: boolean) {
       patchState(store, { enableRatAnimations });
-      saveToStorage(getCurrentState(store));
     },
 
     updateSendChatMessages(sendChatMessages: boolean) {
       patchState(store, { sendChatMessages });
-      saveToStorage(getCurrentState(store));
     },
 
     updateWhenTargetChanges(whenTargetChanges: boolean) {
       patchState(store, { whenTargetChanges });
-      saveToStorage(getCurrentState(store));
     },
 
     updateWhenBecomingBlocked(whenBecomingBlocked: boolean) {
       patchState(store, { whenBecomingBlocked });
-      saveToStorage(getCurrentState(store));
     },
 
     updateWhenStillBlocked(whenStillBlocked: boolean) {
       patchState(store, { whenStillBlocked });
-      saveToStorage(getCurrentState(store));
     },
 
     updateWhenBecomingUnblocked(whenBecomingUnblocked: boolean) {
       patchState(store, { whenBecomingUnblocked });
-      saveToStorage(getCurrentState(store));
     },
 
     updateForOneTimeEvents(forOneTimeEvents: boolean) {
       patchState(store, { forOneTimeEvents });
-      saveToStorage(getCurrentState(store));
     },
 
     updatePort(port: number) {
       patchState(store, { port });
-      saveToStorage(getCurrentState(store));
     },
   })),
 );

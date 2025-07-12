@@ -11,17 +11,13 @@
 * {
   accent-color: theme.$accent;
   border-radius: theme.$control-corner-radius;
+  box-sizing: border-box;
   color: theme.$text-control-foreground;
   font-family: 'PublicPixel', sans-serif;
 }
 
-html {
-  height: 100vh;
-}
-
 body {
   background-color: theme.$region-color;
-  height: 100%;
 }
 
 input[type='text'],input[type='password'],input[type='number'] {
@@ -41,22 +37,25 @@ input[type='text'],input[type='password'],input[type='number'] {
   }
 }
 
-input[type='submit'] {
+input[type='submit'],button {
   background-color: theme.$button-background;
-  border: none;
   color: theme.$button-foreground;
   padding: theme.$button-padding;
+
+  &:not(:focus) {
+    border: none;
+  }
 
   &:disabled {
     color: theme.$button-foreground-disabled;
   }
 
   &:not(:disabled) {
-    &:hover, &:focus {
+    &:hover {
       background-color: theme.$button-background-pointer-over;
     }
 
-    &:active, &:focus:active {
+    &:active {
       background-color: theme.$button-background-pressed;
       scale: 0.98;
     }
