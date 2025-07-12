@@ -26,11 +26,11 @@ interface ClientManagerEventMap {
   deathLink: DeathEvents;
 }
 
-type ManagerName = keyof ClientManagerEventMap;
+type ManagerName = keyof ClientManagerEventMap & keyof Client;
 
 type EventsForManager<M extends ManagerName> = ClientManagerEventMap[M];
 
-type EventNameForManager<M extends ManagerName> = keyof EventsForManager<M> & string;
+type EventNameForManager<M extends ManagerName> = keyof EventsForManager<M> & string & Parameters<Client[M]['on']>[0];
 
 type EventArgsForManagerEvent<
   M extends ManagerName,
