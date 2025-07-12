@@ -190,7 +190,7 @@ export class ArchipelagoClientService {
       // Connect and authenticate
       await client.login(url, slot, 'Autopelago', { password });
 
-      // re-emit for the sake of
+      // re-emit for the sake of the observable that filters out Clients that aren't authenticated.
       this.#clientSubject.next(client);
     } catch (error) {
       // If connection fails, clear the client
