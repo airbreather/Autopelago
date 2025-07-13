@@ -17,6 +17,7 @@
 
 body {
   background-color: theme.$region-color;
+  --as-gutter-background-color: #{theme.$grid-splitter-background};
 }
 
 input[type='text'],input[type='password'],input[type='number'] {

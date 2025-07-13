@@ -13,14 +13,36 @@ import { NgStyle } from "@angular/common";
       <!--suppress AngularNgOptimizedImage -->
       <img alt="map" [src]="mapSrc()" />
       @for (location of getLocations(); track location[0]) {
-        <img alt="location.sprite_index" [src]="getQURLs()[1]" [ngStyle]="computeQStyle(location[1])" />
-        <img alt="location.sprite_index" [src]="location[2]" [ngStyle]="computeLocationStyle(location[1])" />
+        <img class="quest-marker" alt="location.sprite_index" [src]="getQURLs()[(location[1].sprite_index + 1) % 2]" [ngStyle]="computeQStyle(location[1])" />
+        <img class="landmark" [class.unchecked]="location[1].sprite_index % 2 === 0" alt="location.sprite_index" [src]="location[2]" [ngStyle]="computeLocationStyle(location[1])" />
       }
     </div>
   `,
   styles: `
     .outer {
       position: relative;
+      pointer-events: none;
+      user-select: none;
+    }
+
+    .quest-marker {
+      position: absolute;
+      width: calc(100% * 12 / 300);
+      height: calc(100% * 12 / 450);
+    }
+
+    .landmark {
+      position: absolute;
+      width: calc(100% * 16 / 300);
+      height: calc(100% * 16 / 450);
+
+      &.unchecked {
+        filter: drop-shadow(8px 16px 16px black) saturate(10%) brightness(40%);
+      }
+
+      &:not(.unchecked) {
+        filter: drop-shadow(8px 16px 16px black);
+      }
     }
   `,
 })
@@ -49,26 +71,15 @@ export class GameTabMap {
 
   computeQStyle(l: Location): Partial<CSSStyleDeclaration> {
     return {
-      position: 'absolute',
       left: `calc(100% * ${(l.coords[0] - 8 + 2).toString()} / 300)`,
       top: `calc(100% * ${(l.coords[1] - 8 - 13).toString()} / 450)`,
-      width: `calc(100% * 12 / 300)`,
-      height: `calc(100% * 12 / 450)`,
     };
   }
 
   computeLocationStyle(l: Location): Partial<CSSStyleDeclaration> {
     return {
-      position: 'absolute',
       left: `calc(100% * ${(l.coords[0] - 8).toString()} / 300)`,
       top: `calc(100% * ${(l.coords[1] - 8).toString()} / 450)`,
-      width: `calc(100% * 16 / 300)`,
-      height: `calc(100% * 16 / 450)`,
-      filter: `
-        drop-shadow(rgba(0, 0, 0, 1) 8px 16px 16px)
-        saturate(10%)
-        brightness(40%)
-      `,
     };
   }
 }
