@@ -1,20 +1,31 @@
 import { Component, computed, inject } from '@angular/core';
 import { ActivatedRoute, UrlSegment } from "@angular/router";
+
 import { rxResource } from "@angular/core/rxjs-interop";
-import { map } from "rxjs/operators";
-import { Location, LOCATIONS } from "../../../data/locations";
-import { NgStyle } from "@angular/common";
+import { map } from "rxjs";
+
+import { Landmark, LANDMARKS } from "../../../data/locations";
 
 @Component({
   selector: 'app-game-tab-map',
-  imports: [NgStyle],
+  imports: [],
   template: `
     <div class="outer">
       <!--suppress AngularNgOptimizedImage -->
       <img alt="map" [src]="mapSrc()" />
-      @for (location of getLocations(); track location[0]) {
-        <img class="quest-marker" alt="location.sprite_index" [src]="getQURLs()[(location[1].sprite_index + 1) % 2]" [ngStyle]="computeQStyle(location[1])" />
-        <img class="landmark" [class.unchecked]="location[1].sprite_index % 2 === 0" alt="location.sprite_index" [src]="location[2]" [ngStyle]="computeLocationStyle(location[1])" />
+      @for (landmarks of landmarks(); track landmarks.key) {
+        <img class="quest-marker"
+             [alt]="landmarks.key"
+             [src]="qUrls()[(landmarks.value.sprite_index + 1) % 2]"
+             [style.left]="'calc(100% * ' + landmarks.calcQLeft + ' / 300)'"
+             [style.top]="'calc(100% * ' + landmarks.calcQTop + ' / 450)'" />
+
+        <img class="landmark"
+             [class.unchecked]="landmarks.value.sprite_index % 2 === 0" 
+             [alt]="landmarks.key"
+             [src]="landmarks.url"
+             [style.left]="'calc(100% * ' + landmarks.calcLeft + ' / 300)'"
+             [style.top]="'calc(100% * ' + landmarks.calcTop + ' / 450)'" />
       }
     </div>
   `,
@@ -57,29 +68,23 @@ export class GameTabMap {
     return pathBase ? pathBase.path + '/assets/images/map.svg' : null;
   });
 
-  getQURLs(): readonly [string, string] {
+  readonly landmarks = computed(() => {
+    const pathBase = this.pathBase.value();
+    const pathBase2 = pathBase ? pathBase.path + '/assets/images/locations/' : '';
+    return Object.entries(LANDMARKS).map(([k, v]) => ({
+      key: k,
+      value: v as Landmark,
+      url: pathBase2 + k + '.webp',
+      calcLeft: (v.coords[0] - 8).toString(),
+      calcTop: (v.coords[1] - 8).toString(),
+      calcQLeft: (v.coords[0] - 6).toString(),
+      calcQTop: (v.coords[1] - 21).toString(),
+    }));
+  });
+
+  readonly qUrls = computed(() =>  {
     const pathBase = this.pathBase.value();
     const pathBase2 = pathBase ? pathBase.path + '/assets/images/locations/' : '';
     return [pathBase2 + 'yellow_quest.webp', pathBase2 + 'gray_quest.webp'];
-  }
-
-  getLocations() {
-    const pathBase = this.pathBase.value();
-    const pathBase2 = pathBase ? pathBase.path + '/assets/images/locations/' : '';
-    return Object.entries(LOCATIONS).map(([k, v]) => [k, v as Location, pathBase2 + k + '.webp'] as const);
-  }
-
-  computeQStyle(l: Location): Partial<CSSStyleDeclaration> {
-    return {
-      left: `calc(100% * ${(l.coords[0] - 8 + 2).toString()} / 300)`,
-      top: `calc(100% * ${(l.coords[1] - 8 - 13).toString()} / 450)`,
-    };
-  }
-
-  computeLocationStyle(l: Location): Partial<CSSStyleDeclaration> {
-    return {
-      left: `calc(100% * ${(l.coords[0] - 8).toString()} / 300)`,
-      top: `calc(100% * ${(l.coords[1] - 8).toString()} / 450)`,
-    };
-  }
+  });
 }

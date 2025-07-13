@@ -1,9 +1,9 @@
-export interface Location {
+export interface Landmark {
   sprite_index: number;
   coords: readonly [x: number, y: number];
 }
 
-export const LOCATIONS = {
+export const LANDMARKS = {
   basketball: { sprite_index: 1, coords: [59, 77] },
   prawn_stars: { sprite_index: 2, coords: [103, 34] },
   angry_turtles: { sprite_index: 3, coords: [103, 120] },
@@ -37,3 +37,4 @@ export const LOCATIONS = {
   asteroid_with_pants: { sprite_index: 31, coords: [232, 406] },
   snakes_on_a_planet: { sprite_index: 32, coords: [243, 354] },
 } as const;
+
