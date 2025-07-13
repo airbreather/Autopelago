@@ -9,12 +9,14 @@ export type GameTab = typeof ALL_GAME_TABS_ARRAY[number];
 export interface GameScreenState {
   leftSize: number;
   currentTab: GameTab;
+  paused: boolean;
 }
 
 // Default state
 const initialState: GameScreenState = {
   leftSize: 20,
   currentTab: 'map',
+  paused: false,
 };
 
 // Local storage key
@@ -47,6 +49,12 @@ function loadFromStorage(): Partial<GameScreenState> {
     }
   }
 
+  if ('paused' in result) {
+    if (!(typeof result.paused === 'boolean')) {
+      delete result.paused;
+    }
+  }
+
   return result;
 }
 
@@ -63,6 +71,7 @@ export const GameScreenStore = signalStore(
           localStorage.setItem(STORAGE_KEY, JSON.stringify({
             leftSize: store.leftSize(),
             currentTab: store.currentTab(),
+            paused: store.paused(),
           }));
         } catch {
           // Silently fail if localStorage is not available
@@ -76,6 +85,19 @@ export const GameScreenStore = signalStore(
     },
     restoreDefaultLeftSize() {
       patchState(store, { leftSize: initialState.leftSize });
+    },
+    pause() {
+      if (!store.paused()) {
+        patchState(store, { paused: true });
+      }
+    },
+    unpause() {
+      if (store.paused()) {
+        patchState(store, { paused: false });
+      }
+    },
+    togglePause() {
+      patchState(store, s => ({ ...s, paused: !s.paused }));
     },
   })),
 );

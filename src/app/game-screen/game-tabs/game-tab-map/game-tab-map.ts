@@ -4,17 +4,20 @@ import { ActivatedRoute, UrlSegment } from "@angular/router";
 import { rxResource } from "@angular/core/rxjs-interop";
 import { map } from "rxjs";
 import { LandmarkMarkers } from "./landmark-markers/landmark-markers";
+import { PauseButton } from "./pause-button/pause-button";
 
 @Component({
   selector: 'app-game-tab-map',
   imports: [
-    LandmarkMarkers
+    LandmarkMarkers,
+    PauseButton
   ],
   template: `
     <div class="outer">
       <!--suppress AngularNgOptimizedImage -->
       <img alt="map" [src]="mapSrc()" />
       <app-landmark-markers [pathBase]="pathBase.value()?.path ?? null" />
+      <app-pause-button />
     </div>
   `,
   styles: `

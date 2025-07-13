@@ -1,5 +1,6 @@
 // things from App.axaml
 $accent: #0073cf;
+$accent-dark-1: #005396;
 $alt-high: black;
 $alt-low: black;
 $alt-medium: black;
@@ -47,3 +48,11 @@ $control-corner-radius: calc(3rem/16);
 $button-padding: calc(6rem/16) calc(8rem/16);
 
 $grid-splitter-background: $alt-medium-low;
+
+$toggle-button-background: $base-low;
+$toggle-button-background-pointer-over: rgba($base-high, 0.1);
+$toggle-button-foreground: $base-high;
+$toggle-button-background-checked: $accent;
+$toggle-button-foreground-checked: $chrome-white;
+$toggle-button-background-checked-pointer-over: $accent-dark-1;
+$toggle-button-foreground-checked-pointer-over: $chrome-white;

@@ -58,3 +58,22 @@ input[type='submit'],button {
     }
   }
 }
+
+.rat-toggle-button {
+  background-color: theme.$toggle-button-background;
+  color: theme.$toggle-button-foreground;
+
+  &:hover {
+    background-color: theme.$toggle-button-background-pointer-over;
+  }
+
+  &.toggled-on {
+    background-color: theme.$toggle-button-background-checked;
+    color: theme.$toggle-button-foreground-checked;
+
+    &:hover {
+      background-color: theme.$toggle-button-background-checked-pointer-over;
+      color: theme.$toggle-button-foreground-checked;
+    }
+  }
+}
