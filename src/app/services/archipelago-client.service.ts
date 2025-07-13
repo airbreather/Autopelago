@@ -6,6 +6,7 @@ import { filter, mergeMap } from 'rxjs/operators';
 import {
   Client,
   DeathEvents,
+  EventBasedManager,
   ItemEvents,
   MessageEvents,
   PlayerEvents,
@@ -16,13 +17,17 @@ import {
 import { ConnectScreenStore } from '../store/connect-screen.store';
 import { JQueryStyleEventEmitter } from "rxjs/internal/observable/fromEvent";
 
-interface ClientManagerEventMap {
+interface ClientManagerEventMapDefined {
   socket: SocketEvents;
   room: RoomStateEvents;
   messages: MessageEvents;
   players: PlayerEvents;
   items: ItemEvents;
   deathLink: DeathEvents;
+}
+
+type ClientManagerEventMapDerived = {
+  [K in keyof Client & keyof ClientManagerEventMapDefined]: Client[K] extends EventBasedManager<infer E> ? E : never;
 }
 
 @Injectable({
@@ -118,9 +123,9 @@ export class ArchipelagoClientService {
    * Observables never terminate to allow reconnection.
    */
   #createEventObservableFromSource<
-    T extends ClientManagerEventMap[M][E],
-    M extends keyof ClientManagerEventMap,
-    E extends keyof ClientManagerEventMap[M] & string,
+    T extends ClientManagerEventMapDerived[M][E],
+    M extends keyof ClientManagerEventMapDerived,
+    E extends keyof ClientManagerEventMapDerived[M] & string,
   >(
     sourceObservable: Observable<Client | null>,
     managerName: M,
@@ -130,7 +135,7 @@ export class ArchipelagoClientService {
       mergeMap(client => {
         return client === null
           ? EMPTY
-          : fromEvent(client[managerName] as JQueryStyleEventEmitter<unknown, T>, eventName);
+          : fromEvent(client[managerName] as JQueryStyleEventEmitter<Client[M], T>, eventName);
       }),
     );
   }
@@ -139,9 +144,10 @@ export class ArchipelagoClientService {
    * Helper method to create event observables that work with any connected client
    */
   #createEventObservable<
-    T extends ClientManagerEventMap[M][E],
-    M extends keyof ClientManagerEventMap,
-    E extends keyof ClientManagerEventMap[M] & string,
+    // TODO: why does T become 'unknown[]' if I change this to merely ClientManagerEventMapDerived like the others?
+    T extends (ClientManagerEventMapDefined extends ClientManagerEventMapDerived ? ClientManagerEventMapDefined : never)[M][E],
+    M extends keyof ClientManagerEventMapDerived,
+    E extends keyof ClientManagerEventMapDerived[M] & string,
   >(
     managerName: M,
     eventName: E
@@ -153,9 +159,10 @@ export class ArchipelagoClientService {
    * Helper method to create event observables that require an authenticated client
    */
   #createAuthenticatedEventObservable<
-    T extends ClientManagerEventMap[M][E],
-    M extends keyof ClientManagerEventMap,
-    E extends keyof ClientManagerEventMap[M] & string,
+    // TODO: why does T become 'unknown[]' if I change this to merely ClientManagerEventMapDerived like the others?
+    T extends (ClientManagerEventMapDefined extends ClientManagerEventMapDerived ? ClientManagerEventMapDefined : never)[M][E],
+    M extends keyof ClientManagerEventMapDerived,
+    E extends keyof ClientManagerEventMapDerived[M] & string,
   >(
     managerName: M,
     eventName: E
