@@ -7,12 +7,14 @@ import { Landmark, LANDMARKS } from "../../../../data/locations";
   imports: [],
   template: `
     @for (landmarks of landmarks(); track landmarks.key) {
+      <!--suppress AngularNgOptimizedImage -->
       <img class="quest-marker"
            [alt]="landmarks.key"
            [src]="qUrls()[(landmarks.value.sprite_index + 1) % 2]"
            [style.left]="'calc(100% * ' + landmarks.calcQLeft + ' / 300)'"
            [style.top]="'calc(100% * ' + landmarks.calcQTop + ' / 450)'" />
 
+      <!--suppress AngularNgOptimizedImage -->
       <img class="landmark"
            [class.unchecked]="landmarks.value.sprite_index % 2 === 0"
            [alt]="landmarks.key"
