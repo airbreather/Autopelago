@@ -10,7 +10,7 @@ import { PauseButton } from "./pause-button/pause-button";
   selector: 'app-game-tab-map',
   imports: [
     LandmarkMarkers,
-    PauseButton
+    PauseButton,
   ],
   template: `
     <div class="outer">
