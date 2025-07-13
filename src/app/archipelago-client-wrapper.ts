@@ -19,11 +19,13 @@ export class ArchipelagoClientWrapper {
   readonly #archipelagoClient = inject(ArchipelagoClient);
 
   constructor() {
-    this.#archipelagoClient.events('messages', 'message').pipe(takeUntilDestroyed())
+    this.#archipelagoClient.events('messages', 'message')
+      .pipe(takeUntilDestroyed())
       .subscribe(msg => {
         console.log('ANY OLD MESSAGE', msg);
       });
-    this.#archipelagoClient.events('messages', 'serverChat').pipe(takeUntilDestroyed())
+    this.#archipelagoClient.events('messages', 'serverChat')
+      .pipe(takeUntilDestroyed())
       .subscribe(msg => {
         console.log('SERVER CHAT', msg);
       });
