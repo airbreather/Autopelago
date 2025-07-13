@@ -198,4 +198,8 @@ export class ArchipelagoClientService {
     }
     this.#clientSubject.next(null);
   }
+
+  isAuthenticated() {
+    return !!this.#clientSubject.value?.authenticated;
+  }
 }
