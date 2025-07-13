@@ -2,7 +2,7 @@ import { inject } from "@angular/core";
 import { Routes, UrlTree } from '@angular/router';
 
 import { ConnectScreen } from "./connect-screen/connect-screen";
-import { ArchipelagoClientService } from "./services/archipelago-client.service";
+import { ArchipelagoClientWrapper } from "./archipelago-client-wrapper";
 
 export const routes: Routes = [
   { path: '', component: ConnectScreen },
@@ -10,7 +10,7 @@ export const routes: Routes = [
     path: 'game',
     loadComponent: () => import('./game-screen/game-screen').then(m => m.GameScreen),
     canActivate: [
-      () => inject(ArchipelagoClientService).isAuthenticated() ? true : new UrlTree(),
+      () => inject(ArchipelagoClientWrapper).isAuthenticated.value() ? true : new UrlTree(),
     ],
   },
 ];

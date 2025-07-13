@@ -14,7 +14,7 @@ import {
   SocketEvents
 } from 'archipelago.js';
 
-import { ConnectScreenStore } from '../store/connect-screen.store';
+import { ConnectScreenStore } from './store/connect-screen.store';
 
 // TODO: TypeScript isn't powerful enough to infer this fully, though the conditional type part is enough to let it give
 // 'unknown' if we make any mistakes in the explicit part of this declaration.
@@ -30,9 +30,9 @@ type ClientManagerEventMap = {
 };
 
 @Injectable({
-  providedIn: 'root'
+  providedIn: 'any',
 })
-export class ArchipelagoClientService {
+export class ArchipelagoClient {
   readonly #connectScreenStore = inject(ConnectScreenStore);
 
   /**
