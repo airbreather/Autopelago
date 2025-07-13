@@ -1,12 +1,15 @@
 import { Component } from '@angular/core';
+import { RouterLink } from "@angular/router";
 
 @Component({
   selector: 'app-player-name-and-navigation',
-  imports: [],
+  imports: [
+    RouterLink
+  ],
   template: `
     <div>
       <div>PLAYER NAME</div>
-      <div><button>Back to Main Menu</button></div>
+      <div><button routerLink="/">Back to Main Menu</button></div>
     </div>
   `,
   styles: ``,

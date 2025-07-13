@@ -1,27 +1,53 @@
-﻿import { signalStore, withState, withMethods, patchState, withHooks } from '@ngrx/signals';
-import { effect } from '@angular/core';
+﻿import { effect } from '@angular/core';
+import { signalStore, withState, withMethods, patchState, withHooks } from '@ngrx/signals';
+
+const ALL_GAME_TABS_ARRAY = ['map', 'arcade'] as const;
+const ALL_GAME_TABS = new Set<string>(ALL_GAME_TABS_ARRAY);
+export type GameTab = typeof ALL_GAME_TABS_ARRAY[number];
 
 // Define the state interface
 export interface GameScreenState {
   leftSize: number;
+  currentTab: GameTab;
 }
 
 // Default state
 const initialState: GameScreenState = {
   leftSize: 20,
+  currentTab: 'map',
 };
 
 // Local storage key
-const STORAGE_KEY = 'autopelago-connect-game-state';
+const STORAGE_KEY = 'autopelago-game-state';
 
 // Helper functions for local storage
 function loadFromStorage(): Partial<GameScreenState> {
+  let result: unknown;
   try {
     const stored = localStorage.getItem(STORAGE_KEY);
-    return stored ? JSON.parse(stored) as Partial<GameScreenState> : {};
+    result = stored && JSON.parse(stored);
   } catch {
+    // Silently fail if localStorage is not available
+    result = null;
+  }
+
+  if (!(result && typeof result === 'object')) {
     return {};
   }
+
+  if ('leftSize' in result) {
+    if (!(typeof result.leftSize === 'number' && result.leftSize >= 5 && result.leftSize <= 95)) {
+      delete result.leftSize;
+    }
+  }
+
+  if ('currentTab' in result) {
+    if (!(typeof result.currentTab === 'string' && ALL_GAME_TABS.has(result.currentTab))) {
+      delete result.currentTab;
+    }
+  }
+
+  return result;
 }
 
 export const GameScreenStore = signalStore(
@@ -36,6 +62,7 @@ export const GameScreenStore = signalStore(
         try {
           localStorage.setItem(STORAGE_KEY, JSON.stringify({
             leftSize: store.leftSize(),
+            currentTab: store.currentTab(),
           }));
         } catch {
           // Silently fail if localStorage is not available

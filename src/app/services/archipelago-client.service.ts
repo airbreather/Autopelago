@@ -187,6 +187,7 @@ export class ArchipelagoClientService {
    * Disconnects from the current Archipelago server and clears the client.
    */
   disconnect(): void {
+    console.log('Disconnecting...');
     const currentClient = this.#clientSubject.value;
     if (currentClient) {
       try {
@@ -197,5 +198,4 @@ export class ArchipelagoClientService {
     }
     this.#clientSubject.next(null);
   }
-
 }

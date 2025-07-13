@@ -9,7 +9,7 @@ import { ProgressionItemStatus } from "./progression-item-status/progression-ite
     AurasDisplay, PlayerNameAndNavigation, ProgressionItemStatus,
   ],
   template: `
-    <div>
+    <div class="outer">
       <div class="top">
         <app-player-name-and-navigation />
         <app-auras-display />
@@ -18,6 +18,11 @@ import { ProgressionItemStatus } from "./progression-item-status/progression-ite
     </div>
   `,
   styles: `
+    .outer {
+      display: flex;
+      flex-direction: column;
+    }
+
     .top {
       flex: 0;
     }

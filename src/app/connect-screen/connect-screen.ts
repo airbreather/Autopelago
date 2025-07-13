@@ -1,7 +1,7 @@
 import { Component, effect, ElementRef, inject, viewChild } from '@angular/core';
+import { Router } from "@angular/router";
 import { ConnectScreenStore, createHostSelector } from '../store/connect-screen.store';
 import { ArchipelagoClientService } from '../services/archipelago-client.service';
-import { takeUntilDestroyed } from "@angular/core/rxjs-interop";
 
 @Component({
   selector: 'app-connect-screen',
@@ -145,10 +145,7 @@ import { takeUntilDestroyed } from "@angular/core/rxjs-interop";
 export class ConnectScreen {
   readonly #store = inject(ConnectScreenStore);
   readonly #archipelagoClient = inject(ArchipelagoClientService);
-
-  _ = this.#archipelagoClient.message$.pipe(takeUntilDestroyed()).subscribe(message => {
-    console.log(message);
-  });
+  readonly #router = inject(Router);
 
   // Expose store properties as getters for template access
   readonly slot = this.#store.slot;
@@ -206,6 +203,7 @@ export class ConnectScreen {
     try {
       await this.#archipelagoClient.connect();
       console.log('Successfully connected to Archipelago server!');
+      await this.#router.navigate(['./game']);
     } catch (error) {
       console.error('Failed to connect to Archipelago server:', error);
       // TODO: Show user-friendly error message
