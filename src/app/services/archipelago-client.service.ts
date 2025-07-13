@@ -1,6 +1,6 @@
 import { Injectable, inject } from '@angular/core';
 
-import { BehaviorSubject, distinctUntilChanged, Observable } from 'rxjs';
+import { BehaviorSubject, distinctUntilChanged, EMPTY, fromEvent, Observable } from 'rxjs';
 import { filter, mergeMap } from 'rxjs/operators';
 
 import { Client } from 'archipelago.js';
@@ -15,6 +15,7 @@ import type {
 } from 'archipelago.js';
 
 import { ConnectScreenStore } from '../store/connect-screen.store';
+import { JQueryStyleEventEmitter } from "rxjs/internal/observable/fromEvent";
 
 // Advanced TypeScript utility types for inferring event types from manager names
 interface ClientManagerEventMap {
@@ -129,35 +130,20 @@ export class ArchipelagoClientService {
    * allowing the mergeMap operator to unsubscribe previous Client's events when set to null.
    * Observables never terminate to allow reconnection.
    */
-  #createEventObservableFromSource<T extends unknown[]>(
+  #createEventObservableFromSource<
+    T extends EventArgsForManagerEvent<M, E>,
+    M extends ManagerName,
+    E extends EventNameForManager<M>,
+  >(
     sourceObservable: Observable<Client | null>,
-    managerName: keyof Client,
-    eventName: string
+    managerName: M,
+    eventName: E,
   ): Observable<T> {
     return sourceObservable.pipe(
       mergeMap(client => {
-        if (client === null) {
-          // When client is null (disconnected), return empty observable
-          // This allows the mergeMap to unsubscribe from previous client's events
-          return new Observable<T>(subscriber => {
-            // Empty observable that completes immediately
-            subscriber.complete();
-          });
-        }
-
-        const manager = client[managerName] as { on: (event: string, listener: (...args: T) => void) => void; off: (event: string, listener: (...args: T) => void) => void };
-
-        return new Observable<T>(subscriber => {
-          const listener = (...args: T) => {
-            subscriber.next(args);
-          };
-
-          manager.on(eventName, listener);
-
-          return () => {
-            manager.off(eventName, listener);
-          };
-        });
+        return client === null
+          ? EMPTY
+          : fromEvent(client[managerName] as JQueryStyleEventEmitter<unknown, T>, eventName);
       }),
     );
   }
