@@ -18,7 +18,13 @@ import { ActivatedRoute, UrlSegment } from "@angular/router";
               gutterDblClickDuration="500" (gutterDblClick)="onGutterDblClick()">
       <as-split-area class="left" [size]="leftSize()" [minSize]="5" [maxSize]="95">
         <div class="top">
-          Just the name
+          <div class="top">
+            <div>PLAYER NAME</div>
+            <div><button>Back to Main Menu</button></div>
+          </div>
+          <div class="bottom">
+            BARS FOR AURAS
+          </div>
         </div>
         <div class="bottom">
           All the items!

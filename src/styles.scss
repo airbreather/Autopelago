@@ -38,12 +38,9 @@ input[type='text'],input[type='password'],input[type='number'] {
 
 input[type='submit'],button {
   background-color: theme.$button-background;
+  border: none;
   color: theme.$button-foreground;
   padding: theme.$button-padding;
-
-  &:not(:focus) {
-    border: none;
-  }
 
   &:disabled {
     color: theme.$button-foreground-disabled;
