@@ -168,19 +168,21 @@ export class ConnectScreen {
   protected readonly minTimeInput = viewChild<ElementRef<HTMLInputElement>>('minTimeInput');
   protected readonly maxTimeInput = viewChild<ElementRef<HTMLInputElement>>('maxTimeInput');
 
-  __ = effect(() => {
-    const minTimeInput = this.minTimeInput();
-    const maxTimeInput = this.maxTimeInput();
-    if (minTimeInput && maxTimeInput) {
-      if (this.minTime() > this.maxTime()) {
-        minTimeInput.nativeElement.setCustomValidity('Min cannot be greater than max.');
-        maxTimeInput.nativeElement.setCustomValidity('Min cannot be greater than max.');
-      } else {
-        minTimeInput.nativeElement.setCustomValidity('');
-        maxTimeInput.nativeElement.setCustomValidity('');
+  constructor() {
+    effect(() => {
+      const minTimeInput = this.minTimeInput();
+      const maxTimeInput = this.maxTimeInput();
+      if (minTimeInput && maxTimeInput) {
+        if (this.minTime() > this.maxTime()) {
+          minTimeInput.nativeElement.setCustomValidity('Min cannot be greater than max.');
+          maxTimeInput.nativeElement.setCustomValidity('Min cannot be greater than max.');
+        } else {
+          minTimeInput.nativeElement.setCustomValidity('');
+          maxTimeInput.nativeElement.setCustomValidity('');
+        }
       }
-    }
-  });
+    });
+  }
 
   // Store update methods
   updateSlot = (value: string) => { this.#store.updateSlot(value); };
@@ -201,7 +203,12 @@ export class ConnectScreen {
   async onConnect(event: SubmitEvent) {
     event.preventDefault();
     try {
-      await this.#archipelagoClient.connect();
+      await this.#archipelagoClient.connect({
+        directHost: this.#store.directHost(),
+        port: this.port(),
+        slot: this.slot(),
+        password: this.password(),
+      });
       console.log('Successfully connected to Archipelago server!');
       await this.#router.navigate(['./game']);
     } catch (error) {
