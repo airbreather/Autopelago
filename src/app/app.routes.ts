@@ -1,6 +1,6 @@
 import { Routes } from '@angular/router';
-import { ConnectScreen } from './connect-screen/connect-screen';
 
 export const routes: Routes = [
-  { path: '', component: ConnectScreen },
+  { path: '', loadComponent: () => import('./connect-screen/connect-screen').then(m => m.ConnectScreen) },
+  { path: 'game', loadComponent: () => import('./game-screen/game-screen').then(m => m.GameScreen) },
 ];
