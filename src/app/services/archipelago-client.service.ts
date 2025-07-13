@@ -3,13 +3,12 @@ import { Injectable, inject } from '@angular/core';
 import { BehaviorSubject, distinctUntilChanged, EMPTY, fromEvent, Observable } from 'rxjs';
 import { filter, mergeMap } from 'rxjs/operators';
 
-import { Client } from 'archipelago.js';
-
-import type {
-  PlayerEvents,
+import {
+  Client,
+  DeathEvents,
   ItemEvents,
   MessageEvents,
-  DeathEvents,
+  PlayerEvents,
   RoomStateEvents,
   SocketEvents
 } from 'archipelago.js';
@@ -17,7 +16,6 @@ import type {
 import { ConnectScreenStore } from '../store/connect-screen.store';
 import { JQueryStyleEventEmitter } from "rxjs/internal/observable/fromEvent";
 
-// Advanced TypeScript utility types for inferring event types from manager names
 interface ClientManagerEventMap {
   socket: SocketEvents;
   room: RoomStateEvents;
@@ -26,17 +24,6 @@ interface ClientManagerEventMap {
   items: ItemEvents;
   deathLink: DeathEvents;
 }
-
-type ManagerName = keyof ClientManagerEventMap & keyof Client;
-
-type EventsForManager<M extends ManagerName> = ClientManagerEventMap[M];
-
-type EventNameForManager<M extends ManagerName> = keyof EventsForManager<M> & string & Parameters<Client[M]['on']>[0];
-
-type EventArgsForManagerEvent<
-  M extends ManagerName,
-  E extends EventNameForManager<M>
-> = EventsForManager<M>[E] extends unknown[] ? EventsForManager<M>[E] : never;
 
 @Injectable({
   providedIn: 'root'
@@ -131,9 +118,9 @@ export class ArchipelagoClientService {
    * Observables never terminate to allow reconnection.
    */
   #createEventObservableFromSource<
-    T extends EventArgsForManagerEvent<M, E>,
-    M extends ManagerName,
-    E extends EventNameForManager<M>,
+    T extends ClientManagerEventMap[M][E],
+    M extends keyof ClientManagerEventMap,
+    E extends keyof ClientManagerEventMap[M] & string,
   >(
     sourceObservable: Observable<Client | null>,
     managerName: M,
@@ -152,12 +139,13 @@ export class ArchipelagoClientService {
    * Helper method to create event observables that work with any connected client
    */
   #createEventObservable<
-    M extends ManagerName,
-    E extends EventNameForManager<M>
+    T extends ClientManagerEventMap[M][E],
+    M extends keyof ClientManagerEventMap,
+    E extends keyof ClientManagerEventMap[M] & string,
   >(
     managerName: M,
     eventName: E
-  ): Observable<EventArgsForManagerEvent<M, E>> {
+  ): Observable<T> {
     return this.#createEventObservableFromSource(this.client$, managerName, eventName);
   }
 
@@ -165,12 +153,13 @@ export class ArchipelagoClientService {
    * Helper method to create event observables that require an authenticated client
    */
   #createAuthenticatedEventObservable<
-    M extends ManagerName,
-    E extends EventNameForManager<M>
+    T extends ClientManagerEventMap[M][E],
+    M extends keyof ClientManagerEventMap,
+    E extends keyof ClientManagerEventMap[M] & string,
   >(
     managerName: M,
     eventName: E
-  ): Observable<EventArgsForManagerEvent<M, E>> {
+  ): Observable<T> {
     return this.#createEventObservableFromSource(this.authenticatedClient$, managerName, eventName);
   }
 
