@@ -1,34 +1,25 @@
 import { Component, computed, inject, viewChild } from '@angular/core';
 import { rxResource, takeUntilDestroyed, toObservable } from "@angular/core/rxjs-interop";
+import { ActivatedRoute, UrlSegment } from "@angular/router";
 
 import { SplitAreaComponent, SplitComponent } from "angular-split";
 
 import { map, mergeMap } from "rxjs/operators";
 
 import { GameScreenStore } from "../store/game-screen-store";
-import { ActivatedRoute, UrlSegment } from "@angular/router";
+
+import { StatusDisplay } from "./status-display/status-display";
 
 @Component({
   selector: 'app-game-screen',
   imports: [
-    SplitComponent, SplitAreaComponent,
+    SplitComponent, SplitAreaComponent, StatusDisplay,
   ],
   template: `
     <as-split #outer class="outer" unit="percent" direction="horizontal"
               gutterDblClickDuration="500" (gutterDblClick)="onGutterDblClick()">
       <as-split-area class="left" [size]="leftSize()" [minSize]="5" [maxSize]="95">
-        <div class="top">
-          <div class="top">
-            <div>PLAYER NAME</div>
-            <div><button>Back to Main Menu</button></div>
-          </div>
-          <div class="bottom">
-            BARS FOR AURAS
-          </div>
-        </div>
-        <div class="bottom">
-          All the items!
-        </div>
+        <app-status-display />
       </as-split-area>
       <as-split-area class="right">
         <div class="top">
@@ -57,14 +48,6 @@ import { ActivatedRoute, UrlSegment } from "@angular/router";
     .left {
       display: flex;
       flex-direction: column;
-
-      .top {
-        flex: 0;
-      }
-
-      .bottom {
-        flex: 1;
-      }
     }
 
     .right {
@@ -94,7 +77,7 @@ import { ActivatedRoute, UrlSegment } from "@angular/router";
         }
       }
     }
-  `
+  `,
 })
 export class GameScreen {
   readonly #store = inject(GameScreenStore);
