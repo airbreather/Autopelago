@@ -1,7 +1,7 @@
 import { Component, effect, ElementRef, inject, viewChild } from '@angular/core';
 import { Router } from "@angular/router";
 import { ConnectScreenStore, createHostSelector } from '../store/connect-screen.store';
-import { ArchipelagoClientWrapper } from '../archipelago-client-wrapper';
+import { ArchipelagoClient } from '../archipelago-client';
 
 @Component({
   selector: 'app-connect-screen',
@@ -144,7 +144,7 @@ import { ArchipelagoClientWrapper } from '../archipelago-client-wrapper';
 })
 export class ConnectScreen {
   readonly #store = inject(ConnectScreenStore);
-  readonly #archipelagoClient = inject(ArchipelagoClientWrapper);
+  readonly #archipelagoClient = inject(ArchipelagoClient);
   readonly #router = inject(Router);
 
   // Expose store properties as getters for template access

@@ -1,7 +1,7 @@
 import { Injectable } from '@angular/core';
+import { rxResource, takeUntilDestroyed } from "@angular/core/rxjs-interop";
 
-import { BehaviorSubject, EMPTY, Observable } from 'rxjs';
-import { mergeMap } from 'rxjs/operators';
+import { BehaviorSubject, EMPTY, map, merge, mergeMap, Observable } from "rxjs";
 
 import {
   Client,
@@ -15,7 +15,8 @@ import {
 } from 'archipelago.js';
 
 export interface ConnectOptions {
-  url: string;
+  directHost: string;
+  port: number;
   slot: string;
   password?: string;
 }
@@ -34,10 +35,30 @@ type ClientManagerEventMap = {
 };
 
 @Injectable({
-  providedIn: 'any',
+  providedIn: 'root'
 })
 export class ArchipelagoClient {
   readonly #clientSubject = new BehaviorSubject<Client | null>(null);
+
+  constructor() {
+    this.events('messages', 'message')
+      .pipe(takeUntilDestroyed())
+      .subscribe(msg => {
+        console.log('ANY OLD MESSAGE', msg);
+      });
+    this.events('messages', 'serverChat')
+      .pipe(takeUntilDestroyed())
+      .subscribe(msg => {
+        console.log('SERVER CHAT', msg);
+      });
+  }
+
+  isAuthenticated = rxResource({
+    stream: () => merge(
+      this.events('socket', 'connected').pipe(map(() => true)),
+      this.events('socket', 'disconnected').pipe(map(() => false)),
+    ),
+  });
 
   events<
     M extends keyof ClientManagerEventMap,
@@ -62,7 +83,9 @@ export class ArchipelagoClient {
     );
   }
 
-  async connect({ url, slot, password }: ConnectOptions): Promise<void> {
+  async connect({ directHost, port, slot, password }: ConnectOptions) {
+    const hostHasPort = /:\d+$/.test(directHost);
+    const url = hostHasPort ? directHost : `${directHost}:${port.toString()}`;
     try {
       // Disconnect any existing client
       this.disconnect();
@@ -76,7 +99,7 @@ export class ArchipelagoClient {
     }
   }
 
-  disconnect(): void {
+  disconnect() {
     const currentClient = this.#clientSubject.value;
     if (currentClient) {
       try {

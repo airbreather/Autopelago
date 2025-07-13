@@ -8,7 +8,7 @@ import { mergeMap } from "rxjs/operators";
 import { GameScreenStore } from "../store/game-screen-store";
 import { StatusDisplay } from "./status-display/status-display";
 import { GameTabs } from "./game-tabs/game-tabs";
-import { ArchipelagoClientWrapper } from "../archipelago-client-wrapper";
+import { ArchipelagoClient } from "../archipelago-client";
 
 @Component({
   selector: 'app-game-screen',
@@ -35,7 +35,7 @@ import { ArchipelagoClientWrapper } from "../archipelago-client-wrapper";
 })
 export class GameScreen implements OnDestroy {
   readonly #store = inject(GameScreenStore);
-  readonly #archipelagoClient = inject(ArchipelagoClientWrapper);
+  readonly #archipelagoClient = inject(ArchipelagoClient);
   protected readonly splitRef = viewChild.required<SplitComponent>('outer');
 
   leftSize = this.#store.leftSize;
