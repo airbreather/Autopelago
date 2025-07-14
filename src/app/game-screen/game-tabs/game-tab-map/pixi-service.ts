@@ -43,7 +43,7 @@ export class PixiService {
     const reciprocalOriginalHeight = 1 / 450.0;
     const root = this.#app.stage;
     await this.#beforeInit?.(this.#app, root);
-    await this.#app.init({ canvas, resizeTo: outer, backgroundAlpha: 0 });
+    await this.#app.init({ canvas, resizeTo: outer, backgroundAlpha: 0, antialias: false });
     root.scale.x = canvas.width * reciprocalOriginalWidth;
     root.scale.y = canvas.height * reciprocalOriginalHeight;
     fromEvent(canvas, 'resize').subscribe(() => {
