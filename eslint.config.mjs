@@ -31,6 +31,7 @@ export default tseslint.config(
       ],
       'curly': 'error',
       'object-curly-spacing': ['error', 'always'],
+      '@typescript-eslint/no-invalid-void-type': ['error', { allowAsThisParameter: true }],
     },
   },
   {

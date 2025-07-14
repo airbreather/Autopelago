@@ -1,27 +1,12 @@
-import { Component, computed, input } from '@angular/core';
+import { Component, inject } from '@angular/core';
 
-import { Landmark, LANDMARKS } from "../../../../data/locations";
+import { Assets, Sprite, Texture } from "pixi.js";
+import { PixiService } from "../pixi-service";
 
 @Component({
   selector: 'app-landmark-markers',
   imports: [],
   template: `
-    @for (landmarks of landmarks(); track landmarks.key) {
-      <!--suppress AngularNgOptimizedImage -->
-      <img class="quest-marker"
-           [alt]="landmarks.key"
-           [src]="qUrls()[(landmarks.value.sprite_index + 1) % 2]"
-           [style.left]="'calc(100% * ' + landmarks.calcQLeft + ' / 300)'"
-           [style.top]="'calc(100% * ' + landmarks.calcQTop + ' / 450)'" />
-
-      <!--suppress AngularNgOptimizedImage -->
-      <img class="landmark"
-           [class.unchecked]="landmarks.value.sprite_index % 2 === 0"
-           [alt]="landmarks.key"
-           [src]="landmarks.url"
-           [style.left]="'calc(100% * ' + landmarks.calcLeft + ' / 300)'"
-           [style.top]="'calc(100% * ' + landmarks.calcTop + ' / 450)'" />
-    }
   `,
   styles: `
     .quest-marker {
@@ -45,24 +30,24 @@ import { Landmark, LANDMARKS } from "../../../../data/locations";
     }
   `,
 })
+// eslint-disable-next-line @typescript-eslint/no-extraneous-class
 export class LandmarkMarkers {
-  readonly pathBase = input.required<string | null>();
+  constructor() {
+    let loadTexture: Promise<Texture> | null = null;
+    inject(PixiService).registerPlugin({
+      beforeInit() {
+        loadTexture = Assets.load<Texture>('/assets/images/locations/binary_tree.webp');
+      },
+      async afterInit(_app, root) {
+        if (!loadTexture) {
+          throw new Error("beforeInit() must finish before afterInit() may start");
+        }
 
-  readonly landmarks = computed(() => {
-    const pathBase = (this.pathBase() ?? '') + '/assets/images/locations/';
-    return Object.entries(LANDMARKS).map(([k, v]) => ({
-      key: k,
-      value: v as Landmark,
-      url: pathBase + k + '.webp',
-      calcLeft: (v.coords[0] - 8).toString(),
-      calcTop: (v.coords[1] - 8).toString(),
-      calcQLeft: (v.coords[0] - 6).toString(),
-      calcQTop: (v.coords[1] - 21).toString(),
-    }));
-  });
-
-  readonly qUrls = computed(() =>  {
-    const pathBase = (this.pathBase() ?? '') + '/assets/images/locations/';
-    return [pathBase + 'yellow_quest.webp', pathBase + 'gray_quest.webp'];
-  });
+        const sprite = new Sprite(await loadTexture);
+        sprite.scale.set(0.25);
+        sprite.position.set(200, 150);
+        root.addChild(sprite);
+      }
+    });
+  }
 }

@@ -1,24 +1,22 @@
-import { Component, computed, inject } from '@angular/core';
-import { ActivatedRoute, UrlSegment } from "@angular/router";
+import { AfterViewInit, Component, ElementRef, inject, viewChild } from '@angular/core';
 
-import { rxResource } from "@angular/core/rxjs-interop";
-import { map } from "rxjs";
-import { LandmarkMarkers } from "./landmark-markers/landmark-markers";
 import { PauseButton } from "./pause-button/pause-button";
+import { PixiService } from "./pixi-service";
+import { LandmarkMarkers } from "./landmark-markers/landmark-markers";
 
 @Component({
   selector: 'app-game-tab-map',
-  imports: [
-    LandmarkMarkers,
-    PauseButton,
-  ],
+  imports: [PauseButton, LandmarkMarkers],
+  providers: [PixiService],
   template: `
-    <div class="outer">
+    <div #theOuter class="outer">
       <!--suppress AngularNgOptimizedImage -->
-      <img alt="map" [src]="mapSrc()" />
-      <app-landmark-markers [pathBase]="pathBase.value()?.path ?? null" />
+      <img alt="map" src="/assets/images/map.svg" />
       <app-pause-button />
+      <canvas #theCanvas class="the-canvas" width="300" height="450">
+      </canvas>
     </div>
+    <app-landmark-markers />
   `,
   styles: `
     .outer {
@@ -26,16 +24,24 @@ import { PauseButton } from "./pause-button/pause-button";
       pointer-events: none;
       user-select: none;
     }
+    .the-canvas {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+    }
   `,
 })
-export class GameTabMap {
-  readonly #route = inject(ActivatedRoute);
-  pathBase = rxResource<UrlSegment | null, never>({
-    defaultValue: null,
-    stream: () => this.#route.root.url.pipe(map(u => u[0])),
-  });
-  mapSrc = computed(() => {
-    const pathBase = this.pathBase.value();
-    return pathBase ? pathBase.path + '/assets/images/map.svg' : null;
-  });
+export class GameTabMap implements AfterViewInit {
+  protected readonly theCanvas = viewChild.required<ElementRef<HTMLCanvasElement>>('theCanvas');
+  protected readonly theOuter = viewChild.required<ElementRef<HTMLDivElement>>('theOuter');
+
+  readonly #pixiService = inject(PixiService, { self: true });
+
+  ngAfterViewInit() {
+    const canvas = this.theCanvas().nativeElement;
+    const outer = this.theOuter().nativeElement;
+    void this.#pixiService.init(canvas, outer);
+  }
 }
