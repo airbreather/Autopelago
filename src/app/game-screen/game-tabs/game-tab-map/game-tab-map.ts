@@ -3,10 +3,11 @@ import { AfterViewInit, Component, ElementRef, inject, viewChild } from '@angula
 import { PauseButton } from "./pause-button/pause-button";
 import { PixiService } from "./pixi-service";
 import { LandmarkMarkers } from "./landmark-markers/landmark-markers";
+import { PlayerToken } from "./player-token/player-token";
 
 @Component({
   selector: 'app-game-tab-map',
-  imports: [PauseButton, LandmarkMarkers],
+  imports: [PauseButton, LandmarkMarkers, PlayerToken],
   providers: [PixiService],
   template: `
     <div #outer class="outer">
@@ -14,6 +15,7 @@ import { LandmarkMarkers } from "./landmark-markers/landmark-markers";
       <img alt="map" src="/assets/images/map.svg" />
       <canvas #pixiCanvas class="pixi-canvas" width="300" height="450">
       </canvas>
+      <app-player-token />
       <div #pauseButtonContainer class="pause-button-container" [style.margin-top]="'-' + pauseButtonContainer.clientHeight + 'px'">
         <app-pause-button />
       </div>
