@@ -7,23 +7,13 @@ import { Ticker } from "pixi.js";
   selector: 'app-pause-button',
   imports: [],
   template: `
-    <div class="outer">
-      <button class="rat-toggle-button"
-              [class.toggled-on]="paused()"
-              (click)="togglePause()">
-        ⏸
-      </button>
-    </div>
+    <button class="rat-toggle-button"
+            [class.toggled-on]="paused()"
+            (click)="togglePause()">
+      ⏸
+    </button>
   `,
-  styles: `
-    .outer {
-      position: sticky;
-      left: 5px;
-      bottom: 5px;
-      pointer-events: initial;
-      width: fit-content;
-    }
-  `,
+  styles: ``,
 })
 export class PauseButton {
   readonly #store = inject(GameScreenStore);

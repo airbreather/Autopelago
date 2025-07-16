@@ -1,6 +1,6 @@
 import { Component, inject } from '@angular/core';
 
-import { Assets, Sprite, Spritesheet, Texture } from "pixi.js";
+import { AnimatedSprite, Assets, Spritesheet, SpritesheetData, Texture } from "pixi.js";
 import { PixiService } from "../pixi-service";
 import { LANDMARKS } from "../../../../data/locations";
 
@@ -27,17 +27,10 @@ export class LandmarkMarkers {
         const spritesheetTexture = await loadSpritesheetTexture;
 
         // Create spritesheet data with frame definitions for each landmark
-        interface FrameData {
-          frame: { x: number; y: number; w: number; h: number };
-          sourceSize: { w: number; h: number };
-          spriteSourceSize: { x: number; y: number; w: number; h: number };
-        }
-
-        const spritesheetData = {
-          frames: {} as Record<string, FrameData>,
-          meta: {
-            scale: 1
-          }
+        const spritesheetData: SpritesheetData & Required<Pick<SpritesheetData, 'animations'>> = {
+          frames: {},
+          meta: { scale: 4 },
+          animations: {},
         };
 
         // Generate frame definitions for each landmark
@@ -71,53 +64,23 @@ export class LandmarkMarkers {
             sourceSize: { w: 64, h: 64 },
             spriteSourceSize: { x: 0, y: 0, w: 64, h: 64 }
           };
+
+          spritesheetData.animations[`${landmarkKey}_on`] = [`${landmarkKey}_on_1`, `${landmarkKey}_on_2`];
+          spritesheetData.animations[`${landmarkKey}_off`] = [`${landmarkKey}_off_1`, `${landmarkKey}_off_2`];
         }
 
         // Create the spritesheet
         const spritesheet = new Spritesheet(spritesheetTexture, spritesheetData);
         await spritesheet.parse();
 
-        // Set up animation cycling between frames
-        const frameImages: [s: Sprite, [on1: Texture, on2: Texture], [off1: Texture, off2: Texture]][] = [];
-
         // Create sprites for each landmark
         for (const [landmarkKey, landmark] of Object.entries(LANDMARKS)) {
-          // For now, create "on" sprites - we can add state management later
-          const onFrame1 = spritesheet.textures[`${landmarkKey}_on_1`];
-          const onFrame2 = spritesheet.textures[`${landmarkKey}_on_2`];
-          const offFrame1 = spritesheet.textures[`${landmarkKey}_off_1`];
-          const offFrame2 = spritesheet.textures[`${landmarkKey}_off_2`];
-
-          const sprite = new Sprite(onFrame1);
-
-          // Scale down from 64x64 to 16x16 as mentioned in the comment
-          sprite.scale.set(0.25);
-
-          // Position using landmark coordinates
-          sprite.position.set(landmark.coords[0] - 8, landmark.coords[1] - 8);
-
-          root.addChild(sprite);
-          frameImages.push([sprite, [onFrame1, onFrame2], [offFrame1, offFrame2]]);
-
-          // Set the initial value, otherwise a game that starts paused won't get it.
-          sprite.texture = onFrame1;
+          const anim = new AnimatedSprite(spritesheet.animations[`${landmarkKey}_on`]);
+          anim.animationSpeed = 2 / app.ticker.FPS;
+          anim.position.set(landmark.coords[0] - 8, landmark.coords[1] - 8);
+          anim.play();
+          root.addChild(anim);
         }
-
-        const context = {
-          currentCycleTime: 0,
-          currentFrameShown: 0,
-          frameImages,
-        };
-        app.ticker.add(function (t) {
-          this.currentCycleTime = (this.currentCycleTime + t.deltaMS) % 1000;
-          const currentFrame = Math.floor(this.currentCycleTime * 0.002);
-          if (this.currentFrameShown !== currentFrame) {
-            this.currentFrameShown = currentFrame;
-            for (const [sprite, frames] of this.frameImages) {
-              sprite.texture = frames[currentFrame];
-            }
-          }
-        }, context);
       }
     });
   }

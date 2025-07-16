@@ -9,14 +9,16 @@ import { LandmarkMarkers } from "./landmark-markers/landmark-markers";
   imports: [PauseButton, LandmarkMarkers],
   providers: [PixiService],
   template: `
-    <div #theOuter class="outer">
+    <div #outer class="outer">
       <!--suppress AngularNgOptimizedImage -->
       <img alt="map" src="/assets/images/map.svg" />
-      <app-pause-button />
-      <canvas #theCanvas class="the-canvas" width="300" height="450">
+      <canvas #pixiCanvas class="pixi-canvas" width="300" height="450">
       </canvas>
+      <div #pauseButtonContainer class="pause-button-container" [style.margin-top]="'-' + pauseButtonContainer.clientHeight + 'px'">
+        <app-pause-button />
+      </div>
+      <app-landmark-markers />
     </div>
-    <app-landmark-markers />
   `,
   styles: `
     .outer {
@@ -24,7 +26,17 @@ import { LandmarkMarkers } from "./landmark-markers/landmark-markers";
       pointer-events: none;
       user-select: none;
     }
-    .the-canvas {
+
+    .pause-button-container {
+      position: sticky;
+      margin-bottom: 0;
+      left: 5px;
+      bottom: 5px;
+      pointer-events: initial;
+      width: fit-content;
+    }
+
+    .pixi-canvas {
       position: absolute;
       top: 0;
       left: 0;
@@ -34,14 +46,14 @@ import { LandmarkMarkers } from "./landmark-markers/landmark-markers";
   `,
 })
 export class GameTabMap implements AfterViewInit {
-  protected readonly theCanvas = viewChild.required<ElementRef<HTMLCanvasElement>>('theCanvas');
-  protected readonly theOuter = viewChild.required<ElementRef<HTMLDivElement>>('theOuter');
+  protected readonly pixiCanvas = viewChild.required<ElementRef<HTMLCanvasElement>>('pixiCanvas');
+  protected readonly outerDiv = viewChild.required<ElementRef<HTMLDivElement>>('outer');
 
   readonly #pixiService = inject(PixiService, { self: true });
 
   ngAfterViewInit() {
-    const canvas = this.theCanvas().nativeElement;
-    const outer = this.theOuter().nativeElement;
-    void this.#pixiService.init(canvas, outer);
+    const canvas = this.pixiCanvas().nativeElement;
+    const outerDiv = this.outerDiv().nativeElement;
+    void this.#pixiService.init(canvas, outerDiv);
   }
 }
