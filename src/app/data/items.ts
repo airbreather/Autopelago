@@ -1,4 +1,5 @@
-﻿const ITEMS = [
+﻿// eslint-disable-next-line @typescript-eslint/no-unused-vars
+const ITEMS = [
     'pizza_rat',
     'ninja_rat',
     'premium_can_of_prawn_food',

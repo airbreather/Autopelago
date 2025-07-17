@@ -13,7 +13,7 @@ import { Ticker } from 'pixi.js';
       ⏸
     </button>
   `,
-  styles: ``,
+  styles: '',
 })
 export class PauseButton {
   readonly #store = inject(GameScreenStore);

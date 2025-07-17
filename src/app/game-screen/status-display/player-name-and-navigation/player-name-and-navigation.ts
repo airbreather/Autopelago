@@ -12,7 +12,7 @@ import { RouterLink } from '@angular/router';
       <div><button routerLink="/">Back to Main Menu</button></div>
     </div>
   `,
-  styles: ``,
+  styles: '',
 })
 // eslint-disable-next-line @typescript-eslint/no-extraneous-class
 export class PlayerNameAndNavigation {

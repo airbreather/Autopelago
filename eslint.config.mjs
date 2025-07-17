@@ -1,6 +1,7 @@
 import eslint from '@eslint/js';
 import tseslint from 'typescript-eslint';
 import angular from 'angular-eslint';
+import stylistic from '@stylistic/eslint-plugin'
 
 export default tseslint.config(
   {
@@ -11,6 +12,9 @@ export default tseslint.config(
       ...tseslint.configs.stylisticTypeChecked,
       ...angular.configs.tsRecommended,
     ],
+    plugins: {
+      '@stylistic': stylistic,
+    },
     processor: angular.processInlineTemplates,
     rules: {
       '@angular-eslint/directive-selector': [
@@ -31,6 +35,7 @@ export default tseslint.config(
       ],
       'curly': 'error',
       'object-curly-spacing': ['error', 'always'],
+      '@stylistic/quotes': ['error', 'single'],
       '@typescript-eslint/no-invalid-void-type': ['error', { allowAsThisParameter: true }],
     },
   },

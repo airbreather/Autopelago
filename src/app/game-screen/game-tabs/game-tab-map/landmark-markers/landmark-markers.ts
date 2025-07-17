@@ -8,9 +8,8 @@ import { DropShadowFilter } from 'pixi-filters';
 @Component({
   selector: 'app-landmark-markers',
   imports: [],
-  template: `
-  `,
-  styles: ``,
+  template: '',
+  styles: '',
 })
 // eslint-disable-next-line @typescript-eslint/no-extraneous-class
 export class LandmarkMarkers {

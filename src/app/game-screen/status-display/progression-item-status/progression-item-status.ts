@@ -8,7 +8,7 @@ import { Component } from '@angular/core';
       ALL THE ITEMS!!!
     </div>
   `,
-  styles: ``,
+  styles: '',
 })
 // eslint-disable-next-line @typescript-eslint/no-extraneous-class
 export class ProgressionItemStatus {

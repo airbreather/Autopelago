@@ -6,8 +6,8 @@ import { PixiService } from '../pixi-service';
 @Component({
   selector: 'app-player-token',
   imports: [],
-  template: ``,
-  styles: ``
+  template: '',
+  styles: ''
 })
 // eslint-disable-next-line @typescript-eslint/no-extraneous-class
 export class PlayerToken {

@@ -8,7 +8,7 @@ import { Component } from '@angular/core';
       congratulations, you found the arcade.
     </div>
   `,
-  styles: ``,
+  styles: '',
 })
 // eslint-disable-next-line @typescript-eslint/no-extraneous-class
 export class GameTabArcade {
