@@ -95,7 +95,7 @@ export const PREPARED_FILLERS = Object.fromEntries(
 function convertDefiningPoints(
   isStart: boolean,
   definingPointsOrig: readonly Vec2[],
-): { targetPoints: readonly Vec2[], targetPointsPrj: readonly number[] } {
+): PreparedFiller {
   const DENSIFY_MULTIPLIER = 20;
   const densifiedLength = ((definingPointsOrig.length - 1) * DENSIFY_MULTIPLIER) + 1;
   const densifiedDefiningPoints: Vec2[] = Array<Vec2>(densifiedLength).fill([0, 0]);
