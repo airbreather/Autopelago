@@ -1,6 +1,6 @@
-import { fromEvent } from "rxjs";
+import { fromEvent } from 'rxjs';
 
-import { Application, Container } from "pixi.js";
+import { Application, Container } from 'pixi.js';
 
 export interface RatPixiPlugin {
   beforeInit?(this: void, app: Application, root: Container): PromiseLike<void> | void;

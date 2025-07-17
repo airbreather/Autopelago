@@ -19,7 +19,7 @@ export class PlayerToken {
       },
       async afterInit(app, root) {
         if (!loadPlayerTokenTexture) {
-          throw new Error("beforeInit() must finish before afterInit() may start");
+          throw new Error('beforeInit() must finish before afterInit() may start');
         }
 
         const playerTokenTexture = await loadPlayerTokenTexture;

@@ -1,7 +1,7 @@
 import { Injectable } from '@angular/core';
-import { rxResource, takeUntilDestroyed } from "@angular/core/rxjs-interop";
+import { rxResource, takeUntilDestroyed } from '@angular/core/rxjs-interop';
 
-import { BehaviorSubject, EMPTY, map, merge, mergeMap, Observable } from "rxjs";
+import { BehaviorSubject, EMPTY, map, merge, mergeMap, Observable } from 'rxjs';
 
 import {
   Client,

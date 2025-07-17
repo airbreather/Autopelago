@@ -1,8 +1,8 @@
-import { inject } from "@angular/core";
+import { inject } from '@angular/core';
 import { Routes, UrlTree } from '@angular/router';
 
-import { ConnectScreen } from "./connect-screen/connect-screen";
-import { ArchipelagoClient } from "./archipelago-client";
+import { ConnectScreen } from './connect-screen/connect-screen';
+import { ArchipelagoClient } from './archipelago-client';
 
 export const routes: Routes = [
   { path: '', component: ConnectScreen },

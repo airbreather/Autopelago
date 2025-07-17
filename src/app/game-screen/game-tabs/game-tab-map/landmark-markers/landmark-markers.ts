@@ -1,9 +1,9 @@
 import { Component, inject } from '@angular/core';
 
-import { AnimatedSprite, Assets, Container, Spritesheet, SpritesheetData, Texture } from "pixi.js";
-import { PixiService } from "../pixi-service";
-import { LANDMARKS } from "../../../../data/locations";
-import { DropShadowFilter } from "pixi-filters";
+import { AnimatedSprite, Assets, Container, Spritesheet, SpritesheetData, Texture } from 'pixi.js';
+import { PixiService } from '../pixi-service';
+import { LANDMARKS } from '../../../../data/locations';
+import { DropShadowFilter } from 'pixi-filters';
 
 @Component({
   selector: 'app-landmark-markers',
@@ -22,7 +22,7 @@ export class LandmarkMarkers {
       },
       async afterInit(app, root) {
         if (!loadSpritesheetTexture) {
-          throw new Error("beforeInit() must finish before afterInit() may start");
+          throw new Error('beforeInit() must finish before afterInit() may start');
         }
 
         const spritesheetTexture = await loadSpritesheetTexture;

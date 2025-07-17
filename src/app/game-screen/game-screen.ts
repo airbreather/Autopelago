@@ -1,14 +1,14 @@
 import { Component, inject, OnDestroy, viewChild } from '@angular/core';
-import { takeUntilDestroyed, toObservable } from "@angular/core/rxjs-interop";
+import { takeUntilDestroyed, toObservable } from '@angular/core/rxjs-interop';
 
-import { SplitAreaComponent, SplitComponent } from "angular-split";
+import { SplitAreaComponent, SplitComponent } from 'angular-split';
 
-import { mergeMap } from "rxjs/operators";
+import { mergeMap } from 'rxjs/operators';
 
-import { GameScreenStore } from "../store/game-screen-store";
-import { StatusDisplay } from "./status-display/status-display";
-import { GameTabs } from "./game-tabs/game-tabs";
-import { ArchipelagoClient } from "../archipelago-client";
+import { GameScreenStore } from '../store/game-screen-store';
+import { StatusDisplay } from './status-display/status-display';
+import { GameTabs } from './game-tabs/game-tabs';
+import { ArchipelagoClient } from '../archipelago-client';
 
 @Component({
   selector: 'app-game-screen',

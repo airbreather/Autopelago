@@ -1,5 +1,5 @@
 import { Component, effect, ElementRef, inject, viewChild } from '@angular/core';
-import { Router } from "@angular/router";
+import { Router } from '@angular/router';
 import { ConnectScreenStore, createHostSelector } from '../store/connect-screen.store';
 import { ArchipelagoClient } from '../archipelago-client';
 
