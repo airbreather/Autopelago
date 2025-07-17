@@ -1,6 +1,7 @@
 import { Component, inject } from '@angular/core';
-import { Assets, Sprite, Texture } from "pixi.js";
-import { PixiService } from "../pixi-service";
+import { Assets, Sprite, Texture } from 'pixi.js';
+import { DropShadowFilter } from 'pixi-filters';
+import { PixiService } from '../pixi-service';
 
 @Component({
   selector: 'app-player-token',
@@ -26,6 +27,11 @@ export class PlayerToken {
         playerToken.anchor.set(0.5);
         playerToken.position.set(40, 40);
         playerToken.scale.set(0.25);
+        playerToken.filters = [new DropShadowFilter({
+          blur: 1,
+          offset: { x: 6, y: 6 },
+          color: 'black',
+        })];
         root.addChild(playerToken);
         const ROTATION_SCALE = Math.PI / 3200;
         app.ticker.add(function (t) {

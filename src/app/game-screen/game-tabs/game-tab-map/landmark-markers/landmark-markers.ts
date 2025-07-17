@@ -1,8 +1,9 @@
 import { Component, inject } from '@angular/core';
 
-import { AnimatedSprite, Assets, Spritesheet, SpritesheetData, Texture } from "pixi.js";
+import { AnimatedSprite, Assets, Container, Spritesheet, SpritesheetData, Texture } from "pixi.js";
 import { PixiService } from "../pixi-service";
 import { LANDMARKS } from "../../../../data/locations";
+import { DropShadowFilter } from "pixi-filters";
 
 @Component({
   selector: 'app-landmark-markers',
@@ -73,13 +74,22 @@ export class LandmarkMarkers {
         const spritesheet = new Spritesheet(spritesheetTexture, spritesheetData);
         await spritesheet.parse();
 
+        const landmarksContainer = new Container({
+          filters: [new DropShadowFilter({
+            blur: 1,
+            offset: { x: 11.2, y: 11.2 },
+            color: 'black',
+          })],
+        });
+        root.addChild(landmarksContainer);
+
         // Create sprites for each landmark
         for (const [landmarkKey, landmark] of Object.entries(LANDMARKS)) {
           const anim = new AnimatedSprite(spritesheet.animations[`${landmarkKey}_on`]);
           anim.animationSpeed = 2 / app.ticker.FPS;
           anim.position.set(landmark.coords[0] - 8, landmark.coords[1] - 8);
           anim.play();
-          root.addChild(anim);
+          landmarksContainer.addChild(anim);
         }
       }
     });
