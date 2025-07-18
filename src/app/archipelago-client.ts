@@ -11,7 +11,7 @@ import {
   MessageEvents,
   PlayerEvents,
   RoomStateEvents,
-  SocketEvents
+  SocketEvents,
 } from 'archipelago.js';
 
 export interface ConnectOptions {
@@ -35,7 +35,7 @@ type ClientManagerEventMap = {
 };
 
 @Injectable({
-  providedIn: 'root'
+  providedIn: 'root',
 })
 export class ArchipelagoClient {
   readonly #clientSubject = new BehaviorSubject<Client | null>(null);
@@ -43,12 +43,12 @@ export class ArchipelagoClient {
   constructor() {
     this.events('messages', 'message')
       .pipe(takeUntilDestroyed())
-      .subscribe(msg => {
+      .subscribe((msg) => {
         console.log('ANY OLD MESSAGE', msg);
       });
     this.events('messages', 'serverChat')
       .pipe(takeUntilDestroyed())
-      .subscribe(msg => {
+      .subscribe((msg) => {
         console.log('SERVER CHAT', msg);
       });
   }
@@ -68,14 +68,16 @@ export class ArchipelagoClient {
     eventName: E,
   ): Observable<ClientManagerEventMap[M][E]> {
     return this.#clientSubject.pipe(
-      mergeMap(client => {
+      mergeMap((client) => {
         if (client === null) {
           return EMPTY;
         }
 
-        return new Observable<ClientManagerEventMap[M][E]>(subscriber => {
+        return new Observable<ClientManagerEventMap[M][E]>((subscriber) => {
           const manager = client[managerName] as EventBasedManager<ClientManagerEventMap[M]>;
-          const handler = (...args: ClientManagerEventMap[M][E]) => { subscriber.next(args); };
+          const handler = (...args: ClientManagerEventMap[M][E]) => {
+            subscriber.next(args);
+          };
           manager.on(eventName, handler);
           return () => manager.off(eventName, handler);
         });
@@ -93,7 +95,8 @@ export class ArchipelagoClient {
       const client = new Client();
       this.#clientSubject.next(client);
       await client.login(url, slot, 'Autopelago', { password });
-    } catch (error) {
+    }
+    catch (error) {
       this.disconnect();
       throw error;
     }
@@ -104,7 +107,8 @@ export class ArchipelagoClient {
     if (currentClient) {
       try {
         currentClient.socket.disconnect();
-      } catch {
+      }
+      catch {
         // Ignore errors during disconnect
       }
     }

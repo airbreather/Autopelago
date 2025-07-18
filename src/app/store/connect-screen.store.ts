@@ -45,7 +45,8 @@ function loadFromStorage(): Partial<ConnectScreenState> {
   try {
     const stored = localStorage.getItem(STORAGE_KEY);
     return stored ? JSON.parse(stored) as Partial<ConnectScreenState> : {};
-  } catch {
+  }
+  catch {
     return {};
   }
 }
@@ -76,13 +77,14 @@ export const ConnectScreenStore = signalStore(
             whenBecomingUnblocked: store.whenBecomingUnblocked(),
             forOneTimeEvents: store.forOneTimeEvents(),
           }));
-        } catch {
+        }
+        catch {
           // Silently fail if localStorage is not available
         }
       });
-    }
+    },
   }),
-  withMethods((store) => ({
+  withMethods(store => ({
     updateSlot(slot: string) {
       patchState(store, { slot });
     },
@@ -92,7 +94,8 @@ export const ConnectScreenStore = signalStore(
       if (m) {
         const port = Number(m[0]);
         patchState(store, { directHost, port });
-      } else {
+      }
+      else {
         patchState(store, { directHost });
       }
     },
@@ -153,7 +156,7 @@ export function createHostSelector(store: InstanceType<typeof ConnectScreenStore
     const portFromHostMatch = /(?<=:)\d+$/.exec(directHost);
     const portFromHost = portFromHostMatch ? Number(portFromHostMatch[0]) : null;
     return portFromHost === store.port()
-        ? directHost
-        : directHost.replace(/(:\d+)$/, '');
+      ? directHost
+      : directHost.replace(/(:\d+)$/, '');
   });
 }

@@ -11,7 +11,7 @@ import { DropShadowFilter } from 'pixi-filters';
   selector: 'app-filler-markers',
   imports: [],
   template: '',
-  styles: ''
+  styles: '',
 })
 export class FillerMarkers {
   constructor() {
@@ -36,8 +36,8 @@ export class FillerMarkers {
         }
 
         graphicsContainer.addChild(gfx);
-      }
-    })
+      },
+    });
   }
 
   async #loadCounts() {
@@ -46,9 +46,9 @@ export class FillerMarkers {
     const result: Partial<Record<FillerRegionName, number>> = {};
     for (const [name, filler] of strictObjectEntries(defs.regions.fillers)) {
       result[name] =
-        (filler.unrandomized_items.filler ?? 0) +
-        (filler.unrandomized_items.useful_nonprogression ?? 0) +
-        (filler.unrandomized_items.key?.length ?? 0);
+        (filler.unrandomized_items.filler ?? 0)
+        + (filler.unrandomized_items.useful_nonprogression ?? 0)
+        + (filler.unrandomized_items.key?.length ?? 0);
     }
 
     return result as Record<FillerRegionName, number>;

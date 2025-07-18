@@ -7,7 +7,7 @@ import { PixiService } from '../pixi-service';
   selector: 'app-player-token',
   imports: [],
   template: '',
-  styles: ''
+  styles: '',
 })
 // eslint-disable-next-line @typescript-eslint/no-extraneous-class
 export class PlayerToken {
@@ -31,7 +31,7 @@ export class PlayerToken {
           this.cycleTime = (this.cycleTime + t.deltaMS) % 1000;
           playerToken.rotation = (Math.abs(this.cycleTime - 500) - 250) * ROTATION_SCALE;
         }, { cycleTime: 0 });
-      }
+      },
     });
   }
 }

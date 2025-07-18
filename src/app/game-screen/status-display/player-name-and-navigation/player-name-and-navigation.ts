@@ -4,7 +4,7 @@ import { RouterLink } from '@angular/router';
 @Component({
   selector: 'app-player-name-and-navigation',
   imports: [
-    RouterLink
+    RouterLink,
   ],
   template: `
     <div>

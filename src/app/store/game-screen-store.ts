@@ -28,7 +28,8 @@ function loadFromStorage(): Partial<GameScreenState> {
   try {
     const stored = localStorage.getItem(STORAGE_KEY);
     result = stored && JSON.parse(stored);
-  } catch {
+  }
+  catch {
     // Silently fail if localStorage is not available
     result = null;
   }
@@ -73,13 +74,14 @@ export const GameScreenStore = signalStore(
             currentTab: store.currentTab(),
             paused: store.paused(),
           }));
-        } catch {
+        }
+        catch {
           // Silently fail if localStorage is not available
         }
       });
-    }
+    },
   }),
-  withMethods((store) => ({
+  withMethods(store => ({
     updateLeftSize(leftSize: number) {
       patchState(store, { leftSize });
     },

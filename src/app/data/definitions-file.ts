@@ -7,18 +7,18 @@ export interface AutopelagoDefinitionsYamlFile {
 }
 
 export type YamlAura =
-  'well_fed' |
-  'upset_tummy' |
-  'lucky' |
-  'unlucky' |
-  'energized' |
-  'sluggish' |
-  'distracted' |
-  'stylish' |
-  'startled' |
-  'smart' |
-  'conspiratorial' |
-  'confident';
+  'well_fed'
+  | 'upset_tummy'
+  | 'lucky'
+  | 'unlucky'
+  | 'energized'
+  | 'sluggish'
+  | 'distracted'
+  | 'stylish'
+  | 'startled'
+  | 'smart'
+  | 'conspiratorial'
+  | 'confident';
 
 type YamlItemName = string | readonly [lactoseName: string, lactoseIntolerantName: string];
 type YamlNonProgressionTypeName = 'useful_nonprogression' | 'trap' | 'filler';
@@ -34,16 +34,16 @@ type YamlBulkItem = YamlKeyedItem | readonly [name: YamlItemName, aurasGranted: 
 type YamlGameSpecificItemGroup = Partial<Readonly<Record<string, readonly YamlBulkItem[]>>>;
 type YamlBulkItemOrGameSpecificItemGroup = YamlBulkItem | { game_specific: YamlGameSpecificItemGroup };
 type YamlItems =
-  Partial<Omit<Record<string, Readonly<YamlKeyedItem>>, YamlNonProgressionTypeName | 'rats'>> &
-  { rats: Partial<Record<string, Readonly<YamlKeyedItem>>> } &
-  Record<YamlNonProgressionTypeName, readonly Readonly<YamlBulkItemOrGameSpecificItemGroup>[]>;
+  Partial<Omit<Record<string, Readonly<YamlKeyedItem>>, YamlNonProgressionTypeName | 'rats'>>
+  & { rats: Partial<Record<string, Readonly<YamlKeyedItem>>> }
+  & Record<YamlNonProgressionTypeName, readonly Readonly<YamlBulkItemOrGameSpecificItemGroup>[]>;
 
 type YamlRequirement =
-  { rat_count: number } |
-  { item: string } |
-  { all: readonly YamlRequirement[] } |
-  { any: readonly YamlRequirement[] } |
-  { any_two: readonly YamlRequirement[] };
+  { rat_count: number }
+  | { item: string }
+  | { all: readonly YamlRequirement[] }
+  | { any: readonly YamlRequirement[] }
+  | { any_two: readonly YamlRequirement[] };
 
 interface YamlLandmark {
   name: string;

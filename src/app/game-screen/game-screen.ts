@@ -44,7 +44,7 @@ export class GameScreen implements OnDestroy {
     toObservable(this.splitRef).pipe(
       mergeMap(split => split.dragProgress$),
       takeUntilDestroyed(),
-    ).subscribe(evt => {
+    ).subscribe((evt) => {
       this.#store.updateLeftSize(evt.sizes[0] as number);
     });
   }

@@ -140,7 +140,7 @@ import { ArchipelagoClient } from '../archipelago-client';
         align-self: center;
       }
     }
-  `
+  `,
 })
 export class ConnectScreen {
   readonly #store = inject(ConnectScreenStore);
@@ -176,7 +176,8 @@ export class ConnectScreen {
         if (this.minTime() > this.maxTime()) {
           minTimeInput.nativeElement.setCustomValidity('Min cannot be greater than max.');
           maxTimeInput.nativeElement.setCustomValidity('Min cannot be greater than max.');
-        } else {
+        }
+        else {
           minTimeInput.nativeElement.setCustomValidity('');
           maxTimeInput.nativeElement.setCustomValidity('');
         }
@@ -211,7 +212,8 @@ export class ConnectScreen {
       });
       console.log('Successfully connected to Archipelago server!');
       await this.#router.navigate(['./game']);
-    } catch (error) {
+    }
+    catch (error) {
       console.error('Failed to connect to Archipelago server:', error);
       // TODO: Show user-friendly error message
     }

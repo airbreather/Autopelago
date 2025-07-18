@@ -7,8 +7,8 @@ export interface Landmark {
 }
 
 interface PreparedFiller {
-  targetPoints: readonly Vec2[],
-  targetPointsPrj: readonly number[],
+  targetPoints: readonly Vec2[];
+  targetPointsPrj: readonly number[];
 }
 
 export const LANDMARKS = {
@@ -95,7 +95,7 @@ export type FillerRegionName = keyof typeof FILLER_DEFINING_COORDS;
 
 const PREPARED_FILLERS = stricterObjectFromEntries(
   strictObjectEntries(FILLER_DEFINING_COORDS)
-    .map(([name, definingCoords]) => [name, convertDefiningPoints(name === 'Menu', definingCoords)])
+    .map(([name, definingCoords]) => [name, convertDefiningPoints(name === 'Menu', definingCoords)]),
 );
 
 export function fillerRegions(counts: Record<FillerRegionName, number>): Readonly<Record<FillerRegionName, Filler>> {
@@ -151,7 +151,8 @@ function convertDefiningPoints(
     for (let i = 0; i < targetPointsPrj.length; i++) {
       targetPointsPrj[i] = (targetPointsPrj[i] * newProportion) + PADDING_AT_BEGINNING;
     }
-  } else {
+  }
+  else {
     // all other filler regions need padding on both sides.
     const PADDING_AT_BEGINNING = 8;
     const newProportion =

@@ -7,7 +7,7 @@ import { GameTabArcade } from './game-tab-arcade/game-tab-arcade';
   selector: 'app-game-tabs',
   imports: [
     GameTabMap,
-    GameTabArcade
+    GameTabArcade,
   ],
   template: `
     <div class="outer">

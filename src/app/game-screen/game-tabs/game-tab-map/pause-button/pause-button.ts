@@ -25,9 +25,11 @@ export class PauseButton {
   constructor() {
     const ticker = signal<Ticker | null>(null);
     inject(PixiService).registerPlugin({
-      afterInit: app => {
+      afterInit: (app) => {
         // even if we start paused, the ticker needs to run once to get the initial frames.
-        app.ticker.addOnce(t => { ticker.set(t); });
+        app.ticker.addOnce((t) => {
+          ticker.set(t);
+        });
       },
     });
 
@@ -36,7 +38,8 @@ export class PauseButton {
       if (theTicker && (this.paused() === theTicker.started)) {
         if (this.paused()) {
           theTicker.stop();
-        } else {
+        }
+        else {
           theTicker.start();
         }
       }

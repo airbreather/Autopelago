@@ -11,6 +11,9 @@ export default tseslint.config(
       ...tseslint.configs.strictTypeChecked,
       ...tseslint.configs.stylisticTypeChecked,
       ...angular.configs.tsRecommended,
+      stylistic.configs.customize({
+        semi: true,
+      }),
     ],
     plugins: {
       '@stylistic': stylistic,
@@ -35,6 +38,15 @@ export default tseslint.config(
       ],
       'curly': 'error',
       'object-curly-spacing': ['error', 'always'],
+      '@stylistic/operator-linebreak': [
+        'error',
+        'before',
+        {
+          'overrides': {
+            '=': 'after',
+          },
+        },
+      ],
       '@stylistic/quotes': ['error', 'single'],
       '@typescript-eslint/no-invalid-void-type': ['error', { allowAsThisParameter: true }],
       '@typescript-eslint/no-unused-vars': [
