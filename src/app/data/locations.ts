@@ -1,10 +1,12 @@
+import { stricterObjectFromEntries, strictObjectEntries } from '../util';
+
 export type Vec2 = readonly [x: number, y: number];
 export interface Landmark {
   sprite_index: number;
   coords: Vec2;
 }
 
-export interface PreparedFiller {
+interface PreparedFiller {
   targetPoints: readonly Vec2[],
   targetPointsPrj: readonly number[],
 }
@@ -44,8 +46,10 @@ export const LANDMARKS = {
   snakes_on_a_planet: { sprite_index: 32, coords: [243, 354] },
 } as const;
 
+export type LandmarkName = keyof typeof LANDMARKS;
+
 export interface Filler {
-  coords: readonly [x: number, y: number];
+  coords: readonly Vec2[];
 }
 
 const FILLER_DEFINING_COORDS = {
@@ -87,10 +91,33 @@ const FILLER_DEFINING_COORDS = {
   after_minotaur_labyrinth: [[195, 398], [207, 386], [209, 385], [216, 378], [218, 377], [226, 369], [228, 368], [236, 360], [238, 359], [242, 355]],
 } as const;
 
-export const PREPARED_FILLERS = Object.fromEntries(
-  Object.entries(FILLER_DEFINING_COORDS)
-    .map(([name, definingCoords]) => [name, convertDefiningPoints(true, definingCoords)])
-) as Readonly<Record<keyof typeof FILLER_DEFINING_COORDS, PreparedFiller>>;
+export type FillerRegionName = keyof typeof FILLER_DEFINING_COORDS;
+
+const PREPARED_FILLERS = stricterObjectFromEntries(
+  strictObjectEntries(FILLER_DEFINING_COORDS)
+    .map(([name, definingCoords]) => [name, convertDefiningPoints(name === 'Menu', definingCoords)])
+);
+
+export function fillerRegions(counts: Record<FillerRegionName, number>): Readonly<Record<FillerRegionName, Filler>> {
+  const result: Partial<Record<FillerRegionName, Filler>> = {};
+  for (const [name, { targetPoints, targetPointsPrj }] of strictObjectEntries(PREPARED_FILLERS)) {
+    const transforms = [[0, 0], [0, 0], [0, 0], [0, 0]] as [number, number][];
+    if (name === 'Menu') {
+      transforms[0][1] = 3;
+      transforms[2][1] = -3;
+    }
+
+    const count = counts[name];
+    const coords: Vec2[] = [];
+    for (let i = 0; i < count; i++) {
+      coords.push(add(project((i / (count - 1)) * targetPointsPrj[targetPointsPrj.length - 1], targetPoints, targetPointsPrj), transforms[i & 3]));
+    }
+
+    result[name] = { coords };
+  }
+
+  return result as Record<FillerRegionName, Filler>;
+}
 
 function convertDefiningPoints(
   isStart: boolean,
@@ -138,6 +165,7 @@ function convertDefiningPoints(
     targetPoints[i] = project(targetPointsPrj[i], definingPoints, definingPointsPrj);
   }
 
+  indexLine(targetPoints, targetPointsPrj);
   return { targetPoints, targetPointsPrj };
 }
 
@@ -152,10 +180,7 @@ function densify(definingPoints: readonly Vec2[], densifiedPoints: Vec2[]) {
     const p1 = definingPoints[i];
     for (let j = 0; j < densifyMultiplier; j++) {
       const p1Share = (densifyMultiplier - j) / densifyMultiplier;
-      densifiedPoints[(i * densifyMultiplier) - j] = [
-        (p0[0] * (1 - p1Share)) + (p1[0] * p1Share),
-        (p0[1] * (1 - p1Share)) + (p1[1] * p1Share),
-      ];
+      densifiedPoints[(i * densifyMultiplier) - j] = add(mul(p0, 1 - p1Share), mul(p1, p1Share));
     }
   }
 }
@@ -182,13 +207,16 @@ function project(prj: number, definingPoints: readonly Vec2[], definingPointsPrj
     const segPos = prj - definingPointsPrj[i];
     const segLen = definingPointsPrj[i + 1] - definingPointsPrj[i];
     const p1Share = segPos / segLen;
-    const [x0, y0] = definingPoints[i];
-    const [x1, y1] = definingPoints[i + 1];
-    return [
-      (1 - p1Share) * x0 + p1Share * x1,
-      (1 - p1Share) * y0 + p1Share * y1,
-    ];
+    return add(mul(definingPoints[i], 1 - p1Share), mul(definingPoints[i + 1], p1Share));
   }
 
   throw new Error('unreachable');
+}
+
+function add(a: Vec2, b: Vec2): Vec2 {
+  return [a[0] + b[0], a[1] + b[1]];
+}
+
+function mul(a: Vec2, b: number): Vec2 {
+  return [a[0] * b, a[1] * b];
 }

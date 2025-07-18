@@ -12,16 +12,9 @@ import { PixiService } from '../pixi-service';
 // eslint-disable-next-line @typescript-eslint/no-extraneous-class
 export class PlayerToken {
   constructor() {
-    let loadPlayerTokenTexture: Promise<Texture> | null = null;
+    const loadPlayerTokenTexture = Assets.load<Texture>('/assets/images/players/pack_rat.webp');
     inject(PixiService).registerPlugin({
-      beforeInit() {
-        loadPlayerTokenTexture = Assets.load<Texture>('/assets/images/players/pack_rat.webp');
-      },
       async afterInit(app, root) {
-        if (!loadPlayerTokenTexture) {
-          throw new Error('beforeInit() must finish before afterInit() may start');
-        }
-
         const playerTokenTexture = await loadPlayerTokenTexture;
         const playerToken = new Sprite(playerTokenTexture);
         playerToken.anchor.set(0.5);

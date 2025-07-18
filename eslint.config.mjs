@@ -37,6 +37,14 @@ export default tseslint.config(
       'object-curly-spacing': ['error', 'always'],
       '@stylistic/quotes': ['error', 'single'],
       '@typescript-eslint/no-invalid-void-type': ['error', { allowAsThisParameter: true }],
+      '@typescript-eslint/no-unused-vars': [
+        'error',
+        {
+          argsIgnorePattern: '^_',
+          varsIgnorePattern: '^_',
+          caughtErrorsIgnorePattern: '^_',
+        },
+      ],
     },
   },
   {

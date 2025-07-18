@@ -4,10 +4,11 @@ import { PauseButton } from './pause-button/pause-button';
 import { PixiService } from './pixi-service';
 import { LandmarkMarkers } from './landmark-markers/landmark-markers';
 import { PlayerToken } from './player-token/player-token';
+import { FillerMarkers } from './filler-markers/filler-markers';
 
 @Component({
   selector: 'app-game-tab-map',
-  imports: [PauseButton, LandmarkMarkers, PlayerToken],
+  imports: [PauseButton, LandmarkMarkers, PlayerToken, FillerMarkers],
   providers: [PixiService],
   template: `
     <div #outer class="outer">
@@ -19,6 +20,7 @@ import { PlayerToken } from './player-token/player-token';
       <div #pauseButtonContainer class="pause-button-container" [style.margin-top]="'-' + pauseButtonContainer.clientHeight + 'px'">
         <app-pause-button />
       </div>
+      <app-filler-markers />
       <app-landmark-markers />
     </div>
   `,

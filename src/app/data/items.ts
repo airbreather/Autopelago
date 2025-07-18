@@ -1,5 +1,4 @@
-﻿// eslint-disable-next-line @typescript-eslint/no-unused-vars
-const ITEMS = [
+﻿export const PROGRESSION_ITEMS_TO_DISPLAY = [
     'pizza_rat',
     'ninja_rat',
     'premium_can_of_prawn_food',

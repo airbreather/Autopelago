@@ -14,16 +14,9 @@ import { DropShadowFilter } from 'pixi-filters';
 // eslint-disable-next-line @typescript-eslint/no-extraneous-class
 export class LandmarkMarkers {
   constructor() {
-    let loadSpritesheetTexture: Promise<Texture> | null = null;
+    const loadSpritesheetTexture = Assets.load<Texture>('/assets/images/locations.webp');
     inject(PixiService).registerPlugin({
-      beforeInit() {
-        loadSpritesheetTexture = Assets.load<Texture>('/assets/images/locations.webp');
-      },
       async afterInit(app, root) {
-        if (!loadSpritesheetTexture) {
-          throw new Error('beforeInit() must finish before afterInit() may start');
-        }
-
         const spritesheetTexture = await loadSpritesheetTexture;
 
         // Create spritesheet data with frame definitions for each landmark
