@@ -25,7 +25,7 @@ export class PlayerToken {
     });
 
     const playerTokenContainer = new Container();
-    playerTokenContainer.position.set(40, 40);
+    playerTokenContainer.position.set(2, 80);
     playerTokenContainer.scale.set(0.25);
     playerTokenContainer.filters = [new DropShadowFilter({
       blur: 1,

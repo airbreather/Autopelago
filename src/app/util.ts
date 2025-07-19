@@ -1,4 +1,6 @@
-import { Observable, retry, timer } from 'rxjs';
+import { Observable, retry, Subscription, timer } from 'rxjs';
+import { DestroyRef, effect, ElementRef, Injector, Signal } from '@angular/core';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 
 export function strictObjectEntries<T extends object>(obj: T): [keyof T, T[keyof T]][] {
   return Object.entries(obj) as [keyof T, T[keyof T]][];
@@ -38,4 +40,45 @@ export function retryWithExponentialBackoff<T>({ delay, maxDelay } = DEFAULT_RET
       delay: (_, retryCount) => timer(Math.min(maxDelay, Math.pow(2, retryCount - 1) * delay)),
     }),
   );
+}
+
+interface ResizeTextOptions {
+  outer: Signal<ElementRef<HTMLElement>>;
+  inner: Signal<ElementRef<HTMLElement>>;
+  destroy: DestroyRef;
+  injector: Injector;
+  max: number;
+}
+
+export function resizeText({ outer, inner, destroy, injector, max }: ResizeTextOptions) {
+  let prevSub = new Subscription();
+  effect(() => {
+    prevSub.unsubscribe();
+    const outerElement = outer().nativeElement;
+    const innerElement = inner().nativeElement;
+    prevSub = resizeEvents(outerElement)
+      .pipe(takeUntilDestroyed(destroy))
+      .subscribe(() => {
+        fitTextToContainer(innerElement, outerElement, max);
+      });
+  }, { injector });
+}
+
+function fitTextToContainer(inner: HTMLElement, outer: HTMLElement, max: number) {
+  let fontSize = window.getComputedStyle(inner).fontSize;
+
+  while (inner.scrollWidth <= outer.clientWidth) {
+    const fontSizeNum = Math.min(max, Number(/^\d+/.exec(fontSize)) + 5);
+    if (fontSizeNum >= max) {
+      break;
+    }
+
+    fontSize = fontSize.replace(/^\d+/, fontSizeNum.toString());
+    inner.style.fontSize = fontSize;
+  }
+
+  while (inner.scrollWidth > outer.clientWidth) {
+    fontSize = fontSize.replace(/^\d+/, s => (Number(s) - 1).toString());
+    inner.style.fontSize = fontSize;
+  }
 }

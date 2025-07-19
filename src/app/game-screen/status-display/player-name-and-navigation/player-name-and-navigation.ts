@@ -2,40 +2,16 @@ import {
   AfterViewInit,
   Component,
   DestroyRef,
-  effect,
   ElementRef,
   inject,
   Injector,
-  Signal,
   viewChild,
 } from '@angular/core';
 
-import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { RouterLink } from '@angular/router';
 
-import { Subscription } from 'rxjs';
-
 import { ConnectScreenStore } from '../../../store/connect-screen.store';
-import { resizeEvents } from '../../../util';
-
-function fitTextToContainer(inner: HTMLElement, outer: HTMLElement, max: number) {
-  let fontSize = window.getComputedStyle(inner).fontSize;
-
-  while (inner.scrollWidth <= outer.clientWidth) {
-    const fontSizeNum = Math.min(max, Number(/^\d+/.exec(fontSize)) + 5);
-    if (fontSizeNum >= max) {
-      break;
-    }
-
-    fontSize = fontSize.replace(/^\d+/, fontSizeNum.toString());
-    inner.style.fontSize = fontSize;
-  }
-
-  while (inner.scrollWidth > outer.clientWidth) {
-    fontSize = fontSize.replace(/^\d+/, s => (Number(s) - 1).toString());
-    inner.style.fontSize = fontSize;
-  }
-}
+import { resizeText } from '../../../util';
 
 @Component({
   selector: 'app-player-name-and-navigation',
@@ -50,7 +26,7 @@ function fitTextToContainer(inner: HTMLElement, outer: HTMLElement, max: number)
   `,
   styles: `
     .outer {
-      text-align: left;
+      text-align: start;
       margin-left: 5px;
       margin-right: 5px;
     }
@@ -77,21 +53,7 @@ export class PlayerNameAndNavigation implements AfterViewInit {
   readonly returnButtonElement = viewChild.required<ElementRef<HTMLElement>>('returnButton');
 
   ngAfterViewInit(): void {
-    this.#resizeText(this.playerNameElement, 50);
-    this.#resizeText(this.returnButtonElement, 30);
-  }
-
-  #resizeText(innerRef: Signal<ElementRef<HTMLElement>>, max: number) {
-    let prevSub = new Subscription();
-    effect(() => {
-      prevSub.unsubscribe();
-      const outer = this.outerElement().nativeElement;
-      const inner = innerRef().nativeElement;
-      prevSub = resizeEvents(outer)
-        .pipe(takeUntilDestroyed(this.#destroy))
-        .subscribe(() => {
-          fitTextToContainer(inner, outer, max);
-        });
-    }, { injector: this.#injector });
+    resizeText({ outer: this.outerElement, inner: this.playerNameElement, max: 50, destroy: this.#destroy, injector: this.#injector });
+    resizeText({ outer: this.outerElement, inner: this.returnButtonElement, max: 30, destroy: this.#destroy, injector: this.#injector });
   }
 }

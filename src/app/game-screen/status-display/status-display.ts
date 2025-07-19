@@ -13,7 +13,9 @@ import { ProgressionItemStatus } from './progression-item-status/progression-ite
     <div class="outer">
       <div class="top">
         <app-player-name-and-navigation />
-        <app-auras-display />
+        <div class="auras">
+          <app-auras-display />
+        </div>
       </div>
       <app-progression-item-status class="bottom" />
     </div>
@@ -26,6 +28,10 @@ import { ProgressionItemStatus } from './progression-item-status/progression-ite
 
     .top {
       flex: 0;
+    }
+
+    .auras {
+      margin-top: 10px;
     }
 
     .bottom {
