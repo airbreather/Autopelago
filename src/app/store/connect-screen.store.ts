@@ -1,5 +1,6 @@
-﻿import { signalStore, withState, withMethods, patchState, withHooks } from '@ngrx/signals';
 import { computed, effect } from '@angular/core';
+
+import { signalStore, withState, withMethods, patchState, withHooks } from '@ngrx/signals';
 
 // Define the state interface
 export interface ConnectScreenState {

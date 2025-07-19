@@ -1,7 +1,10 @@
 import { Component, effect, inject, signal } from '@angular/core';
-import { GameScreenStore } from '../../../../store/game-screen-store';
-import { PixiService } from '../pixi-service';
+
 import { Ticker } from 'pixi.js';
+
+import { PixiService } from '../pixi-service';
+
+import { GameScreenStore } from '../../../../store/game-screen-store';
 
 @Component({
   selector: 'app-pause-button',

@@ -1,6 +1,9 @@
 import { Component, effect, inject, signal } from '@angular/core';
+
 import { Application, Assets, Container, Sprite, Texture } from 'pixi.js';
+
 import { DropShadowFilter } from 'pixi-filters';
+
 import { PixiService } from '../pixi-service';
 
 @Component({

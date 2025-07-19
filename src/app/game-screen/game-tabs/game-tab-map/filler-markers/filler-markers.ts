@@ -1,10 +1,14 @@
 import { Component, computed, effect, inject, signal } from '@angular/core';
-import { fillerRegions } from '../../../../data/locations';
-import { strictObjectEntries } from '../../../../util';
-import { PixiService } from '../pixi-service';
+
 import { Application, Container, Graphics } from 'pixi.js';
+
 import { DropShadowFilter } from 'pixi-filters';
+
+import { PixiService } from '../pixi-service';
+
+import { fillerRegions } from '../../../../data/locations';
 import { GameDefinitionsStore } from '../../../../store/game-definitions-store';
+import { strictObjectEntries } from '../../../../util';
 
 @Component({
   selector: 'app-filler-markers',

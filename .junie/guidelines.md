@@ -11,6 +11,14 @@ You are an expert in TypeScript, Angular, and scalable web application developme
 - Use strict type checking.
 - Prefer type inference when the type is obvious.
 - Avoid the `any` type; use `unknown` when type is uncertain.
+- Order `import` lines as follows:
+  1. Core Angular modules
+  2. RxJS
+  3. Core PixiJS
+  4. Other Angular modules
+  5. Other PixiJS modules
+  6. Any other third-party modules (when in doubt, alphabetical)
+  7. Modules from the local project
 
 ## Angular Best Practices
 - Always use standalone components over NgModules (this is the default).

@@ -1,4 +1,5 @@
 import { Component } from '@angular/core';
+
 import { AurasDisplay } from './auras-display/auras-display';
 import { PlayerNameAndNavigation } from './player-name-and-navigation/player-name-and-navigation';
 import { ProgressionItemStatus } from './progression-item-status/progression-item-status';

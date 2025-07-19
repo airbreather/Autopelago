@@ -1,6 +1,7 @@
-import { Component, computed, signal } from '@angular/core';
-import { PROGRESSION_ITEMS_TO_DISPLAY } from '../../../data/items';
 import { NgClass } from '@angular/common';
+import { Component, computed, signal } from '@angular/core';
+
+import { PROGRESSION_ITEMS_TO_DISPLAY } from '../../../data/items';
 
 function createItem(name: string, index: number) {
   const collected = signal(index % 4 === 0);

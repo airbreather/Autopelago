@@ -1,9 +1,11 @@
 import { Component, inject } from '@angular/core';
 
 import { AnimatedSprite, Assets, Container, Spritesheet, SpritesheetData, Texture } from 'pixi.js';
+
 import { PixiService } from '../pixi-service';
-import { LANDMARKS } from '../../../../data/locations';
 import { DropShadowFilter } from 'pixi-filters';
+
+import { LANDMARKS } from '../../../../data/locations';
 
 // Create spritesheet data with frame definitions for each landmark
 const spritesheetData: SpritesheetData & Required<Pick<SpritesheetData, 'animations'>> = {

@@ -1,5 +1,6 @@
 ﻿import { effect } from '@angular/core';
-import { signalStore, withState, withMethods, patchState, withHooks } from '@ngrx/signals';
+
+import { patchState, signalStore, withHooks, withMethods, withState } from '@ngrx/signals';
 
 const ALL_GAME_TABS_ARRAY = ['map', 'arcade'] as const;
 const ALL_GAME_TABS = new Set<string>(ALL_GAME_TABS_ARRAY);

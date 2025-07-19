@@ -1,10 +1,11 @@
 import { AfterViewInit, Component, ElementRef, inject, viewChild } from '@angular/core';
 
-import { PauseButton } from './pause-button/pause-button';
 import { PixiService } from './pixi-service';
-import { LandmarkMarkers } from './landmark-markers/landmark-markers';
-import { PlayerToken } from './player-token/player-token';
+
 import { FillerMarkers } from './filler-markers/filler-markers';
+import { LandmarkMarkers } from './landmark-markers/landmark-markers';
+import { PauseButton } from './pause-button/pause-button';
+import { PlayerToken } from './player-token/player-token';
 
 @Component({
   selector: 'app-game-tab-map',

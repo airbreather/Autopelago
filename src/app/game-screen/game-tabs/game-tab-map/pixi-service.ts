@@ -1,7 +1,9 @@
-import { Application, Container } from 'pixi.js';
-import { resizeEvents } from '../../../util';
 import { DestroyRef, inject } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
+
+import { Application, Container } from 'pixi.js';
+
+import { resizeEvents } from '../../../util';
 
 export interface RatPixiPlugin {
   beforeInit?(this: void, app: Application, root: Container): PromiseLike<void> | void;

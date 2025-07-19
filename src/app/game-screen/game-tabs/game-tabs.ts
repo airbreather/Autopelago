@@ -1,7 +1,8 @@
 import { Component, inject } from '@angular/core';
-import { GameTabMap } from './game-tab-map/game-tab-map';
+
 import { GameScreenStore } from '../../store/game-screen-store';
 import { GameTabArcade } from './game-tab-arcade/game-tab-arcade';
+import { GameTabMap } from './game-tab-map/game-tab-map';
 
 @Component({
   selector: 'app-game-tabs',
