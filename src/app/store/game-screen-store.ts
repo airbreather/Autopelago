@@ -8,14 +8,14 @@ export type GameTab = typeof ALL_GAME_TABS_ARRAY[number];
 
 // Define the state interface
 export interface GameScreenState {
-  leftSize: number;
+  leftSize: number | null;
   currentTab: GameTab;
   paused: boolean;
 }
 
 // Default state
 const initialState: GameScreenState = {
-  leftSize: 20,
+  leftSize: null,
   currentTab: 'map',
   paused: false,
 };
@@ -40,7 +40,7 @@ function loadFromStorage(): Partial<GameScreenState> {
   }
 
   if ('leftSize' in result) {
-    if (!(typeof result.leftSize === 'number' && result.leftSize >= 5 && result.leftSize <= 95)) {
+    if (typeof result.leftSize !== 'number') {
       delete result.leftSize;
     }
   }
@@ -85,9 +85,6 @@ export const GameScreenStore = signalStore(
   withMethods(store => ({
     updateLeftSize(leftSize: number) {
       patchState(store, { leftSize });
-    },
-    restoreDefaultLeftSize() {
-      patchState(store, { leftSize: initialState.leftSize });
     },
     pause() {
       if (!store.paused()) {

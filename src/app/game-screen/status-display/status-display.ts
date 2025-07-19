@@ -25,6 +25,7 @@ import { ProgressionItemStatus } from './progression-item-status/progression-ite
     .outer {
       display: flex;
       flex-direction: column;
+      height: 100%;
     }
 
     .top {
@@ -44,6 +45,7 @@ import { ProgressionItemStatus } from './progression-item-status/progression-ite
 
     .bottom {
       flex: 1;
+      overflow-y: auto;
     }
   `,
 })
