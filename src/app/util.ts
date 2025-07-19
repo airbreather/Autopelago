@@ -53,13 +53,17 @@ interface ResizeTextOptions {
 export function resizeText({ outer, inner, destroy, injector, max }: ResizeTextOptions) {
   let prevSub = new Subscription();
   effect(() => {
+    let prevTimeout: number | undefined;
     prevSub.unsubscribe();
     const outerElement = outer().nativeElement;
     const innerElement = inner().nativeElement;
     prevSub = resizeEvents(outerElement)
       .pipe(takeUntilDestroyed(destroy))
       .subscribe(() => {
-        fitTextToContainer(innerElement, outerElement, max);
+        clearTimeout(prevTimeout);
+        prevTimeout = setTimeout(() => {
+          fitTextToContainer(innerElement, outerElement, max);
+        }, 0);
       });
   }, { injector });
 }
