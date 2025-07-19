@@ -1,5 +1,5 @@
-import { Component, inject } from '@angular/core';
-import { Assets, Sprite, Texture } from 'pixi.js';
+import { Component, effect, inject, signal } from '@angular/core';
+import { Application, Assets, Container, Sprite, Texture } from 'pixi.js';
 import { DropShadowFilter } from 'pixi-filters';
 import { PixiService } from '../pixi-service';
 
@@ -12,24 +12,45 @@ import { PixiService } from '../pixi-service';
 // eslint-disable-next-line @typescript-eslint/no-extraneous-class
 export class PlayerToken {
   constructor() {
-    const loadPlayerTokenTexture = Assets.load<Texture>('/assets/images/players/pack_rat.webp');
+    const initData = signal({
+      texture: null as Texture | null,
+      app: null as Application | null,
+      root: null as Container | null,
+    });
+    void Assets.load<Texture>('/assets/images/players/pack_rat.webp').then((texture) => {
+      initData.update(d => ({ ...d, texture }));
+    });
+
+    const playerTokenContainer = new Container();
+    playerTokenContainer.position.set(40, 40);
+    playerTokenContainer.scale.set(0.25);
+    playerTokenContainer.filters = [new DropShadowFilter({
+      blur: 1,
+      offset: { x: 6, y: 6 },
+      color: 'black',
+    })];
+    effect(() => {
+      const { texture, app, root } = initData();
+      if (!(texture && app && root)) {
+        return;
+      }
+
+      root.removeChild(playerTokenContainer);
+
+      playerTokenContainer.removeChildren();
+      const playerToken = new Sprite(texture);
+      playerToken.anchor.set(0.5);
+      playerTokenContainer.addChild(playerToken);
+
+      root.addChild(playerTokenContainer);
+    });
     inject(PixiService).registerPlugin({
-      async afterInit(app, root) {
-        const playerTokenTexture = await loadPlayerTokenTexture;
-        const playerToken = new Sprite(playerTokenTexture);
-        playerToken.anchor.set(0.5);
-        playerToken.position.set(40, 40);
-        playerToken.scale.set(0.25);
-        playerToken.filters = [new DropShadowFilter({
-          blur: 1,
-          offset: { x: 6, y: 6 },
-          color: 'black',
-        })];
-        root.addChild(playerToken);
+      afterInit(app, root) {
+        initData.update(d => ({ ...d, app, root }));
         const ROTATION_SCALE = Math.PI / 3200;
         app.ticker.add(function (t) {
           this.cycleTime = (this.cycleTime + t.deltaMS) % 1000;
-          playerToken.rotation = (Math.abs(this.cycleTime - 500) - 250) * ROTATION_SCALE;
+          playerTokenContainer.rotation = (Math.abs(this.cycleTime - 500) - 250) * ROTATION_SCALE;
         }, { cycleTime: 0 });
       },
     });
