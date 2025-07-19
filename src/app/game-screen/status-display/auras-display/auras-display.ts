@@ -17,7 +17,7 @@ import { resizeText } from '../../../util';
   template: `
     <details #outer class="outer" open>
       <summary #ratCountElement class="rat-count">RATS: {{ ratCount() }}</summary>
-      <div class="auras">
+      <div class="bulk-auras">
         <span class="bar-label">Food</span>
         <div class="bar-track">
           <div class="bar-center-notch"></div>
@@ -37,12 +37,31 @@ import { resizeText } from '../../../util';
         </div>
         <span class="bar-value">{{ luck() }}</span>
       </div>
+      <div class="normative-auras">
+        <div class="normative-aura">
+          <span class="normative" [class.lit]="distraction() > 0">Distract</span>
+          <span class="normative normative-extra" [class.lit]="distraction() > 1">(x2)</span>
+          <span class="normative normative-extra" [class.lit]="distraction() > 2">(x3)</span>
+        </div>
+        <div class="normative-aura normative-right">
+          <span class="normative" [class.lit]="startled() > 0">Startle</span>
+          <span class="normative normative-extra" [class.lit]="startled() > 1">(x2)</span>
+          <span class="normative normative-extra" [class.lit]="startled() > 2">(x3)</span>
+        </div>
+        <div class="normative-aura">
+          <span class="normative" [class.lit]="smart()">Smart</span>
+        </div>
+        <div class="normative-aura normative-right">
+          <span class="normative" [class.lit]="conspiratorial()">Conspiratorial</span>
+        </div>
+      </div>
     </details>
   `,
   styles: `
     .outer {
       margin-left: 5px;
       margin-right: 5px;
+      container-type: inline-size;
     }
 
     .rat-count {
@@ -51,7 +70,7 @@ import { resizeText } from '../../../util';
       text-wrap: nowrap;
     }
 
-    .auras {
+    .bulk-auras {
       display: grid;
       grid-template-columns: auto 1fr auto;
       grid-template-rows: auto auto auto;
@@ -107,6 +126,49 @@ import { resizeText } from '../../../util';
     .bar-value {
       text-align: end;
     }
+
+    @container (width <= 460px)  {
+      .normative-auras {
+      }
+    }
+
+    @container (width > 460px) {
+      .normative-auras {
+        display: grid;
+        grid-auto-columns: 1fr;
+        grid-template-columns: 1fr 1fr;
+        grid-template-rows: 1fr 1fr;
+        gap: 0;
+        grid-template-areas:
+        ". ."
+        ". .";
+      }
+
+      .normative-right {
+        text-align: end;
+      }
+
+      .normative-aura {
+        display: inline-block;
+      }
+    }
+
+    .normative-aura {
+      white-space: nowrap;
+    }
+
+    .normative {
+      color: #606060;
+      margin-right: 5px;
+
+      &.lit {
+        color: yellow;
+      }
+    }
+
+    .normative-extra {
+      font-size: x-small;
+    }
   `,
 })
 export class AurasDisplay implements AfterViewInit {
@@ -121,6 +183,11 @@ export class AurasDisplay implements AfterViewInit {
   readonly food = signal(-2);
   readonly energy = signal(5);
   readonly luck = signal(0);
+
+  readonly distraction = signal(2);
+  readonly startled = signal(1);
+  readonly smart = signal(false);
+  readonly conspiratorial = signal(true);
 
   readonly foodFillPercentage = computed(() => {
     const value = Math.max(-20, Math.min(20, this.food()));
