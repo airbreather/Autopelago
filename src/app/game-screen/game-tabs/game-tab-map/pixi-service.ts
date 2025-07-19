@@ -1,6 +1,7 @@
-import { fromEvent } from 'rxjs';
-
 import { Application, Container } from 'pixi.js';
+import { resizeEvents } from '../../../util';
+import { DestroyRef, inject } from '@angular/core';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 
 export interface RatPixiPlugin {
   beforeInit?(this: void, app: Application, root: Container): PromiseLike<void> | void;
@@ -29,9 +30,16 @@ function chain<Args extends unknown[]>(
 
 export class PixiService {
   readonly #app = new Application();
+  readonly #destroyRef = inject(DestroyRef);
 
   #beforeInit: RatPixiPlugin['beforeInit'];
   #afterInit: RatPixiPlugin['afterInit'];
+
+  constructor() {
+    this.#destroyRef.onDestroy(() => {
+      this.#app.destroy();
+    });
+  }
 
   registerPlugin(plugin: RatPixiPlugin) {
     this.#beforeInit = chain(this.#beforeInit, plugin.beforeInit);
@@ -46,9 +54,11 @@ export class PixiService {
     await this.#app.init({ canvas, resizeTo: outer, backgroundAlpha: 0, antialias: false, autoStart: false });
     root.scale.x = canvas.width * reciprocalOriginalWidth;
     root.scale.y = canvas.height * reciprocalOriginalHeight;
-    fromEvent(canvas, 'resize').subscribe(() => {
-      root.scale.x = canvas.width * reciprocalOriginalWidth;
-      root.scale.y = canvas.height * reciprocalOriginalHeight;
+    resizeEvents(canvas).pipe(
+      takeUntilDestroyed(this.#destroyRef),
+    ).subscribe(({ target }) => {
+      root.scale.x = target.width * reciprocalOriginalWidth;
+      root.scale.y = target.height * reciprocalOriginalHeight;
     });
     await this.#afterInit?.(this.#app, root);
     this.#app.start();
