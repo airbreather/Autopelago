@@ -52,9 +52,8 @@ export class PixiService {
     const root = this.#app.stage;
     await this.#beforeInit?.(this.#app, root);
     await this.#app.init({ canvas, resizeTo: outer, backgroundAlpha: 0, antialias: false, autoStart: false });
-    root.scale.x = canvas.width * reciprocalOriginalWidth;
-    root.scale.y = canvas.height * reciprocalOriginalHeight;
     resizeEvents(canvas).pipe(
+      // no need for a startWith: https://stackoverflow.com/a/60026394/1083771
       takeUntilDestroyed(this.#destroyRef),
     ).subscribe(({ target }) => {
       root.scale.x = target.width * reciprocalOriginalWidth;
