@@ -4,7 +4,7 @@ import { strictObjectEntries } from '../../../../util';
 import { PixiService } from '../pixi-service';
 import { Application, Container, Graphics } from 'pixi.js';
 import { DropShadowFilter } from 'pixi-filters';
-import { GameDataStore } from '../../../../store/game-data-store';
+import { GameDefinitionsStore } from '../../../../store/game-definitions-store';
 
 @Component({
   selector: 'app-filler-markers',
@@ -15,7 +15,7 @@ import { GameDataStore } from '../../../../store/game-data-store';
 // eslint-disable-next-line @typescript-eslint/no-extraneous-class
 export class FillerMarkers {
   constructor() {
-    const store = inject(GameDataStore);
+    const store = inject(GameDefinitionsStore);
     const graphicsContainer = new Container({
       filters: [new DropShadowFilter({
         blur: 1,

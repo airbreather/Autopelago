@@ -1,5 +1,5 @@
 ﻿import { computed, inject } from '@angular/core';
-import { signalStore, withState, withComputed, withProps } from '@ngrx/signals';
+import { signalStore, withComputed, withProps } from '@ngrx/signals';
 import { HttpClient } from '@angular/common/http';
 import YAML from 'yaml';
 import { AutopelagoDefinitionsYamlFile } from '../data/definitions-file';
@@ -7,9 +7,8 @@ import { rxResource } from '@angular/core/rxjs-interop';
 import { retryWithExponentialBackoff, strictObjectEntries } from '../util';
 import { FillerRegionName } from '../data/locations';
 
-export const GameDataStore = signalStore(
+export const GameDefinitionsStore = signalStore(
   { providedIn: 'root' },
-  withState({}),
   withProps(() => ({
     _httpClient: inject(HttpClient),
   })),
