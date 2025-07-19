@@ -54,6 +54,14 @@ import { resizeText } from '../../../util';
         <div class="normative-aura normative-right">
           <span class="normative" [class.lit]="conspiratorial()">Conspiratorial</span>
         </div>
+        <div class="normative-aura">
+          <span class="normative" [class.lit]="stylish() > 0">Style</span>
+          <span class="normative normative-extra" [class.lit]="stylish() > 1">(x2)</span>
+          <span class="normative normative-extra" [class.lit]="stylish() > 2">(x3+)</span>
+        </div>
+        <div class="normative-aura normative-right">
+          <span class="normative" [class.lit]="confidence()">Confidence</span>
+        </div>
       </div>
     </details>
   `,
@@ -127,9 +135,8 @@ import { resizeText } from '../../../util';
       text-align: end;
     }
 
-    @container (width <= 460px)  {
-      .normative-auras {
-      }
+    .normative-auras {
+      margin-top: 20px;
     }
 
     @container (width > 460px) {
@@ -137,11 +144,8 @@ import { resizeText } from '../../../util';
         display: grid;
         grid-auto-columns: 1fr;
         grid-template-columns: 1fr 1fr;
-        grid-template-rows: 1fr 1fr;
+        grid-template-rows: 1fr 1fr 1fr;
         gap: 0;
-        grid-template-areas:
-        ". ."
-        ". .";
       }
 
       .normative-right {
@@ -188,6 +192,8 @@ export class AurasDisplay implements AfterViewInit {
   readonly startled = signal(1);
   readonly smart = signal(false);
   readonly conspiratorial = signal(true);
+  readonly stylish = signal(1);
+  readonly confidence = signal(false);
 
   readonly foodFillPercentage = computed(() => {
     const value = Math.max(-20, Math.min(20, this.food()));

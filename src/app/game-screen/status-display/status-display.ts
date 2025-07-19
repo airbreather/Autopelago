@@ -17,6 +17,7 @@ import { ProgressionItemStatus } from './progression-item-status/progression-ite
           <app-auras-display />
         </div>
       </div>
+      <hr class="divider" />
       <app-progression-item-status class="bottom" />
     </div>
   `,
@@ -32,6 +33,13 @@ import { ProgressionItemStatus } from './progression-item-status/progression-ite
 
     .auras {
       margin-top: 10px;
+    }
+
+    .divider {
+      color: #666666;
+      width: 100%;
+      margin-top: 10px;
+      margin-bottom: 10px;
     }
 
     .bottom {
