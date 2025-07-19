@@ -99,7 +99,7 @@ export const GameScreenStore = signalStore(
       }
     },
     togglePause() {
-      patchState(store, s => ({ ...s, paused: !s.paused }));
+      patchState(store, s => ({ paused: !s.paused }));
     },
   })),
 );
