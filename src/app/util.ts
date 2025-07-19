@@ -1,4 +1,4 @@
-import { Observable } from 'rxjs';
+import { Observable, retry, timer } from 'rxjs';
 
 export function strictObjectEntries<T extends object>(obj: T): [keyof T, T[keyof T]][] {
   return Object.entries(obj) as [keyof T, T[keyof T]][];
@@ -26,4 +26,16 @@ export function resizeEvents<T extends HTMLElement>(el: T): Observable<ResizeObs
       obs.unobserve(el);
     };
   });
+}
+
+const DEFAULT_RETRY_DELAY = 500;
+const DEFAULT_RETRY_MAX_DELAY = 15000;
+const DEFAULT_RETRY_CONFIG = { delay: DEFAULT_RETRY_DELAY, maxDelay: DEFAULT_RETRY_MAX_DELAY };
+
+export function retryWithExponentialBackoff<T>({ delay, maxDelay } = DEFAULT_RETRY_CONFIG) {
+  return (obs: Observable<T>) => obs.pipe(
+    retry({
+      delay: (_, retryCount) => timer(Math.min(maxDelay, Math.pow(2, retryCount - 1) * delay)),
+    }),
+  );
 }
