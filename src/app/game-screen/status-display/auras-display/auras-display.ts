@@ -17,31 +17,25 @@ import { resizeText } from '../../../util';
   template: `
     <details #outer class="outer" open>
       <summary #ratCountElement class="rat-count">RATS: {{ ratCount() }}</summary>
-      <div class="bars">
-        <div class="bar-container">
-          <span class="bar-label">Food</span>
-          <div class="bar-track">
-            <div class="bar-center-notch"></div>
-            <div class="bar-fill" [style.width.%]="foodFillPercentage()" [class.negative]="food() < 0"></div>
-          </div>
-          <span class="bar-value">{{ food() }}</span>
+      <div class="auras">
+        <span class="bar-label">Food</span>
+        <div class="bar-track">
+          <div class="bar-center-notch"></div>
+          <div class="bar-fill" [style.width.%]="foodFillPercentage()" [class.negative]="food() < 0"></div>
         </div>
-        <div class="bar-container">
-          <span class="bar-label">Energy</span>
-          <div class="bar-track">
-            <div class="bar-center-notch"></div>
-            <div class="bar-fill" [style.width.%]="energyFillPercentage()" [class.negative]="energy() < 0"></div>
-          </div>
-          <span class="bar-value">{{ energy() }}</span>
+        <span class="bar-value">{{ food() }}</span>
+        <span class="bar-label">Energy</span>
+        <div class="bar-track">
+          <div class="bar-center-notch"></div>
+          <div class="bar-fill" [style.width.%]="energyFillPercentage()" [class.negative]="energy() < 0"></div>
         </div>
-        <div class="bar-container">
-          <span class="bar-label">Luck</span>
-          <div class="bar-track">
-            <div class="bar-center-notch"></div>
-            <div class="bar-fill" [style.width.%]="luckFillPercentage()" [class.negative]="luck() < 0"></div>
-          </div>
-          <span class="bar-value">{{ luck() }}</span>
+        <span class="bar-value">{{ energy() }}</span>
+        <span class="bar-label">Luck</span>
+        <div class="bar-track">
+          <div class="bar-center-notch"></div>
+          <div class="bar-fill" [style.width.%]="luckFillPercentage()" [class.negative]="luck() < 0"></div>
         </div>
+        <span class="bar-value">{{ luck() }}</span>
       </div>
     </details>
   `,
@@ -53,39 +47,32 @@ import { resizeText } from '../../../util';
 
     .rat-count {
       text-align: start;
-      font-size: 50px;
+      font-size: 30px;
       text-wrap: nowrap;
     }
 
-    .bars {
-      display: flex;
-      flex-direction: column;
-      gap: 8px;
-      margin-top: 16px;
-    }
-
-    .bar-container {
-      display: flex;
-      align-items: center;
-      gap: 12px;
-    }
-
-    .bar-label {
-      width: 80px;
-      font-weight: bold;
-      font-size: 14px;
-      text-align: right;
-      flex-shrink: 0;
+    .auras {
+      display: grid;
+      grid-template-columns: auto 1fr auto;
+      grid-template-rows: auto auto auto;
+      gap: 5px 0;
+      grid-auto-flow: row;
+      grid-template-areas:
+        "bar-labels bars bar-values"
+        "bar-labels bars bar-values"
+        "bar-labels bars bar-values";
     }
 
     .bar-track {
       position: relative;
       flex: 1;
       height: 20px;
-      background-color: #333;
-      border: 1px solid #666;
+      background-color: #333333;
+      border: 1px solid #666666;
       border-radius: 4px;
       overflow: hidden;
+      margin-left: 5px;
+      margin-right: 5px;
     }
 
     .bar-center-notch {
@@ -94,7 +81,7 @@ import { resizeText } from '../../../util';
       top: 0;
       width: 2px;
       height: 100%;
-      background-color: #fff;
+      background-color: #ffffff;
       transform: translateX(-50%);
       z-index: 2;
     }
@@ -115,6 +102,10 @@ import { resizeText } from '../../../util';
     .bar-fill.negative {
       right: 50%;
       background-color: #f44336;
+    }
+
+    .bar-value {
+      text-align: end;
     }
   `,
 })
@@ -147,6 +138,6 @@ export class AurasDisplay implements AfterViewInit {
   });
 
   ngAfterViewInit(): void {
-    resizeText({ outer: this.outerElement, inner: this.ratCountElement, max: 50, destroy: this.#destroy, injector: this.#injector });
+    resizeText({ outer: this.outerElement, inner: this.ratCountElement, max: 30, destroy: this.#destroy, injector: this.#injector });
   }
 }
