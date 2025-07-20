@@ -60,6 +60,16 @@ export class ArchipelagoClient {
     ),
   });
 
+  async say(message: string) {
+    const client = this.#clientSubject.value;
+    if (!client?.authenticated) {
+      return false;
+    }
+
+    await client.messages.say(message);
+    return true;
+  }
+
   events<
     M extends keyof ClientManagerEventMap,
     E extends keyof ClientManagerEventMap[M] & string,
