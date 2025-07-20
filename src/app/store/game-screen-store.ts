@@ -1,6 +1,6 @@
 ﻿import { effect } from '@angular/core';
 
-import { patchState, signalStore, withHooks, withMethods, withProps, withState } from '@ngrx/signals';
+import { patchState, signalStore, withHooks, withMethods, withState } from '@ngrx/signals';
 import { MessageNode } from 'archipelago.js';
 
 const ALL_GAME_TABS_ARRAY = ['map', 'text-client', 'arcade'] as const;

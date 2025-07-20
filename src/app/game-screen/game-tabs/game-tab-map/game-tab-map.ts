@@ -14,7 +14,7 @@ import { PlayerToken } from './player-token/player-token';
   template: `
     <div #outer class="outer">
       <!--suppress AngularNgOptimizedImage -->
-      <img alt="map" src="/assets/images/map.svg" />
+      <img alt="map" src="assets/images/map.svg" />
       <canvas #pixiCanvas class="pixi-canvas" width="300" height="450">
       </canvas>
       <app-player-token />

@@ -18,7 +18,7 @@ export const GameDefinitionsStore = signalStore(
     _defsResource: rxResource<string | null, null>({
       defaultValue: null,
       stream: () => {
-        return store._httpClient.get('/assets/AutopelagoDefinitions.yml', {
+        return store._httpClient.get('assets/AutopelagoDefinitions.yml', {
           responseType: 'text',
         }).pipe(retryWithExponentialBackoff());
       },

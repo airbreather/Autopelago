@@ -20,7 +20,7 @@ export class PlayerToken {
       app: null as Application | null,
       root: null as Container | null,
     });
-    void Assets.load<Texture>('/assets/images/players/pack_rat.webp').then((texture) => {
+    void Assets.load<Texture>('assets/images/players/pack_rat.webp').then((texture) => {
       initData.update(d => ({ ...d, texture }));
     });
 

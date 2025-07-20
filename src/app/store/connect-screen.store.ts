@@ -1,6 +1,6 @@
 import { computed, effect } from '@angular/core';
 
-import { signalStore, withState, withMethods, patchState, withHooks } from '@ngrx/signals';
+import { patchState, signalStore, withComputed, withHooks, withState, withMethods } from '@ngrx/signals';
 
 // Define the state interface
 export interface ConnectScreenState {
@@ -85,6 +85,13 @@ export const ConnectScreenStore = signalStore(
       });
     },
   }),
+  withComputed(({ sendChatMessages, whenTargetChanges, whenBecomingBlocked, whenStillBlocked, whenBecomingUnblocked, forOneTimeEvents }) => ({
+    sendChatMessagesWhenTargetChanges: computed(() => sendChatMessages() && whenTargetChanges()),
+    sendChatMessagesWhenBecomingBlocked: computed(() => sendChatMessages() && whenBecomingBlocked()),
+    sendChatMessagesWhenStillBlocked: computed(() => sendChatMessages() && whenBecomingBlocked() && whenStillBlocked()),
+    sendChatMessagesWhenBecomingUnblocked: computed(() => sendChatMessages() && whenBecomingUnblocked()),
+    sendChatMessagesForOneTimeEvents: computed(() => sendChatMessages() && forOneTimeEvents()),
+  })),
   withMethods(store => ({
     updateSlot(slot: string) {
       patchState(store, { slot });

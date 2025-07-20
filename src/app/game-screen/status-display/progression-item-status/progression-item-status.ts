@@ -23,7 +23,7 @@ function createItem(name: string, index: number) {
       @for (item of items; track item.name) {
         <div class="item-container" [ngClass]="{ collected: item.collected() }">
           <img class="item"
-               src="/assets/images/items.webp"
+               src="assets/images/items.webp"
                [alt]="item.name"
                [style.object-position]="-item.offsetX() + 'px ' + -item.offsetY + 'px'">
         </div>

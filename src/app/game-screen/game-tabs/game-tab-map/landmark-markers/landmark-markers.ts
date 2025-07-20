@@ -50,7 +50,7 @@ for (const [landmarkKey, landmark] of Object.entries(LANDMARKS)) {
   spritesheetData.animations[`${landmarkKey}_off`] = [`${landmarkKey}_off_1`, `${landmarkKey}_off_2`];
 }
 
-const loadSpritesheetTexture = Assets.load<Texture>('/assets/images/locations.webp');
+const loadSpritesheetTexture = Assets.load<Texture>('assets/images/locations.webp');
 
 @Component({
   selector: 'app-landmark-markers',
