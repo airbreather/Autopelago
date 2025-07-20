@@ -53,7 +53,7 @@ import { ConnectScreenStore } from '../../../store/connect-screen.store';
 
       <form class="message-send-form" (submit)="onSend($event)">
         <input #txt class="message-send-box" type="text" [value]="messageToSend()" (input)="messageToSend.set(txt.value)" />
-        <input class="message-send-button" type="submit" value="Send" />
+        <input class="message-send-button" type="submit" value="Send" [disabled]="sendingMessage()" />
       </form>
     </div>
   `,
@@ -143,6 +143,8 @@ export class GameTabTextClient {
   readonly messages = this.#store.messages;
   readonly dateFormatter = new Intl.DateTimeFormat(navigator.languages[0], { dateStyle: 'short', timeStyle: 'medium' });
   readonly messageToSend = signal('');
+  readonly #sendingMessage = signal(false);
+  readonly sendingMessage = this.#sendingMessage.asReadonly();
 
   constructor() {
     this.#ap.events('messages', 'message')
@@ -159,8 +161,14 @@ export class GameTabTextClient {
       return;
     }
 
-    if (await this.#ap.say(messageToSend)) {
-      this.messageToSend.set('');
+    this.#sendingMessage.set(true);
+    try {
+      if (await this.#ap.say(messageToSend) && this.messageToSend() === messageToSend) {
+        this.messageToSend.set('');
+      }
+    }
+    finally {
+      this.#sendingMessage.set(false);
     }
   }
 }
