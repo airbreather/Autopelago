@@ -1,16 +1,23 @@
 ﻿import { effect } from '@angular/core';
 
-import { patchState, signalStore, withHooks, withMethods, withState } from '@ngrx/signals';
+import { patchState, signalStore, withHooks, withMethods, withProps, withState } from '@ngrx/signals';
+import { MessageNode } from 'archipelago.js';
 
 const ALL_GAME_TABS_ARRAY = ['map', 'text-client', 'arcade'] as const;
 const ALL_GAME_TABS = new Set<string>(ALL_GAME_TABS_ARRAY);
 export type GameTab = typeof ALL_GAME_TABS_ARRAY[number];
+
+export interface Message {
+  readonly ts: Date;
+  readonly originalNodes: readonly MessageNode[];
+}
 
 // Define the state interface
 export interface GameScreenState {
   leftSize: number | null;
   currentTab: GameTab;
   paused: boolean;
+  messages: readonly Message[];
 }
 
 // Default state
@@ -18,6 +25,7 @@ const initialState: GameScreenState = {
   leftSize: null,
   currentTab: 'map',
   paused: false,
+  messages: [],
 };
 
 // Local storage key
@@ -57,6 +65,12 @@ function loadFromStorage(): Partial<GameScreenState> {
     }
   }
 
+  if ('messages' in result) {
+    if (!Array.isArray(result.messages)) {
+      delete result.messages;
+    }
+  }
+
   return result;
 }
 
@@ -90,6 +104,9 @@ export const GameScreenStore = signalStore(
       if (currentTab !== 'arcade') {
         patchState(store, { currentTab });
       }
+    },
+    appendMessage(message: Message) {
+      patchState(store, s => ({ messages: [...s.messages, message] }));
     },
     pause() {
       if (!store.paused()) {

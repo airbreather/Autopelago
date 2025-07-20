@@ -3,12 +3,14 @@ import { Component, inject } from '@angular/core';
 import { GameScreenStore, GameTab } from '../../store/game-screen-store';
 import { GameTabArcade } from './game-tab-arcade/game-tab-arcade';
 import { GameTabMap } from './game-tab-map/game-tab-map';
+import { GameTabTextClient } from './game-tab-text-client/game-tab-text-client';
 
 @Component({
   selector: 'app-game-tabs',
   imports: [
     GameTabMap,
     GameTabArcade,
+    GameTabTextClient,
   ],
   template: `
     <div class="outer">
@@ -19,6 +21,9 @@ import { GameTabMap } from './game-tab-map/game-tab-map';
           }
           @case ('arcade') {
             <app-game-tab-arcade />
+          }
+          @case ('text-client') {
+            <app-game-tab-text-client />
           }
         }
       </div>
