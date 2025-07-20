@@ -2,7 +2,7 @@
 
 import { patchState, signalStore, withHooks, withMethods, withState } from '@ngrx/signals';
 
-const ALL_GAME_TABS_ARRAY = ['map', 'arcade'] as const;
+const ALL_GAME_TABS_ARRAY = ['map', 'text-client', 'arcade'] as const;
 const ALL_GAME_TABS = new Set<string>(ALL_GAME_TABS_ARRAY);
 export type GameTab = typeof ALL_GAME_TABS_ARRAY[number];
 
@@ -85,6 +85,11 @@ export const GameScreenStore = signalStore(
   withMethods(store => ({
     updateLeftSize(leftSize: number) {
       patchState(store, { leftSize });
+    },
+    updateCurrentTab(currentTab: GameTab) {
+      if (currentTab !== 'arcade') {
+        patchState(store, { currentTab });
+      }
     },
     pause() {
       if (!store.paused()) {

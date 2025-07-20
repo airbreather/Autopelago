@@ -1,6 +1,6 @@
 import { Component, inject } from '@angular/core';
 
-import { GameScreenStore } from '../../store/game-screen-store';
+import { GameScreenStore, GameTab } from '../../store/game-screen-store';
 import { GameTabArcade } from './game-tab-arcade/game-tab-arcade';
 import { GameTabMap } from './game-tab-map/game-tab-map';
 
@@ -23,12 +23,15 @@ import { GameTabMap } from './game-tab-map/game-tab-map';
         }
       </div>
       <div class="bottom">
-        <div class="tab-map">
+        <button class="tab tab-map rat-toggle-button" [class.toggled-on]="currentTab() === 'map'" (click)="clickTab('map')">
           Map
-        </div>
-        <div class="tab-arcade">
+        </button>
+        <div class="tab tab-arcade rat-toggle-button" [class.toggled-on]="currentTab() === 'arcade'">
           Arcade
         </div>
+        <button class="tab tab-text-client rat-toggle-button" [class.toggled-on]="currentTab() === 'text-client'" (click)="clickTab('text-client')">
+          Text Client
+        </button>
         <div class="tab-filler">
         </div>
       </div>
@@ -53,12 +56,30 @@ import { GameTabMap } from './game-tab-map/game-tab-map';
           flex: 0;
         }
 
+        .tab-text-client {
+          flex: 0;
+        }
+
         .tab-arcade {
           flex: 0;
+          color: #606060;
+          pointer-events: none;
+          user-select: none;
         }
 
         .tab-filler {
           flex: 1;
+        }
+      }
+
+      .tab {
+        border-top-left-radius: 0;
+        border-top-right-radius: 0;
+        padding: 5px;
+        text-wrap: nowrap;
+
+        &:not(:first-child) {
+          margin-left: 5px;
         }
       }
     }`,
@@ -67,4 +88,8 @@ export class GameTabs {
   readonly #store = inject(GameScreenStore);
 
   readonly currentTab = this.#store.currentTab;
+
+  clickTab(tab: GameTab) {
+    this.#store.updateCurrentTab(tab);
+  }
 }
