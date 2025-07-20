@@ -4,7 +4,7 @@ import { Ticker } from 'pixi.js';
 
 import { PixiService } from '../pixi-service';
 
-import { GameScreenStore } from '../../../../store/game-screen-store';
+import { GameStore } from '../../../../store/autopelago-store';
 
 @Component({
   selector: 'app-pause-button',
@@ -19,7 +19,7 @@ import { GameScreenStore } from '../../../../store/game-screen-store';
   styles: '',
 })
 export class PauseButton {
-  readonly #store = inject(GameScreenStore);
+  readonly #store = inject(GameStore);
 
   readonly paused = this.#store.paused;
 

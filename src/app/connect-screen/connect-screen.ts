@@ -1,8 +1,6 @@
 import { Component, effect, ElementRef, inject, viewChild } from '@angular/core';
 
-import { Router } from '@angular/router';
-
-import { ArchipelagoClient } from '../archipelago-client';
+import { AutopelagoService } from '../autopelago';
 import { ConnectScreenStore, createHostSelector } from '../store/connect-screen.store';
 
 @Component({
@@ -146,8 +144,7 @@ import { ConnectScreenStore, createHostSelector } from '../store/connect-screen.
 })
 export class ConnectScreen {
   readonly #store = inject(ConnectScreenStore);
-  readonly #archipelagoClient = inject(ArchipelagoClient);
-  readonly #router = inject(Router);
+  readonly #game = inject(AutopelagoService);
 
   // Expose store properties as getters for template access
   readonly slot = this.#store.slot;
@@ -205,19 +202,6 @@ export class ConnectScreen {
 
   async onConnect(event: SubmitEvent) {
     event.preventDefault();
-    try {
-      await this.#archipelagoClient.connect({
-        directHost: this.#store.directHost(),
-        port: this.port(),
-        slot: this.slot(),
-        password: this.password(),
-      });
-      console.log('Successfully connected to Archipelago server!');
-      await this.#router.navigate(['./game']);
-    }
-    catch (error) {
-      console.error('Failed to connect to Archipelago server:', error);
-      // TODO: Show user-friendly error message
-    }
+    await this.#game.connect();
   }
 }

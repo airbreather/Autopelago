@@ -1,8 +1,7 @@
 import { Component, inject, signal } from '@angular/core';
 
-import { ArchipelagoClient } from '../../../archipelago-client';
-import { GameScreenStore } from '../../../store/game-screen-store';
-import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
+import { AutopelagoService } from '../../../autopelago';
+import { GameStore } from '../../../store/autopelago-store';
 import { ConnectScreenStore } from '../../../store/connect-screen.store';
 
 @Component({
@@ -136,23 +135,15 @@ import { ConnectScreenStore } from '../../../store/connect-screen.store';
   `,
 })
 export class GameTabTextClient {
-  readonly #ap = inject(ArchipelagoClient);
+  readonly #ap = inject(AutopelagoService);
   readonly #connectScreenStore = inject(ConnectScreenStore);
-  readonly #store = inject(GameScreenStore);
+  readonly #store = inject(GameStore);
   readonly ownName = this.#connectScreenStore.slot;
   readonly messages = this.#store.messages;
   readonly dateFormatter = new Intl.DateTimeFormat(navigator.languages[0], { dateStyle: 'short', timeStyle: 'medium' });
   readonly messageToSend = signal('');
   readonly #sendingMessage = signal(false);
   readonly sendingMessage = this.#sendingMessage.asReadonly();
-
-  constructor() {
-    this.#ap.events('messages', 'message')
-      .pipe(takeUntilDestroyed())
-      .subscribe(([_, nodes]) => {
-        this.#store.appendMessage({ ts: new Date(), originalNodes: nodes });
-      });
-  }
 
   async onSend(event: SubmitEvent) {
     event.preventDefault();

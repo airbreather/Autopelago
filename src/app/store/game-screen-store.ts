@@ -1,35 +1,25 @@
 ﻿import { effect } from '@angular/core';
 
 import { patchState, signalStore, withHooks, withMethods, withState } from '@ngrx/signals';
-import { MessageNode } from 'archipelago.js';
 
 const ALL_GAME_TABS_ARRAY = ['map', 'text-client', 'arcade'] as const;
 const ALL_GAME_TABS = new Set<string>(ALL_GAME_TABS_ARRAY);
 export type GameTab = typeof ALL_GAME_TABS_ARRAY[number];
 
-export interface Message {
-  readonly ts: Date;
-  readonly originalNodes: readonly MessageNode[];
-}
-
 // Define the state interface
 export interface GameScreenState {
   leftSize: number | null;
   currentTab: GameTab;
-  paused: boolean;
-  messages: readonly Message[];
 }
 
 // Default state
 const initialState: GameScreenState = {
   leftSize: null,
   currentTab: 'map',
-  paused: false,
-  messages: [],
 };
 
 // Local storage key
-const STORAGE_KEY = 'autopelago-game-state';
+const STORAGE_KEY = 'autopelago-game-screen-state';
 
 // Helper functions for local storage
 function loadFromStorage(): Partial<GameScreenState> {
@@ -59,18 +49,6 @@ function loadFromStorage(): Partial<GameScreenState> {
     }
   }
 
-  if ('paused' in result) {
-    if (!(typeof result.paused === 'boolean')) {
-      delete result.paused;
-    }
-  }
-
-  if ('messages' in result) {
-    if (!Array.isArray(result.messages)) {
-      delete result.messages;
-    }
-  }
-
   return result;
 }
 
@@ -87,7 +65,6 @@ export const GameScreenStore = signalStore(
           localStorage.setItem(STORAGE_KEY, JSON.stringify({
             leftSize: store.leftSize(),
             currentTab: store.currentTab(),
-            paused: store.paused(),
           }));
         }
         catch {
@@ -104,22 +81,6 @@ export const GameScreenStore = signalStore(
       if (currentTab !== 'arcade') {
         patchState(store, { currentTab });
       }
-    },
-    appendMessage(message: Message) {
-      patchState(store, s => ({ messages: [...s.messages, message] }));
-    },
-    pause() {
-      if (!store.paused()) {
-        patchState(store, { paused: true });
-      }
-    },
-    unpause() {
-      if (store.paused()) {
-        patchState(store, { paused: false });
-      }
-    },
-    togglePause() {
-      patchState(store, s => ({ paused: !s.paused }));
     },
   })),
 );
