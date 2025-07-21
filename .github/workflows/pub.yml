@@ -23,7 +23,7 @@ jobs:
         run: bun install
 
       - name: Build
-        run: bun run build -c production --base-href 'https://airbreather.github.io/autopelago/'
+        run: bun run build -c production --base-href 'https://airbreather.github.io/Autopelago/'
 
       - name: Configure GitHub Pages
         uses: actions/configure-pages@v5
