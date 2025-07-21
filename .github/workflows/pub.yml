@@ -1,0 +1,36 @@
+name: Publish
+
+on:
+  push:
+    branches:
+      - angular
+
+jobs:
+  publish:
+    name: publish
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Get Bun
+        uses: oven-sh/setup-bun@v2
+
+      - name: Install Packages
+        run: bun install
+
+      - name: Build
+        run: bun run build -c production --base-href 'https://airbreather.github.io/autopelago/'
+
+      - name: Configure GitHub Pages
+        uses: actions/configure-pages@v5
+        
+
+      - name: Upload Artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: dist/
+
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
