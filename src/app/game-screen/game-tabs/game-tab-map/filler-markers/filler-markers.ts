@@ -4,7 +4,7 @@ import { Application, Container, Graphics } from 'pixi.js';
 
 import { DropShadowFilter } from 'pixi-filters';
 
-import { PixiService } from '../../../pixi-service';
+import { PixiService } from '../pixi-service';
 
 import { fillerRegions } from '../../../../data/locations';
 import { GameDefinitionsStore } from '../../../../store/game-definitions-store';

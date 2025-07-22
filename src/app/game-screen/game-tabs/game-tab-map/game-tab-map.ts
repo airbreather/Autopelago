@@ -1,14 +1,16 @@
 import { AfterViewInit, Component, ElementRef, inject, viewChild } from '@angular/core';
 
+import { PixiService } from './pixi-service';
+
 import { FillerMarkers } from './filler-markers/filler-markers';
 import { LandmarkMarkers } from './landmark-markers/landmark-markers';
 import { PauseButton } from './pause-button/pause-button';
 import { PlayerToken } from './player-token/player-token';
-import { PixiService } from '../../pixi-service';
 
 @Component({
   selector: 'app-game-tab-map',
   imports: [PauseButton, LandmarkMarkers, PlayerToken, FillerMarkers],
+  providers: [PixiService],
   template: `
     <div #outer class="outer">
       <!--suppress AngularNgOptimizedImage -->
@@ -56,9 +58,7 @@ export class GameTabMap implements AfterViewInit {
 
   ngAfterViewInit() {
     const canvas = this.pixiCanvas().nativeElement;
-    const outer = this.outerDiv().nativeElement;
-    this.#pixiService.registerPlugin({
-      targets: { canvas, outer },
-    });
+    const outerDiv = this.outerDiv().nativeElement;
+    void this.#pixiService.init(canvas, outerDiv);
   }
 }

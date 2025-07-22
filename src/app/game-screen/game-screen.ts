@@ -1,13 +1,4 @@
-import {
-  AfterViewInit,
-  Component,
-  computed,
-  DestroyRef,
-  ElementRef,
-  inject,
-  OnDestroy,
-  viewChild,
-} from '@angular/core';
+import { Component, computed, DestroyRef, ElementRef, inject, OnDestroy, viewChild } from '@angular/core';
 import { rxResource, takeUntilDestroyed, toObservable } from '@angular/core/rxjs-interop';
 
 import { map, mergeMap } from 'rxjs';
@@ -17,7 +8,6 @@ import { SplitAreaComponent, SplitComponent } from 'angular-split';
 import { ArchipelagoClient } from '../archipelago-client';
 import { GameScreenStore } from '../store/game-screen-store';
 import { GameTabs } from './game-tabs/game-tabs';
-import { PixiService } from './pixi-service';
 import { StatusDisplay } from './status-display/status-display';
 import { resizeEvents } from '../util';
 
@@ -26,7 +16,6 @@ import { resizeEvents } from '../util';
   imports: [
     SplitComponent, SplitAreaComponent, StatusDisplay, GameTabs,
   ],
-  providers: [PixiService],
   template: `
     <div #outer class="outer">
       <as-split #split unit="pixel" direction="horizontal"
@@ -47,10 +36,9 @@ import { resizeEvents } from '../util';
     }
   `,
 })
-export class GameScreen implements AfterViewInit, OnDestroy {
+export class GameScreen implements OnDestroy {
   readonly #store = inject(GameScreenStore);
   readonly #archipelagoClient = inject(ArchipelagoClient);
-  readonly #pixiService = inject(PixiService, { self: true });
   readonly #destroyRef = inject(DestroyRef);
   protected readonly splitRef = viewChild.required<SplitComponent>('split');
   protected readonly outerRef = viewChild.required<ElementRef<HTMLDivElement>>('outer');
@@ -106,10 +94,6 @@ export class GameScreen implements AfterViewInit, OnDestroy {
     ).subscribe((evt) => {
       this.#store.updateLeftSize(evt.sizes[0] as number);
     });
-  }
-
-  ngAfterViewInit() {
-    void this.#pixiService.init();
   }
 
   ngOnDestroy() {
