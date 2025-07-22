@@ -52,7 +52,7 @@ export class GameTabMap implements AfterViewInit {
   protected readonly pixiCanvas = viewChild.required<ElementRef<HTMLCanvasElement>>('pixiCanvas');
   protected readonly outerDiv = viewChild.required<ElementRef<HTMLDivElement>>('outer');
 
-  readonly #pixiService = inject(PixiService);
+  readonly #pixiService = inject(PixiService, { self: true });
 
   ngAfterViewInit() {
     const canvas = this.pixiCanvas().nativeElement;
