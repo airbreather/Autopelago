@@ -3,11 +3,17 @@ import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 
 import { Application, Container } from 'pixi.js';
 
-import { resizeEvents } from '../../../util';
+import { resizeEvents } from '../util';
+
+interface TargetElements {
+  canvas: HTMLCanvasElement;
+  outer: HTMLDivElement;
+}
 
 export interface RatPixiPlugin {
   beforeInit?(this: void, app: Application, root: Container): PromiseLike<void> | void;
   afterInit?(this: void, app: Application, root: Container): PromiseLike<void> | void;
+  targets?: TargetElements;
 }
 
 function chain<Args extends unknown[]>(
@@ -36,6 +42,7 @@ export class PixiService {
 
   #beforeInit: RatPixiPlugin['beforeInit'];
   #afterInit: RatPixiPlugin['afterInit'];
+  #targets: RatPixiPlugin['targets'];
 
   constructor() {
     this.#destroyRef.onDestroy(() => {
@@ -46,9 +53,21 @@ export class PixiService {
   registerPlugin(plugin: RatPixiPlugin) {
     this.#beforeInit = chain(this.#beforeInit, plugin.beforeInit);
     this.#afterInit = chain(this.#afterInit, plugin.afterInit);
+    if (plugin.targets) {
+      if (this.#targets) {
+        throw new Error('Cannot register multiple targets');
+      }
+
+      this.#targets = plugin.targets;
+    }
   }
 
-  async init(canvas: HTMLCanvasElement, outer: HTMLDivElement) {
+  async init() {
+    if (!this.#targets) {
+      throw new Error('No targets registered.');
+    }
+
+    const { canvas, outer } = this.#targets;
     const reciprocalOriginalWidth = 1 / 300.0;
     const reciprocalOriginalHeight = 1 / 450.0;
     const root = this.#app.stage;

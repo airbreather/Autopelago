@@ -2,7 +2,7 @@ import { Component, effect, inject, signal } from '@angular/core';
 
 import { Ticker } from 'pixi.js';
 
-import { PixiService } from '../pixi-service';
+import { PixiService } from '../../../pixi-service';
 
 import { GameStore } from '../../../../store/autopelago-store';
 
