@@ -184,21 +184,20 @@ export class ConnectScreen {
     });
   }
 
-  // Store update methods
-  updateSlot = (value: string) => { this.#store.updateSlot(value); };
-  updateDirectHost = (value: string) => { this.#store.updateDirectHost(value); };
-  updatePassword = (value: string) => { this.#store.updatePassword(value); };
-  updateMinTime = (value: number) => { this.#store.updateMinTime(value); };
-  updateMaxTime = (value: number) => { this.#store.updateMaxTime(value); };
-  updatePort = (value: number) => { this.#store.updatePort(value); };
-  updateEnableTileAnimations = (value: boolean) => { this.#store.updateEnableTileAnimations(value); };
-  updateEnableRatAnimations = (value: boolean) => { this.#store.updateEnableRatAnimations(value); };
-  updateSendChatMessages = (value: boolean) => { this.#store.updateSendChatMessages(value); };
-  updateWhenTargetChanges = (value: boolean) => { this.#store.updateWhenTargetChanges(value); };
-  updateWhenBecomingBlocked = (value: boolean) => { this.#store.updateWhenBecomingBlocked(value); };
-  updateWhenStillBlocked = (value: boolean) => { this.#store.updateWhenStillBlocked(value); };
-  updateWhenBecomingUnblocked = (value: boolean) => { this.#store.updateWhenBecomingUnblocked(value); };
-  updateForOneTimeEvents = (value: boolean) => { this.#store.updateForOneTimeEvents(value); };
+  updateSlot(value: string) { this.#store.updateSlot(value); }
+  updateDirectHost(value: string) { this.#store.updateDirectHost(value); }
+  updatePassword(value: string) { this.#store.updatePassword(value); }
+  updateMinTime(value: number) { this.#store.updateMinTime(value); }
+  updateMaxTime(value: number) { this.#store.updateMaxTime(value); }
+  updatePort(value: number) { this.#store.updatePort(value); }
+  updateEnableTileAnimations(value: boolean) { this.#store.updateEnableTileAnimations(value); }
+  updateEnableRatAnimations(value: boolean) { this.#store.updateEnableRatAnimations(value); }
+  updateSendChatMessages(value: boolean) { this.#store.updateSendChatMessages(value); }
+  updateWhenTargetChanges(value: boolean) { this.#store.updateWhenTargetChanges(value); }
+  updateWhenBecomingBlocked(value: boolean) { this.#store.updateWhenBecomingBlocked(value); }
+  updateWhenStillBlocked(value: boolean) { this.#store.updateWhenStillBlocked(value); }
+  updateWhenBecomingUnblocked(value: boolean) { this.#store.updateWhenBecomingUnblocked(value); }
+  updateForOneTimeEvents(value: boolean) { this.#store.updateForOneTimeEvents(value); }
 
   async onConnect(event: SubmitEvent) {
     event.preventDefault();
