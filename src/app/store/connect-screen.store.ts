@@ -24,7 +24,7 @@ export interface ConnectScreenState {
 const initialState: ConnectScreenState = {
   slot: '',
   directHost: 'archipelago.gg',
-  port: 65535,
+  port: 38281,
   password: '',
   minTime: 20,
   maxTime: 30,
