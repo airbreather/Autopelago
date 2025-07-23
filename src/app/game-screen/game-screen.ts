@@ -1,4 +1,4 @@
-import { Component, computed, DestroyRef, ElementRef, inject, OnDestroy, viewChild } from '@angular/core';
+import { Component, computed, ElementRef, inject, OnDestroy, viewChild } from '@angular/core';
 import { rxResource, takeUntilDestroyed, toObservable } from '@angular/core/rxjs-interop';
 
 import { map, mergeMap } from 'rxjs';
@@ -39,7 +39,6 @@ import { resizeEvents } from '../util';
 export class GameScreen implements OnDestroy {
   readonly #store = inject(GameScreenStore);
   readonly #archipelagoClient = inject(ArchipelagoClient);
-  readonly #destroyRef = inject(DestroyRef);
   protected readonly splitRef = viewChild.required<SplitComponent>('split');
   protected readonly outerRef = viewChild.required<ElementRef<HTMLDivElement>>('outer');
 
@@ -49,7 +48,6 @@ export class GameScreen implements OnDestroy {
     stream: ({ params: outerRef }) => {
       return resizeEvents(outerRef.nativeElement).pipe(
         map(() => outerRef.nativeElement.scrollWidth),
-        takeUntilDestroyed(this.#destroyRef),
       );
     },
   });
