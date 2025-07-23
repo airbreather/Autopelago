@@ -1,12 +1,11 @@
-import { Component, computed, effect, inject, signal } from '@angular/core';
+import { Component, computed, DestroyRef, effect, inject, signal } from '@angular/core';
 
 import { Application, Container, Graphics } from 'pixi.js';
 
 import { DropShadowFilter } from 'pixi-filters';
 
-import { PixiService } from '../pixi-service';
-
 import { fillerRegions } from '../../../../data/locations';
+import { GameStore } from '../../../../store/autopelago-store';
 import { GameDefinitionsStore } from '../../../../store/game-definitions-store';
 import { strictObjectEntries } from '../../../../util';
 
@@ -64,7 +63,8 @@ export class FillerMarkers {
       }
     });
 
-    inject(PixiService).registerPlugin({
+    inject(GameStore).registerPlugin({
+      destroyRef: inject(DestroyRef),
       afterInit(app, root) {
         root.addChild(graphicsContainer);
         pixiApp.set(app);

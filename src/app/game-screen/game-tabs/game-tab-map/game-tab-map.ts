@@ -1,19 +1,17 @@
-import { AfterViewInit, Component, ElementRef, inject, viewChild } from '@angular/core';
-
-import { PixiService } from './pixi-service';
+import { AfterViewInit, Component, ElementRef, inject, OnDestroy, viewChild } from '@angular/core';
 
 import { FillerMarkers } from './filler-markers/filler-markers';
 import { LandmarkMarkers } from './landmark-markers/landmark-markers';
 import { PauseButton } from './pause-button/pause-button';
 import { PlayerToken } from './player-token/player-token';
+import { GameStore } from '../../../store/autopelago-store';
 
 @Component({
   selector: 'app-game-tab-map',
   imports: [PauseButton, LandmarkMarkers, PlayerToken, FillerMarkers],
-  providers: [PixiService],
   template: `
     <div #outer class="outer">
-      <!--suppress AngularNgOptimizedImage -->
+      <!--suppress AngularNgOptimizedImage, HtmlUnknownTarget -->
       <img alt="map" src="assets/images/map.svg" />
       <canvas #pixiCanvas class="pixi-canvas" width="300" height="450">
       </canvas>
@@ -50,15 +48,19 @@ import { PlayerToken } from './player-token/player-token';
     }
   `,
 })
-export class GameTabMap implements AfterViewInit {
+export class GameTabMap implements AfterViewInit, OnDestroy {
   protected readonly pixiCanvas = viewChild.required<ElementRef<HTMLCanvasElement>>('pixiCanvas');
   protected readonly outerDiv = viewChild.required<ElementRef<HTMLDivElement>>('outer');
 
-  readonly #pixiService = inject(PixiService, { self: true });
+  readonly #gameStore = inject(GameStore);
 
   ngAfterViewInit() {
     const canvas = this.pixiCanvas().nativeElement;
     const outerDiv = this.outerDiv().nativeElement;
-    void this.#pixiService.init(canvas, outerDiv);
+    void this.#gameStore.initInterface(canvas, outerDiv);
+  }
+
+  ngOnDestroy() {
+    this.#gameStore.destroyInterface();
   }
 }

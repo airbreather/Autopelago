@@ -5,11 +5,11 @@ import { map, mergeMap } from 'rxjs';
 
 import { SplitAreaComponent, SplitComponent } from 'angular-split';
 
-import { ArchipelagoClient } from '../archipelago-client';
+import { AutopelagoService } from '../autopelago';
 import { GameScreenStore } from '../store/game-screen-store';
+import { resizeEvents } from '../util';
 import { GameTabs } from './game-tabs/game-tabs';
 import { StatusDisplay } from './status-display/status-display';
-import { resizeEvents } from '../util';
 
 @Component({
   selector: 'app-game-screen',
@@ -38,7 +38,7 @@ import { resizeEvents } from '../util';
 })
 export class GameScreen implements OnDestroy {
   readonly #store = inject(GameScreenStore);
-  readonly #archipelagoClient = inject(ArchipelagoClient);
+  readonly #autopelago = inject(AutopelagoService);
   protected readonly splitRef = viewChild.required<SplitComponent>('split');
   protected readonly outerRef = viewChild.required<ElementRef<HTMLDivElement>>('outer');
 
@@ -95,7 +95,7 @@ export class GameScreen implements OnDestroy {
   }
 
   ngOnDestroy() {
-    this.#archipelagoClient.disconnect();
+    this.#autopelago.disconnect();
   }
 
   onGutterDblClick() {

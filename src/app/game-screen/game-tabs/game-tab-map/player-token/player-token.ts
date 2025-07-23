@@ -1,10 +1,10 @@
-import { Component, effect, inject, signal } from '@angular/core';
+import { Component, DestroyRef, effect, inject, signal } from '@angular/core';
 
-import { Application, Assets, Container, Sprite, Texture } from 'pixi.js';
+import { Application, Assets, Container, Sprite, Texture, Ticker } from 'pixi.js';
 
 import { DropShadowFilter } from 'pixi-filters';
 
-import { PixiService } from '../pixi-service';
+import { GameStore } from '../../../../store/autopelago-store';
 
 @Component({
   selector: 'app-player-token',
@@ -47,15 +47,18 @@ export class PlayerToken {
 
       root.addChild(playerTokenContainer);
     });
-    inject(PixiService).registerPlugin({
+
+    inject(GameStore).registerPlugin({
+      destroyRef: inject(DestroyRef),
       afterInit(app, root) {
         initData.update(d => ({ ...d, app, root }));
-        const ROTATION_SCALE = Math.PI / 3200;
-        app.ticker.add(function (t) {
-          this.cycleTime = (this.cycleTime + t.deltaMS) % 1000;
-          playerTokenContainer.rotation = (Math.abs(this.cycleTime - 500) - 250) * ROTATION_SCALE;
-        }, { cycleTime: 0 });
       },
     });
+
+    const ROTATION_SCALE = Math.PI / 3200;
+    Ticker.shared.add(function (t) {
+      this.cycleTime = (this.cycleTime + t.deltaMS) % 1000;
+      playerTokenContainer.rotation = (Math.abs(this.cycleTime - 500) - 250) * ROTATION_SCALE;
+    }, { cycleTime: 0 });
   }
 }

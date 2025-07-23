@@ -1,8 +1,4 @@
-import { Component, effect, inject, signal } from '@angular/core';
-
-import { Ticker } from 'pixi.js';
-
-import { PixiService } from '../pixi-service';
+import { Component, inject } from '@angular/core';
 
 import { GameStore } from '../../../../store/autopelago-store';
 
@@ -24,28 +20,4 @@ export class PauseButton {
   readonly paused = this.#store.paused;
 
   readonly togglePause = this.#store.togglePause;
-
-  constructor() {
-    const ticker = signal<Ticker | null>(null);
-    inject(PixiService).registerPlugin({
-      afterInit: (app) => {
-        // even if we start paused, the ticker needs to run once to get the initial frames.
-        app.ticker.addOnce((t) => {
-          ticker.set(t);
-        });
-      },
-    });
-
-    effect(() => {
-      const theTicker = ticker();
-      if (theTicker && (this.paused() === theTicker.started)) {
-        if (this.paused()) {
-          theTicker.stop();
-        }
-        else {
-          theTicker.start();
-        }
-      }
-    });
-  }
 }

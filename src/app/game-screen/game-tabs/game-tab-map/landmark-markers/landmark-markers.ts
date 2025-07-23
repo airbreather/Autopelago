@@ -1,11 +1,11 @@
-import { Component, inject } from '@angular/core';
+import { Component, DestroyRef, inject } from '@angular/core';
 
-import { AnimatedSprite, Assets, Container, Spritesheet, SpritesheetData, Texture } from 'pixi.js';
+import { AnimatedSprite, Assets, Container, Spritesheet, SpritesheetData, Texture, Ticker } from 'pixi.js';
 
-import { PixiService } from '../pixi-service';
 import { DropShadowFilter } from 'pixi-filters';
 
 import { LANDMARKS } from '../../../../data/locations';
+import { GameStore } from '../../../../store/autopelago-store';
 
 // Create spritesheet data with frame definitions for each landmark
 const spritesheetData: SpritesheetData & Required<Pick<SpritesheetData, 'animations'>> = {
@@ -69,8 +69,9 @@ export class LandmarkMarkers {
       })],
     });
 
-    inject(PixiService).registerPlugin({
-      async afterInit(app, root) {
+    inject(GameStore).registerPlugin({
+      destroyRef: inject(DestroyRef),
+      async afterInit(_app, root) {
         root.addChild(landmarksContainer);
 
         // Create the spritesheet
@@ -80,7 +81,7 @@ export class LandmarkMarkers {
         // Create sprites for each landmark
         landmarksContainer.addChild(...Object.entries(LANDMARKS).map(([landmarkKey, landmark]) => {
           const anim = new AnimatedSprite(spritesheet.animations[`${landmarkKey}_on`]);
-          anim.animationSpeed = 2 / app.ticker.FPS;
+          anim.animationSpeed = 1 / (500 * Ticker.targetFPMS);
           anim.position.set(landmark.coords[0] - 8, landmark.coords[1] - 8);
           anim.play();
           return anim;
