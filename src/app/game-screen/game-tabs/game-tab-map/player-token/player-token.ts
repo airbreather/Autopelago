@@ -7,9 +7,12 @@ import { DropShadowFilter } from 'pixi-filters';
 import { GameStore } from '../../../../store/autopelago-store';
 
 const ROTATION_SCALE = Math.PI / 3200;
+const CYCLE = 1000;
+const HALF_CYCLE = CYCLE / 2;
+const QUARTER_CYCLE = CYCLE / 4;
 function doRotation(this: PlayerToken, t: Ticker) {
-  this.cycleTime = (this.cycleTime + t.deltaMS) % 1000;
-  this.playerTokenContainer.rotation = (Math.abs(this.cycleTime - 500) - 250) * ROTATION_SCALE;
+  this.cycleTime = (this.cycleTime + t.deltaMS) % CYCLE;
+  this.playerTokenContainer.rotation = (Math.abs(this.cycleTime - HALF_CYCLE) - QUARTER_CYCLE) * ROTATION_SCALE;
 }
 
 @Component({
