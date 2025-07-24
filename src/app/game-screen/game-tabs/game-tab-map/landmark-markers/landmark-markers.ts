@@ -82,7 +82,8 @@ export class LandmarkMarkers {
 
         // Create sprites for each landmark
         landmarksContainer.addChild(...Object.entries(LANDMARKS).map(([landmarkKey, landmark]) => {
-          const anim = new AnimatedSprite(spritesheet.animations[`${landmarkKey}_on`]);
+          const isOn = Math.random() < 0.5;
+          const anim = new AnimatedSprite(spritesheet.animations[`${landmarkKey}_${isOn ? 'on' : 'off'}`]);
           anim.animationSpeed = 1 / (500 * Ticker.targetFPMS);
           anim.position.set(landmark.coords[0] - 8, landmark.coords[1] - 8);
           anim.play();
