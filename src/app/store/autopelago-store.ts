@@ -17,7 +17,6 @@ export interface Message {
 
 export interface RatPixiPlugin {
   destroyRef?: DestroyRef;
-  beforeInit?(this: void, app: Application, root: Container): PromiseLike<void> | void;
   afterInit?(this: void, app: Application, root: Container): PromiseLike<void> | void;
 }
 
@@ -86,58 +85,44 @@ export const GameStore = signalStore(
         });
       }
     },
-    async initInterface(canvas: HTMLCanvasElement, outer: HTMLDivElement) {
+    async initInterface(canvas: HTMLCanvasElement, outer: HTMLDivElement, interfaceDestroyRef: DestroyRef) {
       if (store.pixiApplication) {
         throw new Error('Already initialized');
       }
 
-      store.pixiApplication = new Application();
+      Ticker.shared.stop();
+      const app = store.pixiApplication = new Application();
+      interfaceDestroyRef.onDestroy(() => {
+        app.destroy();
+        store.pixiApplication = null;
+      });
       const reciprocalOriginalWidth = 1 / 300.0;
       const reciprocalOriginalHeight = 1 / 450.0;
-      for (const plugin of store._plugins()) {
-        if (plugin.beforeInit) {
-          await plugin.beforeInit(store.pixiApplication, store.pixiApplication.stage);
-          if (store.paused()) {
-            Ticker.shared.stop();
-          }
-        }
-      }
+      await app.init({ canvas, resizeTo: outer, backgroundAlpha: 0, antialias: false, sharedTicker: true, autoStart: false });
+      Ticker.shared.stop();
 
-      await store.pixiApplication.init({ canvas, resizeTo: outer, backgroundAlpha: 0, antialias: false, sharedTicker: true, autoStart: false });
       resizeEvents(canvas).pipe(
         // no need for a startWith: https://stackoverflow.com/a/60026394/1083771
         takeUntilDestroyed(destroyRef),
       ).subscribe(({ target }) => {
-        if (store.pixiApplication) {
-          store.pixiApplication.stage.scale.x = target.width * reciprocalOriginalWidth;
-          store.pixiApplication.stage.scale.y = target.height * reciprocalOriginalHeight;
-          store.pixiApplication.resize();
-        }
+        app.stage.scale.x = target.width * reciprocalOriginalWidth;
+        app.stage.scale.y = target.height * reciprocalOriginalHeight;
+        app.resize();
       });
+
       for (const plugin of store._plugins()) {
         if (plugin.afterInit) {
-          await plugin.afterInit(store.pixiApplication, store.pixiApplication.stage);
-          if (store.paused()) {
-            Ticker.shared.stop();
-          }
+          await plugin.afterInit(app, app.stage);
+          Ticker.shared.stop();
         }
       }
 
       if (store.paused()) {
-        store.pixiApplication.resize();
-        store.pixiApplication.render();
+        app.resize();
+        app.render();
       }
       else {
         Ticker.shared.start();
-      }
-    },
-    destroyInterface() {
-      if (store.pixiApplication) {
-        store.pixiApplication.destroy();
-        store.pixiApplication = null;
-      }
-      else {
-        throw new Error('Not initialized');
       }
     },
     appendMessage(message: Message) {

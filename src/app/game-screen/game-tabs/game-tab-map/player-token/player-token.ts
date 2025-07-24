@@ -6,14 +6,22 @@ import { DropShadowFilter } from 'pixi-filters';
 
 import { GameStore } from '../../../../store/autopelago-store';
 
+const ROTATION_SCALE = Math.PI / 3200;
+function doRotation(this: PlayerToken, t: Ticker) {
+  this.cycleTime = (this.cycleTime + t.deltaMS) % 1000;
+  this.playerTokenContainer.rotation = (Math.abs(this.cycleTime - 500) - 250) * ROTATION_SCALE;
+}
+
 @Component({
   selector: 'app-player-token',
   imports: [],
   template: '',
   styles: '',
 })
-// eslint-disable-next-line @typescript-eslint/no-extraneous-class
 export class PlayerToken {
+  readonly playerTokenContainer = new Container();
+  cycleTime = 0;
+
   constructor() {
     const initData = signal({
       texture: null as Texture | null,
@@ -24,10 +32,9 @@ export class PlayerToken {
       initData.update(d => ({ ...d, texture }));
     });
 
-    const playerTokenContainer = new Container();
-    playerTokenContainer.position.set(2, 80);
-    playerTokenContainer.scale.set(0.25);
-    playerTokenContainer.filters = [new DropShadowFilter({
+    this.playerTokenContainer.position.set(2, 80);
+    this.playerTokenContainer.scale.set(0.25);
+    this.playerTokenContainer.filters = [new DropShadowFilter({
       blur: 1,
       offset: { x: 6, y: 6 },
       color: 'black',
@@ -38,27 +45,25 @@ export class PlayerToken {
         return;
       }
 
-      root.removeChild(playerTokenContainer);
+      root.removeChild(this.playerTokenContainer);
 
-      playerTokenContainer.removeChildren();
+      this.playerTokenContainer.removeChildren();
       const playerToken = new Sprite(texture);
       playerToken.anchor.set(0.5);
-      playerTokenContainer.addChild(playerToken);
+      this.playerTokenContainer.addChild(playerToken);
 
-      root.addChild(playerTokenContainer);
+      root.addChild(this.playerTokenContainer);
     });
 
+    const destroyRef = inject(DestroyRef);
     inject(GameStore).registerPlugin({
-      destroyRef: inject(DestroyRef),
+      destroyRef,
       afterInit(app, root) {
         initData.update(d => ({ ...d, app, root }));
       },
     });
 
-    const ROTATION_SCALE = Math.PI / 3200;
-    Ticker.shared.add(function (t) {
-      this.cycleTime = (this.cycleTime + t.deltaMS) % 1000;
-      playerTokenContainer.rotation = (Math.abs(this.cycleTime - 500) - 250) * ROTATION_SCALE;
-    }, { cycleTime: 0 });
+    Ticker.shared.add(doRotation, this);
+    destroyRef.onDestroy(() => Ticker.shared.remove(doRotation, this));
   }
 }
