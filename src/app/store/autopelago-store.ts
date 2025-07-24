@@ -103,6 +103,7 @@ export const GameStore = signalStore(
 
       resizeEvents(canvas).pipe(
         // no need for a startWith: https://stackoverflow.com/a/60026394/1083771
+        takeUntilDestroyed(interfaceDestroyRef),
         takeUntilDestroyed(destroyRef),
       ).subscribe(({ target }) => {
         app.stage.scale.x = target.width * reciprocalOriginalWidth;
