@@ -96,8 +96,8 @@ export const GameStore = signalStore(
         app.destroy();
         store.pixiApplication = null;
       });
-      const reciprocalOriginalWidth = 1 / 300.0;
-      const reciprocalOriginalHeight = 1 / 450.0;
+      const reciprocalOriginalWidth = 1 / canvas.width;
+      const reciprocalOriginalHeight = 1 / canvas.height;
       await app.init({ canvas, resizeTo: outer, backgroundAlpha: 0, antialias: false, sharedTicker: true, autoStart: false });
       Ticker.shared.stop();
 
