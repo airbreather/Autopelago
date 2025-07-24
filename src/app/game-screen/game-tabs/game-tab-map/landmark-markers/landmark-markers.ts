@@ -50,7 +50,12 @@ for (const [landmarkKey, landmark] of Object.entries(LANDMARKS)) {
   spritesheetData.animations[`${landmarkKey}_off`] = [`${landmarkKey}_off_1`, `${landmarkKey}_off_2`];
 }
 
-const loadSpritesheetTexture = Assets.load<Texture>('assets/images/locations.webp');
+const spritesheetPromise = (async () => {
+  const loadSpritesheetTexture = Assets.load<Texture>('assets/images/locations.webp');
+  const spritesheet = new Spritesheet(await loadSpritesheetTexture, spritesheetData);
+  await spritesheet.parse();
+  return spritesheet;
+})();
 
 @Component({
   selector: 'app-landmark-markers',
@@ -73,10 +78,7 @@ export class LandmarkMarkers {
       destroyRef: inject(DestroyRef),
       async afterInit(_app, root) {
         root.addChild(landmarksContainer);
-
-        // Create the spritesheet
-        const spritesheet = new Spritesheet(await loadSpritesheetTexture, spritesheetData);
-        await spritesheet.parse();
+        const spritesheet = await spritesheetPromise;
 
         // Create sprites for each landmark
         landmarksContainer.addChild(...Object.entries(LANDMARKS).map(([landmarkKey, landmark]) => {
