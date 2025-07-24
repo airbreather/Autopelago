@@ -101,13 +101,13 @@ export const GameStore = signalStore(
       await app.init({ canvas, resizeTo: outer, backgroundAlpha: 0, antialias: false, sharedTicker: true, autoStart: false });
       Ticker.shared.stop();
 
-      resizeEvents(canvas).pipe(
+      resizeEvents(outer).pipe(
         // no need for a startWith: https://stackoverflow.com/a/60026394/1083771
         takeUntilDestroyed(interfaceDestroyRef),
         takeUntilDestroyed(destroyRef),
       ).subscribe(({ target }) => {
-        app.stage.scale.x = target.width * reciprocalOriginalWidth;
-        app.stage.scale.y = target.height * reciprocalOriginalHeight;
+        app.stage.scale.x = target.clientWidth * reciprocalOriginalWidth;
+        app.stage.scale.y = target.clientHeight * reciprocalOriginalHeight;
         app.resize();
       });
 
