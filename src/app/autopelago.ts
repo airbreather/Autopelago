@@ -2,7 +2,6 @@ import { inject, Injectable } from '@angular/core';
 import { Router } from '@angular/router';
 
 import { ArchipelagoClient } from './archipelago-client';
-import { GameStore } from './store/autopelago-store';
 import { ConnectScreenStore } from './store/connect-screen.store';
 
 @Injectable({
@@ -10,7 +9,6 @@ import { ConnectScreenStore } from './store/connect-screen.store';
 })
 export class AutopelagoService {
   readonly #connectScreenStore = inject(ConnectScreenStore);
-  readonly #store = inject(GameStore);
   readonly #ap = inject(ArchipelagoClient);
   readonly #router = inject(Router);
 

@@ -6,7 +6,7 @@ export interface AutopelagoDefinitionsYamlFile {
   regions: Readonly<YamlRegions>;
 }
 
-export type YamlAura =
+export type AutopelagoAura =
   'well_fed'
   | 'upset_tummy'
   | 'lucky'
@@ -26,11 +26,11 @@ type YamlNonProgressionTypeName = 'useful_nonprogression' | 'trap' | 'filler';
 interface YamlKeyedItem {
   name: YamlItemName;
   flavor_text?: string;
-  auras_granted?: readonly YamlAura[];
+  auras_granted?: readonly AutopelagoAura[];
   rat_count?: number;
 }
 
-type YamlBulkItem = YamlKeyedItem | readonly [name: YamlItemName, aurasGranted: readonly YamlAura[]];
+type YamlBulkItem = YamlKeyedItem | readonly [name: YamlItemName, aurasGranted: readonly AutopelagoAura[]];
 type YamlGameSpecificItemGroup = Partial<Readonly<Record<string, readonly YamlBulkItem[]>>>;
 type YamlBulkItemOrGameSpecificItemGroup = YamlBulkItem | { game_specific: YamlGameSpecificItemGroup };
 type YamlItems =

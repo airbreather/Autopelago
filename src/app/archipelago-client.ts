@@ -1,5 +1,5 @@
 import { Injectable } from '@angular/core';
-import { rxResource, takeUntilDestroyed } from '@angular/core/rxjs-interop';
+import { rxResource } from '@angular/core/rxjs-interop';
 
 import { BehaviorSubject, EMPTY, map, merge, mergeMap, Observable } from 'rxjs';
 
@@ -39,19 +39,6 @@ type ClientManagerEventMap = {
 })
 export class ArchipelagoClient {
   readonly #clientSubject = new BehaviorSubject<Client | null>(null);
-
-  constructor() {
-    this.events('messages', 'message')
-      .pipe(takeUntilDestroyed())
-      .subscribe((msg) => {
-        console.log('ANY OLD MESSAGE', msg);
-      });
-    this.events('messages', 'serverChat')
-      .pipe(takeUntilDestroyed())
-      .subscribe((msg) => {
-        console.log('SERVER CHAT', msg);
-      });
-  }
 
   isAuthenticated = rxResource({
     stream: () => merge(

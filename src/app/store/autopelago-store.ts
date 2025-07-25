@@ -24,12 +24,30 @@ export interface RatPixiPlugin {
 export interface GameState {
   paused: boolean;
   messages: readonly Message[];
+  foodFactor: number;
+  luckFactor: number;
+  energyFactor: number;
+  styleFactor: number;
+  distractionCounter: number;
+  startledCounter: number;
+  hasConfidence: boolean;
+  mercyFactor: number;
+  sluggishCarryover: boolean;
 }
 
 // Default state
 const initialState: GameState = {
   paused: false,
   messages: [],
+  foodFactor: 0,
+  luckFactor: 0,
+  energyFactor: 0,
+  styleFactor: 0,
+  distractionCounter: 0,
+  startledCounter: 0,
+  hasConfidence: false,
+  mercyFactor: 0,
+  sluggishCarryover: false,
 };
 
 // Local storage key
