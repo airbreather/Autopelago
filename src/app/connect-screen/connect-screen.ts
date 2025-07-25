@@ -138,6 +138,7 @@ import { ConnectScreenStore, createHostSelector } from '../store/connect-screen.
 
       label {
         align-self: center;
+        justify-self: start;
       }
     }
   `,
