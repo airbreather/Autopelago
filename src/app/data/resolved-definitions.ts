@@ -94,7 +94,7 @@ function toConnected(forward: readonly number[], backward: readonly number[]): C
 
 export function resolveDefinitions(
   yamlFile: AutopelagoDefinitionsYamlFile,
-  useLactoseNames: boolean,
+  lactoseIntolerant: boolean,
 ): AutopelagoDefinitions {
   const allItems: AutopelagoItem[] = [];
   const progressionItemsByYamlKey = new Map<string, number>();
@@ -104,7 +104,7 @@ export function resolveDefinitions(
     if (typeof name === 'string') {
       return name;
     }
-    return useLactoseNames ? name[0] : name[1];
+    return lactoseIntolerant ? name[1] : name[0];
   }
 
   // Helper function to convert YamlRequirement to AutopelagoRequirement

@@ -33,8 +33,12 @@ export class FillerMarkers {
       }
 
       const gfx = new Graphics();
-      for (const [_, { coords }] of strictObjectEntries(fillerRegions(counts))) {
-        for (const [x, y] of coords) {
+      for (const [_, r] of strictObjectEntries(fillerRegions(counts))) {
+        if (!r) {
+          continue;
+        }
+
+        for (const [x, y] of r.coords) {
           gfx.rect(x - 0.8, y - 0.8, 1.6, 1.6);
           gfx.fill('yellow');
         }

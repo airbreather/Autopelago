@@ -47,6 +47,9 @@ export const LANDMARKS = {
 } as const;
 
 export type LandmarkName = keyof typeof LANDMARKS;
+export function isLandmarkName(name: string): name is LandmarkName {
+  return name in LANDMARKS;
+}
 
 export interface Filler {
   coords: readonly Vec2[];
@@ -92,13 +95,16 @@ const FILLER_DEFINING_COORDS = {
 } as const;
 
 export type FillerRegionName = keyof typeof FILLER_DEFINING_COORDS;
+export function isFillerRegionName(name: string): name is FillerRegionName {
+  return name in FILLER_DEFINING_COORDS;
+}
 
 const PREPARED_FILLERS = stricterObjectFromEntries(
   strictObjectEntries(FILLER_DEFINING_COORDS)
     .map(([name, definingCoords]) => [name, convertDefiningPoints(name === 'Menu', definingCoords)]),
 );
 
-export function fillerRegions(counts: Record<FillerRegionName, number>): Readonly<Record<FillerRegionName, Filler>> {
+export function fillerRegions(counts: Partial<Record<FillerRegionName, number>>): Readonly<Partial<Record<FillerRegionName, Filler>>> {
   const result: Partial<Record<FillerRegionName, Filler>> = {};
   for (const [name, { targetPoints, targetPointsPrj }] of strictObjectEntries(PREPARED_FILLERS)) {
     const transforms = [[0, 0], [0, 0], [0, 0], [0, 0]] as [number, number][];
@@ -108,6 +114,10 @@ export function fillerRegions(counts: Record<FillerRegionName, number>): Readonl
     }
 
     const count = counts[name];
+    if (!count) {
+      continue;
+    }
+
     const coords: Vec2[] = [];
     for (let i = 0; i < count; i++) {
       coords.push(add(project((i / (count - 1)) * targetPointsPrj[targetPointsPrj.length - 1], targetPoints, targetPointsPrj), transforms[i & 3]));
@@ -116,7 +126,7 @@ export function fillerRegions(counts: Record<FillerRegionName, number>): Readonl
     result[name] = { coords };
   }
 
-  return result as Record<FillerRegionName, Filler>;
+  return result;
 }
 
 function convertDefiningPoints(

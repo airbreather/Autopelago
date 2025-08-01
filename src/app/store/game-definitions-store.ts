@@ -2,15 +2,19 @@ import { HttpClient } from '@angular/common/http';
 import { computed, inject } from '@angular/core';
 import { rxResource } from '@angular/core/rxjs-interop';
 
-import { signalStore, withComputed, withProps } from '@ngrx/signals';
+import { signalStore, withComputed, withProps, withState } from '@ngrx/signals';
 import YAML from 'yaml';
 
 import { AutopelagoDefinitionsYamlFile } from '../data/definitions-file';
-import { FillerRegionName } from '../data/locations';
-import { retryWithExponentialBackoff, strictObjectEntries } from '../util';
+import { resolveDefinitions } from '../data/resolved-definitions';
+import { retryWithExponentialBackoff } from '../util';
+import { FillerRegionName, isFillerRegionName } from '../data/locations';
 
 export const GameDefinitionsStore = signalStore(
   { providedIn: 'root' },
+  withState({
+    lactoseIntolerant: false,
+  }),
   withProps(() => ({
     _httpClient: inject(HttpClient),
   })),
@@ -33,21 +37,26 @@ export const GameDefinitionsStore = signalStore(
     }),
   })),
   withComputed(store => ({
-    fillerCountsByRegion: computed(() => {
+    resolvedDefs: computed(() => {
       const d = store.defs();
+      return d ? resolveDefinitions(d, store.lactoseIntolerant()) : null;
+    }),
+  })),
+  withComputed(store => ({
+    fillerCountsByRegion: computed(() => {
+      const d = store.resolvedDefs();
       if (!d) {
         return null;
       }
 
-      const result: Partial<Record<FillerRegionName, number>> = {};
-      for (const [name, filler] of strictObjectEntries(d.regions.fillers)) {
-        result[name] =
-          (filler.unrandomized_items.filler ?? 0)
-          + (filler.unrandomized_items.useful_nonprogression ?? 0)
-          + (filler.unrandomized_items.key?.length ?? 0);
+      const o: Partial<Record<FillerRegionName, number>> = { };
+      for (const r of d.allRegions) {
+        if (isFillerRegionName(r.yamlKey) && 'locs' in r) {
+          o[r.yamlKey] = r.locs.length;
+        }
       }
 
-      return result as Record<FillerRegionName, number>;
+      return o;
     }),
   })),
 );
