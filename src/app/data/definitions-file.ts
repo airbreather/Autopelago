@@ -38,7 +38,7 @@ type YamlItems =
   & { rats: Partial<Record<string, Readonly<YamlKeyedItem>>> }
   & Record<YamlNonProgressionTypeName, readonly Readonly<YamlBulkItemOrGameSpecificItemGroup>[]>;
 
-type YamlRequirement =
+export type YamlRequirement =
   { rat_count: number }
   | { item: string }
   | { all: readonly YamlRequirement[] }
@@ -56,7 +56,7 @@ interface YamlLandmark {
 type YamlLandmarks = Record<LandmarkName, YamlLandmark>;
 
 interface YamlUnrandomizedItems {
-  key?: readonly string[];
+  key?: readonly (string | { readonly item: string; readonly count: number })[];
   filler?: number;
   useful_nonprogression?: number;
 }
