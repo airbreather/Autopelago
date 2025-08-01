@@ -2,9 +2,37 @@ import { Observable, retry, Subscription, timer } from 'rxjs';
 import { DestroyRef, effect, ElementRef, Injector, Signal } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 
-export function strictObjectEntries<T extends object>(obj: T): [keyof T, T[keyof T]][] {
-  return Object.entries(obj) as [keyof T, T[keyof T]][];
+// BEGIN section that was discovered by:
+// https://dev.to/harry0000/a-bit-convenient-typescript-type-definitions-for-objectentries-d6g
+type TupleEntry<T extends readonly unknown[], I extends unknown[] = [], R = never> =
+  T extends readonly [infer Head, ...infer Tail]
+    ? TupleEntry<Tail, [...I, unknown], R | [`${I['length']}`, Head]>
+    : R;
+
+type ObjectEntry<T extends object> =
+  T extends object
+    ? { [K in keyof T]: [K, Required<T>[K]] }[keyof T] extends infer E
+        ? E extends [infer K, infer V]
+          ? K extends string | number
+            ? [`${K}`, V]
+            : never
+          : never
+        : never
+    : never;
+
+export type Entry<T extends object> =
+  T extends readonly [unknown, ...unknown[]]
+    ? TupleEntry<T>
+    : T extends readonly (infer U)[]
+      ? [`${number}`, U]
+      : ObjectEntry<T>;
+
+export function strictObjectEntries<T extends object>(obj: T): Entry<T>[] {
+  return Object.entries(obj) as Entry<T>[];
 }
+
+// END section that was discovered by:
+// https://dev.to/harry0000/a-bit-convenient-typescript-type-definitions-for-objectentries-d6g
 
 export function stricterObjectFromEntries<T extends object, V>(entries: [k: keyof T, v: V][]): Record<keyof T, V> {
   return Object.fromEntries(entries) as Record<keyof T, V>;
