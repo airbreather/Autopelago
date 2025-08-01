@@ -30,9 +30,9 @@ interface YamlKeyedItem {
   rat_count?: number;
 }
 
-type YamlBulkItem = YamlKeyedItem | readonly [name: YamlItemName, aurasGranted: readonly AutopelagoAura[]];
+export type YamlBulkItem = YamlKeyedItem | readonly [name: YamlItemName, aurasGranted: readonly AutopelagoAura[]];
 type YamlGameSpecificItemGroup = Partial<Readonly<Record<string, readonly YamlBulkItem[]>>>;
-type YamlBulkItemOrGameSpecificItemGroup = YamlBulkItem | { game_specific: YamlGameSpecificItemGroup };
+export type YamlBulkItemOrGameSpecificItemGroup = YamlBulkItem | { game_specific: YamlGameSpecificItemGroup };
 type YamlItems =
   Partial<Omit<Record<string, Readonly<YamlKeyedItem>>, YamlNonProgressionTypeName | 'rats'>>
   & { rats: Partial<Record<string, Readonly<YamlKeyedItem>>> }

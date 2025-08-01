@@ -1,7 +1,13 @@
 import { itemClassifications } from 'archipelago.js';
 
-import { strictObjectEntries } from '../util';
-import { AutopelagoAura, AutopelagoDefinitionsYamlFile, YamlRequirement } from './definitions-file';
+import { stricterIsArray, strictObjectEntries } from '../util';
+import {
+  AutopelagoAura,
+  AutopelagoDefinitionsYamlFile,
+  YamlBulkItem,
+  YamlBulkItemOrGameSpecificItemGroup,
+  YamlRequirement,
+} from './definitions-file';
 
 export interface AutopelagoItem {
   key: number;
@@ -175,15 +181,14 @@ export function resolveDefinitions(
   }
 
   // Helper function to process bulk items
-  function processBulkItem(bulkItem: unknown, associatedGame: string | null): void {
-    if (Array.isArray(bulkItem)) {
+  function processBulkItem(bulkItem: YamlBulkItem, flags: number, associatedGame: string | null): void {
+    if (stricterIsArray(bulkItem)) {
       // [name, aurasGranted] format
-      const arrayItem = bulkItem as [string | readonly [string, string], readonly AutopelagoAura[]];
       allItems.push({
         key: allItems.length,
-        name: getItemName(arrayItem[0]),
-        flags: 0, // Non-progression items have no flags by default
-        aurasGranted: arrayItem[1],
+        name: getItemName(bulkItem[0]),
+        flags,
+        aurasGranted: bulkItem[1],
         associatedGame,
         flavorText: null,
         ratCount: 0,
@@ -191,45 +196,47 @@ export function resolveDefinitions(
     }
     else {
       // YamlKeyedItem format
-      const keyedItem = bulkItem as { name: string | readonly [string, string]; auras_granted?: readonly AutopelagoAura[]; flavor_text?: string; rat_count?: number };
       allItems.push({
         key: allItems.length,
-        name: getItemName(keyedItem.name),
-        flags: 0,
-        aurasGranted: keyedItem.auras_granted ?? [],
+        name: getItemName(bulkItem.name),
+        flags,
+        aurasGranted: bulkItem.auras_granted ?? [],
         associatedGame,
-        flavorText: keyedItem.flavor_text ?? null,
-        ratCount: keyedItem.rat_count ?? 0,
+        flavorText: bulkItem.flavor_text ?? null,
+        ratCount: bulkItem.rat_count ?? 0,
       });
     }
   }
 
   // Helper function to process bulk item or game specific group
-  function processBulkItemOrGameSpecific(item: unknown): void {
-    const typedItem = item as { game_specific?: Record<string, unknown[]> };
-    if ('game_specific' in typedItem && typedItem.game_specific) {
-      for (const [game, items] of Object.entries(typedItem.game_specific)) {
+  function processBulkItemOrGameSpecific(item: YamlBulkItemOrGameSpecificItemGroup, flags: number): void {
+    if ('game_specific' in item) {
+      for (const [game, items] of strictObjectEntries(item.game_specific)) {
+        if (!items) {
+          continue;
+        }
+
         for (const bulkItem of items) {
-          processBulkItem(bulkItem, game);
+          processBulkItem(bulkItem, flags, game);
         }
       }
     }
     else {
-      processBulkItem(item, null);
+      processBulkItem(item, flags, null);
     }
   }
 
   // Process non-progression items
   for (const item of yamlFile.items.useful_nonprogression) {
-    processBulkItemOrGameSpecific(item);
+    processBulkItemOrGameSpecific(item, itemClassifications.useful);
   }
 
   for (const item of yamlFile.items.trap) {
-    processBulkItemOrGameSpecific(item);
+    processBulkItemOrGameSpecific(item, itemClassifications.trap);
   }
 
   for (const item of yamlFile.items.filler) {
-    processBulkItemOrGameSpecific(item);
+    processBulkItemOrGameSpecific(item, itemClassifications.none);
   }
 
   // Calculate items with nonzero rat counts
@@ -430,13 +437,118 @@ export function resolveDefinitions(
     }
   }
 
+  // Build location connections based on region connections
+  const locationConnections = new Map<number, { forward: number[]; backward: number[] }>();
+
+  // Initialize all locations with empty connections
+  for (let i = 0; i < allLocations.length; i++) {
+    locationConnections.set(i, { forward: [], backward: [] });
+  }
+
+  // Apply the three connection rules
+  for (const region of allRegions) {
+    if ('loc' in region) {
+      // Landmark region - single location
+      const locationIndex = region.loc;
+      const locationConns = locationConnections.get(locationIndex);
+      if (!locationConns) {
+        continue;
+      }
+
+      // Rule 1: Last (only) location of landmark connects to first location of each exit region
+      for (const exitRegionIndex of region.connected.forward) {
+        const exitRegion = allRegions[exitRegionIndex];
+        let firstLocationIndex: number;
+
+        if ('loc' in exitRegion) {
+          // Exit to landmark - connect to its single location
+          firstLocationIndex = exitRegion.loc;
+        }
+        else {
+          // Exit to filler - connect to its first location
+          firstLocationIndex = exitRegion.locs[0];
+        }
+
+        locationConns.forward.push(firstLocationIndex);
+        const targetLocationConns = locationConnections.get(firstLocationIndex);
+        if (targetLocationConns) {
+          targetLocationConns.backward.push(locationIndex);
+        }
+      }
+    }
+    else {
+      // Filler region - multiple locations
+      const locations = region.locs;
+
+      // Rule 2: Each location (except last) connects to next location in same region
+      for (let i = 0; i < locations.length - 1; i++) {
+        const currentLocationIndex = locations[i];
+        const nextLocationIndex = locations[i + 1];
+
+        const currentLocationConns = locationConnections.get(currentLocationIndex);
+        const nextLocationConns = locationConnections.get(nextLocationIndex);
+
+        if (currentLocationConns && nextLocationConns) {
+          currentLocationConns.forward.push(nextLocationIndex);
+          nextLocationConns.backward.push(currentLocationIndex);
+        }
+      }
+
+      // Rule 1: Last location connects to first location of each exit region
+      if (locations.length > 0) {
+        const lastLocationIndex = locations[locations.length - 1];
+        const lastLocationConns = locationConnections.get(lastLocationIndex);
+        if (!lastLocationConns) {
+          continue;
+        }
+
+        for (const exitRegionIndex of region.connected.forward) {
+          const exitRegion = allRegions[exitRegionIndex];
+          let firstLocationIndex: number;
+
+          if ('loc' in exitRegion) {
+            // Exit to landmark - connect to its single location
+            firstLocationIndex = exitRegion.loc;
+          }
+          else {
+            // Exit to filler - connect to its first location
+            firstLocationIndex = exitRegion.locs[0];
+          }
+
+          lastLocationConns.forward.push(firstLocationIndex);
+          const targetLocationConns = locationConnections.get(firstLocationIndex);
+          if (targetLocationConns) {
+            targetLocationConns.backward.push(lastLocationIndex);
+          }
+        }
+      }
+    }
+  }
+
+  // Apply connections to locations
+  for (let i = 0; i < allLocations.length; i++) {
+    const connections = locationConnections.get(i);
+    if (connections) {
+      const location = allLocations[i];
+      const connected = toConnected(connections.forward, connections.backward);
+      allLocations[i] = {
+        ...location,
+        connected,
+      };
+    }
+  }
+
   // Find start region and location
   const startRegionIndex = regionNameToIndex.get('Menu');
   if (startRegionIndex === undefined) {
     throw new Error('Menu region not found');
   }
 
-  const startRegion = allRegions[startRegionIndex] as AutopelagoFillerRegion;
+  const startRegion = allRegions[startRegionIndex];
+  if (!('locs' in startRegion)) {
+    throw new Error('Menu region is not a filler');
+  }
+
   const startLocationIndex = startRegion.locs[0];
 
   return {

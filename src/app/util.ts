@@ -10,6 +10,10 @@ export function stricterObjectFromEntries<T extends object, V>(entries: [k: keyo
   return Object.fromEntries(entries) as Record<keyof T, V>;
 }
 
+export function stricterIsArray<T>(value: T): value is Extract<T, readonly unknown[]> {
+  return Array.isArray(value);
+}
+
 export interface ResizeObserverEvent<T extends HTMLElement> {
   target: T;
   entries: ResizeObserverEntry[];
