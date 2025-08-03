@@ -1,9 +1,7 @@
-import { DestroyRef, inject, signal } from '@angular/core';
+import { DestroyRef, inject, Injectable, signal } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 
 import { Application, Container, Ticker } from 'pixi.js';
-
-import { patchState, signalStore, withHooks, withMethods, withProps, withState } from '@ngrx/signals';
 
 import { MessageNode } from 'archipelago.js';
 
@@ -34,21 +32,6 @@ export interface GameState {
   mercyFactor: number;
   sluggishCarryover: boolean;
 }
-
-// Default state
-const initialState: GameState = {
-  paused: false,
-  messages: [],
-  foodFactor: 0,
-  luckFactor: 0,
-  energyFactor: 0,
-  styleFactor: 0,
-  distractionCounter: 0,
-  startledCounter: 0,
-  hasConfidence: false,
-  mercyFactor: 0,
-  sluggishCarryover: false,
-};
 
 // Local storage key
 const STORAGE_KEY = 'autopelago-game-state';
@@ -84,99 +67,156 @@ function loadFromStorage(): Partial<GameState> {
   return result;
 }
 
-export const GameStore = signalStore(
-  { providedIn: 'root' },
-  withState(() => ({
-    ...initialState,
-    ...loadFromStorage(),
-  })),
-  withProps(() => ({
-    pixiApplication: null as Application | null,
-    _plugins: signal<readonly RatPixiPlugin[]>([]),
-  })),
-  withMethods((store, destroyRef = inject(DestroyRef)) => ({
-    registerPlugin(plugin: RatPixiPlugin) {
-      store._plugins.update(p => [...p, plugin]);
-      if (plugin.destroyRef) {
-        plugin.destroyRef.onDestroy(() => {
-          store._plugins.update(p => p.filter(x => x !== plugin));
-        });
-      }
-    },
-    async initInterface(canvas: HTMLCanvasElement, outer: HTMLDivElement, interfaceDestroyRef: DestroyRef) {
-      if (store.pixiApplication) {
-        throw new Error('Already initialized');
-      }
+@Injectable({ providedIn: 'root' })
+export class GameStoreService {
+  readonly #paused = signal(false);
+  readonly #messages = signal<readonly Message[]>([]);
+  readonly #foodFactor = signal(0);
+  readonly #luckFactor = signal(0);
+  readonly #energyFactor = signal(0);
+  readonly #styleFactor = signal(0);
+  readonly #distractionCounter = signal(0);
+  readonly #startledCounter = signal(0);
+  readonly #hasConfidence = signal(false);
+  readonly #mercyFactor = signal(0);
+  readonly #sluggishCarryover = signal(false);
 
-      Ticker.shared.stop();
-      const app = store.pixiApplication = new Application();
-      interfaceDestroyRef.onDestroy(() => {
-        app.destroy();
-        store.pixiApplication = null;
-      });
-      const reciprocalOriginalWidth = 1 / canvas.width;
-      const reciprocalOriginalHeight = 1 / canvas.height;
-      await app.init({ canvas, resizeTo: outer, backgroundAlpha: 0, antialias: false, sharedTicker: true, autoStart: false });
-      Ticker.shared.stop();
+  readonly paused = this.#paused.asReadonly();
+  readonly messages = this.#messages.asReadonly();
+  readonly foodFactor = this.#foodFactor.asReadonly();
+  readonly luckFactor = this.#luckFactor.asReadonly();
+  readonly energyFactor = this.#energyFactor.asReadonly();
+  readonly styleFactor = this.#styleFactor.asReadonly();
+  readonly distractionCounter = this.#distractionCounter.asReadonly();
+  readonly startledCounter = this.#startledCounter.asReadonly();
+  readonly hasConfidence = this.#hasConfidence.asReadonly();
+  readonly mercyFactor = this.#mercyFactor.asReadonly();
+  readonly sluggishCarryover = this.#sluggishCarryover.asReadonly();
 
-      resizeEvents(outer).pipe(
-        // no need for a startWith: https://stackoverflow.com/a/60026394/1083771
-        takeUntilDestroyed(interfaceDestroyRef),
-        takeUntilDestroyed(destroyRef),
-      ).subscribe(({ target }) => {
-        app.stage.scale.x = target.clientWidth * reciprocalOriginalWidth;
-        app.stage.scale.y = target.clientHeight * reciprocalOriginalHeight;
-        app.resize();
+  #pixiApplication: Application | null = null;
+  readonly #plugins = signal<readonly RatPixiPlugin[]>([]);
+
+  readonly #destroyRef = inject(DestroyRef);
+
+  constructor() {
+    const ap = inject(ArchipelagoClient);
+    ap.events('messages', 'message')
+      .pipe(takeUntilDestroyed())
+      .subscribe((msg) => {
+        this.appendMessage({ ts: new Date(), originalNodes: msg[1] });
       });
 
-      for (const plugin of store._plugins()) {
-        if (plugin.afterInit) {
-          await plugin.afterInit(app, app.stage);
-          Ticker.shared.stop();
-        }
-      }
+    const gs = loadFromStorage();
+    if (gs.foodFactor) {
+      this.#foodFactor.set(gs.foodFactor);
+    }
+    if (gs.luckFactor) {
+      this.#luckFactor.set(gs.luckFactor);
+    }
+    if (gs.energyFactor) {
+      this.#energyFactor.set(gs.energyFactor);
+    }
+    if (gs.styleFactor) {
+      this.#styleFactor.set(gs.styleFactor);
+    }
+    if (gs.distractionCounter) {
+      this.#distractionCounter.set(gs.distractionCounter);
+    }
+    if (gs.startledCounter) {
+      this.#startledCounter.set(gs.startledCounter);
+    }
+    if (gs.hasConfidence) {
+      this.#hasConfidence.set(gs.hasConfidence);
+    }
+    if (gs.mercyFactor) {
+      this.#mercyFactor.set(gs.mercyFactor);
+    }
+    if (gs.sluggishCarryover) {
+      this.#sluggishCarryover.set(gs.sluggishCarryover);
+    }
+    if (gs.paused) {
+      this.#paused.set(gs.paused);
+    }
+    if (gs.messages) {
+      this.#messages.set(gs.messages);
+    }
+  }
 
-      if (store.paused()) {
-        app.resize();
-        app.render();
-      }
-      else {
-        Ticker.shared.start();
-      }
-    },
-    appendMessage(message: Message) {
-      patchState(store, s => ({ messages: [...s.messages, message] }));
-    },
-    pause() {
-      if (!store.paused()) {
-        patchState(store, { paused: true });
+  registerPlugin(plugin: RatPixiPlugin) {
+    this.#plugins.update(p => [...p, plugin]);
+    if (plugin.destroyRef) {
+      plugin.destroyRef.onDestroy(() => {
+        this.#plugins.update(p => p.filter(x => x !== plugin));
+      });
+    }
+  }
+
+  async initInterface(canvas: HTMLCanvasElement, outer: HTMLDivElement, interfaceDestroyRef: DestroyRef) {
+    if (this.#pixiApplication) {
+      throw new Error('Already initialized');
+    }
+
+    Ticker.shared.stop();
+    const app = this.#pixiApplication = new Application();
+    interfaceDestroyRef.onDestroy(() => {
+      app.destroy();
+      this.#pixiApplication = null;
+    });
+    const reciprocalOriginalWidth = 1 / canvas.width;
+    const reciprocalOriginalHeight = 1 / canvas.height;
+    await app.init({ canvas, resizeTo: outer, backgroundAlpha: 0, antialias: false, sharedTicker: true, autoStart: false });
+    Ticker.shared.stop();
+
+    resizeEvents(outer).pipe(
+      // no need for a startWith: https://stackoverflow.com/a/60026394/1083771
+      takeUntilDestroyed(interfaceDestroyRef),
+      takeUntilDestroyed(this.#destroyRef),
+    ).subscribe(({ target }) => {
+      app.stage.scale.x = target.clientWidth * reciprocalOriginalWidth;
+      app.stage.scale.y = target.clientHeight * reciprocalOriginalHeight;
+      app.resize();
+    });
+
+    for (const plugin of this.#plugins()) {
+      if (plugin.afterInit) {
+        await plugin.afterInit(app, app.stage);
         Ticker.shared.stop();
       }
-    },
-    unpause() {
-      if (store.paused()) {
-        patchState(store, { paused: false });
-        Ticker.shared.start();
-      }
-    },
-  })),
-  withMethods(store => ({
-    togglePause() {
-      if (store.paused()) {
-        store.unpause();
-      }
-      else {
-        store.pause();
-      }
-    },
-  })),
-  withHooks({
-    onInit(store, ap = inject(ArchipelagoClient)) {
-      ap.events('messages', 'message')
-        .pipe(takeUntilDestroyed())
-        .subscribe((msg) => {
-          store.appendMessage({ ts: new Date(), originalNodes: msg[1] });
-        });
-    },
-  }),
-);
+    }
+
+    if (this.#paused()) {
+      app.resize();
+      app.render();
+    }
+    else {
+      Ticker.shared.start();
+    }
+  }
+
+  appendMessage(message: Message) {
+    this.#messages.update(m => [...m, message]);
+  }
+
+  pause() {
+    if (!this.#paused()) {
+      this.#paused.set(true);
+      Ticker.shared.stop();
+    }
+  }
+
+  unpause() {
+    if (this.#paused()) {
+      this.#paused.set(false);
+      Ticker.shared.start();
+    }
+  }
+
+  togglePause() {
+    if (this.#paused()) {
+      this.unpause();
+    }
+    else {
+      this.pause();
+    }
+  }
+}

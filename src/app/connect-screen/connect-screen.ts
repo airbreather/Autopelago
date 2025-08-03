@@ -1,7 +1,7 @@
 import { Component, effect, ElementRef, inject, viewChild } from '@angular/core';
 
 import { AutopelagoService } from '../autopelago';
-import { ConnectScreenStore, createHostSelector } from '../store/connect-screen.store';
+import { ConnectScreenStoreService, createHostSelector } from '../store/connect-screen.store';
 
 @Component({
   selector: 'app-connect-screen',
@@ -144,7 +144,7 @@ import { ConnectScreenStore, createHostSelector } from '../store/connect-screen.
   `,
 })
 export class ConnectScreen {
-  readonly #store = inject(ConnectScreenStore);
+  readonly #store = inject(ConnectScreenStoreService);
   readonly #game = inject(AutopelagoService);
 
   // Expose store properties as getters for template access

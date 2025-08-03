@@ -6,7 +6,7 @@ import { map, mergeMap } from 'rxjs';
 import { SplitAreaComponent, SplitComponent } from 'angular-split';
 
 import { AutopelagoService } from '../autopelago';
-import { GameScreenStore } from '../store/game-screen-store';
+import { GameScreenStoreService } from '../store/game-screen-store';
 import { resizeEvents } from '../util';
 import { GameTabs } from './game-tabs/game-tabs';
 import { StatusDisplay } from './status-display/status-display';
@@ -37,7 +37,7 @@ import { StatusDisplay } from './status-display/status-display';
   `,
 })
 export class GameScreen implements OnDestroy {
-  readonly #store = inject(GameScreenStore);
+  readonly #store = inject(GameScreenStoreService);
   readonly #autopelago = inject(AutopelagoService);
   protected readonly splitRef = viewChild.required<SplitComponent>('split');
   protected readonly outerRef = viewChild.required<ElementRef<HTMLDivElement>>('outer');

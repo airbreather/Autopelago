@@ -10,7 +10,7 @@ import {
 
 import { RouterLink } from '@angular/router';
 
-import { ConnectScreenStore } from '../../../store/connect-screen.store';
+import { ConnectScreenStoreService } from '../../../store/connect-screen.store';
 import { resizeText } from '../../../util';
 
 @Component({
@@ -42,7 +42,7 @@ import { resizeText } from '../../../util';
   `,
 })
 export class PlayerNameAndNavigation implements AfterViewInit {
-  readonly #connectScreenStore = inject(ConnectScreenStore);
+  readonly #connectScreenStore = inject(ConnectScreenStoreService);
   readonly #destroy = inject(DestroyRef);
   readonly #injector = inject(Injector);
 

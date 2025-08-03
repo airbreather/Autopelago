@@ -2,13 +2,13 @@ import { inject, Injectable } from '@angular/core';
 import { Router } from '@angular/router';
 
 import { ArchipelagoClient } from './archipelago-client';
-import { ConnectScreenStore } from './store/connect-screen.store';
+import { ConnectScreenStoreService } from './store/connect-screen.store';
 
 @Injectable({
   providedIn: 'root',
 })
 export class AutopelagoService {
-  readonly #connectScreenStore = inject(ConnectScreenStore);
+  readonly #connectScreenStore = inject(ConnectScreenStoreService);
   readonly #ap = inject(ArchipelagoClient);
   readonly #router = inject(Router);
 

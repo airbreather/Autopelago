@@ -4,7 +4,7 @@ import { FillerMarkers } from './filler-markers/filler-markers';
 import { LandmarkMarkers } from './landmark-markers/landmark-markers';
 import { PauseButton } from './pause-button/pause-button';
 import { PlayerToken } from './player-token/player-token';
-import { GameStore } from '../../../store/autopelago-store';
+import { GameStoreService } from '../../../store/autopelago-store';
 
 @Component({
   selector: 'app-game-tab-map',
@@ -52,7 +52,7 @@ export class GameTabMap implements AfterViewInit {
   protected readonly pixiCanvas = viewChild.required<ElementRef<HTMLCanvasElement>>('pixiCanvas');
   protected readonly outerDiv = viewChild.required<ElementRef<HTMLDivElement>>('outer');
 
-  readonly #gameStore = inject(GameStore);
+  readonly #gameStore = inject(GameStoreService);
   readonly #destroy = inject(DestroyRef);
 
   ngAfterViewInit() {

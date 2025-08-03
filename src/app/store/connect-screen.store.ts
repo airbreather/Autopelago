@@ -1,6 +1,4 @@
-import { computed, effect } from '@angular/core';
-
-import { patchState, signalStore, withComputed, withHooks, withState, withMethods } from '@ngrx/signals';
+import { computed, effect, Injectable, signal } from '@angular/core';
 
 // Define the state interface
 export interface ConnectScreenState {
@@ -52,113 +50,186 @@ function loadFromStorage(): Partial<ConnectScreenState> {
   }
 }
 
-export const ConnectScreenStore = signalStore(
-  { providedIn: 'root' },
-  withState(() => ({
-    ...initialState,
-    ...loadFromStorage(),
-  })),
-  withHooks({
-    onInit(store) {
-      effect(() => {
-        try {
-          localStorage.setItem(STORAGE_KEY, JSON.stringify({
-            slot: store.slot(),
-            directHost: store.directHost(),
-            port: store.port(),
-            password: store.password(),
-            minTime: store.minTime(),
-            maxTime: store.maxTime(),
-            enableTileAnimations: store.enableTileAnimations(),
-            enableRatAnimations: store.enableRatAnimations(),
-            sendChatMessages: store.sendChatMessages(),
-            whenTargetChanges: store.whenTargetChanges(),
-            whenBecomingBlocked: store.whenBecomingBlocked(),
-            whenStillBlocked: store.whenStillBlocked(),
-            whenBecomingUnblocked: store.whenBecomingUnblocked(),
-            forOneTimeEvents: store.forOneTimeEvents(),
-          }));
-        }
-        catch {
-          // Silently fail if localStorage is not available
-        }
-      });
-    },
-  }),
-  withComputed(({ sendChatMessages, whenTargetChanges, whenBecomingBlocked, whenStillBlocked, whenBecomingUnblocked, forOneTimeEvents }) => ({
-    sendChatMessagesWhenTargetChanges: computed(() => sendChatMessages() && whenTargetChanges()),
-    sendChatMessagesWhenBecomingBlocked: computed(() => sendChatMessages() && whenBecomingBlocked()),
-    sendChatMessagesWhenStillBlocked: computed(() => sendChatMessages() && whenBecomingBlocked() && whenStillBlocked()),
-    sendChatMessagesWhenBecomingUnblocked: computed(() => sendChatMessages() && whenBecomingUnblocked()),
-    sendChatMessagesForOneTimeEvents: computed(() => sendChatMessages() && forOneTimeEvents()),
-  })),
-  withMethods(store => ({
-    updateSlot(slot: string) {
-      patchState(store, { slot });
-    },
+@Injectable({ providedIn: 'root' })
+export class ConnectScreenStoreService {
+  // State signals
+  readonly #slot = signal(initialState.slot);
+  readonly #directHost = signal(initialState.directHost);
+  readonly #port = signal(initialState.port);
+  readonly #password = signal(initialState.password);
+  readonly #minTime = signal(initialState.minTime);
+  readonly #maxTime = signal(initialState.maxTime);
+  readonly #enableTileAnimations = signal(initialState.enableTileAnimations);
+  readonly #enableRatAnimations = signal(initialState.enableRatAnimations);
+  readonly #sendChatMessages = signal(initialState.sendChatMessages);
+  readonly #whenTargetChanges = signal(initialState.whenTargetChanges);
+  readonly #whenBecomingBlocked = signal(initialState.whenBecomingBlocked);
+  readonly #whenStillBlocked = signal(initialState.whenStillBlocked);
+  readonly #whenBecomingUnblocked = signal(initialState.whenBecomingUnblocked);
+  readonly #forOneTimeEvents = signal(initialState.forOneTimeEvents);
 
-    updateDirectHost(directHost: string) {
-      const m = /(?<=:)\d+$/.exec(directHost);
-      if (m) {
-        const port = Number(m[0]);
-        patchState(store, { directHost, port });
+  // Public readonly signals
+  readonly slot = this.#slot.asReadonly();
+  readonly directHost = this.#directHost.asReadonly();
+  readonly port = this.#port.asReadonly();
+  readonly password = this.#password.asReadonly();
+  readonly minTime = this.#minTime.asReadonly();
+  readonly maxTime = this.#maxTime.asReadonly();
+  readonly enableTileAnimations = this.#enableTileAnimations.asReadonly();
+  readonly enableRatAnimations = this.#enableRatAnimations.asReadonly();
+  readonly sendChatMessages = this.#sendChatMessages.asReadonly();
+  readonly whenTargetChanges = this.#whenTargetChanges.asReadonly();
+  readonly whenBecomingBlocked = this.#whenBecomingBlocked.asReadonly();
+  readonly whenStillBlocked = this.#whenStillBlocked.asReadonly();
+  readonly whenBecomingUnblocked = this.#whenBecomingUnblocked.asReadonly();
+  readonly forOneTimeEvents = this.#forOneTimeEvents.asReadonly();
+
+  // Computed signals
+  readonly sendChatMessagesWhenTargetChanges = computed(() => this.sendChatMessages() && this.whenTargetChanges());
+  readonly sendChatMessagesWhenBecomingBlocked = computed(() => this.sendChatMessages() && this.whenBecomingBlocked());
+  readonly sendChatMessagesWhenStillBlocked = computed(() => this.sendChatMessages() && this.whenBecomingBlocked() && this.whenStillBlocked());
+  readonly sendChatMessagesWhenBecomingUnblocked = computed(() => this.sendChatMessages() && this.whenBecomingUnblocked());
+  readonly sendChatMessagesForOneTimeEvents = computed(() => this.sendChatMessages() && this.forOneTimeEvents());
+
+  constructor() {
+    // Load from storage and update signals
+    const stored = loadFromStorage();
+    if (stored.slot !== undefined) {
+      this.#slot.set(stored.slot);
+    }
+    if (stored.directHost !== undefined) {
+      this.#directHost.set(stored.directHost);
+    }
+    if (stored.port !== undefined) {
+      this.#port.set(stored.port);
+    }
+    if (stored.password !== undefined) {
+      this.#password.set(stored.password);
+    }
+    if (stored.minTime !== undefined) {
+      this.#minTime.set(stored.minTime);
+    }
+    if (stored.maxTime !== undefined) {
+      this.#maxTime.set(stored.maxTime);
+    }
+    if (stored.enableTileAnimations !== undefined) {
+      this.#enableTileAnimations.set(stored.enableTileAnimations);
+    }
+    if (stored.enableRatAnimations !== undefined) {
+      this.#enableRatAnimations.set(stored.enableRatAnimations);
+    }
+    if (stored.sendChatMessages !== undefined) {
+      this.#sendChatMessages.set(stored.sendChatMessages);
+    }
+    if (stored.whenTargetChanges !== undefined) {
+      this.#whenTargetChanges.set(stored.whenTargetChanges);
+    }
+    if (stored.whenBecomingBlocked !== undefined) {
+      this.#whenBecomingBlocked.set(stored.whenBecomingBlocked);
+    }
+    if (stored.whenStillBlocked !== undefined) {
+      this.#whenStillBlocked.set(stored.whenStillBlocked);
+    }
+    if (stored.whenBecomingUnblocked !== undefined) {
+      this.#whenBecomingUnblocked.set(stored.whenBecomingUnblocked);
+    }
+    if (stored.forOneTimeEvents !== undefined) {
+      this.#forOneTimeEvents.set(stored.forOneTimeEvents);
+    }
+
+    // Auto-save to localStorage
+    effect(() => {
+      try {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify({
+          slot: this.slot(),
+          directHost: this.directHost(),
+          port: this.port(),
+          password: this.password(),
+          minTime: this.minTime(),
+          maxTime: this.maxTime(),
+          enableTileAnimations: this.enableTileAnimations(),
+          enableRatAnimations: this.enableRatAnimations(),
+          sendChatMessages: this.sendChatMessages(),
+          whenTargetChanges: this.whenTargetChanges(),
+          whenBecomingBlocked: this.whenBecomingBlocked(),
+          whenStillBlocked: this.whenStillBlocked(),
+          whenBecomingUnblocked: this.whenBecomingUnblocked(),
+          forOneTimeEvents: this.forOneTimeEvents(),
+        }));
       }
-      else {
-        patchState(store, { directHost });
+      catch {
+        // Silently fail if localStorage is not available
       }
-    },
+    });
+  }
 
-    updatePassword(password: string) {
-      patchState(store, { password });
-    },
+  // Methods
+  updateSlot(slot: string) {
+    this.#slot.set(slot);
+  }
 
-    updateMinTime(minTime: number) {
-      patchState(store, { minTime });
-    },
+  updateDirectHost(directHost: string) {
+    const m = /(?<=:)\d+$/.exec(directHost);
+    if (m) {
+      const port = Number(m[0]);
+      this.#directHost.set(directHost);
+      this.#port.set(port);
+    }
+    else {
+      this.#directHost.set(directHost);
+    }
+  }
 
-    updateMaxTime(maxTime: number) {
-      patchState(store, { maxTime });
-    },
+  updatePassword(password: string) {
+    this.#password.set(password);
+  }
 
-    updateEnableTileAnimations(enableTileAnimations: boolean) {
-      patchState(store, { enableTileAnimations });
-    },
+  updateMinTime(minTime: number) {
+    this.#minTime.set(minTime);
+  }
 
-    updateEnableRatAnimations(enableRatAnimations: boolean) {
-      patchState(store, { enableRatAnimations });
-    },
+  updateMaxTime(maxTime: number) {
+    this.#maxTime.set(maxTime);
+  }
 
-    updateSendChatMessages(sendChatMessages: boolean) {
-      patchState(store, { sendChatMessages });
-    },
+  updateEnableTileAnimations(enableTileAnimations: boolean) {
+    this.#enableTileAnimations.set(enableTileAnimations);
+  }
 
-    updateWhenTargetChanges(whenTargetChanges: boolean) {
-      patchState(store, { whenTargetChanges });
-    },
+  updateEnableRatAnimations(enableRatAnimations: boolean) {
+    this.#enableRatAnimations.set(enableRatAnimations);
+  }
 
-    updateWhenBecomingBlocked(whenBecomingBlocked: boolean) {
-      patchState(store, { whenBecomingBlocked });
-    },
+  updateSendChatMessages(sendChatMessages: boolean) {
+    this.#sendChatMessages.set(sendChatMessages);
+  }
 
-    updateWhenStillBlocked(whenStillBlocked: boolean) {
-      patchState(store, { whenStillBlocked });
-    },
+  updateWhenTargetChanges(whenTargetChanges: boolean) {
+    this.#whenTargetChanges.set(whenTargetChanges);
+  }
 
-    updateWhenBecomingUnblocked(whenBecomingUnblocked: boolean) {
-      patchState(store, { whenBecomingUnblocked });
-    },
+  updateWhenBecomingBlocked(whenBecomingBlocked: boolean) {
+    this.#whenBecomingBlocked.set(whenBecomingBlocked);
+  }
 
-    updateForOneTimeEvents(forOneTimeEvents: boolean) {
-      patchState(store, { forOneTimeEvents });
-    },
+  updateWhenStillBlocked(whenStillBlocked: boolean) {
+    this.#whenStillBlocked.set(whenStillBlocked);
+  }
 
-    updatePort(port: number) {
-      patchState(store, { port });
-    },
-  })),
-);
+  updateWhenBecomingUnblocked(whenBecomingUnblocked: boolean) {
+    this.#whenBecomingUnblocked.set(whenBecomingUnblocked);
+  }
 
-export function createHostSelector(store: InstanceType<typeof ConnectScreenStore>) {
+  updateForOneTimeEvents(forOneTimeEvents: boolean) {
+    this.#forOneTimeEvents.set(forOneTimeEvents);
+  }
+
+  updatePort(port: number) {
+    this.#port.set(port);
+  }
+}
+
+export function createHostSelector(store: ConnectScreenStoreService) {
   return computed(() => {
     const directHost = store.directHost();
     const portFromHostMatch = /(?<=:)\d+$/.exec(directHost);

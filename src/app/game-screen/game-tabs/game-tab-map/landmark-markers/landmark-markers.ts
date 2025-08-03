@@ -5,7 +5,7 @@ import { AnimatedSprite, Assets, Container, Spritesheet, SpritesheetData, Textur
 import { DropShadowFilter } from 'pixi-filters';
 
 import { LANDMARKS } from '../../../../data/locations';
-import { GameStore } from '../../../../store/autopelago-store';
+import { GameStoreService } from '../../../../store/autopelago-store';
 
 // Create spritesheet data with frame definitions for each landmark
 const spritesheetData: SpritesheetData & Required<Pick<SpritesheetData, 'animations'>> = {
@@ -74,7 +74,7 @@ export class LandmarkMarkers {
       })],
     });
 
-    inject(GameStore).registerPlugin({
+    inject(GameStoreService).registerPlugin({
       destroyRef: inject(DestroyRef),
       async afterInit(_app, root) {
         root.addChild(landmarksContainer);
