@@ -26,7 +26,7 @@
     "@angular/forms": "^20.1.4",
     "@angular/platform-browser": "^20.1.4",
     "@angular/router": "^20.1.4",
-    "angular-split": "^19.0.0",
+    "angular-split": "^20.0.0",
     "archipelago.js": "^2.0.4",
     "normalize.css": "^8.0.1",
     "pixi-filters": "^6.1.4",
@@ -45,6 +45,6 @@
     "angular-eslint": "20.1.1",
     "eslint": "^9.32.0",
     "typescript": "~5.8.3",
-    "typescript-eslint": "8.34.1"
+    "typescript-eslint": "8.38.0"
   }
 }
