@@ -17,7 +17,7 @@ export class AutopelagoService {
 
     try {
       await this.#ap.connect({
-        directHost: this.#connectScreenStore.directHost(),
+        host: this.#connectScreenStore.host(),
         port: this.#connectScreenStore.port(),
         slot: this.#connectScreenStore.slot(),
         password: this.#connectScreenStore.password(),

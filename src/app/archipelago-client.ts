@@ -15,7 +15,7 @@ import {
 } from 'archipelago.js';
 
 export interface ConnectOptions {
-  directHost: string;
+  host: string;
   port: number;
   slot: string;
   password?: string;
@@ -82,9 +82,9 @@ export class ArchipelagoClient {
     );
   }
 
-  async connect({ directHost, port, slot, password }: ConnectOptions) {
-    const hostHasPort = /:\d+$/.test(directHost);
-    const url = hostHasPort ? directHost : `${directHost}:${port.toString()}`;
+  async connect({ host, port, slot, password }: ConnectOptions) {
+    const hostHasPort = /:\d+$/.test(host);
+    const url = hostHasPort ? host : `${host}:${port.toString()}`;
     try {
       // Disconnect any existing client
       this.disconnect();

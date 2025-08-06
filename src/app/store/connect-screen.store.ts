@@ -1,27 +1,9 @@
 import { computed, effect, Injectable, signal } from '@angular/core';
 
-// Define the state interface
-export interface ConnectScreenState {
-  slot: string;
-  directHost: string;
-  port: number;
-  password: string;
-  minTime: number;
-  maxTime: number;
-  enableTileAnimations: boolean;
-  enableRatAnimations: boolean;
-  sendChatMessages: boolean;
-  whenTargetChanges: boolean;
-  whenBecomingBlocked: boolean;
-  whenStillBlocked: boolean;
-  whenBecomingUnblocked: boolean;
-  forOneTimeEvents: boolean;
-}
-
 // Default state
-const initialState: ConnectScreenState = {
+const initialState = {
   slot: '',
-  directHost: 'archipelago.gg',
+  host: 'archipelago.gg',
   port: 38281,
   password: '',
   minTime: 20,
@@ -36,25 +18,11 @@ const initialState: ConnectScreenState = {
   forOneTimeEvents: true,
 };
 
-// Local storage key
-const STORAGE_KEY = 'autopelago-connect-screen-state';
-
-// Helper functions for local storage
-function loadFromStorage(): Partial<ConnectScreenState> {
-  try {
-    const stored = localStorage.getItem(STORAGE_KEY);
-    return stored ? JSON.parse(stored) as Partial<ConnectScreenState> : {};
-  }
-  catch {
-    return {};
-  }
-}
-
 @Injectable({ providedIn: 'root' })
 export class ConnectScreenStoreService {
   // State signals
   readonly #slot = signal(initialState.slot);
-  readonly #directHost = signal(initialState.directHost);
+  readonly #host = signal(initialState.host);
   readonly #port = signal(initialState.port);
   readonly #password = signal(initialState.password);
   readonly #minTime = signal(initialState.minTime);
@@ -70,7 +38,7 @@ export class ConnectScreenStoreService {
 
   // Public readonly signals
   readonly slot = this.#slot.asReadonly();
-  readonly directHost = this.#directHost.asReadonly();
+  readonly host = this.#host.asReadonly();
   readonly port = this.#port.asReadonly();
   readonly password = this.#password.asReadonly();
   readonly minTime = this.#minTime.asReadonly();
@@ -92,49 +60,60 @@ export class ConnectScreenStoreService {
   readonly sendChatMessagesForOneTimeEvents = computed(() => this.sendChatMessages() && this.forOneTimeEvents());
 
   constructor() {
-    // Load from storage and update signals
-    const stored = loadFromStorage();
-    if (stored.slot !== undefined) {
-      this.#slot.set(stored.slot);
+    // Local storage key
+    const STORAGE_KEY = 'autopelago-connect-screen-state';
+    try {
+      const storedJSON = localStorage.getItem(STORAGE_KEY);
+      if (storedJSON) {
+        const stored = JSON.parse(storedJSON) as unknown;
+        if (stored && typeof stored === 'object') {
+          if ('slot' in stored && typeof stored.slot === 'string') {
+            this.#slot.set(stored.slot);
+          }
+          if ('host' in stored && typeof stored.host === 'string') {
+            this.#host.set(stored.host);
+          }
+          if ('port' in stored && typeof stored.port === 'number') {
+            this.#port.set(stored.port);
+          }
+          if ('password' in stored && typeof stored.password === 'string') {
+            this.#password.set(stored.password);
+          }
+          if ('minTime' in stored && typeof stored.minTime === 'number') {
+            this.#minTime.set(stored.minTime);
+          }
+          if ('maxTime' in stored && typeof stored.maxTime === 'number') {
+            this.#maxTime.set(stored.maxTime);
+          }
+          if ('enableTileAnimations' in stored && typeof stored.enableTileAnimations === 'boolean') {
+            this.#enableTileAnimations.set(stored.enableTileAnimations);
+          }
+          if ('enableRatAnimations' in stored && typeof stored.enableRatAnimations === 'boolean') {
+            this.#enableRatAnimations.set(stored.enableRatAnimations);
+          }
+          if ('sendChatMessages' in stored && typeof stored.sendChatMessages === 'boolean') {
+            this.#sendChatMessages.set(stored.sendChatMessages);
+          }
+          if ('whenTargetChanges' in stored && typeof stored.whenTargetChanges === 'boolean') {
+            this.#whenTargetChanges.set(stored.whenTargetChanges);
+          }
+          if ('whenBecomingBlocked' in stored && typeof stored.whenBecomingBlocked === 'boolean') {
+            this.#whenBecomingBlocked.set(stored.whenBecomingBlocked);
+          }
+          if ('whenStillBlocked' in stored && typeof stored.whenStillBlocked === 'boolean') {
+            this.#whenStillBlocked.set(stored.whenStillBlocked);
+          }
+          if ('whenBecomingUnblocked' in stored && typeof stored.whenBecomingUnblocked === 'boolean') {
+            this.#whenBecomingUnblocked.set(stored.whenBecomingUnblocked);
+          }
+          if ('forOneTimeEvents' in stored && typeof stored.forOneTimeEvents === 'boolean') {
+            this.#forOneTimeEvents.set(stored.forOneTimeEvents);
+          }
+        }
+      }
     }
-    if (stored.directHost !== undefined) {
-      this.#directHost.set(stored.directHost);
-    }
-    if (stored.port !== undefined) {
-      this.#port.set(stored.port);
-    }
-    if (stored.password !== undefined) {
-      this.#password.set(stored.password);
-    }
-    if (stored.minTime !== undefined) {
-      this.#minTime.set(stored.minTime);
-    }
-    if (stored.maxTime !== undefined) {
-      this.#maxTime.set(stored.maxTime);
-    }
-    if (stored.enableTileAnimations !== undefined) {
-      this.#enableTileAnimations.set(stored.enableTileAnimations);
-    }
-    if (stored.enableRatAnimations !== undefined) {
-      this.#enableRatAnimations.set(stored.enableRatAnimations);
-    }
-    if (stored.sendChatMessages !== undefined) {
-      this.#sendChatMessages.set(stored.sendChatMessages);
-    }
-    if (stored.whenTargetChanges !== undefined) {
-      this.#whenTargetChanges.set(stored.whenTargetChanges);
-    }
-    if (stored.whenBecomingBlocked !== undefined) {
-      this.#whenBecomingBlocked.set(stored.whenBecomingBlocked);
-    }
-    if (stored.whenStillBlocked !== undefined) {
-      this.#whenStillBlocked.set(stored.whenStillBlocked);
-    }
-    if (stored.whenBecomingUnblocked !== undefined) {
-      this.#whenBecomingUnblocked.set(stored.whenBecomingUnblocked);
-    }
-    if (stored.forOneTimeEvents !== undefined) {
-      this.#forOneTimeEvents.set(stored.forOneTimeEvents);
+    catch {
+      // Silently fail if localStorage is not available
     }
 
     // Auto-save to localStorage
@@ -142,7 +121,7 @@ export class ConnectScreenStoreService {
       try {
         localStorage.setItem(STORAGE_KEY, JSON.stringify({
           slot: this.slot(),
-          directHost: this.directHost(),
+          host: this.host(),
           port: this.port(),
           password: this.password(),
           minTime: this.minTime(),
@@ -168,16 +147,24 @@ export class ConnectScreenStoreService {
     this.#slot.set(slot);
   }
 
-  updateDirectHost(directHost: string) {
+  updateHost(directHost: string) {
+    this.#host.set(directHost);
     const m = /(?<=:)\d+$/.exec(directHost);
     if (m) {
       const port = Number(m[0]);
-      this.#directHost.set(directHost);
       this.#port.set(port);
     }
-    else {
-      this.#directHost.set(directHost);
+  }
+
+  updatePort(port: number) {
+    if (Number.isInteger(port)) {
+      this.#host.update(h => h.replace(/(?<=:)\d+$/, port.toString()));
     }
+    else {
+      this.#host.update(h => h.replace(/:\d+$/, ''));
+    }
+
+    this.#port.set(port);
   }
 
   updatePassword(password: string) {
@@ -223,19 +210,4 @@ export class ConnectScreenStoreService {
   updateForOneTimeEvents(forOneTimeEvents: boolean) {
     this.#forOneTimeEvents.set(forOneTimeEvents);
   }
-
-  updatePort(port: number) {
-    this.#port.set(port);
-  }
-}
-
-export function createHostSelector(store: ConnectScreenStoreService) {
-  return computed(() => {
-    const directHost = store.directHost();
-    const portFromHostMatch = /(?<=:)\d+$/.exec(directHost);
-    const portFromHost = portFromHostMatch ? Number(portFromHostMatch[0]) : null;
-    return portFromHost === store.port()
-      ? directHost
-      : directHost.replace(/(:\d+)$/, '');
-  });
 }

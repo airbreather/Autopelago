@@ -9,8 +9,8 @@ import { ArchipelagoClient } from '../archipelago-client';
 import { resizeEvents } from '../util';
 
 export interface Message {
-  readonly ts: Date;
-  readonly originalNodes: readonly MessageNode[];
+  ts: Date;
+  originalNodes: readonly Readonly<MessageNode>[];
 }
 
 export interface RatPixiPlugin {
@@ -37,7 +37,7 @@ export interface GameState {
 const STORAGE_KEY = 'autopelago-game-state';
 
 // Helper functions for local storage
-function loadFromStorage(): Partial<GameState> {
+function loadFromStorage(): Partial<Pick<GameState, 'paused'>> {
   let result: unknown;
   try {
     const stored = localStorage.getItem(STORAGE_KEY);
@@ -55,12 +55,6 @@ function loadFromStorage(): Partial<GameState> {
   if ('paused' in result) {
     if (!(typeof result.paused === 'boolean')) {
       delete result.paused;
-    }
-  }
-
-  if ('messages' in result) {
-    if (!Array.isArray(result.messages)) {
-      delete result.messages;
     }
   }
 
@@ -99,6 +93,22 @@ export class GameStoreService {
   readonly #destroyRef = inject(DestroyRef);
 
   constructor() {
+    // Local storage key
+    const STORAGE_KEY = 'autopelago-connect-screen-state';
+    try {
+      const storedJSON = localStorage.getItem(STORAGE_KEY);
+      if (storedJSON) {
+        const stored = JSON.parse(storedJSON) as unknown;
+        if (stored && typeof stored === 'object') {
+          if ('paused' in stored && typeof stored.paused === 'boolean') {
+            this.#paused.set(stored.paused);
+          }
+        }
+      }
+    }
+    catch {
+      // Silently fail if localStorage is not available
+    }
     const ap = inject(ArchipelagoClient);
     ap.events('messages', 'message')
       .pipe(takeUntilDestroyed())
@@ -107,42 +117,10 @@ export class GameStoreService {
       });
 
     const gs = loadFromStorage();
-    if (gs.foodFactor) {
-      this.#foodFactor.set(gs.foodFactor);
-    }
-    if (gs.luckFactor) {
-      this.#luckFactor.set(gs.luckFactor);
-    }
-    if (gs.energyFactor) {
-      this.#energyFactor.set(gs.energyFactor);
-    }
-    if (gs.styleFactor) {
-      this.#styleFactor.set(gs.styleFactor);
-    }
-    if (gs.distractionCounter) {
-      this.#distractionCounter.set(gs.distractionCounter);
-    }
-    if (gs.startledCounter) {
-      this.#startledCounter.set(gs.startledCounter);
-    }
-    if (gs.hasConfidence) {
-      this.#hasConfidence.set(gs.hasConfidence);
-    }
-    if (gs.mercyFactor) {
-      this.#mercyFactor.set(gs.mercyFactor);
-    }
-    if (gs.sluggishCarryover) {
-      this.#sluggishCarryover.set(gs.sluggishCarryover);
-    }
-    if (gs.paused) {
-      this.#paused.set(gs.paused);
-    }
-    if (gs.messages) {
-      this.#messages.set(gs.messages);
-    }
+    this.#paused.set(!!gs.paused);
   }
 
-  registerPlugin(plugin: RatPixiPlugin) {
+  registerPlugin(plugin: Readonly<RatPixiPlugin>) {
     this.#plugins.update(p => [...p, plugin]);
     if (plugin.destroyRef) {
       plugin.destroyRef.onDestroy(() => {
@@ -193,22 +171,18 @@ export class GameStoreService {
     }
   }
 
-  appendMessage(message: Message) {
+  appendMessage(message: Readonly<Message>) {
     this.#messages.update(m => [...m, message]);
   }
 
   pause() {
-    if (!this.#paused()) {
-      this.#paused.set(true);
-      Ticker.shared.stop();
-    }
+    this.#paused.set(true);
+    Ticker.shared.stop();
   }
 
   unpause() {
-    if (this.#paused()) {
-      this.#paused.set(false);
-      Ticker.shared.start();
-    }
+    this.#paused.set(false);
+    Ticker.shared.start();
   }
 
   togglePause() {

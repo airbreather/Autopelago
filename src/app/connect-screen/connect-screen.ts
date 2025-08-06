@@ -1,7 +1,7 @@
 import { Component, effect, ElementRef, inject, viewChild } from '@angular/core';
 
 import { AutopelagoService } from '../autopelago';
-import { ConnectScreenStoreService, createHostSelector } from '../store/connect-screen.store';
+import { ConnectScreenStoreService } from '../store/connect-screen.store';
 
 @Component({
   selector: 'app-connect-screen',
@@ -17,12 +17,14 @@ import { ConnectScreenStoreService, createHostSelector } from '../store/connect-
                (input)="updateSlot(slotInput.value)" />
         <label for="host">Host:</label>
         <input #hostInput
+               required
                id="host"
                type="text"
                [value]="host()"
-               (input)="updateDirectHost(hostInput.value)" />
+               (input)="updateHost(hostInput.value)" />
         <label for="port">Port:</label>
         <input #portInput
+               required
                id="port"
                type="number"
                min="1"
@@ -161,9 +163,7 @@ export class ConnectScreen {
   readonly whenStillBlocked = this.#store.whenStillBlocked;
   readonly whenBecomingUnblocked = this.#store.whenBecomingUnblocked;
   readonly forOneTimeEvents = this.#store.forOneTimeEvents;
-
-  // Computed properties from selectors
-  readonly host = createHostSelector(this.#store);
+  readonly host = this.#store.host;
 
   protected readonly minTimeInput = viewChild<ElementRef<HTMLInputElement>>('minTimeInput');
   protected readonly maxTimeInput = viewChild<ElementRef<HTMLInputElement>>('maxTimeInput');
@@ -186,7 +186,7 @@ export class ConnectScreen {
   }
 
   updateSlot(value: string) { this.#store.updateSlot(value); }
-  updateDirectHost(value: string) { this.#store.updateDirectHost(value); }
+  updateHost(value: string) { this.#store.updateHost(value); }
   updatePassword(value: string) { this.#store.updatePassword(value); }
   updateMinTime(value: number) { this.#store.updateMinTime(value); }
   updateMaxTime(value: number) { this.#store.updateMaxTime(value); }
