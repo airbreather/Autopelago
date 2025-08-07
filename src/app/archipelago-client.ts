@@ -41,11 +41,12 @@ export class ArchipelagoClient {
   readonly #clientSubject = new BehaviorSubject<Client | null>(null);
 
   isAuthenticated = rxResource({
+    defaultValue: false,
     stream: () => merge(
       this.events('socket', 'connected').pipe(map(() => true)),
       this.events('socket', 'disconnected').pipe(map(() => false)),
     ),
-  });
+  }).asReadonly();
 
   async say(message: string) {
     const client = this.#clientSubject.value;

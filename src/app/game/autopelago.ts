@@ -1,8 +1,8 @@
 import { inject, Injectable } from '@angular/core';
 import { Router } from '@angular/router';
 
-import { ArchipelagoClient } from './archipelago-client';
-import { ConnectScreenStoreService } from './store/connect-screen.store';
+import { ArchipelagoClient } from '../archipelago-client';
+import { ConnectScreenStoreService } from '../store/connect-screen.store';
 
 @Injectable({
   providedIn: 'root',
@@ -28,6 +28,7 @@ export class AutopelagoService {
     catch (error) {
       console.error('Failed to connect to Archipelago server:', error);
       // TODO: Show user-friendly error message
+      return;
     }
   }
 

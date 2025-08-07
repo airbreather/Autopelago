@@ -1,6 +1,6 @@
 import { Component, effect, ElementRef, inject, viewChild } from '@angular/core';
 
-import { AutopelagoService } from '../autopelago';
+import { AutopelagoService } from '../game/autopelago';
 import { ConnectScreenStoreService } from '../store/connect-screen.store';
 
 @Component({

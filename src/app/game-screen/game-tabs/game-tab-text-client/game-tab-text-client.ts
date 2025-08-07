@@ -1,6 +1,6 @@
 import { Component, inject, signal } from '@angular/core';
 
-import { AutopelagoService } from '../../../autopelago';
+import { AutopelagoService } from '../../../game/autopelago';
 import { GameStoreService } from '../../../store/autopelago-store';
 import { ConnectScreenStoreService } from '../../../store/connect-screen.store';
 
@@ -23,14 +23,14 @@ import { ConnectScreenStoreService } from '../../../store/connect-screen.store';
                 <span class="entrance-message">{{ messageNode.text }}</span>
               }
               @case ('player') {
-                <span class="player-message" [class.own-player-message]="messageNode.player.name === ownName()">{{ messageNode.text }}</span>
+                <span class="player-message" [class.own-player-message]="'player' in messageNode ? messageNode.player.name === ownName() : null">{{ messageNode.text }}</span>
               }
               @case ('item') {
                 <span class="item-message"
-                      [class.progression]="messageNode.item.progression"
-                      [class.filler]="messageNode.item.filler"
-                      [class.useful]="messageNode.item.useful"
-                      [class.trap]="messageNode.item.trap">{{ messageNode.text }}</span>
+                      [class.progression]="'item' in messageNode ? messageNode.item.progression : null"
+                      [class.filler]="'item' in messageNode ? messageNode.item.filler : null"
+                      [class.useful]="'item' in messageNode ? messageNode.item.useful : null"
+                      [class.trap]="'item' in messageNode ? messageNode.item.trap : null">{{ messageNode.text }}</span>
               }
               @case ('location') {
                 <span class="location-message">{{ messageNode.text }}</span>
@@ -40,7 +40,7 @@ import { ConnectScreenStoreService } from '../../../store/connect-screen.store';
                   not really correct, but technically the only color nodes the server returns is "green" or "red"
                   so it's fine enough for an example.
                 -->
-                <span [style.color]="messageNode.color">{{ messageNode.text }}</span>
+                <span [style.color]="'color' in messageNode ? messageNode.color : null">{{ messageNode.text }}</span>
               }
               @default {
                 <span>{{ messageNode.text }}</span>

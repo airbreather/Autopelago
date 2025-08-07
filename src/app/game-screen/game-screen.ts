@@ -5,7 +5,7 @@ import { map, mergeMap } from 'rxjs';
 
 import { SplitAreaComponent, SplitComponent } from 'angular-split';
 
-import { AutopelagoService } from '../autopelago';
+import { AutopelagoService } from '../game/autopelago';
 import { GameScreenStoreService } from '../store/game-screen-store';
 import { resizeEvents } from '../util';
 import { GameTabs } from './game-tabs/game-tabs';
