@@ -72,6 +72,7 @@ import { ConnectScreenStoreService } from '../../../store/connect-screen.store';
       flex: 0;
       margin-block-start: 0;
       margin-block-end: 0;
+      white-space: pre;
     }
 
     .player-message {
