@@ -8,9 +8,13 @@ You are an expert in TypeScript, Angular, and scalable web application developme
 - The ESLint configuration in this project is maximally strict. Regular use of `bun run lint` is expected. `bun run lint --fix` for issues with auto fixes.
 
 ## TypeScript Best Practices
-- Use strict type checking.
+- Use strict type checking:
+  1. NEVER use the `any` type. There is ALWAYS an alternative.
+  2. When a type is truly uncertain, use `unknown` and have the compiler guide you to making the correct runtime type checks.
+  3. Cast sparingly (stylistically: using `as`, never `<>`) and only when runtime type checking would be impossible or overkill.
+    - An example of where it would be overkill is in `game-definitions-store.ts`, where we use it on the result of `YAML.parse`.
+    - An example of where it would be impossible is in `archipelago-client.ts`, where it's used to plug a gap in the compiler so that everything that uses the result can be type checked.
 - Prefer type inference when the type is obvious.
-- Avoid the `any` type; use `unknown` when type is uncertain.
 - Order `import` lines as follows:
   1. Core Angular modules
   2. RxJS
@@ -37,8 +41,7 @@ You are an expert in TypeScript, Angular, and scalable web application developme
 
 ## State Management
 - Use `signal`s for local component state.
-- Consider NgRx Signals for complex application state.
-- Avoid overusing services as global state containers.
+- Consider using services for more global state.
 - Keep state transformations pure and predictable.
 
 ## Templates

@@ -2,6 +2,7 @@ import { inject, Injectable } from '@angular/core';
 import { Router } from '@angular/router';
 
 import { ArchipelagoClient } from '../archipelago-client';
+import { GameStoreService } from '../store/autopelago-store';
 import { ConnectScreenStoreService } from '../store/connect-screen.store';
 
 @Injectable({
@@ -11,6 +12,13 @@ export class AutopelagoService {
   readonly #connectScreenStore = inject(ConnectScreenStoreService);
   readonly #ap = inject(ArchipelagoClient);
   readonly #router = inject(Router);
+
+  // this is unused for now, but it is expected to be used later, and putting it here forces it to
+  // get initialized at the correct time (otherwise we miss a few messages in the Text Client tab).
+  /* eslint-disable no-unused-private-class-members */
+  // noinspection JSUnusedLocalSymbols
+  readonly #gameStore = inject(GameStoreService);
+  /* eslint-enable no-unused-private-class-members */
 
   async connect() {
     this.disconnect();
