@@ -6,43 +6,57 @@ interface DetermineTargetLocationOptionsCommon {
   currentLocation: number;
   isStartled: boolean;
   defs: Readonly<AutopelagoDefinitions>;
-  landmarkRegionIsLocked: Readonly<BitArray>;
+  regionIsLocked: Readonly<BitArray>;
+  locationIsChecked: Readonly<BitArray>;
 }
 
 interface DetermineTargetLocationOptionsStartled extends DetermineTargetLocationOptionsCommon {
   isStartled: true;
-  landmarkRegionIsChecked: Readonly<BitArray>;
 }
 
-interface DetermineTargetLocationOptionsNotStartled extends DetermineTargetLocationOptionsCommon {
+interface DetermineTargetLocationOptionsNotStartledCommon extends DetermineTargetLocationOptionsCommon {
   isStartled: false;
-  isSmart: boolean;
-  isConspiratorial: boolean;
+  victoryLandmarkRegion: number;
+  locationIsAcceptedBySmart: Readonly<BitArray>;
+  locationIsAcceptedByConspiratorial: Readonly<BitArray>;
+}
+
+interface DetermineTargetLocationOptionsNoExtraConditions extends DetermineTargetLocationOptionsNotStartledCommon {
+  isSmart: false;
+  isConspiratorial: false;
+  userRequestedLocations: readonly number[];
+}
+
+interface DetermineTargetLocationOptionsNotStartledButSmart extends DetermineTargetLocationOptionsNotStartledCommon {
+  isSmart: true;
+  isConspiratorial: false;
+}
+
+interface DetermineTargetLocationOptionsNotStartledButConspiratorial extends DetermineTargetLocationOptionsNotStartledCommon {
+  isSmart: false;
+  isConspiratorial: true;
 }
 
 export type DetermineTargetLocationOptions =
-  DetermineTargetLocationOptionsNotStartled | DetermineTargetLocationOptionsStartled;
+  DetermineTargetLocationOptionsNoExtraConditions
+  | DetermineTargetLocationOptionsStartled
+  | DetermineTargetLocationOptionsNotStartledButSmart
+  | DetermineTargetLocationOptionsNotStartledButConspiratorial;
 
-interface DetermineRouteOptionsCommon {
+export interface DetermineRouteOptions {
   currentLocation: number;
   targetLocation: number;
   isStartled: boolean;
   defs: Readonly<AutopelagoDefinitions>;
-  landmarkRegionIsLocked: Readonly<BitArray>;
+  regionIsLocked: Readonly<BitArray>;
+  locationIsChecked: Readonly<BitArray>;
 }
-
-interface DetermineRouteOptionsStartled extends DetermineRouteOptionsCommon {
-  isStartled: true;
-  landmarkRegionIsChecked: Readonly<BitArray>;
-}
-
-export type DetermineRouteOptions =
-  DetermineRouteOptionsCommon | DetermineRouteOptionsStartled;
 
 export type TargetLocationReason =
   'game-not-started'
   | 'nowhere-useful-to-move'
   | 'closest-reachable-unchecked'
+  | 'user-requested'
   | 'priority'
   | 'smart'
   | 'conspiratorial'
