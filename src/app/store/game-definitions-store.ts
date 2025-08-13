@@ -1,7 +1,7 @@
 import { httpResource } from '@angular/common/http';
 import { computed, Injectable, signal } from '@angular/core';
 
-import YAML from 'yaml';
+import { parse as YAMLParse } from 'yaml';
 
 import { resolveDefinitions } from '../data/resolved-definitions';
 import { AutopelagoDefinitionsYamlFile } from '../data/definitions-file';
@@ -13,7 +13,7 @@ export class GameDefinitionsStoreService {
   readonly #defsResource = httpResource.text(() => 'assets/AutopelagoDefinitions.yml');
   readonly #defs = computed(() => {
     const file = this.#defsResource.value();
-    return file ? YAML.parse(file) as unknown as AutopelagoDefinitionsYamlFile : null;
+    return file ? YAMLParse(file) as unknown as AutopelagoDefinitionsYamlFile : null;
   });
 
   readonly resolvedDefs = computed(() => {
