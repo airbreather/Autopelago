@@ -1,4 +1,5 @@
-﻿import { effect, Injectable, signal } from '@angular/core';
+﻿import { effect } from '@angular/core';
+import { patchState, signalStore, withHooks, withMethods, withState } from '@ngrx/signals';
 
 const ALL_GAME_TABS_ARRAY = ['map', 'text-client', 'arcade'] as const;
 const ALL_GAME_TABS = new Set<string>(ALL_GAME_TABS_ARRAY);
@@ -50,48 +51,35 @@ function loadFromStorage(): Partial<GameScreenState> {
   return result;
 }
 
-@Injectable({ providedIn: 'root' })
-export class GameScreenStoreService {
-  // State signals
-  readonly #leftSize = signal<number | null>(initialState.leftSize);
-  readonly #currentTab = signal<GameTab>(initialState.currentTab);
-
-  // Public readonly signals
-  readonly leftSize = this.#leftSize.asReadonly();
-  readonly currentTab = this.#currentTab.asReadonly();
-
-  constructor() {
-    // Load from storage and update signals
-    const stored = loadFromStorage();
-    if (stored.leftSize !== undefined) {
-      this.#leftSize.set(stored.leftSize);
-    }
-    if (stored.currentTab !== undefined) {
-      this.#currentTab.set(stored.currentTab);
-    }
-
-    // Auto-save to localStorage
-    effect(() => {
-      try {
-        localStorage.setItem(STORAGE_KEY, JSON.stringify({
-          leftSize: this.leftSize(),
-          currentTab: this.currentTab(),
-        }));
+export const GameScreenStore = signalStore(
+  { providedIn: 'root' },
+  withState(() => ({
+    ...initialState,
+    ...loadFromStorage(),
+  })),
+  withHooks({
+    onInit(store) {
+      effect(() => {
+        try {
+          localStorage.setItem(STORAGE_KEY, JSON.stringify({
+            leftSize: store.leftSize(),
+            currentTab: store.currentTab(),
+          }));
+        }
+        catch {
+          // Silently fail if localStorage is not available
+        }
+      });
+    },
+  }),
+  withMethods(store => ({
+    updateLeftSize(leftSize: number) {
+      patchState(store, { leftSize });
+    },
+    updateCurrentTab(currentTab: GameTab) {
+      if (currentTab !== 'arcade') {
+        patchState(store, { currentTab });
       }
-      catch {
-        // Silently fail if localStorage is not available
-      }
-    });
-  }
-
-  // Methods
-  updateLeftSize(leftSize: number) {
-    this.#leftSize.set(leftSize);
-  }
-
-  updateCurrentTab(currentTab: GameTab) {
-    if (currentTab !== 'arcade') {
-      this.#currentTab.set(currentTab);
-    }
-  }
-}
+    },
+  })),
+);

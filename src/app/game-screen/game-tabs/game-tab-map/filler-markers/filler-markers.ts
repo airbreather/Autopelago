@@ -6,7 +6,7 @@ import { DropShadowFilter } from 'pixi-filters';
 
 import { fillerRegions } from '../../../../data/locations';
 import { GameStoreService } from '../../../../store/autopelago-store';
-import { GameDefinitionsStoreService } from '../../../../store/game-definitions-store';
+import { GameDefinitionsStore } from '../../../../store/game-definitions-store';
 import { strictObjectEntries } from '../../../../util';
 
 @Component({
@@ -18,7 +18,7 @@ import { strictObjectEntries } from '../../../../util';
 // eslint-disable-next-line @typescript-eslint/no-extraneous-class
 export class FillerMarkers {
   constructor() {
-    const store = inject(GameDefinitionsStoreService);
+    const store = inject(GameDefinitionsStore);
     const graphicsContainer = new Container({
       filters: [new DropShadowFilter({
         blur: 1,
