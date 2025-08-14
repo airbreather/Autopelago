@@ -1,5 +1,4 @@
 import {
-  AfterViewInit,
   Component,
   DestroyRef,
   ElementRef,
@@ -41,10 +40,8 @@ import { resizeText } from '../../../util';
     }
   `,
 })
-export class PlayerNameAndNavigation implements AfterViewInit {
+export class PlayerNameAndNavigation {
   readonly #connectScreenStore = inject(ConnectScreenStoreService);
-  readonly #destroy = inject(DestroyRef);
-  readonly #injector = inject(Injector);
 
   readonly playerName = this.#connectScreenStore.slot;
 
@@ -52,8 +49,10 @@ export class PlayerNameAndNavigation implements AfterViewInit {
   readonly playerNameElement = viewChild.required<ElementRef<HTMLElement>>('playerNameDiv');
   readonly returnButtonElement = viewChild.required<ElementRef<HTMLElement>>('returnButton');
 
-  ngAfterViewInit(): void {
-    resizeText({ outer: this.outerElement, inner: this.playerNameElement, max: 50, destroy: this.#destroy, injector: this.#injector });
-    resizeText({ outer: this.outerElement, inner: this.returnButtonElement, max: 30, destroy: this.#destroy, injector: this.#injector });
+  constructor() {
+    const destroy = inject(DestroyRef);
+    const injector = inject(Injector);
+    resizeText({ outer: this.outerElement, inner: this.playerNameElement, max: 50, destroy, injector });
+    resizeText({ outer: this.outerElement, inner: this.returnButtonElement, max: 30, destroy, injector });
   }
 }

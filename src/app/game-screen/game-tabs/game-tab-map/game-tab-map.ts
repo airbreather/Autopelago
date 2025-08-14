@@ -1,4 +1,4 @@
-import { AfterViewInit, Component, DestroyRef, ElementRef, inject, viewChild } from '@angular/core';
+import { Component, DestroyRef, effect, ElementRef, inject, viewChild } from '@angular/core';
 
 import { FillerMarkers } from './filler-markers/filler-markers';
 import { LandmarkMarkers } from './landmark-markers/landmark-markers';
@@ -48,16 +48,18 @@ import { GameStoreService } from '../../../store/autopelago-store';
     }
   `,
 })
-export class GameTabMap implements AfterViewInit {
+export class GameTabMap {
   protected readonly pixiCanvas = viewChild.required<ElementRef<HTMLCanvasElement>>('pixiCanvas');
   protected readonly outerDiv = viewChild.required<ElementRef<HTMLDivElement>>('outer');
 
   readonly #gameStore = inject(GameStoreService);
   readonly #destroy = inject(DestroyRef);
 
-  ngAfterViewInit() {
-    const canvas = this.pixiCanvas().nativeElement;
-    const outerDiv = this.outerDiv().nativeElement;
-    void this.#gameStore.initInterface(canvas, outerDiv, this.#destroy);
+  constructor() {
+    effect(() => {
+      const canvas = this.pixiCanvas().nativeElement;
+      const outerDiv = this.outerDiv().nativeElement;
+      void this.#gameStore.initInterface(canvas, outerDiv, this.#destroy);
+    });
   }
 }

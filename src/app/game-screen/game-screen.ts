@@ -1,4 +1,4 @@
-import { Component, computed, ElementRef, inject, OnDestroy, viewChild } from '@angular/core';
+import { Component, computed, DestroyRef, ElementRef, inject, viewChild } from '@angular/core';
 import { rxResource, takeUntilDestroyed, toObservable } from '@angular/core/rxjs-interop';
 
 import { map, mergeMap } from 'rxjs';
@@ -36,7 +36,7 @@ import { StatusDisplay } from './status-display/status-display';
     }
   `,
 })
-export class GameScreen implements OnDestroy {
+export class GameScreen {
   readonly #store = inject(GameScreenStoreService);
   readonly #autopelago = inject(AutopelagoService);
   protected readonly splitRef = viewChild.required<SplitComponent>('split');
@@ -92,10 +92,9 @@ export class GameScreen implements OnDestroy {
     ).subscribe((evt) => {
       this.#store.updateLeftSize(evt.sizes[0] as number);
     });
-  }
-
-  ngOnDestroy() {
-    this.#autopelago.disconnect();
+    inject(DestroyRef).onDestroy(() => {
+      this.#autopelago.disconnect();
+    });
   }
 
   onGutterDblClick() {

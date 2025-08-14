@@ -1,12 +1,12 @@
 import {
   Component,
-  signal,
   computed,
+  DestroyRef,
   ElementRef,
   inject,
-  DestroyRef,
   Injector,
-  viewChild, AfterViewInit,
+  signal,
+  viewChild,
 } from '@angular/core';
 
 import { resizeText } from '../../../util';
@@ -175,10 +175,7 @@ import { resizeText } from '../../../util';
     }
   `,
 })
-export class AurasDisplay implements AfterViewInit {
-  readonly #destroy = inject(DestroyRef);
-  readonly #injector = inject(Injector);
-
+export class AurasDisplay {
   readonly outerElement = viewChild.required<ElementRef<HTMLElement>>('outer');
   readonly ratCountElement = viewChild.required<ElementRef<HTMLElement>>('ratCountElement');
 
@@ -210,7 +207,9 @@ export class AurasDisplay implements AfterViewInit {
     return Math.abs(value / 5) * 50;
   });
 
-  ngAfterViewInit(): void {
-    resizeText({ outer: this.outerElement, inner: this.ratCountElement, max: 30, destroy: this.#destroy, injector: this.#injector });
+  constructor() {
+    const destroy = inject(DestroyRef);
+    const injector = inject(Injector);
+    resizeText({ outer: this.outerElement, inner: this.ratCountElement, max: 30, destroy, injector });
   }
 }
