@@ -9,7 +9,7 @@ import {
 
 import { RouterLink } from '@angular/router';
 
-import { ConnectScreenStoreService } from '../../../store/connect-screen.store';
+import { ConnectScreenStore } from '../../../store/connect-screen.store';
 import { resizeText } from '../../../util';
 
 @Component({
@@ -41,7 +41,7 @@ import { resizeText } from '../../../util';
   `,
 })
 export class PlayerNameAndNavigation {
-  readonly #connectScreenStore = inject(ConnectScreenStoreService);
+  readonly #connectScreenStore = inject(ConnectScreenStore);
 
   readonly playerName = this.#connectScreenStore.slot;
 

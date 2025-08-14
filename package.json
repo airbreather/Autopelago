@@ -27,6 +27,7 @@
     "@angular/platform-browser": "^20.1.7",
     "@angular/router": "^20.1.7",
     "@bitarray/typedarray": "^1.1.1",
+    "@ngrx/signals": "^20.0.0",
     "angular-split": "^20.0.0",
     "archipelago.js": "^2.0.4",
     "normalize.css": "^8.0.1",
