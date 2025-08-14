@@ -52,14 +52,14 @@ export class GameTabMap {
   protected readonly pixiCanvas = viewChild.required<ElementRef<HTMLCanvasElement>>('pixiCanvas');
   protected readonly outerDiv = viewChild.required<ElementRef<HTMLDivElement>>('outer');
 
-  readonly #gameStore = inject(GameStoreService);
-  readonly #destroy = inject(DestroyRef);
-
   constructor() {
+    const gameStore = inject(GameStoreService);
+    const destroy = inject(DestroyRef);
+
     effect(() => {
       const canvas = this.pixiCanvas().nativeElement;
       const outerDiv = this.outerDiv().nativeElement;
-      void this.#gameStore.initInterface(canvas, outerDiv, this.#destroy);
+      void gameStore.initInterface(canvas, outerDiv, destroy);
     });
   }
 }
