@@ -1,6 +1,6 @@
-import { Component, computed, DestroyRef, effect, inject, signal } from '@angular/core';
+import { Component, computed, DestroyRef, effect, inject } from '@angular/core';
 
-import { Application, Container, Graphics } from 'pixi.js';
+import { Container, Graphics } from 'pixi.js';
 
 import { DropShadowFilter } from 'pixi-filters';
 
@@ -42,13 +42,7 @@ export class FillerMarkers {
 
       return gfx;
     });
-    const pixiApp = signal<Application | null>(null);
     effect(() => {
-      const app = pixiApp();
-      if (!app) {
-        return;
-      }
-
       const gfx = graphics();
       if (graphicsContainer.children.length > 0) {
         if (gfx) {
@@ -67,7 +61,6 @@ export class FillerMarkers {
       destroyRef: inject(DestroyRef),
       afterInit(app) {
         app.stage.addChild(graphicsContainer);
-        pixiApp.set(app);
       },
     });
   }

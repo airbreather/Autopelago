@@ -8,12 +8,13 @@ import { resizeEvents } from './util';
 
 export interface RatPixiPlugin {
   destroyRef?: DestroyRef;
-  afterInit?(this: void, app: Application): PromiseLike<void> | void;
+  afterInit?(this: void, app: Application): void;
 }
 
 @Injectable()
 export class PixiPlugins {
   #pixiApplication: Application | null = null;
+  #initialized = false;
   readonly #plugins: RatPixiPlugin[] = [];
   readonly #destroyRef = inject(DestroyRef);
   readonly #gameStore = inject(GameStore);
@@ -37,14 +38,22 @@ export class PixiPlugins {
       });
     }
 
-    if (this.#pixiApplication && plugin.afterInit) {
-      void plugin.afterInit(this.#pixiApplication);
+    if (this.#pixiApplication && this.#initialized && plugin.afterInit) {
+      plugin.afterInit(this.#pixiApplication);
+      if (this.#gameStore.paused()) {
+        this.#pixiApplication.render();
+        Ticker.shared.stop();
+      }
     }
   }
 
   async initInterface(canvas: HTMLCanvasElement, outer: HTMLDivElement, interfaceDestroyRef: DestroyRef) {
     if (this.#pixiApplication) {
-      throw new Error('Already initialized');
+      if (this.#initialized) {
+        throw new Error('Already initialized');
+      }
+
+      this.#destroyApp();
     }
 
     Ticker.shared.stop();
@@ -58,6 +67,7 @@ export class PixiPlugins {
     const reciprocalOriginalWidth = 1 / canvas.width;
     const reciprocalOriginalHeight = 1 / canvas.height;
     await app.init({ canvas, resizeTo: outer, backgroundAlpha: 0, antialias: false, sharedTicker: true, autoStart: false });
+    this.#initialized = true;
     Ticker.shared.stop();
 
     resizeEvents(outer).pipe(
@@ -72,7 +82,7 @@ export class PixiPlugins {
 
     for (const plugin of this.#plugins) {
       if (plugin.afterInit) {
-        await plugin.afterInit(app);
+        plugin.afterInit(app);
         Ticker.shared.stop();
       }
     }
@@ -90,6 +100,7 @@ export class PixiPlugins {
     if (this.#pixiApplication) {
       this.#pixiApplication.destroy();
       this.#pixiApplication = null;
+      this.#initialized = false;
     }
   }
 }

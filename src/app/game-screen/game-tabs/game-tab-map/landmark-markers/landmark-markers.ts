@@ -1,4 +1,4 @@
-import { Component, DestroyRef, inject } from '@angular/core';
+import { Component, DestroyRef, effect, inject, resource } from '@angular/core';
 
 import { AnimatedSprite, Assets, Container, Spritesheet, SpritesheetData, Texture, Ticker } from 'pixi.js';
 
@@ -51,8 +51,8 @@ for (const [landmarkKey, landmark] of Object.entries(LANDMARKS)) {
 }
 
 const spritesheetPromise = (async () => {
-  const loadSpritesheetTexture = Assets.load<Texture>('assets/images/locations.webp');
-  const spritesheet = new Spritesheet(await loadSpritesheetTexture, spritesheetData);
+  const spritesheetTexture = await Assets.load<Texture>('assets/images/locations.webp');
+  const spritesheet = new Spritesheet(spritesheetTexture, spritesheetData);
   await spritesheet.parse();
   return spritesheet;
 })();
@@ -66,6 +66,12 @@ const spritesheetPromise = (async () => {
 // eslint-disable-next-line @typescript-eslint/no-extraneous-class
 export class LandmarkMarkers {
   constructor() {
+    const spritesheetResource = resource({
+      loader: () => spritesheetPromise,
+    });
+
+    const pixiPlugins = inject(PixiPlugins);
+    const destroyRef = inject(DestroyRef);
     const landmarksContainer = new Container({
       filters: [new DropShadowFilter({
         blur: 1,
@@ -74,22 +80,29 @@ export class LandmarkMarkers {
       })],
     });
 
-    inject(PixiPlugins).registerPlugin({
-      destroyRef: inject(DestroyRef),
-      async afterInit(app) {
-        app.stage.addChild(landmarksContainer);
-        const spritesheet = await spritesheetPromise;
+    const effectRef = effect(() => {
+      const spritesheet = spritesheetResource.value();
+      if (!spritesheet) {
+        return;
+      }
 
-        // Create sprites for each landmark
-        landmarksContainer.addChild(...Object.entries(LANDMARKS).map(([landmarkKey, landmark]) => {
-          const isOn = Math.random() < 0.5;
-          const anim = new AnimatedSprite(spritesheet.animations[`${landmarkKey}_${isOn ? 'on' : 'off'}`]);
-          anim.animationSpeed = 1 / (500 * Ticker.targetFPMS);
-          anim.position.set(landmark.coords[0] - 8, landmark.coords[1] - 8);
-          anim.play();
-          return anim;
-        }));
-      },
+      pixiPlugins.registerPlugin({
+        destroyRef,
+        afterInit(app) {
+          app.stage.addChild(landmarksContainer);
+
+          // Create sprites for each landmark
+          landmarksContainer.addChild(...Object.entries(LANDMARKS).map(([landmarkKey, landmark]) => {
+            const isOn = Math.random() < 0.5;
+            const anim = new AnimatedSprite(spritesheet.animations[`${landmarkKey}_${isOn ? 'on' : 'off'}`]);
+            anim.animationSpeed = 1 / (500 * Ticker.targetFPMS);
+            anim.position.set(landmark.coords[0] - 8, landmark.coords[1] - 8);
+            anim.play();
+            return anim;
+          }));
+          effectRef.destroy();
+        },
+      });
     });
   }
 }

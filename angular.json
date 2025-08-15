@@ -85,6 +85,11 @@
                 }
               ],
               "outputHashing": "all",
+              "optimization": {
+                "styles": {
+                  "inlineCritical": false
+                }
+              },
               "sourceMap": true
             },
             "development": {

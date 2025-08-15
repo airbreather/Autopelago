@@ -1,6 +1,6 @@
-import { Component, DestroyRef, effect, inject, signal } from '@angular/core';
+import { Component, DestroyRef, effect, inject, resource } from '@angular/core';
 
-import { Application, Assets, Container, Sprite, Texture, Ticker } from 'pixi.js';
+import { Assets, Container, Sprite, Texture, Ticker } from 'pixi.js';
 
 import { DropShadowFilter } from 'pixi-filters';
 
@@ -26,14 +26,11 @@ export class PlayerToken {
   cycleTime = 0;
 
   constructor() {
-    const initData = signal({
-      texture: null as Texture | null,
-      app: null as Application | null,
+    const destroyRef = inject(DestroyRef);
+    const pixiPlugins = inject(PixiPlugins);
+    const textureResource = resource({
+      loader: () => Assets.load<Texture>('assets/images/players/pack_rat.webp'),
     });
-    void Assets.load<Texture>('assets/images/players/pack_rat.webp').then((texture) => {
-      initData.update(d => ({ ...d, texture }));
-    });
-
     this.playerTokenContainer.position.set(2, 80);
     this.playerTokenContainer.scale.set(0.25);
     this.playerTokenContainer.filters = [new DropShadowFilter({
@@ -41,28 +38,24 @@ export class PlayerToken {
       offset: { x: 6, y: 6 },
       color: 'black',
     })];
-    effect(() => {
-      const { texture, app } = initData();
-      if (!(texture && app)) {
+    const effectRef = effect(() => {
+      const texture = textureResource.value();
+      if (!texture) {
         return;
       }
 
-      app.stage.removeChild(this.playerTokenContainer);
+      pixiPlugins.registerPlugin({
+        destroyRef,
+        afterInit: (app) => {
+          this.playerTokenContainer.removeChildren();
+          const playerToken = new Sprite(texture);
+          playerToken.anchor.set(0.5);
+          this.playerTokenContainer.addChild(playerToken);
 
-      this.playerTokenContainer.removeChildren();
-      const playerToken = new Sprite(texture);
-      playerToken.anchor.set(0.5);
-      this.playerTokenContainer.addChild(playerToken);
-
-      app.stage.addChild(this.playerTokenContainer);
-    });
-
-    const destroyRef = inject(DestroyRef);
-    inject(PixiPlugins).registerPlugin({
-      destroyRef,
-      afterInit(app) {
-        initData.update(d => ({ ...d, app }));
-      },
+          app.stage.addChild(this.playerTokenContainer);
+        },
+      });
+      effectRef.destroy();
     });
 
     Ticker.shared.add(doRotation, this);
