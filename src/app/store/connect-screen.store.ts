@@ -1,5 +1,7 @@
-import { computed, effect } from '@angular/core';
-import { patchState, signalStore, withComputed, withHooks, withMethods, withState } from '@ngrx/signals';
+import { computed } from '@angular/core';
+
+import { patchState, signalStore, withComputed, withMethods } from '@ngrx/signals';
+import { withImmutableState, withStorageSync } from '@angular-architects/ngrx-toolkit';
 
 // Default state
 const initialState = {
@@ -22,50 +24,10 @@ const initialState = {
 // Local storage key
 const STORAGE_KEY = 'autopelago-connect-screen-state';
 
-// Helper functions for local storage
-function loadFromStorage(): Partial<typeof initialState> {
-  try {
-    const stored = localStorage.getItem(STORAGE_KEY);
-    return stored ? JSON.parse(stored) as Partial<typeof initialState> : {};
-  }
-  catch {
-    return {};
-  }
-}
-
 export const ConnectScreenStore = signalStore(
   { providedIn: 'root' },
-  withState(() => ({
-    ...initialState,
-    ...loadFromStorage(),
-  })),
-  withHooks({
-    onInit(store) {
-      effect(() => {
-        try {
-          localStorage.setItem(STORAGE_KEY, JSON.stringify({
-            slot: store.slot(),
-            host: store.host(),
-            port: store.port(),
-            password: store.password(),
-            minTime: store.minTime(),
-            maxTime: store.maxTime(),
-            enableTileAnimations: store.enableTileAnimations(),
-            enableRatAnimations: store.enableRatAnimations(),
-            sendChatMessages: store.sendChatMessages(),
-            whenTargetChanges: store.whenTargetChanges(),
-            whenBecomingBlocked: store.whenBecomingBlocked(),
-            whenStillBlocked: store.whenStillBlocked(),
-            whenBecomingUnblocked: store.whenBecomingUnblocked(),
-            forOneTimeEvents: store.forOneTimeEvents(),
-          }));
-        }
-        catch {
-          // Silently fail if localStorage is not available
-        }
-      });
-    },
-  }),
+  withImmutableState(initialState),
+  withStorageSync(STORAGE_KEY),
   withComputed(({ sendChatMessages, whenTargetChanges, whenBecomingBlocked, whenStillBlocked, whenBecomingUnblocked, forOneTimeEvents }) => ({
     sendChatMessagesWhenTargetChanges: computed(() => sendChatMessages() && whenTargetChanges()),
     sendChatMessagesWhenBecomingBlocked: computed(() => sendChatMessages() && whenBecomingBlocked()),

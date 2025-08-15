@@ -20,6 +20,7 @@
   },
   "private": true,
   "dependencies": {
+    "@angular-architects/ngrx-toolkit": "^20.0.1",
     "@angular/common": "^20.1.7",
     "@angular/compiler": "^20.1.7",
     "@angular/core": "^20.1.7",
