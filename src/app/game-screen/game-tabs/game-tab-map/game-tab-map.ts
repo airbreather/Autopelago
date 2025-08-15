@@ -1,10 +1,10 @@
-import { Component, DestroyRef, effect, ElementRef, inject, viewChild } from '@angular/core';
+import { Component, effect, ElementRef, inject, viewChild } from '@angular/core';
 
+import { PixiPlugins } from '../../../pixi-plugins';
 import { FillerMarkers } from './filler-markers/filler-markers';
 import { LandmarkMarkers } from './landmark-markers/landmark-markers';
 import { PauseButton } from './pause-button/pause-button';
 import { PlayerToken } from './player-token/player-token';
-import { GameStoreService } from '../../../store/autopelago-store';
 
 @Component({
   selector: 'app-game-tab-map',
@@ -53,13 +53,11 @@ export class GameTabMap {
   protected readonly outerDiv = viewChild.required<ElementRef<HTMLDivElement>>('outer');
 
   constructor() {
-    const gameStore = inject(GameStoreService);
-    const destroy = inject(DestroyRef);
-
+    const pixiPlugins = inject(PixiPlugins);
     effect(() => {
       const canvas = this.pixiCanvas().nativeElement;
       const outerDiv = this.outerDiv().nativeElement;
-      void gameStore.initInterface(canvas, outerDiv, destroy);
+      void pixiPlugins.initInterface(canvas, outerDiv);
     });
   }
 }

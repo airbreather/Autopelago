@@ -4,7 +4,7 @@ import { Application, Assets, Container, Sprite, Texture, Ticker } from 'pixi.js
 
 import { DropShadowFilter } from 'pixi-filters';
 
-import { GameStoreService } from '../../../../store/autopelago-store';
+import { PixiPlugins } from '../../../../pixi-plugins';
 
 const ROTATION_SCALE = Math.PI / 3200;
 const CYCLE = 1000;
@@ -59,7 +59,7 @@ export class PlayerToken {
     });
 
     const destroyRef = inject(DestroyRef);
-    inject(GameStoreService).registerPlugin({
+    inject(PixiPlugins).registerPlugin({
       destroyRef,
       afterInit(app, root) {
         initData.update(d => ({ ...d, app, root }));

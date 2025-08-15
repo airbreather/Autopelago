@@ -5,7 +5,7 @@ import { Application, Container, Graphics } from 'pixi.js';
 import { DropShadowFilter } from 'pixi-filters';
 
 import { fillerRegions } from '../../../../data/locations';
-import { GameStoreService } from '../../../../store/autopelago-store';
+import { PixiPlugins } from '../../../../pixi-plugins';
 import { GameDefinitionsStore } from '../../../../store/game-definitions-store';
 import { strictObjectEntries } from '../../../../util';
 
@@ -63,7 +63,7 @@ export class FillerMarkers {
       }
     });
 
-    inject(GameStoreService).registerPlugin({
+    inject(PixiPlugins).registerPlugin({
       destroyRef: inject(DestroyRef),
       afterInit(app, root) {
         root.addChild(graphicsContainer);
