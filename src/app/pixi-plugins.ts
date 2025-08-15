@@ -1,14 +1,14 @@
 import { DestroyRef, effect, inject, Injectable } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 
-import { Application, Container, Ticker } from 'pixi.js';
+import { Application, Ticker } from 'pixi.js';
 
 import { GameStoreService } from './store/autopelago-store';
 import { resizeEvents } from './util';
 
 export interface RatPixiPlugin {
   destroyRef?: DestroyRef;
-  afterInit?(this: void, app: Application, root: Container): PromiseLike<void> | void;
+  afterInit?(this: void, app: Application): PromiseLike<void> | void;
 }
 
 @Injectable()
@@ -36,9 +36,13 @@ export class PixiPlugins {
         this.#plugins.splice(this.#plugins.indexOf(plugin), 1);
       });
     }
+
+    if (this.#pixiApplication && plugin.afterInit) {
+      void plugin.afterInit(this.#pixiApplication);
+    }
   }
 
-  async initInterface(canvas: HTMLCanvasElement, outer: HTMLDivElement) {
+  async initInterface(canvas: HTMLCanvasElement, outer: HTMLDivElement, interfaceDestroyRef: DestroyRef) {
     if (this.#pixiApplication) {
       throw new Error('Already initialized');
     }
@@ -46,6 +50,10 @@ export class PixiPlugins {
     Ticker.shared.stop();
     const app = this.#pixiApplication = new Application();
     this.#destroyRef.onDestroy(() => {
+      app.destroy();
+      this.#pixiApplication = null;
+    });
+    interfaceDestroyRef.onDestroy(() => {
       app.destroy();
       this.#pixiApplication = null;
     });
@@ -57,6 +65,7 @@ export class PixiPlugins {
     resizeEvents(outer).pipe(
       // no need for a startWith: https://stackoverflow.com/a/60026394/1083771
       takeUntilDestroyed(this.#destroyRef),
+      takeUntilDestroyed(interfaceDestroyRef),
     ).subscribe(({ target }) => {
       app.stage.scale.x = target.clientWidth * reciprocalOriginalWidth;
       app.stage.scale.y = target.clientHeight * reciprocalOriginalHeight;
@@ -65,7 +74,7 @@ export class PixiPlugins {
 
     for (const plugin of this.#plugins) {
       if (plugin.afterInit) {
-        await plugin.afterInit(app, app.stage);
+        await plugin.afterInit(app);
         Ticker.shared.stop();
       }
     }

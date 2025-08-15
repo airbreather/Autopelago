@@ -76,8 +76,8 @@ export class LandmarkMarkers {
 
     inject(PixiPlugins).registerPlugin({
       destroyRef: inject(DestroyRef),
-      async afterInit(_app, root) {
-        root.addChild(landmarksContainer);
+      async afterInit(app) {
+        app.stage.addChild(landmarksContainer);
         const spritesheet = await spritesheetPromise;
 
         // Create sprites for each landmark

@@ -29,7 +29,6 @@ export class PlayerToken {
     const initData = signal({
       texture: null as Texture | null,
       app: null as Application | null,
-      root: null as Container | null,
     });
     void Assets.load<Texture>('assets/images/players/pack_rat.webp').then((texture) => {
       initData.update(d => ({ ...d, texture }));
@@ -43,26 +42,26 @@ export class PlayerToken {
       color: 'black',
     })];
     effect(() => {
-      const { texture, app, root } = initData();
-      if (!(texture && app && root)) {
+      const { texture, app } = initData();
+      if (!(texture && app)) {
         return;
       }
 
-      root.removeChild(this.playerTokenContainer);
+      app.stage.removeChild(this.playerTokenContainer);
 
       this.playerTokenContainer.removeChildren();
       const playerToken = new Sprite(texture);
       playerToken.anchor.set(0.5);
       this.playerTokenContainer.addChild(playerToken);
 
-      root.addChild(this.playerTokenContainer);
+      app.stage.addChild(this.playerTokenContainer);
     });
 
     const destroyRef = inject(DestroyRef);
     inject(PixiPlugins).registerPlugin({
       destroyRef,
-      afterInit(app, root) {
-        initData.update(d => ({ ...d, app, root }));
+      afterInit(app) {
+        initData.update(d => ({ ...d, app }));
       },
     });
 

@@ -65,8 +65,8 @@ export class FillerMarkers {
 
     inject(PixiPlugins).registerPlugin({
       destroyRef: inject(DestroyRef),
-      afterInit(app, root) {
-        root.addChild(graphicsContainer);
+      afterInit(app) {
+        app.stage.addChild(graphicsContainer);
         pixiApp.set(app);
       },
     });

@@ -1,4 +1,4 @@
-import { Component, effect, ElementRef, inject, viewChild } from '@angular/core';
+import { Component, DestroyRef, effect, ElementRef, inject, viewChild } from '@angular/core';
 
 import { PixiPlugins } from '../../../pixi-plugins';
 import { FillerMarkers } from './filler-markers/filler-markers';
@@ -53,11 +53,12 @@ export class GameTabMap {
   protected readonly outerDiv = viewChild.required<ElementRef<HTMLDivElement>>('outer');
 
   constructor() {
+    const destroyRef = inject(DestroyRef);
     const pixiPlugins = inject(PixiPlugins);
     effect(() => {
       const canvas = this.pixiCanvas().nativeElement;
       const outerDiv = this.outerDiv().nativeElement;
-      void pixiPlugins.initInterface(canvas, outerDiv);
+      void pixiPlugins.initInterface(canvas, outerDiv, destroyRef);
     });
   }
 }
