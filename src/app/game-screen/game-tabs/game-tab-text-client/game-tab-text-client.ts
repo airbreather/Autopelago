@@ -1,7 +1,7 @@
 import { Component, inject, signal } from '@angular/core';
 
 import { AutopelagoService } from '../../../game/autopelago';
-import { GameStoreService } from '../../../store/autopelago-store';
+import { GameStore } from '../../../store/autopelago-store';
 import { ConnectScreenStore } from '../../../store/connect-screen.store';
 
 @Component({
@@ -138,7 +138,7 @@ import { ConnectScreenStore } from '../../../store/connect-screen.store';
 export class GameTabTextClient {
   readonly #ap = inject(AutopelagoService);
   readonly #connectScreenStore = inject(ConnectScreenStore);
-  readonly #store = inject(GameStoreService);
+  readonly #store = inject(GameStore);
   readonly ownName = this.#connectScreenStore.slot;
   readonly messages = this.#store.messages;
   readonly dateFormatter = new Intl.DateTimeFormat(navigator.languages[0], { dateStyle: 'short', timeStyle: 'medium' });

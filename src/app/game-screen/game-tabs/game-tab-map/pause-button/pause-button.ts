@@ -1,6 +1,6 @@
 import { Component, inject } from '@angular/core';
 
-import { GameStoreService } from '../../../../store/autopelago-store';
+import { GameStore } from '../../../../store/autopelago-store';
 
 @Component({
   selector: 'app-pause-button',
@@ -15,7 +15,7 @@ import { GameStoreService } from '../../../../store/autopelago-store';
   styles: '',
 })
 export class PauseButton {
-  readonly #store = inject(GameStoreService);
+  readonly #store = inject(GameStore);
 
   readonly paused = this.#store.paused;
 

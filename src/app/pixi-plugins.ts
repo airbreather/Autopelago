@@ -3,7 +3,7 @@ import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 
 import { Application, Ticker } from 'pixi.js';
 
-import { GameStoreService } from './store/autopelago-store';
+import { GameStore } from './store/autopelago-store';
 import { resizeEvents } from './util';
 
 export interface RatPixiPlugin {
@@ -16,7 +16,7 @@ export class PixiPlugins {
   #pixiApplication: Application | null = null;
   readonly #plugins: RatPixiPlugin[] = [];
   readonly #destroyRef = inject(DestroyRef);
-  readonly #gameStore = inject(GameStoreService);
+  readonly #gameStore = inject(GameStore);
 
   constructor() {
     effect(() => {
@@ -50,12 +50,10 @@ export class PixiPlugins {
     Ticker.shared.stop();
     const app = this.#pixiApplication = new Application();
     this.#destroyRef.onDestroy(() => {
-      app.destroy();
-      this.#pixiApplication = null;
+      this.#destroyApp();
     });
     interfaceDestroyRef.onDestroy(() => {
-      app.destroy();
-      this.#pixiApplication = null;
+      this.#destroyApp();
     });
     const reciprocalOriginalWidth = 1 / canvas.width;
     const reciprocalOriginalHeight = 1 / canvas.height;
@@ -85,6 +83,13 @@ export class PixiPlugins {
     }
     else {
       Ticker.shared.start();
+    }
+  }
+
+  #destroyApp() {
+    if (this.#pixiApplication) {
+      this.#pixiApplication.destroy();
+      this.#pixiApplication = null;
     }
   }
 }
