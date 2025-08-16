@@ -69,6 +69,23 @@ export interface TargetLocationResult {
 }
 
 export function determineTargetLocation(options: Readonly<DetermineTargetLocationOptions>): TargetLocationResult {
+  if (options.isStartled) {
+    return {
+      location: options.defs.startLocation,
+      reason: 'startled',
+    };
+  }
+
+  const victoryLandmarkRegion = options.defs.allRegions[options.victoryLandmarkRegion];
+  if ('loc' in victoryLandmarkRegion // always true, but required for the compiler
+    && !options.regionIsLocked.at(options.victoryLandmarkRegion)
+    && !options.locationIsChecked.at(victoryLandmarkRegion.loc)) {
+    return {
+      location: victoryLandmarkRegion.loc,
+      reason: 'go-mode',
+    };
+  }
+
   return {
     location: options.currentLocation,
     reason: 'nowhere-useful-to-move',
