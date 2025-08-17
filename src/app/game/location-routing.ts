@@ -1,47 +1,13 @@
 import BitArray from '@bitarray/typedarray';
+import Queue from 'yocto-queue';
 
 import { AutopelagoDefinitions } from '../data/resolved-definitions';
 
-interface DetermineTargetLocationOptionsCommon {
+export interface DetermineTargetLocationOptions {
   currentLocation: number;
-  isStartled: boolean;
   defs: Readonly<AutopelagoDefinitions>;
-  regionIsLocked: Readonly<BitArray>;
-  locationIsChecked: Readonly<BitArray>;
+  desirability: readonly number[];
 }
-
-interface DetermineTargetLocationOptionsStartled extends DetermineTargetLocationOptionsCommon {
-  isStartled: true;
-}
-
-interface DetermineTargetLocationOptionsNotStartledCommon extends DetermineTargetLocationOptionsCommon {
-  isStartled: false;
-  victoryLandmarkRegion: number;
-  locationIsAcceptedBySmart: Readonly<BitArray>;
-  locationIsAcceptedByConspiratorial: Readonly<BitArray>;
-}
-
-interface DetermineTargetLocationOptionsNoExtraConditions extends DetermineTargetLocationOptionsNotStartledCommon {
-  isSmart: false;
-  isConspiratorial: false;
-  userRequestedLocations: readonly number[];
-}
-
-interface DetermineTargetLocationOptionsNotStartledButSmart extends DetermineTargetLocationOptionsNotStartledCommon {
-  isSmart: true;
-  isConspiratorial: false;
-}
-
-interface DetermineTargetLocationOptionsNotStartledButConspiratorial extends DetermineTargetLocationOptionsNotStartledCommon {
-  isSmart: false;
-  isConspiratorial: true;
-}
-
-export type DetermineTargetLocationOptions =
-  DetermineTargetLocationOptionsNoExtraConditions
-  | DetermineTargetLocationOptionsStartled
-  | DetermineTargetLocationOptionsNotStartledButSmart
-  | DetermineTargetLocationOptionsNotStartledButConspiratorial;
 
 export interface DetermineRouteOptions {
   currentLocation: number;
@@ -57,11 +23,29 @@ export type TargetLocationReason =
   | 'nowhere-useful-to-move'
   | 'closest-reachable-unchecked'
   | 'user-requested'
-  | 'priority'
-  | 'smart'
-  | 'conspiratorial'
+  | 'aura-driven'
   | 'go-mode'
   | 'startled';
+
+export const Desirability = {
+  STARTLED: 6,
+  GO_MODE: 5,
+  AURA_DRIVEN: 4,
+  USER_REQUESTED: 3,
+  UNCHECKED: 2,
+  CHECKED: 1,
+  AVOID: 0,
+} as const;
+
+const desirabilityMap: TargetLocationReason[] = [
+  'game-not-started',
+  'nowhere-useful-to-move',
+  'closest-reachable-unchecked',
+  'user-requested',
+  'aura-driven',
+  'go-mode',
+  'startled',
+];
 
 export interface TargetLocationResult {
   location: number;
@@ -69,26 +53,35 @@ export interface TargetLocationResult {
 }
 
 export function determineTargetLocation(options: Readonly<DetermineTargetLocationOptions>): TargetLocationResult {
-  if (options.isStartled) {
-    return {
-      location: options.defs.startLocation,
-      reason: 'startled',
-    };
+  const { currentLocation, defs: { allLocations }, desirability } = options;
+  let bestLocation = currentLocation;
+  let resultDesirability = -1;
+  const visited = new BitArray(allLocations.length);
+  const q = new Queue<number>();
+  function tryEnqueue(loc: number) {
+    if (!visited[loc]) {
+      q.enqueue(loc);
+      visited[loc] = 1;
+    }
   }
+  tryEnqueue(currentLocation);
+  for (let loc = q.dequeue(); loc !== undefined; loc = q.dequeue()) {
+    const d = desirability[loc];
+    if (d > resultDesirability) {
+      bestLocation = loc;
+      resultDesirability = d;
+    }
 
-  const victoryLandmarkRegion = options.defs.allRegions[options.victoryLandmarkRegion];
-  if ('loc' in victoryLandmarkRegion // always true, but required for the compiler
-    && !options.regionIsLocked.at(options.victoryLandmarkRegion)
-    && !options.locationIsChecked.at(victoryLandmarkRegion.loc)) {
-    return {
-      location: victoryLandmarkRegion.loc,
-      reason: 'go-mode',
-    };
+    for (const [nxt] of allLocations[loc].connected.all) {
+      if (desirability[nxt] > 0) {
+        tryEnqueue(nxt);
+      }
+    }
   }
 
   return {
-    location: options.currentLocation,
-    reason: 'nowhere-useful-to-move',
+    location: bestLocation,
+    reason: desirabilityMap[resultDesirability],
   };
 }
 
