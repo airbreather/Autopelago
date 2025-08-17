@@ -30,6 +30,7 @@ export type TargetLocationReason =
 export const Desirability = {
   STARTLED: 6,
   GO_MODE: 5,
+  // Smart / Conspiratorial overrides current!
   AURA_DRIVEN: 4,
   USER_REQUESTED: 3,
   UNCHECKED: 2,
