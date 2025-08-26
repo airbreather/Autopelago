@@ -92,7 +92,7 @@ export class ArchipelagoClient {
 
       const client = new Client();
       this.#clientSubject.next(client);
-      await client.login(url, slot, 'Autopelago', { password });
+      await client.login(url, slot, 'Autopelago', { password, slotData: true });
     }
     catch (error) {
       this.disconnect();

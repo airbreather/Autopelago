@@ -6,19 +6,23 @@ export interface AutopelagoDefinitionsYamlFile {
   regions: Readonly<YamlRegions>;
 }
 
-export type AutopelagoAura =
+export type AutopelagoBuff =
   'well_fed'
-  | 'upset_tummy'
   | 'lucky'
-  | 'unlucky'
   | 'energized'
+  | 'stylish'
+  | 'smart'
+  | 'confident';
+
+export type AutopelagoTrap =
+  | 'upset_tummy'
+  | 'unlucky'
   | 'sluggish'
   | 'distracted'
-  | 'stylish'
   | 'startled'
-  | 'smart'
-  | 'conspiratorial'
-  | 'confident';
+  | 'conspiratorial';
+
+export type AutopelagoAura = AutopelagoBuff | AutopelagoTrap;
 
 type YamlItemName = string | readonly [lactoseName: string, lactoseIntolerantName: string];
 type YamlNonProgressionTypeName = 'useful_nonprogression' | 'trap' | 'filler';

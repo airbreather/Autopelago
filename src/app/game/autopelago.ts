@@ -1,9 +1,32 @@
 import { inject, Injectable } from '@angular/core';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { Router } from '@angular/router';
 
+import { ConnectedPacket } from 'archipelago.js';
+
 import { ArchipelagoClient } from '../archipelago-client';
+import { AutopelagoBuff, AutopelagoTrap } from '../data/definitions-file';
+import { LandmarkName } from '../data/locations';
 import { GameStore } from '../store/autopelago-store';
 import { ConnectScreenStore } from '../store/connect-screen.store';
+
+interface AutopelagoSlotData {
+  version_stamp: string;
+  victory_location_name: LandmarkName;
+  enabled_buffs: readonly AutopelagoBuff[];
+  enabled_traps: readonly AutopelagoTrap[];
+  msg_changed_target: readonly string[];
+  msg_enter_go_mode: readonly string[];
+  msg_enter_bk: readonly string[];
+  msg_remind_bk: readonly string[];
+  msg_exit_bk: readonly string[];
+  msg_completed_goal: readonly string[];
+  lactose_intolerant: boolean;
+}
+
+type AutopelagoConnectedPacket = ConnectedPacket & {
+  readonly slot_data: Readonly<AutopelagoSlotData>;
+};
 
 @Injectable({
   providedIn: 'root',
@@ -19,6 +42,15 @@ export class AutopelagoService {
   // noinspection JSUnusedLocalSymbols
   readonly #gameStore = inject(GameStore);
   /* eslint-enable no-unused-private-class-members */
+
+  constructor() {
+    this.#ap.events('socket', 'connected').pipe(
+      takeUntilDestroyed(),
+    ).subscribe(([packet]) => {
+      // noinspection JSUnusedLocalSymbols
+      const _slotData = (packet as unknown as AutopelagoConnectedPacket).slot_data;
+    });
+  }
 
   async connect() {
     this.disconnect();
