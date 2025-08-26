@@ -1,8 +1,8 @@
 import { httpResource } from '@angular/common/http';
 import { computed } from '@angular/core';
 
-import { patchState, signalStore, withComputed, withMethods, withProps } from '@ngrx/signals';
-import { withImmutableState } from '@angular-architects/ngrx-toolkit';
+import { patchState, signalStore, withComputed, withMethods } from '@ngrx/signals';
+import { withImmutableState, withResource } from '@angular-architects/ngrx-toolkit';
 
 import { parse as YAMLParse } from 'yaml';
 
@@ -20,13 +20,12 @@ export const GameDefinitionsStore = signalStore(
       patchState(store, { lactoseIntolerant });
     },
   })),
-  withProps(() => ({
-    // TODO: https://github.com/ngrx/platform/issues/4833
+  withResource(() => ({
     _defsResource: httpResource.text(() => 'assets/AutopelagoDefinitions.yml'),
   })),
   withComputed(store => ({
     _defs: computed(() => {
-      const file = store._defsResource.value();
+      const file = store._defsResourceValue();
       return file ? YAMLParse(file) as unknown as AutopelagoDefinitionsYamlFile : null;
     }),
   })),
