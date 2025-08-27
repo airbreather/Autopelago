@@ -55,6 +55,46 @@ export interface Filler {
   coords: readonly Vec2[];
 }
 
+export const FILLER_REGION_KEYS = [
+  'Menu',
+  'before_prawn_stars',
+  'before_angry_turtles',
+  'before_pirate_bake_sale',
+  'before_restaurant',
+  'after_pirate_bake_sale',
+  'after_restaurant',
+  'before_captured_goldfish',
+  'before_computer_interface',
+  'before_kart_races',
+  'before_daring_adventurer',
+  'before_broken_down_bus',
+  'before_overweight_boulder',
+  'before_copyright_mouse',
+  'before_blue_colored_screen_interface',
+  'before_room_full_of_typewriters',
+  'before_trapeze',
+  'before_binary_tree',
+  'before_computer_ram',
+  'before_rat_rap_battle',
+  'before_stack_of_crates',
+  'after_rat_rap_battle',
+  'after_stack_of_crates',
+  'before_makeshift_rocket_ship',
+  'before_roboclop_the_robot_war_horse',
+  'before_stalled_rocket_get_out_and_push',
+  'before_homeless_mummy',
+  'after_stalled_rocket_get_out_and_push',
+  'before_frozen_assets',
+  'before_alien_vending_machine',
+  'after_homeless_mummy',
+  'before_space_opera',
+  'before_minotaur_labyrinth',
+  'after_space_opera',
+  'before_asteroid_with_pants',
+  'after_minotaur_labyrinth',
+] as const;
+
+export type FillerRegionName = typeof FILLER_REGION_KEYS[number];
 const FILLER_DEFINING_COORDS = {
   Menu: [[0, 77], [57, 77]],
   before_prawn_stars: [[61, 74], [90, 74], [90, 34], [101, 34]],
@@ -92,9 +132,8 @@ const FILLER_DEFINING_COORDS = {
   after_space_opera: [[184, 346], [242, 354]],
   before_asteroid_with_pants: [[195, 400], [231, 406]],
   after_minotaur_labyrinth: [[195, 398], [207, 386], [209, 385], [216, 378], [218, 377], [226, 369], [228, 368], [236, 360], [238, 359], [242, 355]],
-} as const;
+} as const satisfies Readonly<Record<typeof FILLER_REGION_KEYS[number], readonly Vec2[]>>;
 
-export type FillerRegionName = keyof typeof FILLER_DEFINING_COORDS;
 export function isFillerRegionName(name: string): name is FillerRegionName {
   return name in FILLER_DEFINING_COORDS;
 }
