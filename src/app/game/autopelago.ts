@@ -1,4 +1,4 @@
-import { inject, Injectable } from '@angular/core';
+import { ErrorHandler, inject, Injectable } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { Router } from '@angular/router';
 
@@ -37,6 +37,7 @@ export class AutopelagoService {
   readonly #connectScreenStore = inject(ConnectScreenStore);
   readonly #ap = inject(ArchipelagoClient);
   readonly #router = inject(Router);
+  readonly #errorHandler = inject(ErrorHandler);
 
   // this is unused for now, but it is expected to be used later, and putting it here forces it to
   // get initialized at the correct time (otherwise we miss a few messages in the Text Client tab).
@@ -68,8 +69,7 @@ export class AutopelagoService {
       await this.#router.navigate(['./game']);
     }
     catch (error) {
-      console.error('Failed to connect to Archipelago server:', error);
-      // TODO: Show user-friendly error message
+      this.#errorHandler.handleError(error);
       return;
     }
   }

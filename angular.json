@@ -66,6 +66,7 @@
               }
             ],
             "styles": [
+              "node_modules/ngx-toastr/toastr.css",
               "node_modules/normalize.css/normalize.css",
               "src/styles.scss"
             ]

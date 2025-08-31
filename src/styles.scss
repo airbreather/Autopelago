@@ -60,6 +60,10 @@ input[type='submit'],button {
   }
 }
 
+.error-message {
+  --font-family: 'sans-serif';
+}
+
 .rat-toggle-button {
   background-color: theme.$toggle-button-background;
   color: theme.$toggle-button-foreground;
