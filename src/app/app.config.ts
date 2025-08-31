@@ -20,7 +20,8 @@ export const appConfig: ApplicationConfig = {
     provideAnimations(),
     provideToastr({
       positionClass: 'toast-top-full-width',
-      disableTimeOut: true,
+      closeButton: true,
+      progressBar: true,
     }),
     provideBrowserGlobalErrorListeners(),
     provideZonelessChangeDetection(),
