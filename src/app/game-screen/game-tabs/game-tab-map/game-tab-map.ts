@@ -15,12 +15,12 @@ import { PlayerToken } from './player-token/player-token';
       <img alt="map" src="assets/images/map.svg" />
       <canvas #pixiCanvas class="pixi-canvas" width="300" height="450">
       </canvas>
+      <app-filler-markers />
+      <app-landmark-markers />
       <app-player-token />
       <div #pauseButtonContainer class="pause-button-container" [style.margin-top]="'-' + pauseButtonContainer.clientHeight + 'px'">
         <app-pause-button />
       </div>
-      <app-filler-markers />
-      <app-landmark-markers />
     </div>
   `,
   styles: `
