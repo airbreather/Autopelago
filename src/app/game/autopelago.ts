@@ -10,17 +10,19 @@ import { LandmarkName } from '../data/locations';
 import { GameStore } from '../store/autopelago-store';
 import { ConnectScreenStore } from '../store/connect-screen.store';
 
+type AutopelagoWeightedMessage = readonly [string, number];
+
 interface AutopelagoSlotData {
   version_stamp: string;
   victory_location_name: LandmarkName;
   enabled_buffs: readonly AutopelagoBuff[];
   enabled_traps: readonly AutopelagoTrap[];
-  msg_changed_target: readonly string[];
-  msg_enter_go_mode: readonly string[];
-  msg_enter_bk: readonly string[];
-  msg_remind_bk: readonly string[];
-  msg_exit_bk: readonly string[];
-  msg_completed_goal: readonly string[];
+  msg_changed_target: readonly AutopelagoWeightedMessage[];
+  msg_enter_go_mode: readonly AutopelagoWeightedMessage[];
+  msg_enter_bk: readonly AutopelagoWeightedMessage[];
+  msg_remind_bk: readonly AutopelagoWeightedMessage[];
+  msg_exit_bk: readonly AutopelagoWeightedMessage[];
+  msg_completed_goal: readonly AutopelagoWeightedMessage[];
   lactose_intolerant: boolean;
 }
 

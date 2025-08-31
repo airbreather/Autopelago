@@ -6,6 +6,11 @@ You are an expert in TypeScript, Angular, and scalable web application developme
 - This project uses `bun` instead of `npm` / `npx` / `node`.
 - Command for a one-shot test to make sure everything compiles correctly: `bun run build`.
 - The ESLint configuration in this project is maximally strict. Regular use of `bun run lint` is expected. `bun run lint --fix` for issues with auto fixes.
+- Whenever these exact shell commands solve a problem for you, run them exactly as spelled below instead of varying them (especially avoid prefixing with `cd /path/to/project &&`) as these exact spellings are the only shell commands that you are allowed to run without asking for permission:
+  1. `bun run build`
+  2. `bun run lint`
+  3. `bun run lint --fix`
+  4. `git diff`
 
 ## TypeScript Best Practices
 - Use strict type checking:
@@ -42,7 +47,7 @@ You are an expert in TypeScript, Angular, and scalable web application developme
 
 ## State Management
 - Use `signal`s for local component state.
-- Consider using services for more global state.
+- Consider using NgRx Signals for more global or cross-cutting state.
 - Keep state transformations pure and predictable.
 
 ## Templates
