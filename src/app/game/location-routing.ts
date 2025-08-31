@@ -30,7 +30,6 @@ export type TargetLocationReason =
 export const Desirability = {
   STARTLED: 6,
   GO_MODE: 5,
-  // Smart / Conspiratorial overrides current!
   AURA_DRIVEN: 4,
   USER_REQUESTED: 3,
   UNCHECKED: 2,
@@ -74,7 +73,7 @@ export function determineTargetLocation(options: Readonly<DetermineTargetLocatio
     }
 
     for (const [nxt] of allLocations[loc].connected.all) {
-      if (desirability[nxt] > 0) {
+      if (desirability[nxt] > Desirability.AVOID) {
         tryEnqueue(nxt);
       }
     }

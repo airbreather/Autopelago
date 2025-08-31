@@ -1,14 +1,14 @@
 import { Component, DestroyRef, effect, ElementRef, inject, viewChild } from '@angular/core';
 
 import { PixiPlugins } from '../../../pixi-plugins';
+import { GameStore } from '../../../store/autopelago-store';
 import { FillerMarkers } from './filler-markers/filler-markers';
 import { LandmarkMarkers } from './landmark-markers/landmark-markers';
-import { PauseButton } from './pause-button/pause-button';
 import { PlayerToken } from './player-token/player-token';
 
 @Component({
   selector: 'app-game-tab-map',
-  imports: [PauseButton, LandmarkMarkers, PlayerToken, FillerMarkers],
+  imports: [LandmarkMarkers, PlayerToken, FillerMarkers],
   template: `
     <div #outer class="outer">
       <!--suppress AngularNgOptimizedImage, HtmlUnknownTarget -->
@@ -19,7 +19,11 @@ import { PlayerToken } from './player-token/player-token';
       <app-landmark-markers />
       <app-player-token />
       <div #pauseButtonContainer class="pause-button-container" [style.margin-top]="'-' + pauseButtonContainer.clientHeight + 'px'">
-        <app-pause-button />
+        <button class="rat-toggle-button"
+                [class.toggled-on]="paused()"
+                (click)="togglePause()">
+          ⏸
+        </button>
       </div>
     </div>
   `,
@@ -49,6 +53,9 @@ import { PlayerToken } from './player-token/player-token';
   `,
 })
 export class GameTabMap {
+  readonly #store = inject(GameStore);
+  readonly paused = this.#store.paused;
+
   protected readonly pixiCanvas = viewChild.required<ElementRef<HTMLCanvasElement>>('pixiCanvas');
   protected readonly outerDiv = viewChild.required<ElementRef<HTMLDivElement>>('outer');
 
@@ -60,5 +67,9 @@ export class GameTabMap {
       const outerDiv = this.outerDiv().nativeElement;
       void pixiPlugins.initInterface(canvas, outerDiv, destroyRef);
     });
+  }
+
+  togglePause() {
+    this.#store.togglePause();
   }
 }
