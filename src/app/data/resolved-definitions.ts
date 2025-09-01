@@ -71,12 +71,12 @@ export type AutopelagoRequirement = AutopelagoRatCountRequirement
   | AutopelagoCompositeRequirement;
 
 export interface AutopelagoDefinitions {
-  allItems: readonly AutopelagoItem[];
+  allItems: readonly Readonly<AutopelagoItem>[];
   progressionItemsByYamlKey: ReadonlyMap<string, number>;
   itemsWithNonzeroRatCounts: readonly number[];
 
-  allLocations: readonly AutopelagoLocation[];
-  allRegions: readonly AutopelagoRegion[];
+  allLocations: readonly Readonly<AutopelagoLocation>[];
+  allRegions: readonly Readonly<AutopelagoRegion>[];
   startRegion: number;
   startLocation: number;
 }
