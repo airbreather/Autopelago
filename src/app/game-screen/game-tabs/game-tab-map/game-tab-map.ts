@@ -41,27 +41,10 @@ function createFillerMarkers(fillerCountsByRegion: Readonly<Partial<Record<Fille
   return graphicsContainer;
 }
 
-const texturePromise = Assets.load<Texture>('assets/images/players/pack_rat.webp');
-function createPlayerTokenTextureResource() {
-  return resource({
-    loader: () => texturePromise,
-  }).asReadonly();
-}
-
-interface PlayerTokenContext {
-  playerToken: Sprite;
-  cycleTime: number;
-}
-
 const ROTATION_SCALE = Math.PI / 3200;
 const CYCLE = 1000;
 const HALF_CYCLE = CYCLE / 2;
 const QUARTER_CYCLE = CYCLE / 4;
-
-function doRotation(this: PlayerTokenContext, t: Ticker) {
-  this.cycleTime = (this.cycleTime + t.deltaMS) % CYCLE;
-  this.playerToken.rotation = (Math.abs(this.cycleTime - HALF_CYCLE) - QUARTER_CYCLE) * ROTATION_SCALE;
-}
 
 function createPlayerToken(texture: Texture, destroyRef: DestroyRef) {
   const playerToken = new Sprite(texture);
@@ -74,10 +57,15 @@ function createPlayerToken(texture: Texture, destroyRef: DestroyRef) {
   })];
   playerToken.anchor.set(0.5);
 
-  const playerTokenContext: PlayerTokenContext = {
+  const playerTokenContext = {
     playerToken,
     cycleTime: 0,
   };
+  function doRotation(this: typeof playerTokenContext, t: Ticker) {
+    this.cycleTime = (this.cycleTime + t.deltaMS) % CYCLE;
+    this.playerToken.rotation = (Math.abs(this.cycleTime - HALF_CYCLE) - QUARTER_CYCLE) * ROTATION_SCALE;
+  }
+
   Ticker.shared.add(doRotation, playerTokenContext);
   destroyRef.onDestroy(() => Ticker.shared.remove(doRotation, playerTokenContext));
   return playerToken;
@@ -124,19 +112,6 @@ for (const [landmarkKey, landmark] of Object.entries(LANDMARKS)) {
 
   spritesheetData.animations[`${landmarkKey}_on`] = [`${landmarkKey}_on_1`, `${landmarkKey}_on_2`];
   spritesheetData.animations[`${landmarkKey}_off`] = [`${landmarkKey}_off_1`, `${landmarkKey}_off_2`];
-}
-
-const spritesheetPromise = (async () => {
-  const spritesheetTexture = await Assets.load<Texture>('assets/images/locations.webp');
-  const spritesheet = new Spritesheet(spritesheetTexture, spritesheetData);
-  await spritesheet.parse();
-  return spritesheet;
-})();
-
-function createLandmarkSpritesheetResource() {
-  return resource({
-    loader: () => spritesheetPromise,
-  }).asReadonly();
 }
 
 function createLandmarkMarkers(spritesheet: Spritesheet) {
@@ -213,8 +188,17 @@ export class GameTabMap {
   constructor() {
     const destroyRef = inject(DestroyRef);
     const fillerCountsByRegionSignal = inject(GameDefinitionsStore).fillerCountsByRegion;
-    const playerTokenTextureResource = createPlayerTokenTextureResource();
-    const landmarkSpritesheetResource = createLandmarkSpritesheetResource();
+    const playerTokenTextureResource = resource({
+      loader: () => Assets.load<Texture>('assets/images/players/pack_rat.webp'),
+    });
+    const landmarkSpritesheetResource = resource({
+      loader: async () => {
+        const spritesheetTexture = await Assets.load<Texture>('assets/images/locations.webp');
+        const spritesheet = new Spritesheet(spritesheetTexture, spritesheetData);
+        await spritesheet.parse();
+        return spritesheet;
+      },
+    });
     effect(() => {
       const canvas = this.pixiCanvas().nativeElement;
       const outerDiv = this.outerDiv().nativeElement;
