@@ -2,6 +2,8 @@ import { Observable, retry, Subscription, timer } from 'rxjs';
 import { DestroyRef, effect, ElementRef, Injector, Signal } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 
+export type EnumVal<T extends object> = T[keyof T];
+
 // BEGIN section that was discovered by:
 // https://dev.to/harry0000/a-bit-convenient-typescript-type-definitions-for-objectentries-d6g
 type TupleEntry<T extends readonly unknown[], I extends unknown[] = [], R = never> =
