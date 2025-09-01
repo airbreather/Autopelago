@@ -6,7 +6,6 @@ import { map, mergeMap } from 'rxjs';
 import { SplitAreaComponent, SplitComponent } from 'angular-split';
 
 import { AutopelagoService } from '../game/autopelago';
-import { PixiPlugins } from '../pixi-plugins';
 import { GameScreenStore } from '../store/game-screen-store';
 import { resizeEvents } from '../util';
 import { GameTabs } from './game-tabs/game-tabs';
@@ -16,9 +15,6 @@ import { StatusDisplay } from './status-display/status-display';
   selector: 'app-game-screen',
   imports: [
     SplitComponent, SplitAreaComponent, StatusDisplay, GameTabs,
-  ],
-  providers: [
-    PixiPlugins,
   ],
   template: `
     <div #outer class="outer">
