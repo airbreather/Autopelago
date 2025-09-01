@@ -1,4 +1,4 @@
-import { Component, DestroyRef, effect, ElementRef, inject, resource, viewChild } from '@angular/core';
+import { Component, DestroyRef, effect, ElementRef, inject, resource, untracked, viewChild } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 
 import {
@@ -224,8 +224,11 @@ export class GameTabMap {
         Ticker.shared.stop();
 
         app.stage.addChild(createFillerMarkers(fillerCountsByRegion));
+        Ticker.shared.stop();
         app.stage.addChild(createLandmarkMarkers(landmarkSpritesheet));
+        Ticker.shared.stop();
         app.stage.addChild(createPlayerToken(playerTokenTexture, destroyRef));
+        Ticker.shared.stop();
 
         resizeEvents(outerDiv).pipe(
           // no need for a startWith: https://stackoverflow.com/a/60026394/1083771
@@ -236,7 +239,7 @@ export class GameTabMap {
           app.resize();
         });
 
-        if (this.#store.paused()) {
+        if (untracked(() => this.#store.paused())) {
           app.resize();
           app.render();
         }
@@ -244,6 +247,15 @@ export class GameTabMap {
           Ticker.shared.start();
         }
       })();
+    });
+
+    effect(() => {
+      if (this.#store.paused()) {
+        Ticker.shared.stop();
+      }
+      else {
+        Ticker.shared.start();
+      }
     });
   }
 
