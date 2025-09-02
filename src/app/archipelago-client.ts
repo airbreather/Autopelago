@@ -5,6 +5,7 @@ import { BehaviorSubject, EMPTY, map, merge, mergeMap, Observable } from 'rxjs';
 
 import {
   Client,
+  type ConnectionOptions,
   type DeathEvents,
   EventBasedManager,
   type ItemEvents,
@@ -92,7 +93,10 @@ export class ArchipelagoClient {
 
       const client = new Client();
       this.#clientSubject.next(client);
-      await client.login(url, slot, 'Autopelago', { password, slotData: true });
+      const connectOptions: ConnectionOptions = password
+        ? { password, slotData: true }
+        : { slotData: true };
+      await client.login(url, slot, 'Autopelago', connectOptions);
     }
     catch (error) {
       this.disconnect();
