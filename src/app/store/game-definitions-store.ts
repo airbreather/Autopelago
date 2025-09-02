@@ -7,8 +7,8 @@ import { withImmutableState, withResource } from '@angular-architects/ngrx-toolk
 import { parse as YAMLParse } from 'yaml';
 
 import { resolveDefinitions } from '../data/resolved-definitions';
-import { AutopelagoDefinitionsYamlFile } from '../data/definitions-file';
-import { FillerRegionName, isFillerRegionName } from '../data/locations';
+import { type AutopelagoDefinitionsYamlFile } from '../data/definitions-file';
+import { type FillerRegionName, isFillerRegionName } from '../data/locations';
 
 export const GameDefinitionsStore = signalStore(
   { providedIn: 'root' },

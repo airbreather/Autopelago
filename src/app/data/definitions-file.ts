@@ -1,4 +1,4 @@
-import { FillerRegionName, LandmarkName } from './locations';
+import type { FillerRegionName, LandmarkName } from './locations';
 
 export interface AutopelagoDefinitionsYamlFile {
   version_stamp: string;

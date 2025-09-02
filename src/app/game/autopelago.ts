@@ -2,11 +2,11 @@ import { inject, Injectable } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { Router } from '@angular/router';
 
-import { ConnectedPacket } from 'archipelago.js';
+import type { ConnectedPacket } from 'archipelago.js';
 
 import { ArchipelagoClient } from '../archipelago-client';
-import { AutopelagoBuff, AutopelagoTrap } from '../data/definitions-file';
-import { LandmarkName } from '../data/locations';
+import type { AutopelagoBuff, AutopelagoTrap } from '../data/definitions-file';
+import type { LandmarkName } from '../data/locations';
 import { GameStore } from '../store/autopelago-store';
 import { ConnectScreenStore } from '../store/connect-screen.store';
 

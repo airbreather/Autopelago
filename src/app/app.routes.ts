@@ -1,6 +1,6 @@
 import { inject } from '@angular/core';
 
-import { Routes, UrlTree } from '@angular/router';
+import { type Routes, UrlTree } from '@angular/router';
 
 import { ArchipelagoClient } from './archipelago-client';
 import { ConnectScreen } from './connect-screen/connect-screen';

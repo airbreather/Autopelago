@@ -1,6 +1,6 @@
 import { provideHttpClient } from '@angular/common/http';
 import {
-  ApplicationConfig,
+  type ApplicationConfig,
   ErrorHandler,
   provideBrowserGlobalErrorListeners,
   provideZonelessChangeDetection,

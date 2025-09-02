@@ -4,7 +4,7 @@ import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { patchState, signalStore, withHooks, withMethods } from '@ngrx/signals';
 import { withImmutableState, withStorageSync } from '@angular-architects/ngrx-toolkit';
 
-import { MessageNode } from 'archipelago.js';
+import { type MessageNode } from 'archipelago.js';
 
 import { ArchipelagoClient } from '../archipelago-client';
 

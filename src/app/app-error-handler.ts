@@ -1,5 +1,5 @@
 import { ErrorHandler, inject, Injectable } from '@angular/core';
-import { IndividualConfig, ToastrService } from 'ngx-toastr';
+import { type IndividualConfig, ToastrService } from 'ngx-toastr';
 
 const errorOptions: Partial<IndividualConfig<void>> = {
   toastClass: 'ngx-toastr error-message',

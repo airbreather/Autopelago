@@ -14,7 +14,8 @@
     "importHelpers": true,
     "target": "ES2022",
     "module": "preserve",
-    "erasableSyntaxOnly": true
+    "erasableSyntaxOnly": true,
+    "verbatimModuleSyntax": true
   },
   "angularCompilerOptions": {
     "enableI18nLegacyMessageIdFormat": false,

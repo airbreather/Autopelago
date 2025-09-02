@@ -5,13 +5,13 @@ import { BehaviorSubject, EMPTY, map, merge, mergeMap, Observable } from 'rxjs';
 
 import {
   Client,
-  DeathEvents,
+  type DeathEvents,
   EventBasedManager,
-  ItemEvents,
-  MessageEvents,
-  PlayerEvents,
-  RoomStateEvents,
-  SocketEvents,
+  type ItemEvents,
+  type MessageEvents,
+  type PlayerEvents,
+  type RoomStateEvents,
+  type SocketEvents,
 } from 'archipelago.js';
 
 export interface ConnectOptions {

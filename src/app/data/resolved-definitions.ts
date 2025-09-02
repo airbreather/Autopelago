@@ -1,7 +1,7 @@
 import { itemClassifications } from 'archipelago.js';
 
 import { stricterIsArray, strictObjectEntries } from '../util';
-import {
+import type {
   AutopelagoAura,
   AutopelagoDefinitionsYamlFile,
   YamlBulkItem,

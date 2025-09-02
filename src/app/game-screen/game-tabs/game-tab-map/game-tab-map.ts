@@ -9,13 +9,13 @@ import {
   Graphics,
   Sprite,
   Spritesheet,
-  SpritesheetData,
+  type SpritesheetData,
   Texture,
   Ticker,
 } from 'pixi.js';
 import { DropShadowFilter } from 'pixi-filters';
 
-import { FillerRegionName, fillerRegions, LANDMARKS } from '../../../data/locations';
+import { type FillerRegionName, fillerRegions, LANDMARKS } from '../../../data/locations';
 import { GameStore } from '../../../store/autopelago-store';
 import { GameDefinitionsStore } from '../../../store/game-definitions-store';
 import { resizeEvents, strictObjectEntries } from '../../../util';

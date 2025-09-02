@@ -1,7 +1,7 @@
 import BitArray from '@bitarray/typedarray';
 import Queue from 'yocto-queue';
 
-import { AutopelagoDefinitions, AutopelagoRegion, AutopelagoRequirement } from '../data/resolved-definitions';
+import type { AutopelagoDefinitions, AutopelagoRegion, AutopelagoRequirement } from '../data/resolved-definitions';
 import type { EnumVal } from '../util';
 
 export interface DetermineDesirabilityOptions {
