@@ -38,4 +38,10 @@ export const routes: Routes = [
     providers: [AutopelagoService],
     resolve: { autopelago: connectResolve },
   },
+  {
+    path: 'headless',
+    loadComponent: () => import('./headless/headless').then(m => m.Headless),
+    providers: [AutopelagoService],
+    resolve: { autopelago: connectResolve },
+  },
 ];

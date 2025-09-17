@@ -1,4 +1,4 @@
-import { Component, effect, ElementRef, inject, viewChild } from '@angular/core';
+import { Component, effect, ElementRef, inject, signal, viewChild } from '@angular/core';
 import { Router } from '@angular/router';
 
 import { ConnectScreenStore } from '../store/connect-screen.store';
@@ -118,8 +118,8 @@ import { ConnectScreenStore } from '../store/connect-screen.store';
       </div>
       <input class="submit-button"
              type="submit"
-             [disabled]="!allInputs.checkValidity()"
-             value="Connect" />
+             [disabled]="connecting() || !allInputs.checkValidity()"
+             [value]="connecting() ? 'Connecting...' : 'Connect'" />
     </form>
   `,
   styles: `
@@ -148,6 +148,8 @@ import { ConnectScreenStore } from '../store/connect-screen.store';
 export class ConnectScreen {
   readonly #store = inject(ConnectScreenStore);
   readonly #router = inject(Router);
+  readonly #connecting = signal(false);
+  readonly connecting = this.#connecting.asReadonly();
 
   // Expose store properties as getters for template access
   readonly slot = this.#store.slot;
@@ -202,23 +204,29 @@ export class ConnectScreen {
 
   async onConnect(event: SubmitEvent) {
     event.preventDefault();
-    await this.#router.navigate(['./game'], {
-      queryParams: {
-        host: this.host(),
-        port: this.port(),
-        slot: this.slot(),
-        password: this.password(),
-        minTime: this.minTime(),
-        maxTime: this.maxTime(),
-        enableTileAnimations: this.enableTileAnimations(),
-        enableRatAnimations: this.enableRatAnimations(),
-        sendChatMessages: this.sendChatMessages(),
-        whenTargetChanges: this.whenTargetChanges(),
-        whenBecomingBlocked: this.whenBecomingBlocked(),
-        whenStillBlocked: this.whenStillBlocked(),
-        whenBecomingUnblocked: this.whenBecomingUnblocked(),
-        forOneTimeEvents: this.forOneTimeEvents(),
-      },
-    });
+    try {
+      this.#connecting.set(true);
+      await this.#router.navigate(['./headless'], {
+        queryParams: {
+          host: this.host(),
+          port: this.port(),
+          slot: this.slot(),
+          password: this.password(),
+          minTime: this.minTime(),
+          maxTime: this.maxTime(),
+          enableTileAnimations: this.enableTileAnimations(),
+          enableRatAnimations: this.enableRatAnimations(),
+          sendChatMessages: this.sendChatMessages(),
+          whenTargetChanges: this.whenTargetChanges(),
+          whenBecomingBlocked: this.whenBecomingBlocked(),
+          whenStillBlocked: this.whenStillBlocked(),
+          whenBecomingUnblocked: this.whenBecomingUnblocked(),
+          forOneTimeEvents: this.forOneTimeEvents(),
+        },
+      });
+    }
+    catch {
+      this.#connecting.set(false);
+    }
   }
 }
