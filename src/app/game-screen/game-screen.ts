@@ -1,4 +1,4 @@
-import { Component, computed, DestroyRef, ElementRef, inject, viewChild } from '@angular/core';
+import { Component, computed, DestroyRef, ElementRef, inject, input, viewChild } from '@angular/core';
 import { rxResource, takeUntilDestroyed, toObservable } from '@angular/core/rxjs-interop';
 
 import { map, mergeMap } from 'rxjs';
@@ -38,7 +38,7 @@ import { StatusDisplay } from './status-display/status-display';
 })
 export class GameScreen {
   readonly #store = inject(GameScreenStore);
-  readonly #autopelago = inject(AutopelagoService);
+  protected readonly autopelago = input.required<AutopelagoService>();
   protected readonly splitRef = viewChild.required<SplitComponent>('split');
   protected readonly outerRef = viewChild.required<ElementRef<HTMLDivElement>>('outer');
 
@@ -93,7 +93,7 @@ export class GameScreen {
       this.#store.updateLeftSize(evt.sizes[0] as number);
     });
     inject(DestroyRef).onDestroy(() => {
-      this.#autopelago.disconnect();
+      this.autopelago().disconnect();
     });
   }
 

@@ -1,6 +1,6 @@
 import { Component, effect, ElementRef, inject, viewChild } from '@angular/core';
+import { Router } from '@angular/router';
 
-import { AutopelagoService } from '../game/autopelago';
 import { ConnectScreenStore } from '../store/connect-screen.store';
 
 @Component({
@@ -147,7 +147,7 @@ import { ConnectScreenStore } from '../store/connect-screen.store';
 })
 export class ConnectScreen {
   readonly #store = inject(ConnectScreenStore);
-  readonly #game = inject(AutopelagoService);
+  readonly #router = inject(Router);
 
   // Expose store properties as getters for template access
   readonly slot = this.#store.slot;
@@ -202,6 +202,23 @@ export class ConnectScreen {
 
   async onConnect(event: SubmitEvent) {
     event.preventDefault();
-    await this.#game.connect();
+    await this.#router.navigate(['./game'], {
+      queryParams: {
+        host: this.host(),
+        port: this.port(),
+        slot: this.slot(),
+        password: this.password(),
+        minTime: this.minTime(),
+        maxTime: this.maxTime(),
+        enableTileAnimations: this.enableTileAnimations(),
+        enableRatAnimations: this.enableRatAnimations(),
+        sendChatMessages: this.sendChatMessages(),
+        whenTargetChanges: this.whenTargetChanges(),
+        whenBecomingBlocked: this.whenBecomingBlocked(),
+        whenStillBlocked: this.whenStillBlocked(),
+        whenBecomingUnblocked: this.whenBecomingUnblocked(),
+        forOneTimeEvents: this.forOneTimeEvents(),
+      },
+    });
   }
 }

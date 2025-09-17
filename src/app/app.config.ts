@@ -7,7 +7,7 @@ import {
 } from '@angular/core';
 
 import { provideAnimations } from '@angular/platform-browser/animations';
-import { provideRouter, withHashLocation } from '@angular/router';
+import { provideRouter, withComponentInputBinding, withHashLocation } from '@angular/router';
 
 import { provideToastr } from 'ngx-toastr';
 
@@ -25,7 +25,7 @@ export const appConfig: ApplicationConfig = {
     }),
     provideBrowserGlobalErrorListeners(),
     provideZonelessChangeDetection(),
-    provideRouter(routes, withHashLocation()),
+    provideRouter(routes, withHashLocation(), withComponentInputBinding()),
     provideHttpClient(),
     {
       provide: ErrorHandler,

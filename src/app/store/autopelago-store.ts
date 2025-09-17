@@ -1,12 +1,7 @@
-import { inject } from '@angular/core';
-import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
-
-import { patchState, signalStore, withHooks, withMethods } from '@ngrx/signals';
+import { patchState, signalStore, withMethods } from '@ngrx/signals';
 import { withImmutableState, withStorageSync } from '@angular-architects/ngrx-toolkit';
 
 import { type MessageNode } from 'archipelago.js';
-
-import { ArchipelagoClient } from '../archipelago-client';
 
 export interface Message {
   ts: Date;
@@ -38,7 +33,7 @@ export const GameStore = signalStore(
     select: ({ paused }) => ({ paused }),
   }),
   withMethods(store => ({
-    _appendMessage(message: Readonly<Message>) {
+    appendMessage(message: Readonly<Message>) {
       patchState(store, ({ messages }) => ({ messages: [...messages, message] }));
     },
     pause() {
@@ -51,14 +46,4 @@ export const GameStore = signalStore(
       patchState(store, ({ paused }) => ({ paused: !paused }));
     },
   })),
-  withHooks({
-    onInit(store) {
-      const ap = inject(ArchipelagoClient);
-      ap.events('messages', 'message')
-        .pipe(takeUntilDestroyed())
-        .subscribe((msg) => {
-          store._appendMessage({ ts: new Date(), originalNodes: msg[1] });
-        });
-    },
-  }),
 );

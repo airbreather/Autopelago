@@ -1,14 +1,12 @@
 import { inject, Injectable } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
-import { Router } from '@angular/router';
 
 import type { ConnectedPacket } from 'archipelago.js';
 
-import { ArchipelagoClient } from '../archipelago-client';
+import { ArchipelagoClient, type ConnectOptions } from '../archipelago-client';
 import type { AutopelagoBuff, AutopelagoTrap } from '../data/definitions-file';
 import type { LandmarkName } from '../data/locations';
 import { GameStore } from '../store/autopelago-store';
-import { ConnectScreenStore } from '../store/connect-screen.store';
 
 type AutopelagoWeightedMessage = readonly [string, number];
 
@@ -30,48 +28,36 @@ type AutopelagoConnectedPacket = ConnectedPacket & {
   readonly slot_data: Readonly<AutopelagoSlotData>;
 };
 
-@Injectable({
-  providedIn: 'root',
-})
+@Injectable()
 export class AutopelagoService {
-  readonly #connectScreenStore = inject(ConnectScreenStore);
-  readonly #ap = inject(ArchipelagoClient);
-  readonly #router = inject(Router);
+  readonly rawClient = new ArchipelagoClient();
 
-  // this is unused for now, but it is expected to be used later, and putting it here forces it to
-  // get initialized at the correct time (otherwise we miss a few messages in the Text Client tab).
-  /* eslint-disable no-unused-private-class-members */
-  // noinspection JSUnusedLocalSymbols
   readonly #gameStore = inject(GameStore);
-  /* eslint-enable no-unused-private-class-members */
 
   constructor() {
-    this.#ap.events('socket', 'connected').pipe(
+    this.rawClient.events('socket', 'connected').pipe(
       takeUntilDestroyed(),
     ).subscribe(([packet]) => {
       // noinspection JSUnusedLocalSymbols
       const _slotData = (packet as unknown as AutopelagoConnectedPacket).slot_data;
     });
+
+    this.rawClient.events('messages', 'message')
+      .pipe(takeUntilDestroyed())
+      .subscribe((msg) => {
+        this.#gameStore.appendMessage({ ts: new Date(), originalNodes: msg[1] });
+      });
   }
 
-  async connect() {
-    this.disconnect();
-
-    await this.#ap.connect({
-      host: this.#connectScreenStore.host(),
-      port: this.#connectScreenStore.port(),
-      slot: this.#connectScreenStore.slot(),
-      password: this.#connectScreenStore.password(),
-    });
-    console.log('Successfully connected to Archipelago server!');
-    await this.#router.navigate(['./game']);
+  async connect(options: ConnectOptions): Promise<void> {
+    await this.rawClient.connect(options);
   }
 
   async say(message: string) {
-    return this.#ap.say(message);
+    return this.rawClient.say(message);
   }
 
   disconnect() {
-    this.#ap.disconnect();
+    this.rawClient.disconnect();
   }
 }

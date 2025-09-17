@@ -1,4 +1,3 @@
-import { Injectable } from '@angular/core';
 import { rxResource } from '@angular/core/rxjs-interop';
 
 import { BehaviorSubject, EMPTY, map, merge, mergeMap, Observable } from 'rxjs';
@@ -35,9 +34,6 @@ type ClientManagerEventMap = {
   deathLink: DeathEvents;
 };
 
-@Injectable({
-  providedIn: 'root',
-})
 export class ArchipelagoClient {
   readonly #clientSubject = new BehaviorSubject<Client | null>(null);
 
