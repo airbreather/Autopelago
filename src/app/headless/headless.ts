@@ -6,6 +6,8 @@ import type { ConnectedPacket } from 'archipelago.js';
 import { GameDefinitionsStore } from '../store/game-definitions-store';
 import BitArray from '@bitarray/typedarray';
 import { strictObjectEntries } from '../util';
+import { Subscription } from 'rxjs';
+import type { AutopelagoDefinitions } from '../data/resolved-definitions';
 
 type AutopelagoWeightedMessage = readonly [string, number];
 
@@ -24,7 +26,7 @@ interface AutopelagoSlotData {
 }
 
 // noinspection JSUnusedLocalSymbols
-type AutopelagoConnectedPacket = ConnectedPacket & {
+type _AutopelagoConnectedPacket = ConnectedPacket & {
   readonly slot_data: Readonly<AutopelagoSlotData>;
 };
 
@@ -42,8 +44,9 @@ interface GameState {
   locationIsChecked: BitArray;
   itemByDataId: ReadonlyMap<number, number>;
   locationByDataId: ReadonlyMap<number, number>;
-  dataIdByItem: ReadonlyArray<number>;
-  dataIdByLocation: ReadonlyArray<number>;
+  dataIdByItem: readonly number[];
+  dataIdByLocation: readonly number[];
+  resolvedDefs: AutopelagoDefinitions;
 }
 
 @Component({
@@ -117,16 +120,32 @@ export class Headless {
         locationByDataId,
         dataIdByItem,
         dataIdByLocation,
+        resolvedDefs: res,
       };
     });
 
+    let sub = new Subscription();
     effect(() => {
+      sub.unsubscribe();
       const st = gameState();
       if (!st) {
         return;
       }
 
-      console.log(st);
+      sub = this.autopelago().rawClient.events('items', 'itemsReceived')
+        .subscribe(([items]) => {
+          for (const item of items) {
+            const idx = st.itemByDataId.get(item.id);
+            if (idx === undefined) {
+              continue;
+            }
+
+            ++st.receivedItems[idx];
+            for (const aura of st.resolvedDefs.allItems[idx].aurasGranted) {
+              console.log('time for a', aura);
+            }
+          }
+        });
     });
   }
 }
