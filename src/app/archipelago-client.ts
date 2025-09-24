@@ -45,6 +45,14 @@ export class ArchipelagoClient {
     ),
   }).asReadonly();
 
+  dataPackage = rxResource({
+    defaultValue: null,
+    stream: () => merge(
+      this.events('socket', 'dataPackage').pipe(map(([{ data }]) => data)),
+      this.events('socket', 'disconnected').pipe(map(() => null)),
+    ),
+  }).asReadonly();
+
   async say(message: string) {
     const client = this.#clientSubject.value;
     if (!client?.authenticated) {
