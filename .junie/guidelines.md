@@ -22,13 +22,14 @@ You are an expert in TypeScript, Angular, and scalable web application developme
 - Prefer type inference when the type is obvious.
 - Order `import` lines as follows:
   1. Core Angular modules
-  2. NgRx modules
-  3. RxJS
-  4. Core PixiJS
-  5. Other Angular modules
-  6. Other PixiJS modules
-  7. Any other third-party modules (when in doubt, alphabetical)
-  8. Modules from the local project
+  2. Immutable.js modules
+  3. NgRx modules
+  4. RxJS
+  5. Core PixiJS
+  6. Other Angular modules
+  7. Other PixiJS modules
+  8. Any other third-party modules (when in doubt, alphabetical)
+  9. Modules from the local project
 
 ## Angular Best Practices
 - Always use standalone components over NgModules (this is the default).

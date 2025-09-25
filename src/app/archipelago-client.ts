@@ -1,6 +1,6 @@
 import { rxResource } from '@angular/core/rxjs-interop';
 
-import { BehaviorSubject, EMPTY, map, merge, mergeMap, Observable } from 'rxjs';
+import { BehaviorSubject, EMPTY, filter, map, merge, mergeMap, Observable, share } from 'rxjs';
 
 import {
   Client,
@@ -42,15 +42,19 @@ export class ArchipelagoClient {
     stream: () => merge(
       this.events('socket', 'connected').pipe(map(() => true)),
       this.events('socket', 'disconnected').pipe(map(() => false)),
-    ),
+    ).pipe(share()),
   }).asReadonly();
 
-  dataPackage = rxResource({
+  gamePackage = rxResource({
     defaultValue: null,
     stream: () => merge(
-      this.events('socket', 'dataPackage').pipe(map(([{ data }]) => data)),
+      // archipelago.js requests for just one game at a time.
+      this.events('socket', 'dataPackage').pipe(
+        filter(([dataPackage]) => 'Autopelago' in dataPackage.data.games),
+        map(([dataPackage]) => dataPackage.data.games['Autopelago']),
+      ),
       this.events('socket', 'disconnected').pipe(map(() => null)),
-    ),
+    ).pipe(share()),
   }).asReadonly();
 
   async say(message: string) {
