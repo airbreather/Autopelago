@@ -67,7 +67,7 @@ export const GameStore = signalStore(
           energyFactor: prev.energyFactor,
           styleFactor: prev.styleFactor,
           distractionCounter: prev.distractionCounter,
-          startedCounter: prev.startledCounter,
+          startledCounter: prev.startledCounter,
           hasConfidence: prev.hasConfidence,
           receivedItems: prev.receivedItems, // will be clobbered. just helping TypeScript.
         };
@@ -89,6 +89,7 @@ export const GameStore = signalStore(
             }
           }
         });
+
 
         return result;
       });
