@@ -70,7 +70,7 @@ export const GameStore = signalStore(
           startledCounter: prev.startledCounter,
           hasConfidence: prev.hasConfidence,
           receivedItems: prev.receivedItems, // will be clobbered. just helping TypeScript.
-        };
+        } satisfies Partial<typeof initialState>;
         result.receivedItems = prev.receivedItems.withMutations((r) => {
           for (const item of items) {
             r.push(item);
@@ -89,7 +89,6 @@ export const GameStore = signalStore(
             }
           }
         });
-
 
         return result;
       });
