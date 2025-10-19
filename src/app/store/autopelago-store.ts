@@ -1,10 +1,14 @@
+import { computed, inject } from '@angular/core';
+
 import { List, Set } from 'immutable';
 
-import { patchState, signalStore, withMethods } from '@ngrx/signals';
+import { patchState, signalStore, withComputed, withMethods } from '@ngrx/signals';
 import { withImmutableState, withStorageSync } from '@angular-architects/ngrx-toolkit';
 
 import { type MessageNode } from 'archipelago.js';
+
 import type { AutopelagoDefinitions } from '../data/resolved-definitions';
+import { GameDefinitionsStore } from './game-definitions-store';
 
 export interface Message {
   ts: Date;
@@ -13,6 +17,7 @@ export interface Message {
 
 const initialState = {
   defs: null as AutopelagoDefinitions | null,
+  lactoseIntolerant: false,
   paused: false,
   messages: [] as readonly Message[],
   foodFactor: 0,
@@ -32,6 +37,9 @@ const initialState = {
 const STORAGE_KEY = 'autopelago-game-state';
 
 export const GameStore = signalStore(
+  withComputed((_store, defsStore = inject(GameDefinitionsStore)) => ({
+    defs: computed(() => defsStore.resolvedDefs()),
+  })),
   withImmutableState(initialState),
   withStorageSync({
     key: STORAGE_KEY,
@@ -50,10 +58,8 @@ export const GameStore = signalStore(
     togglePause() {
       patchState(store, ({ paused }) => ({ paused: !paused }));
     },
-    setDefs(defs: AutopelagoDefinitions | null) {
-      patchState(store, { defs });
-    },
     receiveItems(items: Iterable<number>) {
+      const lactoseIntolerant = store.lactoseIntolerant();
       const defs = store.defs();
       if (!defs) {
         return;
@@ -72,8 +78,10 @@ export const GameStore = signalStore(
         } satisfies Partial<typeof initialState>;
         result.receivedItems = prev.receivedItems.withMutations((r) => {
           for (const item of items) {
+            const itemFull = defs.allItems[item];
+            console.log('received item', lactoseIntolerant ? itemFull.lactoseIntolerantName : itemFull.lactoseName);
             r.push(item);
-            for (const aura of defs.allItems[item].aurasGranted) {
+            for (const aura of itemFull.aurasGranted) {
               switch (aura) {
                 case 'well_fed':
                   result.foodFactor += 5;

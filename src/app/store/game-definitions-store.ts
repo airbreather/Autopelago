@@ -1,8 +1,8 @@
 import { httpResource } from '@angular/common/http';
 import { computed } from '@angular/core';
 
-import { patchState, signalStore, withComputed, withMethods } from '@ngrx/signals';
-import { withImmutableState, withResource } from '@angular-architects/ngrx-toolkit';
+import { signalStore, withComputed } from '@ngrx/signals';
+import { withResource } from '@angular-architects/ngrx-toolkit';
 
 import { parse as YAMLParse } from 'yaml';
 
@@ -12,14 +12,6 @@ import { type FillerRegionName, isFillerRegionName } from '../data/locations';
 
 export const GameDefinitionsStore = signalStore(
   { providedIn: 'root' },
-  withImmutableState({
-    lactoseIntolerant: false,
-  }),
-  withMethods(store => ({
-    updateLactoseIntolerant(lactoseIntolerant: boolean) {
-      patchState(store, { lactoseIntolerant });
-    },
-  })),
   withResource(() => ({
     _defsResource: httpResource.text(() => 'assets/AutopelagoDefinitions.yml'),
   })),

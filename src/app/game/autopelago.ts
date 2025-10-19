@@ -1,4 +1,4 @@
-import { computed, effect, inject, Injectable, type Signal } from '@angular/core';
+import { computed, inject, Injectable, type Signal } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 
 import { Seq } from 'immutable';
@@ -10,7 +10,6 @@ import type { AutopelagoBuff, AutopelagoTrap } from '../data/definitions-file';
 import type { LandmarkName } from '../data/locations';
 import type { AutopelagoDefinitions } from '../data/resolved-definitions';
 import { GameStore } from '../store/autopelago-store';
-import { GameDefinitionsStore } from '../store/game-definitions-store';
 import { strictObjectEntries } from '../util';
 
 type AutopelagoWeightedMessage = readonly [string, number];
@@ -48,10 +47,6 @@ export class AutopelagoService {
   readonly #gameState: Signal<GameState | null>;
 
   constructor() {
-    const gameDefinitionsStore = inject(GameDefinitionsStore);
-    effect(() => {
-      this.#store.setDefs(gameDefinitionsStore.resolvedDefs());
-    });
     this.#gameState = computed(() => {
       const res = this.#store.defs();
       if (!res) {

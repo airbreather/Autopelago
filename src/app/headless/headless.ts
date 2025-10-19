@@ -2,9 +2,9 @@ import { Component, effect, inject, input } from '@angular/core';
 
 import type { AutopelagoClientAndData } from '../data/slot-data';
 import type { GamePackage } from 'archipelago.js';
+
 import type { AutopelagoDefinitions } from '../data/resolved-definitions';
 import { GameStore } from '../store/autopelago-store';
-import { GameDefinitionsStore } from '../store/game-definitions-store';
 
 @Component({
   selector: 'app-headless',
@@ -17,18 +17,10 @@ import { GameDefinitionsStore } from '../store/game-definitions-store';
   styles: '',
 })
 export class Headless {
-  readonly #gameDefsStore = inject(GameDefinitionsStore);
   readonly #gameStore = inject(GameStore);
   protected readonly game = input.required<AutopelagoClientAndData>();
 
   constructor() {
-    const defsEffect = effect(() => {
-      const defs = this.#gameDefsStore.resolvedDefs();
-      if (defs) {
-        this.#gameStore.setDefs(defs);
-        defsEffect.destroy();
-      }
-    });
     const eff = effect(() => {
       const defs = this.#gameStore.defs();
       if (!defs) {
