@@ -11,7 +11,8 @@ import type {
 
 export interface AutopelagoItem {
   key: number;
-  name: string;
+  lactoseName: string;
+  lactoseIntolerantName: string;
   flags: number;
   aurasGranted: readonly AutopelagoAura[];
   associatedGame: string | null;
@@ -94,17 +95,14 @@ function toConnected(forward: readonly number[], backward: readonly number[]): C
 
 export function resolveDefinitions(
   yamlFile: AutopelagoDefinitionsYamlFile,
-  lactoseIntolerant: boolean,
 ): AutopelagoDefinitions {
   const allItems: AutopelagoItem[] = [];
   const progressionItemsByYamlKey = new Map<string, number>();
 
-  // Helper function to get item name based on lactose preference
-  function getItemName(name: string | readonly [string, string]): string {
-    if (typeof name === 'string') {
-      return name;
-    }
-    return lactoseIntolerant ? name[1] : name[0];
+  function getItemNames(name: string | readonly [string, string]): readonly [string, string] {
+    return typeof name === 'string'
+      ? [name, name]
+      : name;
   }
 
   // Helper function to convert YamlRequirement to AutopelagoRequirement
@@ -148,10 +146,11 @@ export function resolveDefinitions(
 
     const itemIndex = allItems.length;
     progressionItemsByYamlKey.set(key, itemIndex);
-
+    const [lactoseName, lactoseIntolerantName] = getItemNames(item.name);
     allItems.push({
       key: itemIndex,
-      name: getItemName(item.name),
+      lactoseName,
+      lactoseIntolerantName,
       flags: itemClassifications.progression, // All keyed items are progression
       aurasGranted: item.auras_granted ?? [],
       associatedGame: null,
@@ -169,9 +168,11 @@ export function resolveDefinitions(
     const itemIndex = allItems.length;
     progressionItemsByYamlKey.set(key, itemIndex);
 
+    const [lactoseName, lactoseIntolerantName] = getItemNames(item.name);
     allItems.push({
       key: itemIndex,
-      name: getItemName(item.name),
+      lactoseName,
+      lactoseIntolerantName,
       flags: itemClassifications.progression,
       aurasGranted: item.auras_granted ?? [],
       associatedGame: null,
@@ -184,9 +185,11 @@ export function resolveDefinitions(
   function processBulkItem(bulkItem: YamlBulkItem, flags: number, associatedGame: string | null): void {
     if (stricterIsArray(bulkItem)) {
       // [name, aurasGranted] format
+      const [lactoseName, lactoseIntolerantName] = getItemNames(bulkItem[0]);
       allItems.push({
         key: allItems.length,
-        name: getItemName(bulkItem[0]),
+        lactoseName,
+        lactoseIntolerantName,
         flags,
         aurasGranted: bulkItem[1],
         associatedGame,
@@ -196,9 +199,11 @@ export function resolveDefinitions(
     }
     else {
       // YamlKeyedItem format
+      const [lactoseName, lactoseIntolerantName] = getItemNames(bulkItem.name);
       allItems.push({
         key: allItems.length,
-        name: getItemName(bulkItem.name),
+        lactoseName,
+        lactoseIntolerantName,
         flags,
         aurasGranted: bulkItem.auras_granted ?? [],
         associatedGame,

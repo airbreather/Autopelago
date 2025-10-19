@@ -1,7 +1,13 @@
-﻿import type { AutopelagoBuff, AutopelagoTrap } from './definitions-file';
-import type { JSONRecord } from 'archipelago.js';
+﻿import type { Client, JSONRecord } from 'archipelago.js';
+import type { AutopelagoBuff, AutopelagoTrap } from './definitions-file';
 
 export type AutopelagoUserCustomizableMessage = [string, number];
+
+export interface AutopelagoClientAndData {
+  client: Client;
+  slotData: AutopelagoSlotData;
+  packageChecksum: string | null;
+}
 
 export interface AutopelagoSlotData extends JSONRecord {
   version_stamp: string;

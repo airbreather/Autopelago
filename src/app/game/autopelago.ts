@@ -63,8 +63,16 @@ export class AutopelagoService {
         return null;
       }
 
-      const itemByName = new Map(res.allItems.map((item, i) => [item.name, i]));
-      const locationByName = new Map(res.allLocations.map((location, i) => [location.name, i]));
+      const itemByName = new Map<string, number>();
+      for (let i = 0; i < res.allItems.length; i++) {
+        const item = res.allItems[i];
+        itemByName.set(item.lactoseName, i);
+        if (item.lactoseName !== item.lactoseIntolerantName) {
+          itemByName.set(item.lactoseIntolerantName, i);
+        }
+      }
+
+      const locationByName = new Map(res.allLocations.map((location, i) => [location.name, i] as const));
 
       const itemByDataId = new Map<number, number>();
       const dataIdByItem = new Array<number>(res.allItems.length);

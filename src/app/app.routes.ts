@@ -3,11 +3,20 @@ import { type ResolveFn, type Routes } from '@angular/router';
 import { Client, type ConnectionOptions } from 'archipelago.js';
 
 import { ConnectScreen } from './connect-screen/connect-screen';
-import type { AutopelagoSlotData } from './data/slot-data';
+import type { AutopelagoClientAndData, AutopelagoSlotData } from './data/slot-data';
 import { AutopelagoService } from './game/autopelago';
+import { GameStore } from './store/autopelago-store';
 
-const connectResolve: ResolveFn<Client> = async (route) => {
-  const archipelago = new Client();
+const connectResolve: ResolveFn<AutopelagoClientAndData> = async (route) => {
+  const client = new Client();
+  client.options.autoFetchDataPackage = false;
+  let packageChecksum: string | null = null;
+  client.socket.on('roomInfo', (packet) => {
+    if ('Autopelago' in packet.datapackage_checksums) {
+      packageChecksum = packet.datapackage_checksums['Autopelago'];
+    }
+  });
+
   const qp = route.queryParamMap;
   const host = qp.get('host');
   const port = qp.get('port');
@@ -32,15 +41,13 @@ const connectResolve: ResolveFn<Client> = async (route) => {
     };
   }
 
-  const loginResult = await archipelago.login<AutopelagoSlotData>(
+  const slotData = await client.login<AutopelagoSlotData>(
     `${host}:${port}`,
     slot,
     'Autopelago',
     options,
   );
-
-  console.log(loginResult);
-  return archipelago;
+  return { client, slotData, packageChecksum };
 };
 
 export const routes: Routes = [
@@ -54,6 +61,7 @@ export const routes: Routes = [
   {
     path: 'headless',
     loadComponent: () => import('./headless/headless').then(m => m.Headless),
-    resolve: { archipelago: connectResolve },
+    providers: [GameStore],
+    resolve: { game: connectResolve },
   },
 ];

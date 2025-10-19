@@ -36,8 +36,7 @@ export const GameDefinitionsStore = signalStore(
         return null;
       }
 
-      const lactoseIntolerant = store.lactoseIntolerant();
-      return resolveDefinitions(defs, lactoseIntolerant);
+      return resolveDefinitions(defs);
     }),
   })),
   withComputed(store => ({

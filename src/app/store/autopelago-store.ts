@@ -32,7 +32,6 @@ const initialState = {
 const STORAGE_KEY = 'autopelago-game-state';
 
 export const GameStore = signalStore(
-  { providedIn: 'root' },
   withImmutableState(initialState),
   withStorageSync({
     key: STORAGE_KEY,
