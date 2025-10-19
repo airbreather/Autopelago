@@ -1,17 +1,13 @@
-import { inject } from '@angular/core';
-
 import { type ResolveFn, type Routes } from '@angular/router';
 
-import { type ConnectOptions } from './archipelago-client';
+import { Client, type ConnectionOptions } from 'archipelago.js';
+
 import { ConnectScreen } from './connect-screen/connect-screen';
+import type { AutopelagoSlotData } from './data/slot-data';
 import { AutopelagoService } from './game/autopelago';
 
-const connectResolve: ResolveFn<AutopelagoService> = async (route) => {
-  const autopelago = inject(AutopelagoService);
-  if (autopelago.rawClient.isAuthenticated.value()) {
-    return autopelago;
-  }
-
+const connectResolve: ResolveFn<Client> = async (route) => {
+  const archipelago = new Client();
   const qp = route.queryParamMap;
   const host = qp.get('host');
   const port = qp.get('port');
@@ -21,13 +17,30 @@ const connectResolve: ResolveFn<AutopelagoService> = async (route) => {
     throw new Error('Missing required query params. host, port, and slot must be provided!');
   }
 
-  const options: ConnectOptions = { host, port: Number(port), slot };
+  let options: ConnectionOptions = {
+    slotData: true,
+    version: {
+      major: 0,
+      minor: 6,
+      build: 2,
+    },
+  };
   if (password) {
-    options.password = password;
+    options = {
+      ...options,
+      password,
+    };
   }
 
-  await autopelago.connect(options);
-  return autopelago;
+  const loginResult = await archipelago.login<AutopelagoSlotData>(
+    `${host}:${port}`,
+    slot,
+    'Autopelago',
+    options,
+  );
+
+  console.log(loginResult);
+  return archipelago;
 };
 
 export const routes: Routes = [
@@ -41,7 +54,6 @@ export const routes: Routes = [
   {
     path: 'headless',
     loadComponent: () => import('./headless/headless').then(m => m.Headless),
-    providers: [AutopelagoService],
-    resolve: { autopelago: connectResolve },
+    resolve: { archipelago: connectResolve },
   },
 ];
