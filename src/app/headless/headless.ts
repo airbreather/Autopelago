@@ -5,6 +5,23 @@ import type { GamePackage } from 'archipelago.js';
 
 import type { AutopelagoDefinitions } from '../data/resolved-definitions';
 import { GameStore } from '../store/autopelago-store';
+import { Ticker } from 'pixi.js';
+
+const TICK_INTERVAL_MIN = 1000;
+const TICK_INTERVAL_MAX = 20000;
+
+interface PauseUnpause {
+  pause(): void;
+  unpause(): void;
+}
+
+function handleTick(this: Headless, ticker: Ticker) {
+  this.remaining -= ticker.deltaMS;
+  while (this.remaining < 0) {
+    console.log('tick!');
+    this.remaining += Math.floor(Math.random() * (TICK_INTERVAL_MAX - TICK_INTERVAL_MIN) + TICK_INTERVAL_MIN);
+  }
+}
 
 @Component({
   selector: 'app-headless',
@@ -19,8 +36,17 @@ import { GameStore } from '../store/autopelago-store';
 export class Headless {
   readonly #gameStore = inject(GameStore);
   protected readonly game = input.required<AutopelagoClientAndData>();
+  remaining = Math.floor(Math.random() * (TICK_INTERVAL_MAX - TICK_INTERVAL_MIN) + TICK_INTERVAL_MIN);
 
   constructor() {
+    const pauseUnpause = globalThis as unknown as PauseUnpause;
+    pauseUnpause.pause = () => {
+      Ticker.shared.stop();
+    };
+    pauseUnpause.unpause = () => {
+      Ticker.shared.start();
+    };
+    Ticker.shared.add(handleTick, this);
     const eff = effect(() => {
       const defs = this.#gameStore.defs();
       if (!defs) {
