@@ -7,7 +7,6 @@ import { withImmutableState, withStorageSync } from '@angular-architects/ngrx-to
 
 import { type MessageNode } from 'archipelago.js';
 
-import type { AutopelagoDefinitions } from '../data/resolved-definitions';
 import { GameDefinitionsStore } from './game-definitions-store';
 
 export interface Message {
@@ -16,7 +15,6 @@ export interface Message {
 }
 
 const initialState = {
-  defs: null as AutopelagoDefinitions | null,
   lactoseIntolerant: false,
   paused: false,
   messages: [] as readonly Message[],
