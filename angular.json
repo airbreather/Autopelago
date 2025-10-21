@@ -10,7 +10,7 @@
   },
   "newProjectRoot": "projects",
   "projects": {
-    "autopelago-ts": {
+    "autopelago": {
       "projectType": "application",
       "schematics": {
         "@schematics/angular:component": {
@@ -45,6 +45,12 @@
       "sourceRoot": "src",
       "prefix": "app",
       "architect": {
+        "bake-data": {
+          "builder": ".:bake-data",
+          "options": {
+            "defs-file": "./AutopelagoDefinitions.yml"
+          }
+        },
         "build": {
           "builder": "@angular/build:application",
           "options": {

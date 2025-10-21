@@ -1,11 +1,12 @@
 {
   "name": "autopelago-ts",
   "version": "0.0.0",
+  "builders": "./builders.json",
   "scripts": {
     "ng": "ng",
     "start": "ng serve",
-    "build": "ng build",
-    "watch": "ng build --watch --configuration development",
+    "build": "tsgo -p ./src/bake-data/tsconfig.json && ng run autopelago:bake-data && ng build",
+    "watch": "tsgo -p ./src/bake-data/tsconfig.json && ng run autopelago:bake-data && ng build --watch --configuration development",
     "lint": "ng lint"
   },
   "prettier": {
@@ -49,6 +50,7 @@
     "@angular/compiler-cli": "^20.3.6",
     "@eslint/js": "^9.38.0",
     "@stylistic/eslint-plugin": "^5.5.0",
+    "@types/node": "latest",
     "@typescript/native-preview": "^7.0.0-dev.20251019.1",
     "angular-eslint": "20.4.0",
     "eslint": "^9.38.0",
