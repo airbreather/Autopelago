@@ -111,10 +111,10 @@
           "builder": "@angular/build:dev-server",
           "configurations": {
             "production": {
-              "buildTarget": "autopelago-ts:build:production"
+              "buildTarget": "autopelago:build:production"
             },
             "development": {
-              "buildTarget": "autopelago-ts:build:development"
+              "buildTarget": "autopelago:build:development"
             }
           },
           "defaultConfiguration": "development"

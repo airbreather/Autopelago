@@ -1,10 +1,10 @@
 {
-  "name": "autopelago-ts",
+  "name": "autopelago",
   "version": "0.0.0",
   "builders": "./builders.json",
   "scripts": {
     "ng": "ng",
-    "start": "ng serve",
+    "start": "tsgo -p ./src/bake-data/tsconfig.json && ng run autopelago:bake-data && ng serve",
     "build": "tsgo -p ./src/bake-data/tsconfig.json && ng run autopelago:bake-data && ng build",
     "watch": "tsgo -p ./src/bake-data/tsconfig.json && ng run autopelago:bake-data && ng build --watch --configuration development",
     "lint": "ng lint"
