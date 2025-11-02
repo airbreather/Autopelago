@@ -1,5 +1,5 @@
 ﻿import type { Client, JSONRecord } from 'archipelago.js';
-import type { AutopelagoBuff, AutopelagoTrap } from './definitions-file';
+import type { AutopelagoBuff, AutopelagoTrap } from './resolved-definitions';
 
 export type AutopelagoUserCustomizableMessage = [string, number];
 

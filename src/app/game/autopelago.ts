@@ -6,9 +6,8 @@ import { type ConnectedPacket, Item } from 'archipelago.js';
 import { Seq } from 'immutable';
 
 import { ArchipelagoClient, type ConnectOptions } from '../archipelago-client';
-import type { AutopelagoBuff, AutopelagoTrap } from '../data/definitions-file';
 import type { LandmarkName } from '../data/locations';
-import { BAKED_DEFINITIONS } from '../data/resolved-definitions';
+import { BAKED_DEFINITIONS, type AutopelagoBuff, type AutopelagoTrap } from '../data/resolved-definitions';
 import { GameStore } from '../store/autopelago-store';
 import { strictObjectEntries } from '../util';
 

@@ -3,15 +3,27 @@ import { itemClassifications } from 'archipelago.js';
 import { stricterIsArray, strictObjectEntries } from '../util';
 
 import * as baked from './baked.json';
-import type {
-  AutopelagoAura,
-  AutopelagoDefinitionsYamlFile,
-  YamlBulkItem,
-  YamlBulkItemOrGameSpecificItemGroup,
-  YamlRequirement,
-} from './definitions-file';
+import type { AutopelagoDefinitionsYamlFile, YamlBulkItem, YamlBulkItemOrGameSpecificItemGroup, YamlRequirement } from './yaml-types';
 
 export const BAKED_DEFINITIONS = resolveDefinitions(baked as unknown as AutopelagoDefinitionsYamlFile);
+
+export type AutopelagoBuff =
+  'well_fed'
+  | 'lucky'
+  | 'energized'
+  | 'stylish'
+  | 'smart'
+  | 'confident';
+
+export type AutopelagoTrap =
+  | 'upset_tummy'
+  | 'unlucky'
+  | 'sluggish'
+  | 'distracted'
+  | 'startled'
+  | 'conspiratorial';
+
+export type AutopelagoAura = AutopelagoBuff | AutopelagoTrap;
 
 export interface AutopelagoItem {
   key: number;

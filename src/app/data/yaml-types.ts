@@ -1,28 +1,11 @@
 import type { FillerRegionName, LandmarkName } from './locations';
+import type { AutopelagoAura } from './resolved-definitions';
 
 export interface AutopelagoDefinitionsYamlFile {
   version_stamp: string;
   items: Readonly<YamlItems>;
   regions: Readonly<YamlRegions>;
 }
-
-export type AutopelagoBuff =
-  'well_fed'
-  | 'lucky'
-  | 'energized'
-  | 'stylish'
-  | 'smart'
-  | 'confident';
-
-export type AutopelagoTrap =
-  | 'upset_tummy'
-  | 'unlucky'
-  | 'sluggish'
-  | 'distracted'
-  | 'startled'
-  | 'conspiratorial';
-
-export type AutopelagoAura = AutopelagoBuff | AutopelagoTrap;
 
 type YamlItemName = string | readonly [lactoseName: string, lactoseIntolerantName: string];
 type YamlNonProgressionTypeName = 'useful_nonprogression' | 'trap' | 'filler';
