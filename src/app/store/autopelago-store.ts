@@ -48,7 +48,7 @@ export const GameStore = signalStore(
   withComputed(store => ({
     asStoredData: computed<AutopelagoStoredData>(() => {
       const currentLocation = store.currentLocation();
-      if (!currentLocation) {
+      if (currentLocation === null) {
         throw new Error('Must initialize first');
       }
 
