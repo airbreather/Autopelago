@@ -109,8 +109,8 @@ export const VICTORY_LOCATION_NAME_LOOKUP = {
   'Snakes on a Planet': 'snakes_on_a_planet',
 } as const satisfies (Record<VictoryLocationYamlKey, VictoryLocationName> & Record<VictoryLocationName, VictoryLocationYamlKey>);
 export const VICTORY_LOCATION_CROP_LOOKUP = {
-  captured_goldfish: 148,
-  secret_cache: 301,
+  captured_goldfish: 147,
+  secret_cache: 300,
   snakes_on_a_planet: 450,
 } as const satisfies Record<VictoryLocationYamlKey, number>;
 
