@@ -1,6 +1,8 @@
 import { itemClassifications } from 'archipelago.js';
 
 import { stricterIsArray, strictObjectEntries } from '../util';
+
+import * as baked from './baked.json';
 import type {
   AutopelagoAura,
   AutopelagoDefinitionsYamlFile,
@@ -8,6 +10,8 @@ import type {
   YamlBulkItemOrGameSpecificItemGroup,
   YamlRequirement,
 } from './definitions-file';
+
+export const BAKED_DEFINITIONS = resolveDefinitions(baked as unknown as AutopelagoDefinitionsYamlFile);
 
 export interface AutopelagoItem {
   key: number;

@@ -1,9 +1,9 @@
 import { Component, computed, DestroyRef, ElementRef, inject, input, viewChild } from '@angular/core';
 import { rxResource, takeUntilDestroyed, toObservable } from '@angular/core/rxjs-interop';
 
-import { map, mergeMap } from 'rxjs';
-
 import { SplitAreaComponent, SplitComponent } from 'angular-split';
+
+import { map, mergeMap } from 'rxjs';
 
 import { AutopelagoService } from '../game/autopelago';
 import { GameScreenStore } from '../store/game-screen-store';
@@ -21,10 +21,10 @@ import { StatusDisplay } from './status-display/status-display';
       <as-split #split unit="pixel" direction="horizontal"
                 gutterDblClickDuration="500" (gutterDblClick)="onGutterDblClick()">
         <as-split-area class="left" [size]="leftSize()" [minSize]="minSize()" [maxSize]="maxSize()">
-          <app-status-display />
+          <app-status-display/>
         </as-split-area>
         <as-split-area class="right">
-          <app-game-tabs />
+          <app-game-tabs/>
         </as-split-area>
       </as-split>
     </div>

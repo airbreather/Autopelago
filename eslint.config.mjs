@@ -1,7 +1,7 @@
 import eslint from '@eslint/js';
-import tseslint from 'typescript-eslint';
-import angular from 'angular-eslint';
 import stylistic from '@stylistic/eslint-plugin'
+import angular from 'angular-eslint';
+import tseslint from 'typescript-eslint';
 
 export default tseslint.config(
   {
@@ -48,7 +48,7 @@ export default tseslint.config(
         },
       ],
       '@stylistic/quotes': ['error', 'single'],
-      '@typescript-eslint/no-invalid-void-type': ['error', { allowAsThisParameter: true }],
+      '@typescript-eslint/no-invalid-void-type': ['error', {allowAsThisParameter: true}],
       '@typescript-eslint/no-unused-vars': [
         'error',
         {
@@ -72,7 +72,7 @@ export default tseslint.config(
       parserOptions: {
         projectService: true,
         tsconfigRootDir: import.meta.dirname,
-      }
-    }
-  }
+      },
+    },
+  },
 );

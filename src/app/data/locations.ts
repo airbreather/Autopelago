@@ -1,6 +1,7 @@
 import { stricterObjectFromEntries, strictObjectEntries } from '../util';
 
 export type Vec2 = readonly [x: number, y: number];
+
 export interface Landmark {
   sprite_index: number;
   coords: Vec2;
@@ -47,6 +48,7 @@ export const LANDMARKS = {
 } as const;
 
 export type LandmarkName = keyof typeof LANDMARKS;
+
 export function isLandmarkName(name: string): name is LandmarkName {
   return name in LANDMARKS;
 }

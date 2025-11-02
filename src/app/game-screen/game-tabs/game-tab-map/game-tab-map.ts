@@ -1,5 +1,6 @@
 import { Component, DestroyRef, effect, ElementRef, inject, resource, untracked, viewChild } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
+import { DropShadowFilter } from 'pixi-filters';
 
 import {
   AnimatedSprite,
@@ -13,12 +14,18 @@ import {
   Texture,
   Ticker,
 } from 'pixi.js';
-import { DropShadowFilter } from 'pixi-filters';
 
-import { type FillerRegionName, fillerRegions, LANDMARKS } from '../../../data/locations';
+import { type FillerRegionName, fillerRegions, isFillerRegionName, LANDMARKS } from '../../../data/locations';
+import { BAKED_DEFINITIONS } from '../../../data/resolved-definitions';
 import { GameStore } from '../../../store/autopelago-store';
-import { GameDefinitionsStore } from '../../../store/game-definitions-store';
 import { resizeEvents, strictObjectEntries } from '../../../util';
+
+const fillerCountsByRegion: Partial<Record<FillerRegionName, number>> = {};
+for (const r of BAKED_DEFINITIONS.allRegions) {
+  if (isFillerRegionName(r.yamlKey) && 'locs' in r) {
+    fillerCountsByRegion[r.yamlKey] = r.locs.length;
+  }
+}
 
 function createFillerMarkers(fillerCountsByRegion: Readonly<Partial<Record<FillerRegionName, number>>>) {
   const graphicsContainer = new Container({
@@ -61,6 +68,7 @@ function createPlayerToken(texture: Texture, destroyRef: DestroyRef) {
     playerToken,
     cycleTime: 0,
   };
+
   function doRotation(this: typeof playerTokenContext, t: Ticker) {
     this.cycleTime = (this.cycleTime + t.deltaMS) % CYCLE;
     this.playerToken.rotation = (Math.abs(this.cycleTime - HALF_CYCLE) - QUARTER_CYCLE) * ROTATION_SCALE;
@@ -141,7 +149,7 @@ function createLandmarkMarkers(spritesheet: Spritesheet) {
   template: `
     <div #outer class="outer">
       <!--suppress AngularNgOptimizedImage, HtmlUnknownTarget -->
-      <img alt="map" src="assets/images/map.svg" />
+      <img alt="map" src="assets/images/map.svg"/>
       <canvas #pixiCanvas class="pixi-canvas" width="300" height="450">
       </canvas>
       <div #pauseButtonContainer class="pause-button-container" [style.margin-top]="'-' + pauseButtonContainer.clientHeight + 'px'">
@@ -187,7 +195,6 @@ export class GameTabMap {
 
   constructor() {
     const destroyRef = inject(DestroyRef);
-    const fillerCountsByRegionSignal = inject(GameDefinitionsStore).fillerCountsByRegion;
     const playerTokenTextureResource = resource({
       loader: () => Assets.load<Texture>('assets/images/players/pack_rat.webp'),
     });
@@ -202,10 +209,9 @@ export class GameTabMap {
     effect(() => {
       const canvas = this.pixiCanvas().nativeElement;
       const outerDiv = this.outerDiv().nativeElement;
-      const fillerCountsByRegion = fillerCountsByRegionSignal();
       const playerTokenTexture = playerTokenTextureResource.value();
       const landmarkSpritesheet = landmarkSpritesheetResource.value();
-      if (!(fillerCountsByRegion && playerTokenTexture && landmarkSpritesheet)) {
+      if (!(playerTokenTexture && landmarkSpritesheet)) {
         return;
       }
 

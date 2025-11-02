@@ -1,13 +1,4 @@
-import {
-  Component,
-  computed,
-  DestroyRef,
-  ElementRef,
-  inject,
-  Injector,
-  signal,
-  viewChild,
-} from '@angular/core';
+import { Component, computed, DestroyRef, ElementRef, inject, Injector, signal, viewChild } from '@angular/core';
 
 import { resizeText } from '../../../util';
 

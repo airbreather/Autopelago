@@ -1,13 +1,10 @@
-import { computed, inject } from '@angular/core';
-
-import { List, Set } from 'immutable';
-
-import { patchState, signalStore, withComputed, withMethods } from '@ngrx/signals';
 import { withImmutableState, withStorageSync } from '@angular-architects/ngrx-toolkit';
 
-import { type MessageNode } from 'archipelago.js';
+import { patchState, signalStore, withMethods } from '@ngrx/signals';
 
-import { GameDefinitionsStore } from './game-definitions-store';
+import { type MessageNode } from 'archipelago.js';
+import { List, Set } from 'immutable';
+import { BAKED_DEFINITIONS } from '../data/resolved-definitions';
 
 export interface Message {
   ts: Date;
@@ -35,9 +32,6 @@ const initialState = {
 const STORAGE_KEY = 'autopelago-game-state';
 
 export const GameStore = signalStore(
-  withComputed((_store, defsStore = inject(GameDefinitionsStore)) => ({
-    defs: computed(() => defsStore.resolvedDefs()),
-  })),
   withImmutableState(initialState),
   withStorageSync({
     key: STORAGE_KEY,
@@ -58,11 +52,6 @@ export const GameStore = signalStore(
     },
     receiveItems(items: Iterable<number>) {
       const lactoseIntolerant = store.lactoseIntolerant();
-      const defs = store.defs();
-      if (!defs) {
-        return;
-      }
-
       patchState(store, (prev) => {
         const result = {
           foodFactor: prev.foodFactor,
@@ -76,7 +65,7 @@ export const GameStore = signalStore(
         } satisfies Partial<typeof initialState>;
         result.receivedItems = prev.receivedItems.withMutations((r) => {
           for (const item of items) {
-            const itemFull = defs.allItems[item];
+            const itemFull = BAKED_DEFINITIONS.allItems[item];
             console.log('received item', lactoseIntolerant ? itemFull.lactoseIntolerantName : itemFull.lactoseName);
             r.push(item);
             for (const aura of itemFull.aurasGranted) {

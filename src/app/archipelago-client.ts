@@ -1,7 +1,5 @@
 import { rxResource } from '@angular/core/rxjs-interop';
 
-import { BehaviorSubject, EMPTY, filter, map, merge, mergeMap, Observable, share } from 'rxjs';
-
 import {
   Client,
   type ConnectionOptions,
@@ -13,6 +11,8 @@ import {
   type RoomStateEvents,
   type SocketEvents,
 } from 'archipelago.js';
+
+import { BehaviorSubject, EMPTY, filter, map, merge, mergeMap, Observable, share } from 'rxjs';
 
 export interface ConnectOptions {
   host: string;

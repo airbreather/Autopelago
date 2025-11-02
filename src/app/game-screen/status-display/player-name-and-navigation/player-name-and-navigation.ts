@@ -1,11 +1,4 @@
-import {
-  Component,
-  DestroyRef,
-  ElementRef,
-  inject,
-  Injector,
-  viewChild,
-} from '@angular/core';
+import { Component, DestroyRef, ElementRef, inject, Injector, viewChild } from '@angular/core';
 
 import { RouterLink } from '@angular/router';
 
@@ -20,7 +13,9 @@ import { resizeText } from '../../../util';
   template: `
     <div #outer class="outer">
       <div #playerNameDiv class="player-name">{{ playerName() }}</div>
-      <div><button #returnButton class="return-button" routerLink="/">Back to Main Menu</button></div>
+      <div>
+        <button #returnButton class="return-button" routerLink="/">Back to Main Menu</button>
+      </div>
     </div>
   `,
   styles: `

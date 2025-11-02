@@ -17,19 +17,8 @@ You are an expert in TypeScript, Angular, and scalable web application developme
   1. NEVER use the `any` type. There is ALWAYS an alternative.
   2. When a type is truly uncertain, use `unknown` and have the compiler guide you to making the correct runtime type checks.
   3. Cast sparingly (stylistically: using `as`, never `<>`) and only when runtime type checking would be impossible or overkill.
-    - An example of where it would be overkill is in `game-definitions-store.ts`, where we use it on the result of `YAML.parse`.
     - An example of where it would be impossible is in `archipelago-client.ts`, where it's used to plug a gap in the compiler so that everything that uses the result can be type checked.
 - Prefer type inference when the type is obvious.
-- Order `import` lines as follows:
-  1. Core Angular modules
-  2. Immutable.js modules
-  3. NgRx modules
-  4. RxJS
-  5. Core PixiJS
-  6. Other Angular modules
-  7. Other PixiJS modules
-  8. Any other third-party modules (when in doubt, alphabetical)
-  9. Modules from the local project
 
 ## Angular Best Practices
 - Always use standalone components over NgModules (this is the default).

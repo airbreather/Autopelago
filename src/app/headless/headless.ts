@@ -1,11 +1,12 @@
 import { Component, effect, inject, input } from '@angular/core';
+import type { GamePackage } from 'archipelago.js';
+import { Ticker } from 'pixi.js';
+
+import { BAKED_DEFINITIONS } from '../data/resolved-definitions';
 
 import type { AutopelagoClientAndData } from '../data/slot-data';
-import type { GamePackage } from 'archipelago.js';
 
-import type { AutopelagoDefinitions } from '../data/resolved-definitions';
 import { GameStore } from '../store/autopelago-store';
-import { Ticker } from 'pixi.js';
 
 const TICK_INTERVAL_MIN = 1000;
 const TICK_INTERVAL_MAX = 20000;
@@ -47,21 +48,13 @@ export class Headless {
       Ticker.shared.start();
     };
     Ticker.shared.add(handleTick, this);
-    const eff = effect(() => {
-      const defs = this.#gameStore.defs();
-      if (!defs) {
-        return;
-      }
-
-      void this.#setUpReceivedItemsHandling(defs);
-      eff.destroy();
-    });
+    effect(() => void this.#setUpReceivedItemsHandling());
   }
 
-  async #setUpReceivedItemsHandling(defs: AutopelagoDefinitions) {
+  async #setUpReceivedItemsHandling() {
     const itemByName = new Map<string, number>();
-    for (let i = 0; i < defs.allItems.length; i++) {
-      const item = defs.allItems[i];
+    for (let i = 0; i < BAKED_DEFINITIONS.allItems.length; i++) {
+      const item = BAKED_DEFINITIONS.allItems[i];
       itemByName.set(item.lactoseName, i);
       if (item.lactoseName !== item.lactoseIntolerantName) {
         itemByName.set(item.lactoseIntolerantName, i);

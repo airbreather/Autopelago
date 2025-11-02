@@ -1,5 +1,5 @@
-﻿import { patchState, signalStore, withMethods } from '@ngrx/signals';
-import { withImmutableState, withStorageSync } from '@angular-architects/ngrx-toolkit';
+﻿import { withImmutableState, withStorageSync } from '@angular-architects/ngrx-toolkit';
+import { patchState, signalStore, withMethods } from '@ngrx/signals';
 
 export type GameTab = 'map' | 'text-client' | 'arcade';
 

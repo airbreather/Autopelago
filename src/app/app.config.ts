@@ -10,9 +10,9 @@ import { provideAnimations } from '@angular/platform-browser/animations';
 import { provideRouter, withComponentInputBinding, withHashLocation } from '@angular/router';
 
 import { provideToastr } from 'ngx-toastr';
+import { AppErrorHandler } from './app-error-handler';
 
 import { routes } from './app.routes';
-import { AppErrorHandler } from './app-error-handler';
 
 export const appConfig: ApplicationConfig = {
   providers: [

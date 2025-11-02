@@ -1,14 +1,15 @@
 import { computed, inject, Injectable, type Signal } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 
-import { Seq } from 'immutable';
-
 import { type ConnectedPacket, Item } from 'archipelago.js';
+
+import { Seq } from 'immutable';
 
 import { ArchipelagoClient, type ConnectOptions } from '../archipelago-client';
 import type { AutopelagoBuff, AutopelagoTrap } from '../data/definitions-file';
 import type { LandmarkName } from '../data/locations';
 import type { AutopelagoDefinitions } from '../data/resolved-definitions';
+import { BAKED_DEFINITIONS } from '../data/resolved-definitions';
 import { GameStore } from '../store/autopelago-store';
 import { strictObjectEntries } from '../util';
 
@@ -48,29 +49,24 @@ export class AutopelagoService {
 
   constructor() {
     this.#gameState = computed(() => {
-      const res = this.#store.defs();
-      if (!res) {
-        return null;
-      }
-
       const gamePackage = this.rawClient.gamePackage.value();
       if (!gamePackage) {
         return null;
       }
 
       const itemByName = new Map<string, number>();
-      for (let i = 0; i < res.allItems.length; i++) {
-        const item = res.allItems[i];
+      for (let i = 0; i < BAKED_DEFINITIONS.allItems.length; i++) {
+        const item = BAKED_DEFINITIONS.allItems[i];
         itemByName.set(item.lactoseName, i);
         if (item.lactoseName !== item.lactoseIntolerantName) {
           itemByName.set(item.lactoseIntolerantName, i);
         }
       }
 
-      const locationByName = new Map(res.allLocations.map((location, i) => [location.name, i] as const));
+      const locationByName = new Map(BAKED_DEFINITIONS.allLocations.map((location, i) => [location.name, i] as const));
 
       const itemByDataId = new Map<number, number>();
-      const dataIdByItem = new Array<number>(res.allItems.length);
+      const dataIdByItem = new Array<number>(BAKED_DEFINITIONS.allItems.length);
       for (const [name, dataId] of strictObjectEntries(gamePackage.item_name_to_id)) {
         const item = itemByName.get(name);
         if (item === undefined) {
@@ -83,7 +79,7 @@ export class AutopelagoService {
       }
 
       const locationByDataId = new Map<number, number>();
-      const dataIdByLocation = new Array<number>(res.allLocations.length);
+      const dataIdByLocation = new Array<number>(BAKED_DEFINITIONS.allLocations.length);
       for (const [name, dataId] of strictObjectEntries(gamePackage.location_name_to_id)) {
         const location = locationByName.get(name);
         if (location === undefined) {
@@ -99,7 +95,7 @@ export class AutopelagoService {
         locationByDataId,
         dataIdByItem,
         dataIdByLocation,
-        resolvedDefs: res,
+        resolvedDefs: BAKED_DEFINITIONS,
       };
     });
 

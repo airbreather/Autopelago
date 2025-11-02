@@ -80,6 +80,7 @@ export function determineDesirability(options: Readonly<DetermineDesirabilityOpt
     auraDrivenLocation,
   } = options;
   const ratCount = itemCount.reduce((acc, val, i) => acc + (val * allItems[i].ratCount), 0);
+
   function isSatisfied(req: AutopelagoRequirement): boolean {
     if ('item' in req) {
       return itemCount[req.item] >= 1;
@@ -117,12 +118,14 @@ export function determineDesirability(options: Readonly<DetermineDesirabilityOpt
   // need to mark it as AVOID. and if we can make it to the victory location, then we're in go mode.
   const visited = new BitArray(allRegions.length);
   const q = new Queue<AutopelagoRegion>();
+
   function tryEnqueue(r: number) {
     if (!visited[r]) {
       q.enqueue(allRegions[r]);
       visited[r] = 1;
     }
   }
+
   tryEnqueue(startRegion);
   for (let region = q.dequeue(); region !== undefined; region = q.dequeue()) {
     if ('loc' in region) {
@@ -154,12 +157,14 @@ export function determineTargetLocation(options: Readonly<DetermineTargetLocatio
   let resultDesirability = -1;
   const visited = new BitArray(allLocations.length);
   const q = new Queue<number>();
+
   function tryEnqueue(loc: number) {
     if (!visited[loc]) {
       q.enqueue(loc);
       visited[loc] = 1;
     }
   }
+
   tryEnqueue(currentLocation);
   for (let loc = q.dequeue(); loc !== undefined; loc = q.dequeue()) {
     const d = desirability[loc];
