@@ -4,7 +4,7 @@ import { patchState, signalStore, withMethods } from '@ngrx/signals';
 
 import { type MessageNode } from 'archipelago.js';
 import { List, Set } from 'immutable';
-import { BAKED_DEFINITIONS } from '../data/resolved-definitions';
+import { BAKED_DEFINITIONS_FULL, type VictoryLocationYamlKey } from '../data/resolved-definitions';
 
 export interface Message {
   ts: Date;
@@ -13,6 +13,7 @@ export interface Message {
 
 const initialState = {
   lactoseIntolerant: false,
+  victoryLocationYamlKey: null as VictoryLocationYamlKey | null,
   paused: false,
   messages: [] as readonly Message[],
   foodFactor: 0,
@@ -65,7 +66,7 @@ export const GameStore = signalStore(
         } satisfies Partial<typeof initialState>;
         result.receivedItems = prev.receivedItems.withMutations((r) => {
           for (const item of items) {
-            const itemFull = BAKED_DEFINITIONS.allItems[item];
+            const itemFull = BAKED_DEFINITIONS_FULL.allItems[item];
             console.log('received item', lactoseIntolerant ? itemFull.lactoseIntolerantName : itemFull.lactoseName);
             r.push(item);
             for (const aura of itemFull.aurasGranted) {

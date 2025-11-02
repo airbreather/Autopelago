@@ -2,7 +2,11 @@ import { Component, effect, inject, input } from '@angular/core';
 import type { GamePackage } from 'archipelago.js';
 import { Ticker } from 'pixi.js';
 
-import { BAKED_DEFINITIONS } from '../data/resolved-definitions';
+import {
+  BAKED_DEFINITIONS_BY_VICTORY_LANDMARK,
+  BAKED_DEFINITIONS_FULL,
+  VICTORY_LOCATION_NAME_LOOKUP,
+} from '../data/resolved-definitions';
 
 import type { AutopelagoClientAndData } from '../data/slot-data';
 
@@ -52,16 +56,16 @@ export class Headless {
   }
 
   async #setUpReceivedItemsHandling() {
+    const { client, slotData } = this.game();
     const itemByName = new Map<string, number>();
-    for (let i = 0; i < BAKED_DEFINITIONS.allItems.length; i++) {
-      const item = BAKED_DEFINITIONS.allItems[i];
+    for (let i = 0; i < BAKED_DEFINITIONS_FULL.allItems.length; i++) {
+      const item = BAKED_DEFINITIONS_FULL.allItems[i];
       itemByName.set(item.lactoseName, i);
       if (item.lactoseName !== item.lactoseIntolerantName) {
         itemByName.set(item.lactoseIntolerantName, i);
       }
     }
 
-    const { client } = this.game();
     await this.#loadPackage();
     const itemsJustReceived: number[] = [];
     for (const item of client.items.received) {
@@ -83,6 +87,7 @@ export class Headless {
 
       this.#gameStore.receiveItems(itemsJustReceived);
     });
+    console.log('defs:', BAKED_DEFINITIONS_BY_VICTORY_LANDMARK[VICTORY_LOCATION_NAME_LOOKUP[slotData.victory_location_name]]);
   }
 
   async #loadPackage() {

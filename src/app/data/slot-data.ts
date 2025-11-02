@@ -1,5 +1,5 @@
 ﻿import type { Client, JSONRecord } from 'archipelago.js';
-import type { AutopelagoBuff, AutopelagoTrap } from './resolved-definitions';
+import type { AutopelagoBuff, AutopelagoTrap, VictoryLocationName } from './resolved-definitions';
 
 export type AutopelagoUserCustomizableMessage = [string, number];
 
@@ -11,7 +11,7 @@ export interface AutopelagoClientAndData {
 
 export interface AutopelagoSlotData extends JSONRecord {
   version_stamp: string;
-  victory_location_name: string;
+  victory_location_name: VictoryLocationName;
   enabled_buffs: AutopelagoBuff[];
   enabled_traps: AutopelagoTrap[];
   msg_changed_target: AutopelagoUserCustomizableMessage[];

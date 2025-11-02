@@ -15,19 +15,29 @@ import {
   Ticker,
 } from 'pixi.js';
 
-import { type FillerRegionName, fillerRegions, isFillerRegionName, LANDMARKS } from '../../../data/locations';
-import { BAKED_DEFINITIONS } from '../../../data/resolved-definitions';
+import { fillerRegions, type FillerRegionYamlKey, isFillerRegionYamlKey, LANDMARKS } from '../../../data/locations';
+import { BAKED_DEFINITIONS_BY_VICTORY_LANDMARK, type VictoryLocationYamlKey } from '../../../data/resolved-definitions';
 import { GameStore } from '../../../store/autopelago-store';
 import { resizeEvents, strictObjectEntries } from '../../../util';
 
-const fillerCountsByRegion: Partial<Record<FillerRegionName, number>> = {};
-for (const r of BAKED_DEFINITIONS.allRegions) {
-  if (isFillerRegionName(r.yamlKey) && 'locs' in r) {
-    fillerCountsByRegion[r.yamlKey] = r.locs.length;
+const fillerCountsByRegionLookup = {
+  captured_goldfish: getFillerCountsByRegion('captured_goldfish'),
+  secret_cache: getFillerCountsByRegion('secret_cache'),
+  snakes_on_a_planet: getFillerCountsByRegion('snakes_on_a_planet'),
+} as const satisfies Record<VictoryLocationYamlKey, Partial<Record<FillerRegionYamlKey, number>>>;
+
+function getFillerCountsByRegion(victoryLocation: VictoryLocationYamlKey) {
+  const fillerCountsByRegion: Partial<Record<FillerRegionYamlKey, number>> = {};
+  for (const r of BAKED_DEFINITIONS_BY_VICTORY_LANDMARK[victoryLocation].allRegions) {
+    if (isFillerRegionYamlKey(r.yamlKey) && 'locs' in r) {
+      fillerCountsByRegion[r.yamlKey] = r.locs.length;
+    }
   }
+
+  return fillerCountsByRegion;
 }
 
-function createFillerMarkers(fillerCountsByRegion: Readonly<Partial<Record<FillerRegionName, number>>>) {
+function createFillerMarkers(fillerCountsByRegion: Readonly<Partial<Record<FillerRegionYamlKey, number>>>) {
   const graphicsContainer = new Container({
     filters: [new DropShadowFilter({
       blur: 1,
@@ -209,9 +219,10 @@ export class GameTabMap {
     effect(() => {
       const canvas = this.pixiCanvas().nativeElement;
       const outerDiv = this.outerDiv().nativeElement;
+      const victoryLocationYamlKey = this.#store.victoryLocationYamlKey();
       const playerTokenTexture = playerTokenTextureResource.value();
       const landmarkSpritesheet = landmarkSpritesheetResource.value();
-      if (!(playerTokenTexture && landmarkSpritesheet)) {
+      if (!(playerTokenTexture && landmarkSpritesheet && victoryLocationYamlKey)) {
         return;
       }
 
@@ -229,7 +240,7 @@ export class GameTabMap {
         });
         Ticker.shared.stop();
 
-        app.stage.addChild(createFillerMarkers(fillerCountsByRegion));
+        app.stage.addChild(createFillerMarkers(fillerCountsByRegionLookup[victoryLocationYamlKey]));
         Ticker.shared.stop();
         app.stage.addChild(createLandmarkMarkers(landmarkSpritesheet));
         Ticker.shared.stop();

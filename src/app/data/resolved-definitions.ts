@@ -1,8 +1,11 @@
+import BitArray from '@bitarray/typedarray';
 import { itemClassifications } from 'archipelago.js';
+import Queue from 'yocto-queue';
 
 import { stricterIsArray, strictObjectEntries } from '../util';
 
 import * as baked from './baked.json';
+import type { LandmarkYamlKey } from './locations';
 
 export type AutopelagoBuff =
   'well_fed'
@@ -67,6 +70,15 @@ export interface AutopelagoFillerRegion extends AutopelagoRegionBase {
 
 export type AutopelagoRegion = AutopelagoLandmarkRegion | AutopelagoFillerRegion;
 
+export function getLocs(region: AutopelagoRegion): readonly number[] {
+  if ('loc' in region) {
+    return [region.loc];
+  }
+  else {
+    return region.locs;
+  }
+}
+
 export interface AutopelagoRatCountRequirement {
   ratCount: number;
 }
@@ -84,15 +96,37 @@ export type AutopelagoRequirement = AutopelagoRatCountRequirement
   | AutopelagoItemRequirement
   | AutopelagoCompositeRequirement;
 
+export type VictoryLocationYamlKey =
+  Extract<LandmarkYamlKey, 'captured_goldfish' | 'secret_cache' | 'snakes_on_a_planet'>;
+export type VictoryLocationName =
+  'Captured Goldfish' | 'Secret Cache' | 'Snakes on a Planet';
+export const VICTORY_LOCATION_NAME_LOOKUP = {
+  'captured_goldfish': 'Captured Goldfish',
+  'secret_cache': 'Secret Cache',
+  'snakes_on_a_planet': 'Snakes on a Planet',
+  'Captured Goldfish': 'captured_goldfish',
+  'Secret Cache': 'secret_cache',
+  'Snakes on a Planet': 'snakes_on_a_planet',
+} as const satisfies (Record<VictoryLocationYamlKey, VictoryLocationName> & Record<VictoryLocationName, VictoryLocationYamlKey>);
+
+export const BAKED_DEFINITIONS_FULL = resolveMainDefinitions(baked);
+export const BAKED_DEFINITIONS_BY_VICTORY_LANDMARK = {
+  captured_goldfish: withVictoryLocation(BAKED_DEFINITIONS_FULL, 'captured_goldfish'),
+  secret_cache: withVictoryLocation(BAKED_DEFINITIONS_FULL, 'secret_cache'),
+  snakes_on_a_planet: withVictoryLocation(BAKED_DEFINITIONS_FULL, 'snakes_on_a_planet'),
+} as const;
+
 export interface AutopelagoDefinitions {
   allItems: readonly Readonly<AutopelagoItem>[];
   progressionItemsByYamlKey: ReadonlyMap<string, number>;
   itemsWithNonzeroRatCounts: readonly number[];
+  itemNameLookup: ReadonlyMap<string, number>;
 
   allLocations: readonly Readonly<AutopelagoLocation>[];
   allRegions: readonly Readonly<AutopelagoRegion>[];
   startRegion: number;
   startLocation: number;
+  locationNameLookup: ReadonlyMap<string, number>;
 }
 
 type YamlRequirement =
@@ -106,9 +140,7 @@ type YamlBulkItemLookups =
 type YamlBulkItemOrGameSpecificItemGroup = YamlBulkItemLookups[number];
 type YamlBulkItem = Exclude<YamlBulkItemOrGameSpecificItemGroup, Readonly<Record<'game_specific', unknown>>>;
 
-export const BAKED_DEFINITIONS = resolveDefinitions(baked);
-
-function resolveDefinitions(
+function resolveMainDefinitions(
   yamlFile: typeof baked,
 ): AutopelagoDefinitions {
   const allItems: AutopelagoItem[] = [];
@@ -445,20 +477,10 @@ function resolveDefinitions(
       const region = allRegions[i];
       const connected = toConnected(connections.forward, connections.backward);
       // Create a new region object with updated connections
-      if ('loc' in region) {
-        // Landmark region
-        allRegions[i] = {
-          ...region,
-          connected,
-        };
-      }
-      else {
-        // Filler region
-        allRegions[i] = {
-          ...region,
-          connected,
-        };
-      }
+      allRegions[i] = {
+        ...region,
+        connected,
+      };
     }
   }
 
@@ -576,6 +598,18 @@ function resolveDefinitions(
 
   const startLocationIndex = startRegion.locs[0];
 
+  // build name lookups
+  const itemNameLookup = new Map<string, number>();
+  for (const [itemIndex, item] of allItems.entries()) {
+    itemNameLookup.set(item.lactoseName, itemIndex);
+    itemNameLookup.set(item.lactoseIntolerantName, itemIndex);
+  }
+
+  const locationNameLookup = new Map<string, number>();
+  for (const [locationIndex, location] of allLocations.entries()) {
+    locationNameLookup.set(location.name, locationIndex);
+  }
+
   return {
     allItems,
     progressionItemsByYamlKey,
@@ -584,5 +618,140 @@ function resolveDefinitions(
     allRegions,
     startRegion: startRegionIndex,
     startLocation: startLocationIndex,
+    itemNameLookup,
+    locationNameLookup,
+  };
+}
+
+function withVictoryLocation(defs: AutopelagoDefinitions, location: VictoryLocationYamlKey): AutopelagoDefinitions {
+  const allLocations: AutopelagoLocation[] = [];
+  const oldToNewLocationMap = new Map<number, number>();
+  const allRegions: AutopelagoRegion[] = [];
+  const oldToNewRegionMap = new Map<number, number>();
+
+  const regionsEnqueuedBefore = new BitArray(defs.allRegions.length);
+  const q = new Queue<number>();
+  function enqueueRegion(regionIndex: number) {
+    if (regionsEnqueuedBefore[regionIndex]) {
+      return;
+    }
+
+    regionsEnqueuedBefore[regionIndex] = 1;
+    q.enqueue(regionIndex);
+  }
+  enqueueRegion(defs.startRegion);
+  for (let regionIndex = q.dequeue(); regionIndex !== undefined; regionIndex = q.dequeue()) {
+    oldToNewRegionMap.set(regionIndex, allRegions.length);
+    const region = {
+      ...defs.allRegions[regionIndex],
+      key: allRegions.length,
+    };
+    allRegions.push(region);
+    for (const loc of getLocs(region)) {
+      oldToNewLocationMap.set(loc, allLocations.length);
+      const newLocation = {
+        ...defs.allLocations[loc],
+        key: allLocations.length,
+      };
+      allLocations.push(newLocation);
+    }
+
+    let nextRegions = region.connected.all;
+    if (region.yamlKey === location) {
+      nextRegions = nextRegions.filter(c => c[1] !== 'forward');
+    }
+
+    for (const [exit] of nextRegions) {
+      enqueueRegion(exit);
+    }
+  }
+
+  // fix connections
+  function remapConnected(conn: Connected, map: ReadonlyMap<number, number>): Connected {
+    const forward: number[] = [];
+    const backward: number[] = [];
+    const all: [number, 'forward' | 'backward'][] = [];
+    for (const [exit, direction] of conn.all) {
+      const newExit = map.get(exit);
+      if (newExit === undefined) {
+        continue;
+      }
+
+      if (direction === 'forward') {
+        forward.push(newExit);
+      }
+      else {
+        backward.push(newExit);
+      }
+      all.push([newExit, direction]);
+    }
+
+    return { forward, backward, all };
+  }
+
+  for (let oldRegionIndex = 0; oldRegionIndex < defs.allRegions.length; oldRegionIndex++) {
+    const newRegionIndex = oldToNewRegionMap.get(oldRegionIndex);
+    if (newRegionIndex === undefined) {
+      continue;
+    }
+
+    const oldRegion = defs.allRegions[oldRegionIndex];
+    const newConnected = remapConnected(oldRegion.connected, oldToNewRegionMap);
+
+    const newLocs: number[] = [];
+    for (const oldLocIndex of getLocs(oldRegion)) {
+      const newLocIndex = oldToNewLocationMap.get(oldLocIndex);
+      if (newLocIndex === undefined) {
+        // shouldn't happen, but whatever.
+        continue;
+      }
+
+      newLocs.push(newLocIndex);
+      const oldLoc = defs.allLocations[oldLocIndex];
+      allLocations[newLocIndex] = {
+        ...oldLoc,
+        key: newLocIndex,
+        connected: remapConnected(oldLoc.connected, oldToNewLocationMap),
+        // if it ever helps, the following oldLoc.regionLocationKey[1] can be replaced by the
+        // index of the current position within the getLocs() array.
+        regionLocationKey: [newRegionIndex, oldLoc.regionLocationKey[1]],
+      };
+    }
+    if ('loc' in oldRegion) {
+      allRegions[newRegionIndex] = {
+        ...oldRegion,
+        key: newRegionIndex,
+        connected: newConnected,
+        loc: newLocs[0],
+      };
+    }
+    else {
+      allRegions[newRegionIndex] = {
+        ...oldRegion,
+        key: newRegionIndex,
+        connected: newConnected,
+        locs: newLocs,
+      };
+    }
+  }
+
+  const newStartRegion = oldToNewRegionMap.get(defs.startRegion);
+  const newStartLocation = oldToNewLocationMap.get(defs.startLocation);
+  if (newStartRegion === undefined || newStartLocation === undefined) {
+    throw new Error('Failed to find remapped start region or location');
+  }
+
+  const locationNameLookup = new Map<string, number>();
+  for (const [locationIndex, location] of allLocations.entries()) {
+    locationNameLookup.set(location.name, locationIndex);
+  }
+
+  return {
+    ...defs,
+    allLocations,
+    allRegions,
+    startRegion: newStartRegion,
+    startLocation: newStartLocation,
+    locationNameLookup,
   };
 }

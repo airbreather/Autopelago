@@ -6,8 +6,12 @@ import { type ConnectedPacket, Item } from 'archipelago.js';
 import { Seq } from 'immutable';
 
 import { ArchipelagoClient, type ConnectOptions } from '../archipelago-client';
-import type { LandmarkName } from '../data/locations';
-import { BAKED_DEFINITIONS, type AutopelagoBuff, type AutopelagoTrap } from '../data/resolved-definitions';
+import {
+  type AutopelagoBuff,
+  type AutopelagoTrap,
+  BAKED_DEFINITIONS_FULL,
+  type VictoryLocationName,
+} from '../data/resolved-definitions';
 import { GameStore } from '../store/autopelago-store';
 import { strictObjectEntries } from '../util';
 
@@ -15,7 +19,7 @@ type AutopelagoWeightedMessage = readonly [string, number];
 
 interface AutopelagoSlotData {
   version_stamp: string;
-  victory_location_name: LandmarkName;
+  victory_location_name: VictoryLocationName;
   enabled_buffs: readonly AutopelagoBuff[];
   enabled_traps: readonly AutopelagoTrap[];
   msg_changed_target: readonly AutopelagoWeightedMessage[];
@@ -52,18 +56,18 @@ export class AutopelagoService {
       }
 
       const itemByName = new Map<string, number>();
-      for (let i = 0; i < BAKED_DEFINITIONS.allItems.length; i++) {
-        const item = BAKED_DEFINITIONS.allItems[i];
+      for (let i = 0; i < BAKED_DEFINITIONS_FULL.allItems.length; i++) {
+        const item = BAKED_DEFINITIONS_FULL.allItems[i];
         itemByName.set(item.lactoseName, i);
         if (item.lactoseName !== item.lactoseIntolerantName) {
           itemByName.set(item.lactoseIntolerantName, i);
         }
       }
 
-      const locationByName = new Map(BAKED_DEFINITIONS.allLocations.map((location, i) => [location.name, i] as const));
+      const locationByName = new Map(BAKED_DEFINITIONS_FULL.allLocations.map((location, i) => [location.name, i] as const));
 
       const itemByDataId = new Map<number, number>();
-      const dataIdByItem = new Array<number>(BAKED_DEFINITIONS.allItems.length);
+      const dataIdByItem = new Array<number>(BAKED_DEFINITIONS_FULL.allItems.length);
       for (const [name, dataId] of strictObjectEntries(gamePackage.item_name_to_id)) {
         const item = itemByName.get(name);
         if (item === undefined) {
@@ -76,7 +80,7 @@ export class AutopelagoService {
       }
 
       const locationByDataId = new Map<number, number>();
-      const dataIdByLocation = new Array<number>(BAKED_DEFINITIONS.allLocations.length);
+      const dataIdByLocation = new Array<number>(BAKED_DEFINITIONS_FULL.allLocations.length);
       for (const [name, dataId] of strictObjectEntries(gamePackage.location_name_to_id)) {
         const location = locationByName.get(name);
         if (location === undefined) {
@@ -92,7 +96,7 @@ export class AutopelagoService {
         locationByDataId,
         dataIdByItem,
         dataIdByLocation,
-        resolvedDefs: BAKED_DEFINITIONS,
+        resolvedDefs: BAKED_DEFINITIONS_FULL,
       };
     });
 
