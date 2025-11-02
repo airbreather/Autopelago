@@ -1,4 +1,14 @@
-import { Component, DestroyRef, effect, ElementRef, inject, resource, untracked, viewChild } from '@angular/core';
+import {
+  Component,
+  DestroyRef,
+  effect,
+  ElementRef,
+  inject,
+  input,
+  resource,
+  untracked,
+  viewChild,
+} from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { DropShadowFilter } from 'pixi-filters';
 
@@ -15,8 +25,20 @@ import {
   Ticker,
 } from 'pixi.js';
 
-import { fillerRegions, type FillerRegionYamlKey, isFillerRegionYamlKey, LANDMARKS } from '../../../data/locations';
-import { BAKED_DEFINITIONS_BY_VICTORY_LANDMARK, type VictoryLocationYamlKey } from '../../../data/resolved-definitions';
+import {
+  fillerRegions,
+  type FillerRegionYamlKey,
+  isFillerRegionYamlKey,
+  isLandmarkYamlKey,
+  LANDMARKS,
+} from '../../../data/locations';
+import {
+  BAKED_DEFINITIONS_BY_VICTORY_LANDMARK,
+  VICTORY_LOCATION_CROP_LOOKUP,
+  VICTORY_LOCATION_NAME_LOOKUP,
+  type VictoryLocationYamlKey,
+} from '../../../data/resolved-definitions';
+import type { AutopelagoClientAndData } from '../../../data/slot-data';
 import { GameStore } from '../../../store/autopelago-store';
 import { resizeEvents, strictObjectEntries } from '../../../util';
 
@@ -132,7 +154,12 @@ for (const [landmarkKey, landmark] of Object.entries(LANDMARKS)) {
   spritesheetData.animations[`${landmarkKey}_off`] = [`${landmarkKey}_off_1`, `${landmarkKey}_off_2`];
 }
 
-function createLandmarkMarkers(spritesheet: Spritesheet) {
+function createLandmarkMarkers(victoryLocationYamlKey: VictoryLocationYamlKey, spritesheet: Spritesheet) {
+  const validLandmarksLookup = new Set(BAKED_DEFINITIONS_BY_VICTORY_LANDMARK[victoryLocationYamlKey]
+    .allRegions
+    .map(r => r.yamlKey)
+    .filter(k => isLandmarkYamlKey(k)));
+
   const landmarksContainer = new Container({
     filters: [new DropShadowFilter({
       blur: 1,
@@ -142,14 +169,17 @@ function createLandmarkMarkers(spritesheet: Spritesheet) {
   });
 
   // Create sprites for each landmark
-  landmarksContainer.addChild(...Object.entries(LANDMARKS).map(([landmarkKey, landmark]) => {
-    const isOn = Math.random() < 0.5;
-    const anim = new AnimatedSprite(spritesheet.animations[`${landmarkKey}_${isOn ? 'on' : 'off'}`]);
-    anim.animationSpeed = 1 / (500 * Ticker.targetFPMS);
-    anim.position.set(landmark.coords[0] - 8, landmark.coords[1] - 8);
-    anim.play();
-    return anim;
-  }));
+  landmarksContainer.addChild(...strictObjectEntries(LANDMARKS)
+    .filter(([landmarkKey]) => validLandmarksLookup.has(landmarkKey))
+    .map(([landmarkKey, landmark]) => {
+      const isOn = Math.random() < 0.5;
+      const anim = new AnimatedSprite(spritesheet.animations[`${landmarkKey}_${isOn ? 'on' : 'off'}`]);
+      anim.animationSpeed = 1 / (500 * Ticker.targetFPMS);
+      anim.position.set(landmark.coords[0] - 8, landmark.coords[1] - 8);
+      anim.play();
+      return anim;
+    }),
+  );
 
   return landmarksContainer;
 }
@@ -159,10 +189,11 @@ function createLandmarkMarkers(spritesheet: Spritesheet) {
   template: `
     <div #outer class="outer">
       <!--suppress AngularNgOptimizedImage, HtmlUnknownTarget -->
-      <img alt="map" src="assets/images/map.svg"/>
+      <img #mapImage class="map-image" alt="map" src="assets/images/map.svg"/>
       <canvas #pixiCanvas class="pixi-canvas" width="300" height="450">
       </canvas>
-      <div #pauseButtonContainer class="pause-button-container" [style.margin-top]="'-' + pauseButtonContainer.clientHeight + 'px'">
+      <div #pauseButtonContainer class="pause-button-container"
+           [style.margin-top]="'-' + pauseButtonContainer.clientHeight + 'px'">
         <button class="rat-toggle-button"
                 [class.toggled-on]="paused()"
                 (click)="togglePause()">
@@ -176,6 +207,13 @@ function createLandmarkMarkers(spritesheet: Spritesheet) {
       position: relative;
       pointer-events: none;
       user-select: none;
+      overflow: hidden;
+    }
+
+    .map-image {
+      display: block;
+      width: 100%;
+      height: auto;
     }
 
     .pause-button-container {
@@ -199,6 +237,8 @@ function createLandmarkMarkers(spritesheet: Spritesheet) {
 export class GameTabMap {
   readonly #store = inject(GameStore);
   readonly paused = this.#store.paused;
+
+  readonly game = input.required<AutopelagoClientAndData>();
 
   protected readonly pixiCanvas = viewChild.required<ElementRef<HTMLCanvasElement>>('pixiCanvas');
   protected readonly outerDiv = viewChild.required<ElementRef<HTMLDivElement>>('outer');
@@ -226,6 +266,8 @@ export class GameTabMap {
         return;
       }
 
+      canvas.height = VICTORY_LOCATION_CROP_LOOKUP[victoryLocationYamlKey];
+      outerDiv.style.aspectRatio = `${canvas.width.toString()} / ${canvas.height.toString()}`;
       const reciprocalOriginalWidth = 1 / canvas.width;
       const reciprocalOriginalHeight = 1 / canvas.height;
       void (async () => {
@@ -242,7 +284,7 @@ export class GameTabMap {
 
         app.stage.addChild(createFillerMarkers(fillerCountsByRegionLookup[victoryLocationYamlKey]));
         Ticker.shared.stop();
-        app.stage.addChild(createLandmarkMarkers(landmarkSpritesheet));
+        app.stage.addChild(createLandmarkMarkers(victoryLocationYamlKey, landmarkSpritesheet));
         Ticker.shared.stop();
         app.stage.addChild(createPlayerToken(playerTokenTexture, destroyRef));
         Ticker.shared.stop();
@@ -273,6 +315,11 @@ export class GameTabMap {
       else {
         Ticker.shared.start();
       }
+    });
+
+    effect(() => {
+      const { slotData } = this.game();
+      this.#store.setVictoryLocationYamlKey(VICTORY_LOCATION_NAME_LOOKUP[slotData.victory_location_name]);
     });
   }
 

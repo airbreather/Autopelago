@@ -4,6 +4,7 @@ import { rxResource, takeUntilDestroyed, toObservable } from '@angular/core/rxjs
 import { SplitAreaComponent, SplitComponent } from 'angular-split';
 
 import { map, mergeMap } from 'rxjs';
+import type { AutopelagoClientAndData } from '../data/slot-data';
 
 import { AutopelagoService } from '../game/autopelago';
 import { GameScreenStore } from '../store/game-screen-store';
@@ -21,10 +22,10 @@ import { StatusDisplay } from './status-display/status-display';
       <as-split #split unit="pixel" direction="horizontal"
                 gutterDblClickDuration="500" (gutterDblClick)="onGutterDblClick()">
         <as-split-area class="left" [size]="leftSize()" [minSize]="minSize()" [maxSize]="maxSize()">
-          <app-status-display/>
+          <app-status-display />
         </as-split-area>
         <as-split-area class="right">
-          <app-game-tabs/>
+          <app-game-tabs [game]="game()" />
         </as-split-area>
       </as-split>
     </div>
@@ -38,7 +39,8 @@ import { StatusDisplay } from './status-display/status-display';
 })
 export class GameScreen {
   readonly #store = inject(GameScreenStore);
-  protected readonly autopelago = input.required<AutopelagoService>();
+  readonly #autopelago = inject(AutopelagoService);
+  readonly game = input.required<AutopelagoClientAndData>();
   protected readonly splitRef = viewChild.required<SplitComponent>('split');
   protected readonly outerRef = viewChild.required<ElementRef<HTMLDivElement>>('outer');
 
@@ -93,7 +95,7 @@ export class GameScreen {
       this.#store.updateLeftSize(evt.sizes[0] as number);
     });
     inject(DestroyRef).onDestroy(() => {
-      this.autopelago().disconnect();
+      this.#autopelago.disconnect();
     });
   }
 

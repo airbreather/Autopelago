@@ -206,7 +206,7 @@ export class ConnectScreen {
     event.preventDefault();
     try {
       this.#connecting.set(true);
-      await this.#router.navigate(['./headless'], {
+      await this.#router.navigate(['./game'], {
         queryParams: {
           host: this.host(),
           port: this.port(),

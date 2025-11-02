@@ -108,6 +108,11 @@ export const VICTORY_LOCATION_NAME_LOOKUP = {
   'Secret Cache': 'secret_cache',
   'Snakes on a Planet': 'snakes_on_a_planet',
 } as const satisfies (Record<VictoryLocationYamlKey, VictoryLocationName> & Record<VictoryLocationName, VictoryLocationYamlKey>);
+export const VICTORY_LOCATION_CROP_LOOKUP = {
+  captured_goldfish: 148,
+  secret_cache: 301,
+  snakes_on_a_planet: 450,
+} as const satisfies Record<VictoryLocationYamlKey, number>;
 
 export const BAKED_DEFINITIONS_FULL = resolveMainDefinitions(baked);
 export const BAKED_DEFINITIONS_BY_VICTORY_LANDMARK = {

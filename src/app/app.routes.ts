@@ -55,8 +55,8 @@ export const routes: Routes = [
   {
     path: 'game',
     loadComponent: () => import('./game-screen/game-screen').then(m => m.GameScreen),
-    providers: [AutopelagoService],
-    resolve: { autopelago: connectResolve },
+    providers: [GameStore, AutopelagoService],
+    resolve: { game: connectResolve },
   },
   {
     path: 'headless',

@@ -1,4 +1,5 @@
-import { Component, inject } from '@angular/core';
+import { Component, inject, input } from '@angular/core';
+import type { AutopelagoClientAndData } from '../../data/slot-data';
 
 import { GameScreenStore, type GameTab } from '../../store/game-screen-store';
 import { GameTabArcade } from './game-tab-arcade/game-tab-arcade';
@@ -17,7 +18,7 @@ import { GameTabTextClient } from './game-tab-text-client/game-tab-text-client';
       <div class="top">
         @switch (currentTab()) {
           @case ('map') {
-            <app-game-tab-map />
+            <app-game-tab-map [game]="game()" />
           }
           @case ('arcade') {
             <app-game-tab-arcade />
@@ -91,6 +92,8 @@ import { GameTabTextClient } from './game-tab-text-client/game-tab-text-client';
 })
 export class GameTabs {
   readonly #store = inject(GameScreenStore);
+
+  readonly game = input.required<AutopelagoClientAndData>();
 
   readonly currentTab = this.#store.currentTab;
 

@@ -51,6 +51,9 @@ export const GameStore = signalStore(
     togglePause() {
       patchState(store, ({ paused }) => ({ paused: !paused }));
     },
+    setVictoryLocationYamlKey(victoryLocationYamlKey: VictoryLocationYamlKey) {
+      patchState(store, { victoryLocationYamlKey });
+    },
     receiveItems(items: Iterable<number>) {
       const lactoseIntolerant = store.lactoseIntolerant();
       patchState(store, (prev) => {
