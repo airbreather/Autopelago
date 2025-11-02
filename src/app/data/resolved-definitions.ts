@@ -3,9 +3,8 @@ import { itemClassifications } from 'archipelago.js';
 import { stricterIsArray, strictObjectEntries } from '../util';
 
 import * as baked from './baked.json';
-import type { AutopelagoDefinitionsYamlFile, YamlBulkItem, YamlBulkItemOrGameSpecificItemGroup, YamlRequirement } from './yaml-types';
 
-export const BAKED_DEFINITIONS = resolveDefinitions(baked as unknown as AutopelagoDefinitionsYamlFile);
+export const BAKED_DEFINITIONS = resolveDefinitions(baked);
 
 export type AutopelagoBuff =
   'well_fed'
@@ -110,7 +109,7 @@ function toConnected(forward: readonly number[], backward: readonly number[]): C
 }
 
 function resolveDefinitions(
-  yamlFile: AutopelagoDefinitionsYamlFile,
+  yamlFile: typeof baked,
 ): AutopelagoDefinitions {
   const allItems: AutopelagoItem[] = [];
   const progressionItemsByYamlKey = new Map<string, number>();
@@ -122,6 +121,8 @@ function resolveDefinitions(
   }
 
   // Helper function to convert YamlRequirement to AutopelagoRequirement
+  type YamlRequirement =
+    typeof yamlFile.regions.landmarks[keyof typeof yamlFile.regions.landmarks]['requires'];
   function convertRequirement(req: YamlRequirement): AutopelagoRequirement {
     if ('rat_count' in req) {
       return { ratCount: req.rat_count };
@@ -132,12 +133,6 @@ function resolveDefinitions(
         throw new Error(`Unknown item reference: ${req.item}`);
       }
       return { item: itemIndex };
-    }
-    if ('all' in req) {
-      return {
-        minRequired: 'all',
-        children: req.all.map(convertRequirement),
-      };
     }
     if ('any' in req) {
       return {
@@ -156,7 +151,7 @@ function resolveDefinitions(
 
   // Process keyed items (progression items)
   for (const [key, item] of strictObjectEntries(yamlFile.items)) {
-    if (key === 'rats' || key === 'useful_nonprogression' || key === 'trap' || key === 'filler' || !item) {
+    if (key === 'rats' || key === 'useful_nonprogression' || key === 'trap' || key === 'filler') {
       continue;
     }
 
@@ -168,19 +163,15 @@ function resolveDefinitions(
       lactoseName,
       lactoseIntolerantName,
       flags: itemClassifications.progression, // All keyed items are progression
-      aurasGranted: item.auras_granted ?? [],
+      aurasGranted: 'auras_granted' in item ? item.auras_granted as AutopelagoAura[] : [],
       associatedGame: null,
-      flavorText: item.flavor_text ?? null,
-      ratCount: item.rat_count ?? 0,
+      flavorText: 'flavor_text' in item ? item.flavor_text : null,
+      ratCount: 'rat_count' in item ? item.rat_count : 0,
     });
   }
 
   // Process rats (automatically get rat_count = 1)
   for (const [key, item] of strictObjectEntries(yamlFile.items.rats)) {
-    if (!item) {
-      continue;
-    }
-
     const itemIndex = allItems.length;
     progressionItemsByYamlKey.set(key, itemIndex);
 
@@ -190,24 +181,33 @@ function resolveDefinitions(
       lactoseName,
       lactoseIntolerantName,
       flags: itemClassifications.progression,
-      aurasGranted: item.auras_granted ?? [],
+      aurasGranted: 'auras_granted' in item ? item.auras_granted as AutopelagoAura[] : [],
       associatedGame: null,
-      flavorText: item.flavor_text ?? null,
-      ratCount: item.rat_count ?? 1,
+      flavorText: 'flavor_text' in item ? item.flavor_text : null,
+      ratCount: 1,
     });
   }
 
   // Helper function to process bulk items
+  type YamlBulkItemLevels = 'useful_nonprogression' | 'trap' | 'filler';
+  type GameSpecificBulkItemCategory =
+    Extract<typeof yamlFile.items[YamlBulkItemLevels][number], Readonly<Record<'game_specific', unknown>>>['game_specific'];
+  type YamlBulkItemLookups =
+    | Pick<typeof yamlFile.items, YamlBulkItemLevels>[YamlBulkItemLevels]
+    | GameSpecificBulkItemCategory[keyof GameSpecificBulkItemCategory]
+    ;
+  type YamlBulkItemOrGameSpecificItemGroup = YamlBulkItemLookups[number];
+  type YamlBulkItem = Exclude<YamlBulkItemOrGameSpecificItemGroup, Readonly<Record<'game_specific', unknown>>>;
   function processBulkItem(bulkItem: YamlBulkItem, flags: number, associatedGame: string | null): void {
     if (stricterIsArray(bulkItem)) {
       // [name, aurasGranted] format
-      const [lactoseName, lactoseIntolerantName] = getItemNames(bulkItem[0]);
+      const [lactoseName, lactoseIntolerantName] = getItemNames(bulkItem[0] as string | readonly [string, string]);
       allItems.push({
         key: allItems.length,
         lactoseName,
         lactoseIntolerantName,
         flags,
-        aurasGranted: bulkItem[1],
+        aurasGranted: bulkItem[1] as readonly AutopelagoAura[],
         associatedGame,
         flavorText: null,
         ratCount: 0,
@@ -215,16 +215,16 @@ function resolveDefinitions(
     }
     else {
       // YamlKeyedItem format
-      const [lactoseName, lactoseIntolerantName] = getItemNames(bulkItem.name);
+      const [lactoseName, lactoseIntolerantName] = getItemNames(bulkItem.name as string | readonly [string, string]);
       allItems.push({
         key: allItems.length,
         lactoseName,
         lactoseIntolerantName,
         flags,
-        aurasGranted: bulkItem.auras_granted ?? [],
+        aurasGranted: 'auras_granted' in bulkItem ? bulkItem.auras_granted as readonly AutopelagoAura[] : [],
         associatedGame,
-        flavorText: bulkItem.flavor_text ?? null,
-        ratCount: bulkItem.rat_count ?? 0,
+        flavorText: 'flavor_text' in bulkItem ? bulkItem.flavor_text : null,
+        ratCount: 'rat_count' in bulkItem ? bulkItem.rat_count : 0,
       });
     }
   }
@@ -233,10 +233,6 @@ function resolveDefinitions(
   function processBulkItemOrGameSpecific(item: YamlBulkItemOrGameSpecificItemGroup, flags: number): void {
     if ('game_specific' in item) {
       for (const [game, items] of strictObjectEntries(item.game_specific)) {
-        if (!items) {
-          continue;
-        }
-
         for (const bulkItem of items) {
           processBulkItem(bulkItem, flags, game);
         }
@@ -311,19 +307,24 @@ function resolveDefinitions(
     const unrandomizedItems = filler.unrandomized_items;
     let locationCount = 0;
 
-    if (unrandomizedItems.key) {
+    if ('key' in unrandomizedItems) {
       for (const keyItem of unrandomizedItems.key) {
-        if (typeof keyItem === 'string') {
-          locationCount += 1;
+        if (typeof keyItem === 'object') {
+          locationCount += keyItem.count;
         }
         else {
-          locationCount += keyItem.count;
+          locationCount += 1;
         }
       }
     }
 
-    locationCount += (unrandomizedItems.filler ?? 0);
-    locationCount += (unrandomizedItems.useful_nonprogression ?? 0);
+    if ('filler' in unrandomizedItems) {
+      locationCount += unrandomizedItems.filler;
+    }
+
+    if ('useful_nonprogression' in unrandomizedItems) {
+      locationCount += unrandomizedItems.useful_nonprogression;
+    }
 
     // Ensure at least one location
     if (locationCount === 0) {
@@ -331,8 +332,11 @@ function resolveDefinitions(
     }
 
     // Determine ability check DC
-    let abilityCheckDC = filler.ability_check_dc;
-    if (abilityCheckDC === undefined) {
+    let abilityCheckDC: number;
+    if ('ability_check_dc' in filler) {
+      abilityCheckDC = filler.ability_check_dc;
+    }
+    else {
       // Find the single landmark this filler exits to and subtract 1
       if (filler.exits.length !== 1) {
         throw new Error(`Filler ${fillerKey} should exit to exactly one landmark`);
@@ -395,7 +399,7 @@ function resolveDefinitions(
     }
 
     // Landmarks can exit to fillers
-    if (landmark.exits) {
+    if ('exits' in landmark) {
       for (const exitKey of landmark.exits) {
         const exitIndex = regionNameToIndex.get(exitKey);
         if (exitIndex !== undefined) {
