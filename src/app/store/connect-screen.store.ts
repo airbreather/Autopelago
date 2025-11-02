@@ -1,7 +1,7 @@
+import { withImmutableState, withStorageSync } from '@angular-architects/ngrx-toolkit';
 import { computed } from '@angular/core';
 
 import { patchState, signalStore, withComputed, withMethods } from '@ngrx/signals';
-import { withImmutableState, withStorageSync } from '@angular-architects/ngrx-toolkit';
 
 // Default state
 const initialState = {
