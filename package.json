@@ -31,6 +31,7 @@
     "@angular/router": "^20.3.7",
     "@bitarray/typedarray": "^1.1.2",
     "@ngrx/signals": "^20.1.0",
+    "ajv": "^8.17.1",
     "angular-split": "^20.0.0",
     "archipelago.js": "^2.0.4",
     "immutable": "^5.1.4",

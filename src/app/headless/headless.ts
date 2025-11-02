@@ -1,12 +1,8 @@
-import { Component, effect, inject, input } from '@angular/core';
+import { Component, effect, inject, input, signal } from '@angular/core';
 import type { GamePackage } from 'archipelago.js';
 import { Ticker } from 'pixi.js';
 
-import {
-  BAKED_DEFINITIONS_BY_VICTORY_LANDMARK,
-  BAKED_DEFINITIONS_FULL,
-  VICTORY_LOCATION_NAME_LOOKUP,
-} from '../data/resolved-definitions';
+import { BAKED_DEFINITIONS_FULL } from '../data/resolved-definitions';
 
 import type { AutopelagoClientAndData } from '../data/slot-data';
 
@@ -17,6 +13,7 @@ const TICK_INTERVAL_MAX = 20000;
 
 interface PauseUnpause {
   pause(): void;
+
   unpause(): void;
 }
 
@@ -24,6 +21,7 @@ function handleTick(this: Headless, ticker: Ticker) {
   this.remaining -= ticker.deltaMS;
   while (this.remaining < 0) {
     console.log('tick!');
+    this.doTickStuff();
     this.remaining += Math.floor(Math.random() * (TICK_INTERVAL_MAX - TICK_INTERVAL_MIN) + TICK_INTERVAL_MIN);
   }
 }
@@ -52,42 +50,8 @@ export class Headless {
       Ticker.shared.start();
     };
     Ticker.shared.add(handleTick, this);
-    effect(() => void this.#setUpReceivedItemsHandling());
-  }
 
-  async #setUpReceivedItemsHandling() {
-    const { client, slotData } = this.game();
-    const itemByName = new Map<string, number>();
-    for (let i = 0; i < BAKED_DEFINITIONS_FULL.allItems.length; i++) {
-      const item = BAKED_DEFINITIONS_FULL.allItems[i];
-      itemByName.set(item.lactoseName, i);
-      if (item.lactoseName !== item.lactoseIntolerantName) {
-        itemByName.set(item.lactoseIntolerantName, i);
-      }
-    }
-
-    await this.#loadPackage();
-    const itemsJustReceived: number[] = [];
-    for (const item of client.items.received) {
-      const itemKey = itemByName.get(item.name);
-      if (typeof itemKey === 'number') {
-        itemsJustReceived.push(itemKey);
-      }
-    }
-
-    this.#gameStore.receiveItems(itemsJustReceived);
-    client.items.on('itemsReceived', (items) => {
-      itemsJustReceived.length = 0;
-      for (const item of items) {
-        const itemKey = itemByName.get(item.name);
-        if (typeof itemKey === 'number') {
-          itemsJustReceived.push(itemKey);
-        }
-      }
-
-      this.#gameStore.receiveItems(itemsJustReceived);
-    });
-    console.log('defs:', BAKED_DEFINITIONS_BY_VICTORY_LANDMARK[VICTORY_LOCATION_NAME_LOOKUP[slotData.victory_location_name]]);
+    effect(() => void this.#sendUpdates());
   }
 
   async #loadPackage() {
@@ -117,6 +81,71 @@ export class Headless {
     if ('Autopelago' in pkg.games) {
       const autopelagoPkg = pkg.games['Autopelago'];
       localStorage.setItem(autopelagoPkg.checksum, JSON.stringify(autopelagoPkg));
+    }
+  }
+
+  doTickStuff() {
+    // empty
+  }
+
+  readonly #initState = signal(0);
+  #prevSendUpdates: Promise<unknown> = Promise.resolve();
+
+  async #sendUpdates() {
+    const { client, storedData, storedDataKey } = this.game();
+    const itemsJustReceived: number[] = [];
+    switch (this.#initState()) {
+      case 0: {
+        this.#gameStore.updateFromStoredData(storedData);
+        this.#initState.set(1);
+        await this.#loadPackage();
+        for (const item of client.items.received) {
+          const itemKey = BAKED_DEFINITIONS_FULL.itemNameLookup.get(item.name);
+          if (typeof itemKey === 'number') {
+            itemsJustReceived.push(itemKey);
+          }
+        }
+
+        this.#gameStore.receiveItems(itemsJustReceived);
+        this.#initState.set(2);
+        break;
+      }
+
+      case 1:
+        break;
+
+      case 2: {
+        this.#initState.set(1);
+        client.items.on('itemsReceived', (items) => {
+          itemsJustReceived.length = 0;
+          for (const item of items) {
+            const itemKey = BAKED_DEFINITIONS_FULL.itemNameLookup.get(item.name);
+            if (typeof itemKey === 'number') {
+              itemsJustReceived.push(itemKey);
+            }
+          }
+
+          this.#initState.set(3);
+          this.#gameStore.receiveItems(itemsJustReceived);
+        });
+        break;
+      }
+
+      case 3: {
+        const newStoredData = this.#gameStore.asStoredData();
+        const prevSendUpdates = this.#prevSendUpdates;
+        await prevSendUpdates;
+        if (prevSendUpdates !== this.#prevSendUpdates) {
+          return;
+        }
+
+        console.log('sending updates', newStoredData);
+        this.#prevSendUpdates = client.storage
+          .prepare(storedDataKey, newStoredData)
+          .replace(newStoredData)
+          .commit(true);
+        break;
+      }
     }
   }
 }

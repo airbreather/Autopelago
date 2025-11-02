@@ -3,7 +3,13 @@ import { type ResolveFn, type Routes } from '@angular/router';
 import { Client, type ConnectionOptions } from 'archipelago.js';
 
 import { ConnectScreen } from './connect-screen/connect-screen';
-import type { AutopelagoClientAndData, AutopelagoSlotData } from './data/slot-data';
+import { BAKED_DEFINITIONS_FULL } from './data/resolved-definitions';
+import {
+  type AutopelagoClientAndData,
+  type AutopelagoSlotData,
+  type AutopelagoStoredData,
+  validateAutopelagoStoredData,
+} from './data/slot-data';
 import { AutopelagoService } from './game/autopelago';
 import { GameStore } from './store/autopelago-store';
 
@@ -47,7 +53,45 @@ const connectResolve: ResolveFn<AutopelagoClientAndData> = async (route) => {
     'Autopelago',
     options,
   );
-  return { client, slotData, packageChecksum };
+
+  const player = client.players.self;
+  const storedDataKey = `autopelago_${player.team.toString()}_${player.slot.toString()}`;
+  let storedData: AutopelagoStoredData | null = null;
+  try {
+    storedData = await client.storage.fetch(storedDataKey);
+    if (storedData && !validateAutopelagoStoredData(storedData)) {
+      console.warn('invalid stored data', storedData, validateAutopelagoStoredData.errors);
+      storedData = null;
+    }
+  }
+  catch (err: unknown) {
+    console.error('error fetching stored data', err);
+    storedData = null;
+  }
+
+  if (!storedData) {
+    storedData = {
+      foodFactor: 0,
+      luckFactor: 0,
+      energyFactor: 0,
+      styleFactor: 0,
+      distractionCounter: 0,
+      startledCounter: 0,
+      hasConfidence: false,
+      mercyFactor: 0,
+      sluggishCarryover: false,
+      processedReceivedItemCount: 0,
+      currentLocation: BAKED_DEFINITIONS_FULL.startLocation,
+      priorityPriorityLocations: [],
+      priorityLocations: [],
+    };
+    await client.storage
+      .prepare(storedDataKey, storedData)
+      .replace(storedData)
+      .commit(true);
+  }
+
+  return { client, slotData, storedData, storedDataKey, packageChecksum };
 };
 
 export const routes: Routes = [
