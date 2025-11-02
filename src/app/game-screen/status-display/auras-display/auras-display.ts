@@ -1,4 +1,6 @@
 import { Component, computed, DestroyRef, ElementRef, inject, Injector, signal, viewChild } from '@angular/core';
+import { BAKED_DEFINITIONS_FULL } from '../../../data/resolved-definitions';
+import { GameStore } from '../../../store/autopelago-store';
 
 import { resizeText } from '../../../util';
 
@@ -167,20 +169,25 @@ import { resizeText } from '../../../util';
   `,
 })
 export class AurasDisplay {
+  readonly #gameStore = inject(GameStore);
+
   readonly outerElement = viewChild.required<ElementRef<HTMLElement>>('outer');
   readonly ratCountElement = viewChild.required<ElementRef<HTMLElement>>('ratCountElement');
 
-  readonly ratCount = signal(21);
+  readonly ratCount = computed(() => {
+    const receivedItemCountLookup = this.#gameStore.receivedItemCountLookup();
+    return BAKED_DEFINITIONS_FULL.itemsWithNonzeroRatCounts.reduce((acc, item) => receivedItemCountLookup.get(item, 0) + acc, 0);
+  });
 
-  readonly food = signal(-2);
-  readonly energy = signal(5);
-  readonly luck = signal(0);
+  readonly food = this.#gameStore.foodFactor;
+  readonly energy = this.#gameStore.energyFactor;
+  readonly luck = this.#gameStore.luckFactor;
 
-  readonly distraction = signal(2);
-  readonly startled = signal(1);
+  readonly distraction = this.#gameStore.distractionCounter;
+  readonly startled = this.#gameStore.startledCounter;
   readonly smart = signal(false);
   readonly conspiratorial = signal(true);
-  readonly stylish = signal(1);
+  readonly stylish = this.#gameStore.styleFactor;
   readonly confidence = signal(false);
 
   readonly foodFillPercentage = computed(() => {

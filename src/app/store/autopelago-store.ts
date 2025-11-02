@@ -28,10 +28,11 @@ const initialState = {
   mercyFactor: 0,
   sluggishCarryover: false,
   processedReceivedItemCount: 0,
-  currentLocation: 0,
+  currentLocation: null as number | null,
   priorityPriorityLocations: List<number>(),
   priorityLocations: List<number>(),
   receivedItems: List<number>(),
+  receivedItemCountLookup: List<number>(Array<number>(BAKED_DEFINITIONS_FULL.allItems.length).fill(0)),
   checkedLocations: Set<number>(),
 };
 
@@ -45,21 +46,28 @@ export const GameStore = signalStore(
     select: ({ paused }) => ({ paused }),
   }),
   withComputed(store => ({
-    asStoredData: computed<AutopelagoStoredData>(() => ({
-      foodFactor: store.foodFactor(),
-      luckFactor: store.luckFactor(),
-      energyFactor: store.energyFactor(),
-      styleFactor: store.styleFactor(),
-      distractionCounter: store.distractionCounter(),
-      startledCounter: store.startledCounter(),
-      hasConfidence: store.hasConfidence(),
-      mercyFactor: store.mercyFactor(),
-      sluggishCarryover: store.sluggishCarryover(),
-      processedReceivedItemCount: store.processedReceivedItemCount(),
-      currentLocation: store.currentLocation(),
-      priorityPriorityLocations: store.priorityPriorityLocations().toJS(),
-      priorityLocations: store.priorityLocations().toJS(),
-    })),
+    asStoredData: computed<AutopelagoStoredData>(() => {
+      const currentLocation = store.currentLocation();
+      if (!currentLocation) {
+        throw new Error('Must initialize first');
+      }
+
+      return {
+        foodFactor: store.foodFactor(),
+        luckFactor: store.luckFactor(),
+        energyFactor: store.energyFactor(),
+        styleFactor: store.styleFactor(),
+        distractionCounter: store.distractionCounter(),
+        startledCounter: store.startledCounter(),
+        hasConfidence: store.hasConfidence(),
+        mercyFactor: store.mercyFactor(),
+        sluggishCarryover: store.sluggishCarryover(),
+        processedReceivedItemCount: store.processedReceivedItemCount(),
+        currentLocation,
+        priorityPriorityLocations: store.priorityPriorityLocations().toJS(),
+        priorityLocations: store.priorityLocations().toJS(),
+      };
+    }),
   })),
   withMethods(store => ({
     appendMessage(message: Readonly<Message>) {
@@ -74,19 +82,19 @@ export const GameStore = signalStore(
     togglePause() {
       patchState(store, ({ paused }) => ({ paused: !paused }));
     },
-    setVictoryLocationYamlKey(victoryLocationYamlKey: VictoryLocationYamlKey) {
-      patchState(store, { victoryLocationYamlKey });
+    moveTo(currentLocation: number) {
+      patchState(store, { currentLocation });
     },
-    updateFromStoredData(data: Partial<AutopelagoStoredData>) {
+    initFromServer(storedData: Partial<AutopelagoStoredData>, victoryLocationYamlKey: VictoryLocationYamlKey) {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const patchData: any = { ...data };
-      if ('priorityPriorityLocations' in data) {
+      const patchData: any = { ...storedData, victoryLocationYamlKey };
+      if ('priorityPriorityLocations' in storedData) {
         // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
-        patchData.priorityPriorityLocations = List(data.priorityPriorityLocations);
+        patchData.priorityPriorityLocations = List(storedData.priorityPriorityLocations);
       }
-      if ('priorityLocations' in data) {
+      if ('priorityLocations' in storedData) {
         // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
-        patchData.priorityLocations = List(data.priorityLocations);
+        patchData.priorityLocations = List(storedData.priorityLocations);
       }
       // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
       patchState(store, patchData);
@@ -104,34 +112,38 @@ export const GameStore = signalStore(
           hasConfidence: prev.hasConfidence,
           // the remainder will be clobbered. just helping TypeScript.
           receivedItems: prev.receivedItems,
+          receivedItemCountLookup: prev.receivedItemCountLookup,
           processedReceivedItemCount: prev.processedReceivedItemCount,
         } satisfies Partial<typeof initialState>;
-        result.receivedItems = prev.receivedItems.withMutations((r) => {
-          for (const item of items) {
-            const itemFull = BAKED_DEFINITIONS_FULL.allItems[item];
-            r.push(item);
-            if (r.size <= prev.processedReceivedItemCount) {
-              console.log('received previously known item', lactoseIntolerant ? itemFull.lactoseIntolerantName : itemFull.lactoseName);
-              continue;
-            }
-            else {
-              console.log('received new item', lactoseIntolerant ? itemFull.lactoseIntolerantName : itemFull.lactoseName);
-            }
+        result.receivedItemCountLookup = result.receivedItemCountLookup.withMutations((l) => {
+          result.receivedItems = prev.receivedItems.withMutations((r) => {
+            for (const item of items) {
+              const itemFull = BAKED_DEFINITIONS_FULL.allItems[item];
+              r.push(item);
+              l.update(item, 0, i => i + 1);
+              if (r.size <= prev.processedReceivedItemCount) {
+                console.log('received previously known item', lactoseIntolerant ? itemFull.lactoseIntolerantName : itemFull.lactoseName);
+                continue;
+              }
+              else {
+                console.log('received new item', lactoseIntolerant ? itemFull.lactoseIntolerantName : itemFull.lactoseName);
+              }
 
-            for (const aura of itemFull.aurasGranted) {
-              switch (aura) {
-                case 'well_fed':
-                  result.foodFactor += 5;
-                  break;
+              for (const aura of itemFull.aurasGranted) {
+                switch (aura) {
+                  case 'well_fed':
+                    result.foodFactor += 5;
+                    break;
 
-                case 'upset_tummy':
-                  result.foodFactor -= 5;
-                  break;
+                  case 'upset_tummy':
+                    result.foodFactor -= 5;
+                    break;
 
-                // and so on for other auras...
+                  // and so on for other auras...
+                }
               }
             }
-          }
+          });
         });
 
         result.processedReceivedItemCount = result.receivedItems.size;

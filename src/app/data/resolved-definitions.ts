@@ -5,7 +5,7 @@ import Queue from 'yocto-queue';
 import { stricterIsArray, strictObjectEntries } from '../util';
 
 import * as baked from './baked.json';
-import type { LandmarkYamlKey } from './locations';
+import { fillerRegionCoords, type FillerRegionYamlKey, LANDMARKS, type LandmarkYamlKey } from './locations';
 
 export type AutopelagoBuff =
   'well_fed'
@@ -45,7 +45,7 @@ interface Connected {
 export interface AutopelagoLocation {
   key: number;
   regionLocationKey: readonly [region: number, n: number];
-  loc: readonly [x: number, y: number];
+  coords: readonly [x: number, y: number];
   name: string;
   flavorText: string | null;
   abilityCheckDC: number;
@@ -54,17 +54,19 @@ export interface AutopelagoLocation {
 
 export interface AutopelagoRegionBase {
   key: number;
-  yamlKey: string;
+  yamlKey: FillerRegionYamlKey | LandmarkYamlKey;
   abilityCheckDC: number;
   connected: Readonly<Connected>;
 }
 
 export interface AutopelagoLandmarkRegion extends AutopelagoRegionBase {
+  yamlKey: LandmarkYamlKey;
   loc: number;
   requirement: AutopelagoRequirement;
 }
 
 export interface AutopelagoFillerRegion extends AutopelagoRegionBase {
+  yamlKey: FillerRegionYamlKey;
   locs: readonly number[];
 }
 
@@ -305,7 +307,7 @@ function resolveMainDefinitions(
   const regionNameToIndex = new Map<string, number>();
 
   // Process landmarks first
-  for (const [landmarkKey, landmark] of Object.entries(yamlFile.regions.landmarks)) {
+  for (const [landmarkKey, landmark] of strictObjectEntries(yamlFile.regions.landmarks)) {
     const regionIndex = allRegions.length;
     regionNameToIndex.set(landmarkKey, regionIndex);
 
@@ -315,7 +317,7 @@ function resolveMainDefinitions(
     allLocations.push({
       key: locationIndex,
       regionLocationKey: [regionIndex, 0], // Landmarks have only one location at index 0
-      loc: [0, 0], // Placeholder coordinates
+      coords: LANDMARKS[landmarkKey].coords,
       name: landmark.name,
       flavorText: landmark.flavor_text,
       abilityCheckDC: landmark.ability_check_dc,
@@ -336,6 +338,7 @@ function resolveMainDefinitions(
   }
 
   // Process fillers
+  const locationCountByFillerRegion: Partial<Record<FillerRegionYamlKey, number>> = {};
   for (const [fillerKey, filler] of strictObjectEntries(yamlFile.regions.fillers)) {
     const regionIndex = allRegions.length;
     regionNameToIndex.set(fillerKey, regionIndex);
@@ -368,6 +371,8 @@ function resolveMainDefinitions(
       throw new Error(`Filler ${fillerKey} has no locations`);
     }
 
+    locationCountByFillerRegion[fillerKey] = locationCount;
+
     // Determine ability check DC
     let abilityCheckDC: number;
     if ('ability_check_dc' in filler) {
@@ -395,7 +400,7 @@ function resolveMainDefinitions(
       allLocations.push({
         key: locationIndex,
         regionLocationKey: [regionIndex, i],
-        loc: [0, 0], // Placeholder coordinates
+        coords: [0, 0], // Placeholder coordinates
         name: filler.name_template.replace('{n}', (i + 1).toString()),
         flavorText: null,
         abilityCheckDC,
@@ -615,6 +620,22 @@ function resolveMainDefinitions(
     locationNameLookup.set(location.name, locationIndex);
   }
 
+  const fillerCoordsLookup = fillerRegionCoords(locationCountByFillerRegion);
+  for (const region of allRegions) {
+    if ('loc' in region) {
+      continue;
+    }
+
+    const fillerCoords = fillerCoordsLookup[region.yamlKey];
+    if (!fillerCoords) {
+      throw new Error(`Filler region ${region.yamlKey} has no coordinates. this is a programming error.`);
+    }
+
+    for (const [coordIndex, loc] of region.locs.entries()) {
+      allLocations[loc].coords = fillerCoords.coords[coordIndex];
+    }
+  }
+
   return {
     allItems,
     progressionItemsByYamlKey,
@@ -636,6 +657,7 @@ function withVictoryLocation(defs: AutopelagoDefinitions, location: VictoryLocat
 
   const regionsEnqueuedBefore = new BitArray(defs.allRegions.length);
   const q = new Queue<number>();
+
   function enqueueRegion(regionIndex: number) {
     if (regionsEnqueuedBefore[regionIndex]) {
       return;
@@ -644,6 +666,7 @@ function withVictoryLocation(defs: AutopelagoDefinitions, location: VictoryLocat
     regionsEnqueuedBefore[regionIndex] = 1;
     q.enqueue(regionIndex);
   }
+
   enqueueRegion(defs.startRegion);
   for (let regionIndex = q.dequeue(); regionIndex !== undefined; regionIndex = q.dequeue()) {
     oldToNewRegionMap.set(regionIndex, allRegions.length);

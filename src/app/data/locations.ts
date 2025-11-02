@@ -146,7 +146,7 @@ const PREPARED_FILLERS = stricterObjectFromEntries(
     .map(([yamlKey, definingCoords]) => [yamlKey, convertDefiningPoints(yamlKey === 'Menu', definingCoords)]),
 );
 
-export function fillerRegions(counts: Partial<Record<FillerRegionYamlKey, number>>): Readonly<Partial<Record<FillerRegionYamlKey, Filler>>> {
+export function fillerRegionCoords(counts: Partial<Record<FillerRegionYamlKey, number>>): Readonly<Partial<Record<FillerRegionYamlKey, Filler>>> {
   const result: Partial<Record<FillerRegionYamlKey, Filler>> = {};
   for (const [yamlKey, { targetPoints, targetPointsPrj }] of strictObjectEntries(PREPARED_FILLERS)) {
     const transforms = [[0, 0], [0, 0], [0, 0], [0, 0]] as [number, number][];

@@ -5,7 +5,7 @@ import {
   ElementRef,
   inject,
   input,
-  resource,
+  resource, signal,
   untracked,
   viewChild,
 } from '@angular/core';
@@ -26,7 +26,7 @@ import {
 } from 'pixi.js';
 
 import {
-  fillerRegions,
+  fillerRegionCoords,
   type FillerRegionYamlKey,
   isFillerRegionYamlKey,
   isLandmarkYamlKey,
@@ -69,7 +69,7 @@ function createFillerMarkers(fillerCountsByRegion: Readonly<Partial<Record<Fille
   });
 
   const gfx = new Graphics();
-  for (const [_, r] of strictObjectEntries(fillerRegions(fillerCountsByRegion))) {
+  for (const [_, r] of strictObjectEntries(fillerRegionCoords(fillerCountsByRegion))) {
     for (const [x, y] of r.coords) {
       gfx.rect(x - 0.8, y - 0.8, 1.6, 1.6);
       gfx.fill('yellow');
@@ -256,6 +256,7 @@ export class GameTabMap {
         return spritesheet;
       },
     });
+    const playerToken = signal<Sprite | null>(null);
     effect(() => {
       const canvas = this.pixiCanvas().nativeElement;
       const outerDiv = this.outerDiv().nativeElement;
@@ -286,7 +287,9 @@ export class GameTabMap {
         Ticker.shared.stop();
         app.stage.addChild(createLandmarkMarkers(victoryLocationYamlKey, landmarkSpritesheet));
         Ticker.shared.stop();
-        app.stage.addChild(createPlayerToken(playerTokenTexture, destroyRef));
+        const playerTokenNotNull = createPlayerToken(playerTokenTexture, destroyRef);
+        app.stage.addChild(playerTokenNotNull);
+        playerToken.set(playerTokenNotNull);
         Ticker.shared.stop();
 
         resizeEvents(outerDiv).pipe(
@@ -309,6 +312,19 @@ export class GameTabMap {
     });
 
     effect(() => {
+      const playerTokenNotNull = playerToken();
+      const victoryLocationYamlKey = this.#store.victoryLocationYamlKey();
+      const currentLocation = this.#store.currentLocation();
+      if (!(playerTokenNotNull && victoryLocationYamlKey && currentLocation)) {
+        return;
+      }
+
+      const defs = BAKED_DEFINITIONS_BY_VICTORY_LANDMARK[victoryLocationYamlKey];
+      const [x, y] = defs.allLocations[currentLocation].coords;
+      playerTokenNotNull.position.set(x, y);
+    });
+
+    effect(() => {
       if (this.#store.paused()) {
         Ticker.shared.stop();
       }
@@ -317,9 +333,26 @@ export class GameTabMap {
       }
     });
 
+    const e = effect(() => {
+      const victoryLocationYamlKey = this.#store.victoryLocationYamlKey();
+      if (!victoryLocationYamlKey) {
+        return;
+      }
+
+      const defs = BAKED_DEFINITIONS_BY_VICTORY_LANDMARK[victoryLocationYamlKey];
+      const DELETE_ME = () => {
+        if (Math.random() < 0.03) {
+          this.#store.moveTo(Math.floor(Math.random() * defs.allLocations.length));
+        }
+      };
+      Ticker.shared.add(DELETE_ME);
+      destroyRef.onDestroy(() => Ticker.shared.remove(DELETE_ME));
+      e.destroy();
+    });
+
     effect(() => {
-      const { slotData } = this.game();
-      this.#store.setVictoryLocationYamlKey(VICTORY_LOCATION_NAME_LOOKUP[slotData.victory_location_name]);
+      const { storedData, slotData } = this.game();
+      this.#store.initFromServer(storedData, VICTORY_LOCATION_NAME_LOOKUP[slotData.victory_location_name]);
     });
   }
 

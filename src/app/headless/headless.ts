@@ -2,7 +2,7 @@ import { Component, effect, inject, input, signal } from '@angular/core';
 import type { GamePackage } from 'archipelago.js';
 import { Ticker } from 'pixi.js';
 
-import { BAKED_DEFINITIONS_FULL } from '../data/resolved-definitions';
+import { BAKED_DEFINITIONS_FULL, VICTORY_LOCATION_NAME_LOOKUP } from '../data/resolved-definitions';
 
 import type { AutopelagoClientAndData } from '../data/slot-data';
 
@@ -92,11 +92,12 @@ export class Headless {
   #prevSendUpdates: Promise<unknown> = Promise.resolve();
 
   async #sendUpdates() {
-    const { client, storedData, storedDataKey } = this.game();
+    const { client, slotData, storedData, storedDataKey } = this.game();
     const itemsJustReceived: number[] = [];
     switch (this.#initState()) {
       case 0: {
-        this.#gameStore.updateFromStoredData(storedData);
+        const victoryLocationYamlKey = VICTORY_LOCATION_NAME_LOOKUP[slotData.victory_location_name];
+        this.#gameStore.initFromServer(storedData, victoryLocationYamlKey);
         this.#initState.set(1);
         await this.#loadPackage();
         for (const item of client.items.received) {
