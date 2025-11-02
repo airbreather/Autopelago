@@ -1,5 +1,4 @@
 import { Component, computed, DestroyRef, ElementRef, inject, Injector, signal, viewChild } from '@angular/core';
-import { BAKED_DEFINITIONS_FULL } from '../../../data/resolved-definitions';
 import { GameStore } from '../../../store/autopelago-store';
 
 import { resizeText } from '../../../util';
@@ -174,10 +173,7 @@ export class AurasDisplay {
   readonly outerElement = viewChild.required<ElementRef<HTMLElement>>('outer');
   readonly ratCountElement = viewChild.required<ElementRef<HTMLElement>>('ratCountElement');
 
-  readonly ratCount = computed(() => {
-    const receivedItemCountLookup = this.#gameStore.receivedItemCountLookup();
-    return BAKED_DEFINITIONS_FULL.itemsWithNonzeroRatCounts.reduce((acc, item) => receivedItemCountLookup.get(item, 0) + acc, 0);
-  });
+  readonly ratCount = this.#gameStore.ratCount;
 
   readonly food = this.#gameStore.foodFactor;
   readonly energy = this.#gameStore.energyFactor;

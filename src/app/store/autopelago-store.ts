@@ -46,6 +46,17 @@ export const GameStore = signalStore(
     select: ({ paused }) => ({ paused }),
   }),
   withComputed(store => ({
+    ratCount: computed<number>(() => {
+      let ratCount = 0;
+      const lookup = store.receivedItemCountLookup();
+      for (const item of BAKED_DEFINITIONS_FULL.itemsWithNonzeroRatCounts) {
+        const thisItemCount = lookup.get(item);
+        if (thisItemCount) {
+          ratCount += thisItemCount * BAKED_DEFINITIONS_FULL.allItems[item].ratCount;
+        }
+      }
+      return ratCount;
+    }),
     asStoredData: computed<AutopelagoStoredData>(() => {
       const currentLocation = store.currentLocation();
       if (currentLocation === null) {

@@ -5,7 +5,8 @@ import {
   ElementRef,
   inject,
   input,
-  resource, signal,
+  resource,
+  signal,
   untracked,
   viewChild,
 } from '@angular/core';
@@ -341,7 +342,7 @@ export class GameTabMap {
 
       const defs = BAKED_DEFINITIONS_BY_VICTORY_LANDMARK[victoryLocationYamlKey];
       const DELETE_ME = () => {
-        if (Math.random() < 0.03) {
+        if (Math.random() < 0.003) {
           this.#store.moveTo(Math.floor(Math.random() * defs.allLocations.length));
         }
       };

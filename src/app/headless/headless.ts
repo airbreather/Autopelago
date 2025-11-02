@@ -52,6 +52,9 @@ export class Headless {
     Ticker.shared.add(handleTick, this);
 
     effect(() => void this.#sendUpdates());
+    effect(() => {
+      console.log('rat count', this.#gameStore.ratCount());
+    });
   }
 
   async #loadPackage() {
