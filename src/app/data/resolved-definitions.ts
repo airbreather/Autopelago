@@ -4,8 +4,6 @@ import { stricterIsArray, strictObjectEntries } from '../util';
 
 import * as baked from './baked.json';
 
-export const BAKED_DEFINITIONS = resolveDefinitions(baked);
-
 export type AutopelagoBuff =
   'well_fed'
   | 'lucky'
@@ -97,22 +95,35 @@ export interface AutopelagoDefinitions {
   startLocation: number;
 }
 
-function toConnected(forward: readonly number[], backward: readonly number[]): Connected {
-  return {
-    forward,
-    backward,
-    all: [
-      ...forward.map(x => [x, 'forward'] as const),
-      ...backward.map(x => [x, 'backward'] as const),
-    ],
-  };
-}
+type YamlRequirement =
+  typeof baked.regions.landmarks[keyof typeof baked.regions.landmarks]['requires'];
+type YamlBulkItemLevels = 'useful_nonprogression' | 'trap' | 'filler';
+type GameSpecificBulkItemCategory =
+  Extract<typeof baked.items[YamlBulkItemLevels][number], Readonly<Record<'game_specific', unknown>>>['game_specific'];
+type YamlBulkItemLookups =
+  | Pick<typeof baked.items, YamlBulkItemLevels>[YamlBulkItemLevels]
+  | GameSpecificBulkItemCategory[keyof GameSpecificBulkItemCategory];
+type YamlBulkItemOrGameSpecificItemGroup = YamlBulkItemLookups[number];
+type YamlBulkItem = Exclude<YamlBulkItemOrGameSpecificItemGroup, Readonly<Record<'game_specific', unknown>>>;
+
+export const BAKED_DEFINITIONS = resolveDefinitions(baked);
 
 function resolveDefinitions(
   yamlFile: typeof baked,
 ): AutopelagoDefinitions {
   const allItems: AutopelagoItem[] = [];
   const progressionItemsByYamlKey = new Map<string, number>();
+
+  function toConnected(forward: readonly number[], backward: readonly number[]): Connected {
+    return {
+      forward,
+      backward,
+      all: [
+        ...forward.map(x => [x, 'forward'] as const),
+        ...backward.map(x => [x, 'backward'] as const),
+      ],
+    };
+  }
 
   function getItemNames(name: string | readonly [string, string]): readonly [string, string] {
     return typeof name === 'string'
@@ -121,8 +132,6 @@ function resolveDefinitions(
   }
 
   // Helper function to convert YamlRequirement to AutopelagoRequirement
-  type YamlRequirement =
-    typeof yamlFile.regions.landmarks[keyof typeof yamlFile.regions.landmarks]['requires'];
   function convertRequirement(req: YamlRequirement): AutopelagoRequirement {
     if ('rat_count' in req) {
       return { ratCount: req.rat_count };
@@ -189,15 +198,6 @@ function resolveDefinitions(
   }
 
   // Helper function to process bulk items
-  type YamlBulkItemLevels = 'useful_nonprogression' | 'trap' | 'filler';
-  type GameSpecificBulkItemCategory =
-    Extract<typeof yamlFile.items[YamlBulkItemLevels][number], Readonly<Record<'game_specific', unknown>>>['game_specific'];
-  type YamlBulkItemLookups =
-    | Pick<typeof yamlFile.items, YamlBulkItemLevels>[YamlBulkItemLevels]
-    | GameSpecificBulkItemCategory[keyof GameSpecificBulkItemCategory]
-    ;
-  type YamlBulkItemOrGameSpecificItemGroup = YamlBulkItemLookups[number];
-  type YamlBulkItem = Exclude<YamlBulkItemOrGameSpecificItemGroup, Readonly<Record<'game_specific', unknown>>>;
   function processBulkItem(bulkItem: YamlBulkItem, flags: number, associatedGame: string | null): void {
     if (stricterIsArray(bulkItem)) {
       // [name, aurasGranted] format
