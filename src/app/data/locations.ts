@@ -1,5 +1,7 @@
 import { stricterObjectFromEntries, strictObjectEntries } from '../util';
 
+import * as baked from './baked.json';
+
 export type Vec2 = readonly [x: number, y: number];
 
 export interface Landmark {
@@ -12,6 +14,7 @@ interface PreparedFiller {
   targetPointsPrj: readonly number[];
 }
 
+export type LandmarkName = keyof typeof baked.regions.landmarks;
 export const LANDMARKS = {
   basketball: { sprite_index: 1, coords: [59, 77] },
   prawn_stars: { sprite_index: 2, coords: [103, 34] },
@@ -45,9 +48,7 @@ export const LANDMARKS = {
   minotaur_labyrinth: { sprite_index: 30, coords: [194, 399] },
   asteroid_with_pants: { sprite_index: 31, coords: [232, 406] },
   snakes_on_a_planet: { sprite_index: 32, coords: [243, 354] },
-} as const;
-
-export type LandmarkName = keyof typeof LANDMARKS;
+} as const satisfies Readonly<Record<LandmarkName, Landmark>>;
 
 export function isLandmarkName(name: string): name is LandmarkName {
   return name in LANDMARKS;
@@ -57,6 +58,7 @@ export interface Filler {
   coords: readonly Vec2[];
 }
 
+export type FillerRegionName = keyof typeof baked.regions.fillers;
 export const FILLER_REGION_KEYS = [
   'Menu',
   'before_prawn_stars',
@@ -94,9 +96,8 @@ export const FILLER_REGION_KEYS = [
   'after_space_opera',
   'before_asteroid_with_pants',
   'after_minotaur_labyrinth',
-] as const;
+] as const satisfies FillerRegionName[];
 
-export type FillerRegionName = typeof FILLER_REGION_KEYS[number];
 const FILLER_DEFINING_COORDS = {
   Menu: [[0, 77], [57, 77]],
   before_prawn_stars: [[61, 74], [90, 74], [90, 34], [101, 34]],
@@ -134,7 +135,7 @@ const FILLER_DEFINING_COORDS = {
   after_space_opera: [[184, 346], [242, 354]],
   before_asteroid_with_pants: [[195, 400], [231, 406]],
   after_minotaur_labyrinth: [[195, 398], [207, 386], [209, 385], [216, 378], [218, 377], [226, 369], [228, 368], [236, 360], [238, 359], [242, 355]],
-} as const satisfies Readonly<Record<typeof FILLER_REGION_KEYS[number], readonly Vec2[]>>;
+} as const satisfies Readonly<Record<FillerRegionName, readonly Vec2[]>>;
 
 export function isFillerRegionName(name: string): name is FillerRegionName {
   return name in FILLER_DEFINING_COORDS;

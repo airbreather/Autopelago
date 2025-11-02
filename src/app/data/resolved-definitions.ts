@@ -97,7 +97,7 @@ function toConnected(forward: readonly number[], backward: readonly number[]): C
   };
 }
 
-export function resolveDefinitions(
+function resolveDefinitions(
   yamlFile: AutopelagoDefinitionsYamlFile,
 ): AutopelagoDefinitions {
   const allItems: AutopelagoItem[] = [];

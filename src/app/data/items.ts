@@ -1,4 +1,6 @@
-﻿export const PROGRESSION_ITEMS_TO_DISPLAY = [
+﻿import * as baked from './baked.json';
+
+export const PROGRESSION_ITEMS_TO_DISPLAY = [
   'pizza_rat',
   'ninja_rat',
   'premium_can_of_prawn_food',
@@ -40,4 +42,4 @@
   'mongoose_in_a_combat_spacecraft',
   'asteroid_belt',
   'moon_shaped_like_a_butt',
-] as const;
+] as const satisfies (keyof (typeof baked.items) | keyof (typeof baked.items.rats))[];

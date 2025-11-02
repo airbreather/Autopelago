@@ -8,7 +8,6 @@ import { Seq } from 'immutable';
 import { ArchipelagoClient, type ConnectOptions } from '../archipelago-client';
 import type { AutopelagoBuff, AutopelagoTrap } from '../data/definitions-file';
 import type { LandmarkName } from '../data/locations';
-import type { AutopelagoDefinitions } from '../data/resolved-definitions';
 import { BAKED_DEFINITIONS } from '../data/resolved-definitions';
 import { GameStore } from '../store/autopelago-store';
 import { strictObjectEntries } from '../util';
@@ -38,7 +37,6 @@ interface GameState {
   locationByDataId: ReadonlyMap<number, number>;
   dataIdByItem: readonly number[];
   dataIdByLocation: readonly number[];
-  resolvedDefs: Readonly<AutopelagoDefinitions>;
 }
 
 @Injectable()
