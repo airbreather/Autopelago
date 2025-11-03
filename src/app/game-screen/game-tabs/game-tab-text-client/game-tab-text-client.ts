@@ -1,8 +1,6 @@
-import { Component, inject, signal } from '@angular/core';
-
-import { AutopelagoService } from '../../../game/autopelago';
-import { GameStore } from '../../../store/autopelago-store';
-import { ConnectScreenStore } from '../../../store/connect-screen.store';
+import { Component, effect, input, signal } from '@angular/core';
+import { Player } from 'archipelago.js';
+import type { AutopelagoClientAndData } from '../../../data/slot-data';
 
 @Component({
   selector: 'app-game-tab-text-client',
@@ -10,10 +8,10 @@ import { ConnectScreenStore } from '../../../store/connect-screen.store';
   template: `
     <div class="outer">
       <div class="filler"></div>
-      @for (message of messages(); track $index) {
+      @for (message of game().messageLog(); track $index) {
         <p class="message">
           [{{ dateFormatter.format(message.ts) }}]
-          @for (messageNode of message.originalNodes; track $index) {
+          @for (messageNode of message.nodes; track $index) {
             <!--
               Follow Yacht Dice:
               https://github.com/spinerak/YachtDiceAP/blob/936dde8034a88b653b71a2d653467203ea781d41/index.html#L4517-L4591
@@ -136,15 +134,24 @@ import { ConnectScreenStore } from '../../../store/connect-screen.store';
   `,
 })
 export class GameTabTextClient {
-  readonly #ap = inject(AutopelagoService);
-  readonly #connectScreenStore = inject(ConnectScreenStore);
-  readonly #store = inject(GameStore);
-  readonly ownName = this.#connectScreenStore.slot;
-  readonly messages = this.#store.messages;
+  readonly game = input.required<AutopelagoClientAndData>();
+  readonly ownName = signal<string>('');
   readonly dateFormatter = new Intl.DateTimeFormat(navigator.languages[0], { dateStyle: 'short', timeStyle: 'medium' });
   readonly messageToSend = signal('');
   readonly #sendingMessage = signal(false);
   readonly sendingMessage = this.#sendingMessage.asReadonly();
+
+  constructor() {
+    effect((onCleanup) => {
+      const { client } = this.game();
+      this.ownName.set(client.players.self.toString());
+      const onAliasUpdated = (player: Player) => {
+        this.ownName.set(player.toString());
+      };
+      client.players.on('aliasUpdated', onAliasUpdated);
+      onCleanup(() => client.players.off('aliasUpdated', onAliasUpdated));
+    });
+  }
 
   async onSend(event: SubmitEvent) {
     event.preventDefault();
@@ -155,7 +162,8 @@ export class GameTabTextClient {
 
     this.#sendingMessage.set(true);
     try {
-      if (await this.#ap.say(messageToSend) && this.messageToSend() === messageToSend) {
+      await this.game().client.messages.say(messageToSend);
+      if (this.messageToSend() === messageToSend) {
         this.messageToSend.set('');
       }
     }

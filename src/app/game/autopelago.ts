@@ -107,12 +107,6 @@ export class AutopelagoService {
       const _slotData = (packet as unknown as AutopelagoConnectedPacket).slot_data;
     });
 
-    this.rawClient.events('messages', 'message')
-      .pipe(takeUntilDestroyed())
-      .subscribe((msg) => {
-        this.#store.appendMessage({ ts: new Date(), originalNodes: msg[1] });
-      });
-
     this.rawClient.events('items', 'itemsReceived')
       .pipe(takeUntilDestroyed())
       .subscribe(([items]) => {

@@ -1,11 +1,15 @@
-﻿import { Ajv } from 'ajv';
+﻿import type { Signal } from '@angular/core';
+import { Ajv } from 'ajv';
 import type { Client, JSONRecord } from 'archipelago.js';
+import { List } from 'immutable';
+import type { Message } from '../game/messages';
 import type { AutopelagoBuff, AutopelagoTrap, VictoryLocationName } from './resolved-definitions';
 
 export type AutopelagoUserCustomizableMessage = [string, number];
 
 export interface AutopelagoClientAndData {
   client: Client;
+  messageLog: Signal<List<Message>>;
   slotData: AutopelagoSlotData;
   storedData: AutopelagoStoredData;
   storedDataKey: string;

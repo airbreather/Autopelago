@@ -2,22 +2,14 @@ import { withImmutableState, withStorageSync } from '@angular-architects/ngrx-to
 import { computed } from '@angular/core';
 
 import { patchState, signalStore, withComputed, withMethods } from '@ngrx/signals';
-
-import { type MessageNode } from 'archipelago.js';
 import { List, Set } from 'immutable';
 import { BAKED_DEFINITIONS_FULL, type VictoryLocationYamlKey } from '../data/resolved-definitions';
 import type { AutopelagoStoredData } from '../data/slot-data';
-
-export interface Message {
-  ts: Date;
-  originalNodes: readonly Readonly<MessageNode>[];
-}
 
 const initialState = {
   lactoseIntolerant: false,
   victoryLocationYamlKey: null as VictoryLocationYamlKey | null,
   paused: false,
-  messages: [] as readonly Message[],
   foodFactor: 0,
   luckFactor: 0,
   energyFactor: 0,
@@ -74,9 +66,6 @@ export const GameStore = signalStore(
     })),
   })),
   withMethods(store => ({
-    appendMessage(message: Readonly<Message>) {
-      patchState(store, ({ messages }) => ({ messages: [...messages, message] }));
-    },
     pause() {
       patchState(store, { paused: true });
     },

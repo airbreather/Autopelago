@@ -24,7 +24,7 @@ import { GameTabTextClient } from './game-tab-text-client/game-tab-text-client';
             <app-game-tab-arcade />
           }
           @case ('text-client') {
-            <app-game-tab-text-client />
+            <app-game-tab-text-client [game]="game()" />
           }
         }
       </div>
