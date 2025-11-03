@@ -352,8 +352,18 @@ export class GameTabMap {
     });
 
     effect(() => {
-      const { storedData, slotData } = this.game();
-      this.#store.initFromServer(storedData, VICTORY_LOCATION_NAME_LOOKUP[slotData.victory_location_name]);
+      const { client, storedData, slotData } = this.game();
+      const victoryLocationYamlKey = VICTORY_LOCATION_NAME_LOOKUP[slotData.victory_location_name];
+      const defs = BAKED_DEFINITIONS_BY_VICTORY_LANDMARK[victoryLocationYamlKey];
+      const checkedLocations = client.room.checkedLocations.map((l) => {
+        const locationName = client.package.lookupLocationName('Autopelago', l, false);
+        if (!locationName) {
+          return null;
+        }
+        const locationId = defs.locationNameLookup.get(locationName);
+        return locationId ?? null;
+      }).filter(l => l !== null);
+      this.#store.initFromServer(storedData, checkedLocations, slotData.lactose_intolerant, victoryLocationYamlKey);
     });
   }
 

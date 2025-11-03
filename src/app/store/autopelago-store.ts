@@ -28,7 +28,7 @@ const initialState = {
   mercyFactor: 0,
   sluggishCarryover: false,
   processedReceivedItemCount: 0,
-  currentLocation: null as number | null,
+  currentLocation: -1,
   priorityPriorityLocations: List<number>(),
   priorityLocations: List<number>(),
   receivedItems: List<number>(),
@@ -57,28 +57,21 @@ export const GameStore = signalStore(
       }
       return ratCount;
     }),
-    asStoredData: computed<AutopelagoStoredData>(() => {
-      const currentLocation = store.currentLocation();
-      if (currentLocation === null) {
-        throw new Error('Must initialize first');
-      }
-
-      return {
-        foodFactor: store.foodFactor(),
-        luckFactor: store.luckFactor(),
-        energyFactor: store.energyFactor(),
-        styleFactor: store.styleFactor(),
-        distractionCounter: store.distractionCounter(),
-        startledCounter: store.startledCounter(),
-        hasConfidence: store.hasConfidence(),
-        mercyFactor: store.mercyFactor(),
-        sluggishCarryover: store.sluggishCarryover(),
-        processedReceivedItemCount: store.processedReceivedItemCount(),
-        currentLocation,
-        priorityPriorityLocations: store.priorityPriorityLocations().toJS(),
-        priorityLocations: store.priorityLocations().toJS(),
-      };
-    }),
+    asStoredData: computed<AutopelagoStoredData>(() => ({
+      foodFactor: store.foodFactor(),
+      luckFactor: store.luckFactor(),
+      energyFactor: store.energyFactor(),
+      styleFactor: store.styleFactor(),
+      distractionCounter: store.distractionCounter(),
+      startledCounter: store.startledCounter(),
+      hasConfidence: store.hasConfidence(),
+      mercyFactor: store.mercyFactor(),
+      sluggishCarryover: store.sluggishCarryover(),
+      processedReceivedItemCount: store.processedReceivedItemCount(),
+      currentLocation: store.currentLocation(),
+      priorityPriorityLocations: store.priorityPriorityLocations().toJS(),
+      priorityLocations: store.priorityLocations().toJS(),
+    })),
   })),
   withMethods(store => ({
     appendMessage(message: Readonly<Message>) {
@@ -96,19 +89,23 @@ export const GameStore = signalStore(
     moveTo(currentLocation: number) {
       patchState(store, { currentLocation });
     },
-    initFromServer(storedData: Partial<AutopelagoStoredData>, victoryLocationYamlKey: VictoryLocationYamlKey) {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const patchData: any = { ...storedData, victoryLocationYamlKey };
-      if ('priorityPriorityLocations' in storedData) {
-        // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
-        patchData.priorityPriorityLocations = List(storedData.priorityPriorityLocations);
-      }
-      if ('priorityLocations' in storedData) {
-        // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
-        patchData.priorityLocations = List(storedData.priorityLocations);
-      }
-      // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
+    initFromServer(storedData: AutopelagoStoredData, checkedLocations: Iterable<number>, lactoseIntolerant: boolean, victoryLocationYamlKey: VictoryLocationYamlKey) {
+      const patchData = {
+        ...storedData,
+        lactoseIntolerant,
+        victoryLocationYamlKey,
+        priorityLocations: List(storedData.priorityLocations),
+        priorityPriorityLocations: List(storedData.priorityPriorityLocations),
+        receivedItems: List<number>(),
+        receivedItemCountLookup: List<number>(Array<number>(BAKED_DEFINITIONS_FULL.allItems.length).fill(0)),
+        checkedLocations: Set<number>(checkedLocations),
+      };
       patchState(store, patchData);
+    },
+    checkLocations(locations: Iterable<number>) {
+      const locationsArray = [...locations];
+      console.log('marking locations checked:', locationsArray);
+      patchState(store, ({ checkedLocations }) => ({ checkedLocations: checkedLocations.union(locationsArray) }));
     },
     receiveItems(items: Iterable<number>) {
       const lactoseIntolerant = store.lactoseIntolerant();

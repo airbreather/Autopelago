@@ -3,7 +3,7 @@ import { type ResolveFn, type Routes } from '@angular/router';
 import { Client, type ConnectionOptions } from 'archipelago.js';
 
 import { ConnectScreen } from './connect-screen/connect-screen';
-import { BAKED_DEFINITIONS_FULL } from './data/resolved-definitions';
+import { BAKED_DEFINITIONS_BY_VICTORY_LANDMARK, VICTORY_LOCATION_NAME_LOOKUP } from './data/resolved-definitions';
 import {
   type AutopelagoClientAndData,
   type AutopelagoSlotData,
@@ -70,6 +70,7 @@ const connectResolve: ResolveFn<AutopelagoClientAndData> = async (route) => {
   }
 
   if (!storedData) {
+    const victoryLocationYamlKey = VICTORY_LOCATION_NAME_LOOKUP[slotData.victory_location_name];
     storedData = {
       foodFactor: 0,
       luckFactor: 0,
@@ -81,7 +82,7 @@ const connectResolve: ResolveFn<AutopelagoClientAndData> = async (route) => {
       mercyFactor: 0,
       sluggishCarryover: false,
       processedReceivedItemCount: 0,
-      currentLocation: BAKED_DEFINITIONS_FULL.startLocation,
+      currentLocation: BAKED_DEFINITIONS_BY_VICTORY_LANDMARK[victoryLocationYamlKey].startLocation,
       priorityPriorityLocations: [],
       priorityLocations: [],
     };

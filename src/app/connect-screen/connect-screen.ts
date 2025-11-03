@@ -225,8 +225,9 @@ export class ConnectScreen {
         },
       });
     }
-    catch (_err: unknown) {
+    catch (err: unknown) {
       this.#connecting.set(false);
+      throw err;
     }
   }
 }

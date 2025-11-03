@@ -2,7 +2,11 @@ import { Component, effect, inject, input, signal } from '@angular/core';
 import type { GamePackage } from 'archipelago.js';
 import { Ticker } from 'pixi.js';
 
-import { BAKED_DEFINITIONS_FULL, VICTORY_LOCATION_NAME_LOOKUP } from '../data/resolved-definitions';
+import {
+  BAKED_DEFINITIONS_BY_VICTORY_LANDMARK,
+  BAKED_DEFINITIONS_FULL,
+  VICTORY_LOCATION_NAME_LOOKUP,
+} from '../data/resolved-definitions';
 
 import type { AutopelagoClientAndData } from '../data/slot-data';
 
@@ -94,15 +98,37 @@ export class Headless {
   readonly #initState = signal(0);
   #prevSendUpdates: Promise<unknown> = Promise.resolve();
 
+  #mapLocations(locations: Iterable<number>): ReadonlySet<number> {
+    const { client, slotData } = this.game();
+    const victoryLocationName = slotData.victory_location_name;
+    const victoryLocationYamlKey = VICTORY_LOCATION_NAME_LOOKUP[victoryLocationName];
+    const defs = BAKED_DEFINITIONS_BY_VICTORY_LANDMARK[victoryLocationYamlKey];
+    const result = new Set<number>();
+    for (const location of locations) {
+      const locationName = client.package.lookupLocationName('Autopelago', location, false);
+      if (!locationName) {
+        continue;
+      }
+
+      const locationId = defs.locationNameLookup.get(locationName);
+      if (typeof locationId === 'number') {
+        result.add(locationId);
+      }
+    }
+
+    return result;
+  }
+
   async #sendUpdates() {
     const { client, slotData, storedData, storedDataKey } = this.game();
     const itemsJustReceived: number[] = [];
     switch (this.#initState()) {
       case 0: {
-        const victoryLocationYamlKey = VICTORY_LOCATION_NAME_LOOKUP[slotData.victory_location_name];
-        this.#gameStore.initFromServer(storedData, victoryLocationYamlKey);
         this.#initState.set(1);
         await this.#loadPackage();
+        const victoryLocationYamlKey = VICTORY_LOCATION_NAME_LOOKUP[slotData.victory_location_name];
+        const locations = this.#mapLocations(client.room.checkedLocations);
+        this.#gameStore.initFromServer(storedData, locations, slotData.lactose_intolerant, victoryLocationYamlKey);
         for (const item of client.items.received) {
           const itemKey = BAKED_DEFINITIONS_FULL.itemNameLookup.get(item.name);
           if (typeof itemKey === 'number') {
@@ -131,6 +157,10 @@ export class Headless {
 
           this.#initState.set(3);
           this.#gameStore.receiveItems(itemsJustReceived);
+        });
+
+        client.room.on('locationsChecked', (locations) => {
+          this.#gameStore.checkLocations(this.#mapLocations(locations));
         });
         break;
       }
