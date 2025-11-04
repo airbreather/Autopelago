@@ -1,5 +1,6 @@
 import {
   Component,
+  computed,
   DestroyRef,
   effect,
   ElementRef,
@@ -190,7 +191,7 @@ function createLandmarkMarkers(victoryLocationYamlKey: VictoryLocationYamlKey, s
   template: `
     <div #outer class="outer">
       <!--suppress AngularNgOptimizedImage, HtmlUnknownTarget -->
-      <img #mapImage class="map-image" alt="map" src="assets/images/map.svg"/>
+      <img alt="map" [src]="mapUrl()" />
       <canvas #pixiCanvas class="pixi-canvas" width="300" height="450">
       </canvas>
       <div #pauseButtonContainer class="pause-button-container"
@@ -208,13 +209,6 @@ function createLandmarkMarkers(victoryLocationYamlKey: VictoryLocationYamlKey, s
       position: relative;
       pointer-events: none;
       user-select: none;
-      overflow: hidden;
-    }
-
-    .map-image {
-      display: block;
-      width: 100%;
-      height: auto;
     }
 
     .pause-button-container {
@@ -243,6 +237,19 @@ export class GameTabMap {
 
   protected readonly pixiCanvas = viewChild.required<ElementRef<HTMLCanvasElement>>('pixiCanvas');
   protected readonly outerDiv = viewChild.required<ElementRef<HTMLDivElement>>('outer');
+
+  protected readonly mapUrl = computed(() => {
+    switch (this.#store.victoryLocationYamlKey()) {
+      case 'captured_goldfish':
+        return 'assets/images/map-min.svg';
+      case 'secret_cache':
+        return 'assets/images/map-med.svg';
+      case 'snakes_on_a_planet':
+        return 'assets/images/map.svg';
+      default:
+        return null;
+    }
+  });
 
   constructor() {
     const destroyRef = inject(DestroyRef);
@@ -303,7 +310,6 @@ export class GameTabMap {
       }
 
       canvas.height = VICTORY_LOCATION_CROP_LOOKUP[victoryLocationYamlKey];
-      outerDiv.style.aspectRatio = `${canvas.width.toString()} / ${canvas.height.toString()}`;
       const reciprocalOriginalWidth = 1 / canvas.width;
       const reciprocalOriginalHeight = 1 / canvas.height;
       void (async () => {
