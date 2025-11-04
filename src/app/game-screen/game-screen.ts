@@ -4,7 +4,11 @@ import { rxResource, takeUntilDestroyed, toObservable } from '@angular/core/rxjs
 import { SplitAreaComponent, SplitComponent } from 'angular-split';
 
 import { map, mergeMap } from 'rxjs';
-import { BAKED_DEFINITIONS_FULL, VICTORY_LOCATION_NAME_LOOKUP } from '../data/resolved-definitions';
+import {
+  BAKED_DEFINITIONS_BY_VICTORY_LANDMARK,
+  BAKED_DEFINITIONS_FULL,
+  VICTORY_LOCATION_NAME_LOOKUP,
+} from '../data/resolved-definitions';
 import type { AutopelagoClientAndData } from '../data/slot-data';
 import { GameStore } from '../store/autopelago-store';
 
@@ -116,7 +120,13 @@ export class GameScreen {
     const { client, slotData, storedData } = this.game();
     const itemsJustReceived: number[] = [];
     const victoryLocationYamlKey = VICTORY_LOCATION_NAME_LOOKUP[slotData.victory_location_name];
-    this.#gameStore.initFromServer(storedData, [], slotData.lactose_intolerant, victoryLocationYamlKey);
+    const pkg = client.package.findPackage('Autopelago');
+    if (!pkg) {
+      throw new Error('could not find Autopelago package');
+    }
+
+    const locationNameLookup = BAKED_DEFINITIONS_BY_VICTORY_LANDMARK[victoryLocationYamlKey].locationNameLookup;
+    this.#gameStore.initFromServer(storedData, client.room.checkedLocations.map(l => locationNameLookup.get(pkg.reverseLocationTable[l]) ?? -1), slotData.lactose_intolerant, victoryLocationYamlKey);
     for (const item of client.items.received) {
       const itemKey = BAKED_DEFINITIONS_FULL.itemNameLookup.get(item.name);
       if (typeof itemKey === 'number') {

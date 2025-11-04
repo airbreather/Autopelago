@@ -126,6 +126,8 @@ export const GameStore = signalStore(
                 console.log('received new item', lactoseIntolerant ? itemFull.lactoseIntolerantName : itemFull.lactoseName);
               }
 
+              let subtractConfidence = false;
+              let addConfidence = false;
               for (const aura of itemFull.aurasGranted) {
                 switch (aura) {
                   case 'well_fed':
@@ -133,11 +135,79 @@ export const GameStore = signalStore(
                     break;
 
                   case 'upset_tummy':
-                    result.foodFactor -= 5;
+                    if (result.hasConfidence) {
+                      subtractConfidence = true;
+                    }
+                    else {
+                      result.foodFactor -= 5;
+                    }
+
                     break;
 
-                  // and so on for other auras...
+                  case 'lucky':
+                    ++result.luckFactor;
+                    break;
+
+                  case 'unlucky':
+                    if (result.hasConfidence) {
+                      subtractConfidence = true;
+                    }
+                    else {
+                      --result.luckFactor;
+                    }
+
+                    break;
+
+                  case 'energized':
+                    result.energyFactor += 5;
+                    break;
+
+                  case 'sluggish':
+                    if (result.hasConfidence) {
+                      subtractConfidence = true;
+                    }
+                    else {
+                      result.energyFactor -= 5;
+                    }
+
+                    break;
+
+                  case 'distracted':
+                    if (result.hasConfidence) {
+                      subtractConfidence = true;
+                    }
+                    else {
+                      ++result.distractionCounter;
+                    }
+
+                    break;
+
+                  case 'stylish':
+                    result.styleFactor += 2;
+                    break;
+
+                  case 'startled':
+                    if (result.hasConfidence) {
+                      subtractConfidence = true;
+                    }
+                    else {
+                      ++result.startledCounter;
+                    }
+
+                    break;
+
+                  case 'confident':
+                    addConfidence = true;
+                    break;
                 }
+              }
+
+              if (subtractConfidence) {
+                result.hasConfidence = false;
+              }
+
+              if (addConfidence) {
+                result.hasConfidence = true;
               }
             }
           });

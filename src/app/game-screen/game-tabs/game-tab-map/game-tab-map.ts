@@ -258,6 +258,40 @@ export class GameTabMap {
       },
     });
     const playerToken = signal<Sprite | null>(null);
+    const fillerMarkersContainer = signal<Container | null>(null);
+    effect(() => {
+      const fillerMarkers = fillerMarkersContainer();
+      const victoryLocationYamlKey = this.#store.victoryLocationYamlKey();
+      if (!(fillerMarkers && victoryLocationYamlKey)) {
+        return;
+      }
+
+      const checkedLocations = this.#store.checkedLocations();
+      const defs = BAKED_DEFINITIONS_BY_VICTORY_LANDMARK[victoryLocationYamlKey];
+      const coordsByRegion = fillerCoordsByRegionLookup[victoryLocationYamlKey];
+      const gfx = new Graphics();
+      for (const region of defs.allRegions) {
+        if (!('locs' in region)) {
+          continue;
+        }
+
+        if (!(region.yamlKey in coordsByRegion)) {
+          continue;
+        }
+
+        const fillerCoords = coordsByRegion[region.yamlKey];
+        if (!fillerCoords) {
+          continue;
+        }
+
+        for (const [i, [x, y]] of fillerCoords.coords.entries()) {
+          gfx.rect(x - 0.8, y - 0.8, 1.6, 1.6);
+          gfx.fill(checkedLocations.includes(region.locs[i]) ? 'grey' : 'yellow');
+        }
+      }
+
+      fillerMarkers.replaceChild(fillerMarkers.children[0], gfx);
+    });
     effect(() => {
       const canvas = this.pixiCanvas().nativeElement;
       const outerDiv = this.outerDiv().nativeElement;
@@ -284,7 +318,9 @@ export class GameTabMap {
         });
         Ticker.shared.stop();
 
-        app.stage.addChild(createFillerMarkers(fillerCoordsByRegionLookup[victoryLocationYamlKey]));
+        const fillerMarkers = createFillerMarkers(fillerCoordsByRegionLookup[victoryLocationYamlKey]);
+        fillerMarkersContainer.set(fillerMarkers);
+        app.stage.addChild(fillerMarkers);
         Ticker.shared.stop();
         app.stage.addChild(createLandmarkMarkers(victoryLocationYamlKey, landmarkSpritesheet));
         Ticker.shared.stop();
@@ -346,6 +382,7 @@ export class GameTabMap {
       const DELETE_ME = () => {
         if (Math.random() < 0.003) {
           const cur = defs.allLocations[this.#store.currentLocation()];
+          this.#store.checkLocations([cur.key]);
           client.check(pkg.locationTable[cur.name]);
           this.#store.moveTo(Math.floor(Math.random() * defs.allLocations.length));
         }
