@@ -10,7 +10,7 @@ import type { AutopelagoClientAndData } from '../../../data/slot-data';
       <div class="filler"></div>
       @for (message of game().messageLog(); track $index) {
         <p class="message">
-          [{{ dateFormatter.format(message.ts) }}]
+          [<time [dateTime]="message.ts.toISOString()">{{ dateFormatter.format(message.ts) }}</time>]
           @for (messageNode of message.nodes; track $index) {
             <!--
               Follow Yacht Dice:
@@ -136,7 +136,7 @@ import type { AutopelagoClientAndData } from '../../../data/slot-data';
 export class GameTabTextClient {
   readonly game = input.required<AutopelagoClientAndData>();
   readonly ownName = signal<string>('');
-  readonly dateFormatter = new Intl.DateTimeFormat(navigator.languages[0], { dateStyle: 'short', timeStyle: 'medium' });
+  readonly dateFormatter = new Intl.DateTimeFormat(navigator.languages, { dateStyle: 'short', timeStyle: 'medium' });
   readonly messageToSend = signal('');
   readonly #sendingMessage = signal(false);
   readonly sendingMessage = this.#sendingMessage.asReadonly();
