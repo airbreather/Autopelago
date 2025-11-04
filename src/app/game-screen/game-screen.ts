@@ -1,4 +1,4 @@
-import { Component, computed, DestroyRef, ElementRef, inject, input, viewChild } from '@angular/core';
+import { Component, computed, ElementRef, inject, input, viewChild } from '@angular/core';
 import { rxResource, takeUntilDestroyed, toObservable } from '@angular/core/rxjs-interop';
 
 import { SplitAreaComponent, SplitComponent } from 'angular-split';
@@ -6,7 +6,6 @@ import { SplitAreaComponent, SplitComponent } from 'angular-split';
 import { map, mergeMap } from 'rxjs';
 import type { AutopelagoClientAndData } from '../data/slot-data';
 
-import { AutopelagoService } from '../game/autopelago';
 import { GameScreenStore } from '../store/game-screen-store';
 import { resizeEvents } from '../util';
 import { GameTabs } from './game-tabs/game-tabs';
@@ -39,7 +38,6 @@ import { StatusDisplay } from './status-display/status-display';
 })
 export class GameScreen {
   readonly #store = inject(GameScreenStore);
-  readonly #autopelago = inject(AutopelagoService);
   readonly game = input.required<AutopelagoClientAndData>();
   protected readonly splitRef = viewChild.required<SplitComponent>('split');
   protected readonly outerRef = viewChild.required<ElementRef<HTMLDivElement>>('outer');
@@ -93,9 +91,6 @@ export class GameScreen {
       takeUntilDestroyed(),
     ).subscribe((evt) => {
       this.#store.updateLeftSize(evt.sizes[0] as number);
-    });
-    inject(DestroyRef).onDestroy(() => {
-      this.#autopelago.disconnect();
     });
   }
 

@@ -1,127 +1,96 @@
-import { rxResource } from '@angular/core/rxjs-interop';
-
+import type { DestroyRef } from '@angular/core';
+import { Client, type ConnectionOptions } from 'archipelago.js';
+import { BAKED_DEFINITIONS_BY_VICTORY_LANDMARK, VICTORY_LOCATION_NAME_LOOKUP } from './data/resolved-definitions';
 import {
-  Client,
-  type ConnectionOptions,
-  type DeathEvents,
-  EventBasedManager,
-  type ItemEvents,
-  type MessageEvents,
-  type PlayerEvents,
-  type RoomStateEvents,
-  type SocketEvents,
-} from 'archipelago.js';
+  type AutopelagoClientAndData,
+  type AutopelagoSlotData,
+  type AutopelagoStoredData,
+  validateAutopelagoStoredData,
+} from './data/slot-data';
+import { createReactiveMessageLog } from './game/messages';
 
-import { BehaviorSubject, EMPTY, filter, map, merge, mergeMap, Observable, share } from 'rxjs';
-
-export interface ConnectOptions {
+export interface InitializeClientOptions {
   host: string;
   port: number;
   slot: string;
-  password?: string;
+  password: string | null;
+  destroyRef: DestroyRef;
 }
 
-// TODO: TypeScript isn't powerful enough to infer this fully, though the conditional type part is enough to let it give
-// 'unknown' if we make any mistakes in the explicit part of this declaration.
-type ClientManagerEventMap = {
-  [K in keyof Client]: Client[K] extends EventBasedManager<infer E> ? E : never;
-} & {
-  socket: SocketEvents;
-  room: RoomStateEvents;
-  messages: MessageEvents;
-  players: PlayerEvents;
-  items: ItemEvents;
-  deathLink: DeathEvents;
-};
-
-export class ArchipelagoClient {
-  readonly #clientSubject = new BehaviorSubject<Client | null>(null);
-
-  isAuthenticated = rxResource({
-    defaultValue: false,
-    stream: () => merge(
-      this.events('socket', 'connected').pipe(map(() => true)),
-      this.events('socket', 'disconnected').pipe(map(() => false)),
-    ).pipe(share()),
-  }).asReadonly();
-
-  gamePackage = rxResource({
-    defaultValue: null,
-    stream: () => merge(
-      // archipelago.js requests for just one game at a time.
-      this.events('socket', 'dataPackage').pipe(
-        filter(([dataPackage]) => 'Autopelago' in dataPackage.data.games),
-        map(([dataPackage]) => dataPackage.data.games['Autopelago']),
-      ),
-      this.events('socket', 'disconnected').pipe(map(() => null)),
-    ).pipe(share()),
-  }).asReadonly();
-
-  async say(message: string) {
-    const client = this.#clientSubject.value;
-    if (!client?.authenticated) {
-      return false;
+export async function initializeClient(initializeClientOptions: InitializeClientOptions): Promise<AutopelagoClientAndData> {
+  const { host, port, slot, password, destroyRef } = initializeClientOptions;
+  const client = new Client();
+  // we want to wire up some stuff before fetching the data package:
+  client.options.autoFetchDataPackage = false;
+  // we have our own message log, so disable its own:
+  client.options.maximumMessages = 0;
+  let packageChecksum: string | null = null;
+  client.socket.on('roomInfo', (packet) => {
+    if ('Autopelago' in packet.datapackage_checksums) {
+      packageChecksum = packet.datapackage_checksums['Autopelago'];
     }
+  });
+  const messageLog = createReactiveMessageLog(client, destroyRef);
 
-    await client.messages.say(message);
-    return true;
+  let options: ConnectionOptions = {
+    slotData: true,
+    version: {
+      major: 0,
+      minor: 6,
+      build: 2,
+    },
+  };
+  if (password) {
+    options = {
+      ...options,
+      password,
+    };
   }
 
-  events<
-    M extends keyof ClientManagerEventMap,
-    E extends keyof ClientManagerEventMap[M] & string,
-  >(
-    managerName: M,
-    eventName: E,
-  ): Observable<ClientManagerEventMap[M][E]> {
-    return this.#clientSubject.pipe(
-      mergeMap((client) => {
-        if (client === null) {
-          return EMPTY;
-        }
+  const slotData = await client.login<AutopelagoSlotData>(
+    `${host}:${port.toString()}`,
+    slot,
+    'Autopelago',
+    options,
+  );
 
-        return new Observable<ClientManagerEventMap[M][E]>((subscriber) => {
-          const manager = client[managerName] as EventBasedManager<ClientManagerEventMap[M]>;
-          const handler = (...args: ClientManagerEventMap[M][E]) => {
-            subscriber.next(args);
-          };
-          manager.on(eventName, handler);
-          return () => manager.off(eventName, handler);
-        });
-      }),
-    );
-  }
-
-  async connect({ host, port, slot, password }: ConnectOptions) {
-    const hostHasPort = /:\d+$/.test(host);
-    const url = hostHasPort ? host : `${host}:${port.toString()}`;
-    try {
-      // Disconnect any existing client
-      this.disconnect();
-
-      const client = new Client();
-      this.#clientSubject.next(client);
-      const connectOptions: ConnectionOptions = password
-        ? { password, slotData: true }
-        : { slotData: true };
-      await client.login(url, slot, 'Autopelago', connectOptions);
-    }
-    catch (error) {
-      this.disconnect();
-      throw error;
+  const player = client.players.self;
+  const storedDataKey = `autopelago_${player.team.toString()}_${player.slot.toString()}`;
+  let storedData: AutopelagoStoredData | null = null;
+  try {
+    storedData = await client.storage.fetch(storedDataKey);
+    if (storedData && !validateAutopelagoStoredData(storedData)) {
+      console.warn('invalid stored data', storedData, validateAutopelagoStoredData.errors);
+      storedData = null;
     }
   }
-
-  disconnect() {
-    const currentClient = this.#clientSubject.value;
-    if (currentClient) {
-      try {
-        currentClient.socket.disconnect();
-      }
-      catch {
-        // Ignore errors during disconnect
-      }
-    }
-    this.#clientSubject.next(null);
+  catch (err: unknown) {
+    console.error('error fetching stored data', err);
+    storedData = null;
   }
+
+  if (!storedData) {
+    const victoryLocationYamlKey = VICTORY_LOCATION_NAME_LOOKUP[slotData.victory_location_name];
+    storedData = {
+      foodFactor: 0,
+      luckFactor: 0,
+      energyFactor: 0,
+      styleFactor: 0,
+      distractionCounter: 0,
+      startledCounter: 0,
+      hasConfidence: false,
+      mercyFactor: 0,
+      sluggishCarryover: false,
+      processedReceivedItemCount: 0,
+      currentLocation: BAKED_DEFINITIONS_BY_VICTORY_LANDMARK[victoryLocationYamlKey].startLocation,
+      priorityPriorityLocations: [],
+      priorityLocations: [],
+    };
+    await client.storage
+      .prepare(storedDataKey, storedData)
+      .replace(storedData)
+      .commit(true);
+  }
+
+  return { client, messageLog, slotData, storedData, storedDataKey, packageChecksum };
 }
