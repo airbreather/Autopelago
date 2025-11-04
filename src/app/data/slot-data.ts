@@ -13,7 +13,6 @@ export interface AutopelagoClientAndData {
   slotData: AutopelagoSlotData;
   storedData: AutopelagoStoredData;
   storedDataKey: string;
-  packageChecksum: string | null;
 }
 
 export interface AutopelagoSlotData extends JSONRecord {

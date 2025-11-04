@@ -369,28 +369,6 @@ export class GameTabMap {
         Ticker.shared.start();
       }
     });
-
-    const e = effect(() => {
-      const { client } = this.game();
-      const pkg = client.package.findPackage('Autopelago');
-      const victoryLocationYamlKey = this.#store.victoryLocationYamlKey();
-      if (!(pkg && victoryLocationYamlKey)) {
-        return;
-      }
-
-      const defs = BAKED_DEFINITIONS_BY_VICTORY_LANDMARK[victoryLocationYamlKey];
-      const DELETE_ME = () => {
-        if (Math.random() < 0.003) {
-          const cur = defs.allLocations[this.#store.currentLocation()];
-          this.#store.checkLocations([cur.key]);
-          client.check(pkg.locationTable[cur.name]);
-          this.#store.moveTo(Math.floor(Math.random() * defs.allLocations.length));
-        }
-      };
-      Ticker.shared.add(DELETE_ME);
-      destroyRef.onDestroy(() => Ticker.shared.remove(DELETE_ME));
-      e.destroy();
-    });
   }
 
   togglePause() {

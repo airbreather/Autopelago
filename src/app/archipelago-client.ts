@@ -1,5 +1,5 @@
 import { type DestroyRef, signal, type Signal } from '@angular/core';
-import { Client, type ConnectionOptions, type GamePackage, type MessageNode } from 'archipelago.js';
+import { Client, type ConnectionOptions, type MessageNode } from 'archipelago.js';
 import { List } from 'immutable';
 import { BAKED_DEFINITIONS_BY_VICTORY_LANDMARK, VICTORY_LOCATION_NAME_LOOKUP } from './data/resolved-definitions';
 import {
@@ -20,16 +20,8 @@ export interface InitializeClientOptions {
 export async function initializeClient(initializeClientOptions: InitializeClientOptions): Promise<AutopelagoClientAndData> {
   const { host, port, slot, password, destroyRef } = initializeClientOptions;
   const client = new Client();
-  // we want to wire up some stuff before fetching the data package:
-  client.options.autoFetchDataPackage = false;
   // we have our own message log, so disable its own:
   client.options.maximumMessages = 0;
-  let packageChecksum: string | null = null;
-  client.socket.on('roomInfo', (packet) => {
-    if ('Autopelago' in packet.datapackage_checksums) {
-      packageChecksum = packet.datapackage_checksums['Autopelago'];
-    }
-  });
   const messageLog = createReactiveMessageLog(client, destroyRef);
 
   let options: ConnectionOptions = {
@@ -92,38 +84,7 @@ export async function initializeClient(initializeClientOptions: InitializeClient
       .commit(true);
   }
 
-  await loadPackage(client, packageChecksum);
-
-  return { client, messageLog, slotData, storedData, storedDataKey, packageChecksum };
-}
-
-async function loadPackage(client: Client, packageChecksum: string | null): Promise<void> {
-  if (packageChecksum) {
-    const dataPackageStr = localStorage.getItem(packageChecksum);
-    if (dataPackageStr) {
-      try {
-        client.package.importPackage({
-          games: {
-            Autopelago: JSON.parse(dataPackageStr) as GamePackage,
-          },
-        });
-      }
-      catch (e) {
-        localStorage.removeItem(packageChecksum);
-        console.error('error loading package', e);
-      }
-    }
-  }
-
-  if (client.package.findPackage('Autopelago')) {
-    return;
-  }
-
-  const pkg = await client.package.fetchPackage(['Autopelago']);
-  if ('Autopelago' in pkg.games) {
-    const autopelagoPkg = pkg.games['Autopelago'];
-    localStorage.setItem(autopelagoPkg.checksum, JSON.stringify(autopelagoPkg));
-  }
+  return { client, messageLog, slotData, storedData, storedDataKey };
 }
 
 export interface Message {
