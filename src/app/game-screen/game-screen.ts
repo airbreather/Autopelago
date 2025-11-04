@@ -1,10 +1,12 @@
-import { Component, computed, ElementRef, inject, input, viewChild } from '@angular/core';
+import { Component, computed, effect, ElementRef, inject, input, viewChild } from '@angular/core';
 import { rxResource, takeUntilDestroyed, toObservable } from '@angular/core/rxjs-interop';
 
 import { SplitAreaComponent, SplitComponent } from 'angular-split';
 
 import { map, mergeMap } from 'rxjs';
+import { BAKED_DEFINITIONS_FULL, VICTORY_LOCATION_NAME_LOOKUP } from '../data/resolved-definitions';
 import type { AutopelagoClientAndData } from '../data/slot-data';
+import { GameStore } from '../store/autopelago-store';
 
 import { GameScreenStore } from '../store/game-screen-store';
 import { resizeEvents } from '../util';
@@ -21,7 +23,7 @@ import { StatusDisplay } from './status-display/status-display';
       <as-split #split unit="pixel" direction="horizontal"
                 gutterDblClickDuration="500" (gutterDblClick)="onGutterDblClick()">
         <as-split-area class="left" [size]="leftSize()" [minSize]="minSize()" [maxSize]="maxSize()">
-          <app-status-display />
+          <app-status-display [game]="game()" />
         </as-split-area>
         <as-split-area class="right">
           <app-game-tabs [game]="game()" />
@@ -38,6 +40,7 @@ import { StatusDisplay } from './status-display/status-display';
 })
 export class GameScreen {
   readonly #store = inject(GameScreenStore);
+  readonly #gameStore = inject(GameStore);
   readonly game = input.required<AutopelagoClientAndData>();
   protected readonly splitRef = viewChild.required<SplitComponent>('split');
   protected readonly outerRef = viewChild.required<ElementRef<HTMLDivElement>>('outer');
@@ -92,6 +95,14 @@ export class GameScreen {
     ).subscribe((evt) => {
       this.#store.updateLeftSize(evt.sizes[0] as number);
     });
+
+    const initEffect = effect(() => {
+      this.#init();
+      initEffect.destroy();
+    });
+    effect(() => {
+      this.#sendUpdates();
+    });
   }
 
   onGutterDblClick() {
@@ -99,5 +110,58 @@ export class GameScreen {
     if (width) {
       this.#store.updateLeftSize(width * 0.2);
     }
+  }
+
+  #init() {
+    const { client, slotData, storedData } = this.game();
+    const itemsJustReceived: number[] = [];
+    const victoryLocationYamlKey = VICTORY_LOCATION_NAME_LOOKUP[slotData.victory_location_name];
+    this.#gameStore.initFromServer(storedData, [], slotData.lactose_intolerant, victoryLocationYamlKey);
+    for (const item of client.items.received) {
+      const itemKey = BAKED_DEFINITIONS_FULL.itemNameLookup.get(item.name);
+      if (typeof itemKey === 'number') {
+        itemsJustReceived.push(itemKey);
+      }
+    }
+
+    this.#gameStore.receiveItems(itemsJustReceived);
+    client.items.on('itemsReceived', (items) => {
+      itemsJustReceived.length = 0;
+      for (const item of items) {
+        const itemKey = BAKED_DEFINITIONS_FULL.itemNameLookup.get(item.name);
+        if (typeof itemKey === 'number') {
+          itemsJustReceived.push(itemKey);
+        }
+      }
+
+      this.#gameStore.receiveItems(itemsJustReceived);
+    });
+  }
+
+  #prevSendUpdates: Promise<void> | null = null;
+  #sendUpdates() {
+    const { client, storedDataKey } = this.game();
+    const newStoredData = this.#gameStore.asStoredData();
+    const prevSendUpdates = this.#prevSendUpdates;
+    if (!prevSendUpdates) {
+      // the first time through, the value (by definition) hasn't changed from the initial state, so
+      // there's no need to send this redundant update.
+      this.#prevSendUpdates = Promise.resolve();
+      return;
+    }
+
+    this.#prevSendUpdates = (async () => {
+      await prevSendUpdates;
+      if (this.#prevSendUpdates !== prevSendUpdates) {
+        // another update was queued while we were waiting for this one to finish. this means that
+        // there's a newer promise (a)waiting on us, so we can just return.
+        return;
+      }
+
+      await client.storage
+        .prepare(storedDataKey, newStoredData)
+        .replace(newStoredData)
+        .commit(true);
+    })();
   }
 }

@@ -1,4 +1,5 @@
-import { Component } from '@angular/core';
+import { Component, input } from '@angular/core';
+import type { AutopelagoClientAndData } from '../../data/slot-data';
 
 import { AurasDisplay } from './auras-display/auras-display';
 import { PlayerNameAndNavigation } from './player-name-and-navigation/player-name-and-navigation';
@@ -18,7 +19,7 @@ import { ProgressionItemStatus } from './progression-item-status/progression-ite
         </div>
       </div>
       <hr class="divider" />
-      <app-progression-item-status class="bottom" />
+      <app-progression-item-status [game]="game()" class="bottom" />
     </div>
   `,
   styles: `
@@ -49,6 +50,6 @@ import { ProgressionItemStatus } from './progression-item-status/progression-ite
     }
   `,
 })
-// eslint-disable-next-line @typescript-eslint/no-extraneous-class
 export class StatusDisplay {
+  readonly game = input.required<AutopelagoClientAndData>();
 }

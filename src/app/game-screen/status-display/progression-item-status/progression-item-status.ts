@@ -1,17 +1,10 @@
 import { NgClass } from '@angular/common';
-import { Component, computed, signal } from '@angular/core';
+import { Component, computed, inject, input, type Signal } from '@angular/core';
+import { PROGRESSION_ITEMS_BY_VICTORY_LOCATION } from '../../../data/items';
+import { BAKED_DEFINITIONS_FULL } from '../../../data/resolved-definitions';
 
-import { PROGRESSION_ITEMS_TO_DISPLAY } from '../../../data/items';
-
-function createItem(name: string, index: number) {
-  const collected = signal(index % 4 === 0);
-  return {
-    name,
-    collected,
-    offsetX: computed(() => collected() ? 0 : 65),
-    offsetY: index * 65,
-  };
-}
+import type { AutopelagoClientAndData } from '../../../data/slot-data';
+import { GameStore } from '../../../store/autopelago-store';
 
 @Component({
   selector: 'app-progression-item-status',
@@ -20,7 +13,7 @@ function createItem(name: string, index: number) {
   ],
   template: `
     <div class="outer">
-      @for (item of items; track item.name) {
+      @for (item of items(); track item.name) {
         <div class="item-container" [ngClass]="{ collected: item.collected() }">
           <img class="item"
                src="assets/images/items.webp"
@@ -56,5 +49,36 @@ function createItem(name: string, index: number) {
   `,
 })
 export class ProgressionItemStatus {
-  readonly items = PROGRESSION_ITEMS_TO_DISPLAY.map(createItem);
+  readonly game = input.required<AutopelagoClientAndData>();
+  readonly #gameStore = inject(GameStore);
+  readonly items: Signal<readonly ItemModel[]>;
+  constructor() {
+    this.items = computed(() => {
+      const victoryLocationYamlKey = this.#gameStore.victoryLocationYamlKey();
+      if (!victoryLocationYamlKey) {
+        return [];
+      }
+
+      const lactoseIntolerant = this.#gameStore.lactoseIntolerant();
+      return PROGRESSION_ITEMS_BY_VICTORY_LOCATION[victoryLocationYamlKey].map((itemYamlKey, index) => {
+        const item = BAKED_DEFINITIONS_FULL.progressionItemsByYamlKey.get(itemYamlKey) ?? -1;
+        const collected = computed(() => this.#gameStore.receivedItemCountLookup().get(item, 0) > 0);
+        return {
+          name: lactoseIntolerant
+            ? BAKED_DEFINITIONS_FULL.allItems[item].lactoseIntolerantName
+            : BAKED_DEFINITIONS_FULL.allItems[item].lactoseName,
+          collected,
+          offsetX: computed(() => collected() ? 0 : 65),
+          offsetY: index * 65,
+        };
+      });
+    });
+  }
+}
+
+interface ItemModel {
+  name: string;
+  collected: Signal<boolean>;
+  offsetX: Signal<number>;
+  offsetY: number;
 }
