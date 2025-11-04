@@ -1,5 +1,6 @@
-import type { DestroyRef } from '@angular/core';
-import { Client, type ConnectionOptions } from 'archipelago.js';
+import { type DestroyRef, signal, type Signal } from '@angular/core';
+import { Client, type ConnectionOptions, type GamePackage, type MessageNode } from 'archipelago.js';
+import { List } from 'immutable';
 import { BAKED_DEFINITIONS_BY_VICTORY_LANDMARK, VICTORY_LOCATION_NAME_LOOKUP } from './data/resolved-definitions';
 import {
   type AutopelagoClientAndData,
@@ -7,7 +8,6 @@ import {
   type AutopelagoStoredData,
   validateAutopelagoStoredData,
 } from './data/slot-data';
-import { createReactiveMessageLog } from './game/messages';
 
 export interface InitializeClientOptions {
   host: string;
@@ -92,5 +92,60 @@ export async function initializeClient(initializeClientOptions: InitializeClient
       .commit(true);
   }
 
+  await loadPackage(client, packageChecksum);
+
   return { client, messageLog, slotData, storedData, storedDataKey, packageChecksum };
+}
+
+async function loadPackage(client: Client, packageChecksum: string | null): Promise<void> {
+  if (packageChecksum) {
+    const dataPackageStr = localStorage.getItem(packageChecksum);
+    if (dataPackageStr) {
+      try {
+        client.package.importPackage({
+          games: {
+            Autopelago: JSON.parse(dataPackageStr) as GamePackage,
+          },
+        });
+      }
+      catch (e) {
+        localStorage.removeItem(packageChecksum);
+        console.error('error loading package', e);
+      }
+    }
+  }
+
+  if (client.package.findPackage('Autopelago')) {
+    return;
+  }
+
+  const pkg = await client.package.fetchPackage(['Autopelago']);
+  if ('Autopelago' in pkg.games) {
+    const autopelagoPkg = pkg.games['Autopelago'];
+    localStorage.setItem(autopelagoPkg.checksum, JSON.stringify(autopelagoPkg));
+  }
+}
+
+export interface Message {
+  ts: Date;
+  nodes: readonly MessageNode[];
+}
+
+function createReactiveMessageLog(client: Client, destroyRef?: DestroyRef): Signal<List<Readonly<Message>>> {
+  const messageLog = signal(List<Readonly<Message>>());
+  const onMessage = (_text: string, nodes: readonly MessageNode[]) => {
+    messageLog.update(messages => messages.push({
+      ts: new Date(),
+      nodes,
+    }));
+  };
+
+  client.messages.on('message', onMessage);
+  if (destroyRef) {
+    destroyRef.onDestroy(() => {
+      client.messages.off('message', onMessage);
+    });
+  }
+
+  return messageLog.asReadonly();
 }

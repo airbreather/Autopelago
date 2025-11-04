@@ -1,5 +1,4 @@
 import { Component, effect, inject, input, signal } from '@angular/core';
-import type { GamePackage } from 'archipelago.js';
 import { Ticker } from 'pixi.js';
 
 import {
@@ -55,49 +54,21 @@ export class Headless {
     };
     Ticker.shared.add(handleTick, this);
 
+    const initEffect = effect(() => {
+      this.#init();
+      initEffect.destroy();
+    });
     effect(() => void this.#sendUpdates());
     effect(() => {
       console.log('rat count', this.#gameStore.ratCount());
     });
   }
 
-  async #loadPackage() {
-    const { client, packageChecksum } = this.game();
-    if (packageChecksum) {
-      const dataPackageStr = localStorage.getItem(packageChecksum);
-      if (dataPackageStr) {
-        try {
-          client.package.importPackage({
-            games: {
-              Autopelago: JSON.parse(dataPackageStr) as GamePackage,
-            },
-          });
-        }
-        catch (e) {
-          localStorage.removeItem(packageChecksum);
-          console.error('error loading package', e);
-        }
-      }
-    }
-
-    if (client.package.findPackage('Autopelago')) {
-      return;
-    }
-
-    const pkg = await client.package.fetchPackage(['Autopelago']);
-    if ('Autopelago' in pkg.games) {
-      const autopelagoPkg = pkg.games['Autopelago'];
-      localStorage.setItem(autopelagoPkg.checksum, JSON.stringify(autopelagoPkg));
-    }
-  }
-
   doTickStuff() {
     // empty
   }
 
-  readonly #initState = signal(0);
-  #prevSendUpdates: Promise<unknown> = Promise.resolve();
-
+  readonly #receivedAnyItemsEver = signal(false);
   #mapLocations(locations: Iterable<number>): ReadonlySet<number> {
     const { client, slotData } = this.game();
     const victoryLocationName = slotData.victory_location_name;
@@ -119,67 +90,59 @@ export class Headless {
     return result;
   }
 
-  async #sendUpdates() {
-    const { client, slotData, storedData, storedDataKey } = this.game();
+  #init() {
+    const { client, slotData, storedData } = this.game();
     const itemsJustReceived: number[] = [];
-    switch (this.#initState()) {
-      case 0: {
-        this.#initState.set(1);
-        await this.#loadPackage();
-        const victoryLocationYamlKey = VICTORY_LOCATION_NAME_LOOKUP[slotData.victory_location_name];
-        const locations = this.#mapLocations(client.room.checkedLocations);
-        this.#gameStore.initFromServer(storedData, locations, slotData.lactose_intolerant, victoryLocationYamlKey);
-        for (const item of client.items.received) {
-          const itemKey = BAKED_DEFINITIONS_FULL.itemNameLookup.get(item.name);
-          if (typeof itemKey === 'number') {
-            itemsJustReceived.push(itemKey);
-          }
-        }
-
-        this.#gameStore.receiveItems(itemsJustReceived);
-        this.#initState.set(2);
-        break;
-      }
-
-      case 1:
-        break;
-
-      case 2: {
-        this.#initState.set(1);
-        client.items.on('itemsReceived', (items) => {
-          itemsJustReceived.length = 0;
-          for (const item of items) {
-            const itemKey = BAKED_DEFINITIONS_FULL.itemNameLookup.get(item.name);
-            if (typeof itemKey === 'number') {
-              itemsJustReceived.push(itemKey);
-            }
-          }
-
-          this.#initState.set(3);
-          this.#gameStore.receiveItems(itemsJustReceived);
-        });
-
-        client.room.on('locationsChecked', (locations) => {
-          this.#gameStore.checkLocations(this.#mapLocations(locations));
-        });
-        break;
-      }
-
-      case 3: {
-        const newStoredData = this.#gameStore.asStoredData();
-        const prevSendUpdates = this.#prevSendUpdates;
-        await prevSendUpdates;
-        if (prevSendUpdates !== this.#prevSendUpdates) {
-          return;
-        }
-
-        console.log('sending updates', newStoredData);
-        this.#prevSendUpdates = client.storage
-          .prepare(storedDataKey, newStoredData)
-          .replace(newStoredData)
-          .commit(true);
-        break;
+    const victoryLocationYamlKey = VICTORY_LOCATION_NAME_LOOKUP[slotData.victory_location_name];
+    const locations = this.#mapLocations(client.room.checkedLocations);
+    this.#gameStore.initFromServer(storedData, locations, slotData.lactose_intolerant, victoryLocationYamlKey);
+    for (const item of client.items.received) {
+      const itemKey = BAKED_DEFINITIONS_FULL.itemNameLookup.get(item.name);
+      if (typeof itemKey === 'number') {
+        itemsJustReceived.push(itemKey);
       }
     }
+
+    this.#gameStore.receiveItems(itemsJustReceived);
+    client.items.on('itemsReceived', (items) => {
+      itemsJustReceived.length = 0;
+      for (const item of items) {
+        const itemKey = BAKED_DEFINITIONS_FULL.itemNameLookup.get(item.name);
+        if (typeof itemKey === 'number') {
+          itemsJustReceived.push(itemKey);
+        }
+      }
+
+      this.#receivedAnyItemsEver.set(true);
+      this.#gameStore.receiveItems(itemsJustReceived);
+    });
+
+    client.room.on('locationsChecked', (locations) => {
+      this.#gameStore.checkLocations(this.#mapLocations(locations));
+    });
+  }
+
+  #prevSendUpdates = Promise.resolve();
+  #sendUpdates() {
+    if (!this.#receivedAnyItemsEver()) {
+      return;
+    }
+
+    const { client, storedDataKey } = this.game();
+    const newStoredData = this.#gameStore.asStoredData();
+    const prevSendUpdates = this.#prevSendUpdates;
+    this.#prevSendUpdates = (async () => {
+      await prevSendUpdates;
+      if (this.#prevSendUpdates !== prevSendUpdates) {
+        // another update was queued while we were waiting for this one to finish. this means that
+        // there's a newer promise (a)waiting on us, so we can just return.
+        return;
+      }
+
+      await client.storage
+        .prepare(storedDataKey, newStoredData)
+        .replace(newStoredData)
+        .commit(true);
+    })();
   }
 }

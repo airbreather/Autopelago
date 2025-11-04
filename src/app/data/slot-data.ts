@@ -2,7 +2,7 @@
 import { Ajv } from 'ajv';
 import type { Client, JSONRecord } from 'archipelago.js';
 import { List } from 'immutable';
-import type { Message } from '../game/messages';
+import type { Message } from '../archipelago-client';
 import type { AutopelagoBuff, AutopelagoTrap, VictoryLocationName } from './resolved-definitions';
 
 export type AutopelagoUserCustomizableMessage = [string, number];
