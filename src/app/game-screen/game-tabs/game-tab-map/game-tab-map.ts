@@ -27,6 +27,7 @@ import {
 } from 'pixi.js';
 
 import {
+  type Filler,
   fillerRegionCoords,
   type FillerRegionYamlKey,
   isFillerRegionYamlKey,
@@ -42,13 +43,13 @@ import type { AutopelagoClientAndData } from '../../../data/slot-data';
 import { GameStore } from '../../../store/autopelago-store';
 import { resizeEvents, strictObjectEntries } from '../../../util';
 
-const fillerCountsByRegionLookup = {
-  captured_goldfish: getFillerCountsByRegion('captured_goldfish'),
-  secret_cache: getFillerCountsByRegion('secret_cache'),
-  snakes_on_a_planet: getFillerCountsByRegion('snakes_on_a_planet'),
-} as const satisfies Record<VictoryLocationYamlKey, Partial<Record<FillerRegionYamlKey, number>>>;
+const fillerCoordsByRegionLookup = {
+  captured_goldfish: getFillerCoordsByRegion('captured_goldfish'),
+  secret_cache: getFillerCoordsByRegion('secret_cache'),
+  snakes_on_a_planet: getFillerCoordsByRegion('snakes_on_a_planet'),
+} as const satisfies Record<VictoryLocationYamlKey, Partial<Record<FillerRegionYamlKey, Filler>>>;
 
-function getFillerCountsByRegion(victoryLocation: VictoryLocationYamlKey) {
+function getFillerCoordsByRegion(victoryLocation: VictoryLocationYamlKey) {
   const fillerCountsByRegion: Partial<Record<FillerRegionYamlKey, number>> = {};
   for (const r of BAKED_DEFINITIONS_BY_VICTORY_LANDMARK[victoryLocation].allRegions) {
     if (isFillerRegionYamlKey(r.yamlKey) && 'locs' in r) {
@@ -56,10 +57,10 @@ function getFillerCountsByRegion(victoryLocation: VictoryLocationYamlKey) {
     }
   }
 
-  return fillerCountsByRegion;
+  return fillerRegionCoords(fillerCountsByRegion);
 }
 
-function createFillerMarkers(fillerCountsByRegion: Readonly<Partial<Record<FillerRegionYamlKey, number>>>) {
+function createFillerMarkers(fillerCoordsByRegion: Readonly<Partial<Record<FillerRegionYamlKey, Filler>>>) {
   const graphicsContainer = new Container({
     filters: [new DropShadowFilter({
       blur: 1,
@@ -69,7 +70,7 @@ function createFillerMarkers(fillerCountsByRegion: Readonly<Partial<Record<Fille
   });
 
   const gfx = new Graphics();
-  for (const [_, r] of strictObjectEntries(fillerRegionCoords(fillerCountsByRegion))) {
+  for (const [_, r] of strictObjectEntries(fillerCoordsByRegion)) {
     for (const [x, y] of r.coords) {
       gfx.rect(x - 0.8, y - 0.8, 1.6, 1.6);
       gfx.fill('yellow');
@@ -283,7 +284,7 @@ export class GameTabMap {
         });
         Ticker.shared.stop();
 
-        app.stage.addChild(createFillerMarkers(fillerCountsByRegionLookup[victoryLocationYamlKey]));
+        app.stage.addChild(createFillerMarkers(fillerCoordsByRegionLookup[victoryLocationYamlKey]));
         Ticker.shared.stop();
         app.stage.addChild(createLandmarkMarkers(victoryLocationYamlKey, landmarkSpritesheet));
         Ticker.shared.stop();
@@ -334,14 +335,18 @@ export class GameTabMap {
     });
 
     const e = effect(() => {
+      const { client } = this.game();
+      const pkg = client.package.findPackage('Autopelago');
       const victoryLocationYamlKey = this.#store.victoryLocationYamlKey();
-      if (!victoryLocationYamlKey) {
+      if (!(pkg && victoryLocationYamlKey)) {
         return;
       }
 
       const defs = BAKED_DEFINITIONS_BY_VICTORY_LANDMARK[victoryLocationYamlKey];
       const DELETE_ME = () => {
         if (Math.random() < 0.003) {
+          const cur = defs.allLocations[this.#store.currentLocation()];
+          client.check(pkg.locationTable[cur.name]);
           this.#store.moveTo(Math.floor(Math.random() * defs.allLocations.length));
         }
       };
