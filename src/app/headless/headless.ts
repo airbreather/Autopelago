@@ -1,4 +1,4 @@
-import { Component, effect, inject, input, signal } from '@angular/core';
+import { Component, effect, inject, input } from '@angular/core';
 import { Ticker } from 'pixi.js';
 
 import {
@@ -58,7 +58,9 @@ export class Headless {
       this.#init();
       initEffect.destroy();
     });
-    effect(() => void this.#sendUpdates());
+    effect(() => {
+      this.#sendUpdates();
+    });
     effect(() => {
       console.log('rat count', this.#gameStore.ratCount());
     });
@@ -68,7 +70,6 @@ export class Headless {
     // empty
   }
 
-  readonly #receivedAnyItemsEver = signal(false);
   #mapLocations(locations: Iterable<number>): ReadonlySet<number> {
     const { client, slotData } = this.game();
     const victoryLocationName = slotData.victory_location_name;
@@ -113,7 +114,6 @@ export class Headless {
         }
       }
 
-      this.#receivedAnyItemsEver.set(true);
       this.#gameStore.receiveItems(itemsJustReceived);
     });
 
@@ -122,15 +122,18 @@ export class Headless {
     });
   }
 
-  #prevSendUpdates = Promise.resolve();
+  #prevSendUpdates: Promise<void> | null = null;
   #sendUpdates() {
-    if (!this.#receivedAnyItemsEver()) {
-      return;
-    }
-
     const { client, storedDataKey } = this.game();
     const newStoredData = this.#gameStore.asStoredData();
     const prevSendUpdates = this.#prevSendUpdates;
+    if (!prevSendUpdates) {
+      // the first time through, the value (by definition) hasn't changed from the initial state, so
+      // there's no need to send this redundant update.
+      this.#prevSendUpdates = Promise.resolve();
+      return;
+    }
+
     this.#prevSendUpdates = (async () => {
       await prevSendUpdates;
       if (this.#prevSendUpdates !== prevSendUpdates) {
