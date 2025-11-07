@@ -30,7 +30,7 @@ export type Entry<T extends object> =
       : ObjectEntry<T>;
 
 export function strictObjectEntries<T extends object>(obj: T): Entry<T>[] {
-  return Object.entries(obj) as Entry<T>[];
+  return (Object.entries(obj) as Entry<T>[]).sort((a, b) => Number(a[0] > b[0]) - Number(a[0] < b[0]));
 }
 
 // END section that was discovered by:

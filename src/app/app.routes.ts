@@ -1,9 +1,9 @@
 import { DestroyRef, inject } from '@angular/core';
-import { type ResolveFn, type Routes } from '@angular/router';
+import type { ResolveFn, Routes } from '@angular/router';
 import { initializeClient } from './archipelago-client';
 
 import { ConnectScreen } from './connect-screen/connect-screen';
-import { type AutopelagoClientAndData } from './data/slot-data';
+import type { AutopelagoClientAndData } from './data/slot-data';
 import { GameStore } from './store/autopelago-store';
 
 const connectResolve: ResolveFn<AutopelagoClientAndData> = (route) => {
