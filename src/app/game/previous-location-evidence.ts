@@ -1,5 +1,6 @@
 import { List } from 'immutable';
-import type { UserRequestedLocation } from './state';
+import type { ToJSONSerializable } from '../util';
+import type { UserRequestedLocation } from './defining-state';
 
 interface PreviousLocationChosenBecauseStartled {
   startled: true;
@@ -25,13 +26,54 @@ interface PreviousLocationChosenBecauseClosestReachableUnchecked {
 }
 
 export type PreviousLocationEvidence =
+  | null
   | PreviousLocationChosenBecauseStartled
   | PreviousLocationChosenBecauseAuraDriven
   | PreviousLocationChosenBecauseUserRequested
   | PreviousLocationChosenBecauseClosestReachableUnchecked
   ;
 
+export function previousLocationEvidenceToJSONSerializable(previousLocationEvidence: PreviousLocationEvidence): ToJSONSerializable<PreviousLocationEvidence> {
+  if (
+    previousLocationEvidence === null
+    || previousLocationEvidence.startled
+    || previousLocationEvidence.firstAuraDrivenLocation !== null) {
+    return null;
+  }
+
+  return {
+    ...previousLocationEvidence,
+    clearedOrClearableLandmarks: previousLocationEvidence.clearedOrClearableLandmarks.toJS(),
+    userRequestedLocations: previousLocationEvidence.userRequestedLocations?.toJS() ?? null,
+  };
+}
+
+export function previousLocationEvidenceFromJSONSerializable(previousLocationEvidence: ToJSONSerializable<PreviousLocationEvidence>): PreviousLocationEvidence {
+  if (
+    previousLocationEvidence === null
+    || previousLocationEvidence.startled
+    || previousLocationEvidence.firstAuraDrivenLocation !== null) {
+    return null;
+  }
+
+  return {
+    ...previousLocationEvidence,
+    clearedOrClearableLandmarks: List(previousLocationEvidence.clearedOrClearableLandmarks),
+    userRequestedLocations: previousLocationEvidence.userRequestedLocations === null
+      ? null
+      : List(previousLocationEvidence.userRequestedLocations),
+  };
+}
+
 export function previousLocationEvidenceEquals(a: PreviousLocationEvidence, b: PreviousLocationEvidence): boolean {
+  if (a === null) {
+    return b === null;
+  }
+
+  if (b === null) {
+    return false;
+  }
+
   if (a.startled) {
     return b.startled;
   }

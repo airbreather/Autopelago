@@ -3,6 +3,8 @@ import { Ajv } from 'ajv';
 import type { Client, JSONRecord } from 'archipelago.js';
 import { List } from 'immutable';
 import type { Message } from '../archipelago-client';
+import type { PreviousLocationEvidence } from '../game/previous-location-evidence';
+import type { ToJSONSerializable } from '../util';
 import type { AutopelagoBuff, AutopelagoTrap, VictoryLocationName } from './resolved-definitions';
 
 export type AutopelagoUserCustomizableMessage = [string, number];
@@ -41,6 +43,7 @@ export interface AutopelagoStoredData extends JSONRecord {
   sluggishCarryover: boolean;
   processedReceivedItemCount: number;
   currentLocation: number;
+  previousLocationEvidence: ToJSONSerializable<PreviousLocationEvidence>;
   priorityPriorityLocations: number[];
   priorityLocations: number[];
 }
@@ -60,6 +63,18 @@ export const validateAutopelagoStoredData = ajv.compile<AutopelagoStoredData>({
     sluggishCarryover: { type: 'boolean' },
     processedReceivedItemCount: { type: 'number' },
     currentLocation: { type: 'number' },
+    previousLocationEvidence: {
+      anyOf: [
+        { type: 'null' },
+        {
+          type: 'object',
+          properties: {
+            startled: { type: 'true' },
+            // TODO: MORE!!!!!
+          },
+        },
+      ],
+    },
     priorityPriorityLocations: { type: 'array', items: { type: 'number' } },
     priorityLocations: { type: 'array', items: { type: 'number' } },
   },
@@ -75,6 +90,7 @@ export const validateAutopelagoStoredData = ajv.compile<AutopelagoStoredData>({
     'sluggishCarryover',
     'processedReceivedItemCount',
     'currentLocation',
+    'previousLocationEvidence',
     'priorityPriorityLocations',
     'priorityLocations',
   ],

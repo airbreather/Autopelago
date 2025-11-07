@@ -75,6 +75,7 @@ export async function initializeClient(initializeClientOptions: InitializeClient
       sluggishCarryover: false,
       processedReceivedItemCount: 0,
       currentLocation: BAKED_DEFINITIONS_BY_VICTORY_LANDMARK[victoryLocationYamlKey].startLocation,
+      previousLocationEvidence: null,
       priorityPriorityLocations: [],
       priorityLocations: [],
     };

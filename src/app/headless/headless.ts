@@ -123,6 +123,7 @@ export class Headless {
   }
 
   #prevSendUpdates: Promise<void> | null = null;
+
   #sendUpdates() {
     const { client, storedDataKey } = this.game();
     const newStoredData = this.#gameStore.asStoredData();

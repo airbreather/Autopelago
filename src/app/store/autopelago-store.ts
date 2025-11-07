@@ -5,6 +5,11 @@ import { patchState, signalStore, withComputed, withMethods } from '@ngrx/signal
 import { List, Set } from 'immutable';
 import { BAKED_DEFINITIONS_FULL, type VictoryLocationYamlKey } from '../data/resolved-definitions';
 import type { AutopelagoStoredData } from '../data/slot-data';
+import {
+  type PreviousLocationEvidence,
+  previousLocationEvidenceFromJSONSerializable,
+  previousLocationEvidenceToJSONSerializable,
+} from '../game/previous-location-evidence';
 
 const initialState = {
   lactoseIntolerant: false,
@@ -21,6 +26,7 @@ const initialState = {
   sluggishCarryover: false,
   processedReceivedItemCount: 0,
   currentLocation: -1,
+  previousLocationEvidence: null as PreviousLocationEvidence,
   priorityPriorityLocations: List<number>(),
   priorityLocations: List<number>(),
   receivedItems: List<number>(),
@@ -61,6 +67,7 @@ export const GameStore = signalStore(
       sluggishCarryover: store.sluggishCarryover(),
       processedReceivedItemCount: store.processedReceivedItemCount(),
       currentLocation: store.currentLocation(),
+      previousLocationEvidence: previousLocationEvidenceToJSONSerializable(store.previousLocationEvidence()),
       priorityPriorityLocations: store.priorityPriorityLocations().toJS(),
       priorityLocations: store.priorityLocations().toJS(),
     })),
@@ -88,6 +95,7 @@ export const GameStore = signalStore(
         receivedItems: List<number>(),
         receivedItemCountLookup: List<number>(Array<number>(BAKED_DEFINITIONS_FULL.allItems.length).fill(0)),
         checkedLocations: Set<number>(checkedLocations),
+        previousLocationEvidence: previousLocationEvidenceFromJSONSerializable(storedData.previousLocationEvidence),
       };
       patchState(store, patchData);
     },

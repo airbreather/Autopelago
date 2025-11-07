@@ -52,6 +52,7 @@ export class ProgressionItemStatus {
   readonly game = input.required<AutopelagoClientAndData>();
   readonly #gameStore = inject(GameStore);
   readonly items: Signal<readonly ItemModel[]>;
+
   constructor() {
     this.items = computed(() => {
       const victoryLocationYamlKey = this.#gameStore.victoryLocationYamlKey();

@@ -1,5 +1,7 @@
 import { DestroyRef, effect, ElementRef, Injector, type Signal } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
+import type { JSONSerializable } from 'archipelago.js';
+import { List } from 'immutable';
 import { Observable, retry, Subscription, timer } from 'rxjs';
 
 export type EnumVal<T extends object> = T[keyof T];
@@ -75,6 +77,17 @@ export function retryWithExponentialBackoff<T>({ delay, maxDelay } = DEFAULT_RET
     }),
   );
 }
+
+export type ToJSONSerializable<T> =
+  T extends JSONSerializable ? T : {
+    [K in keyof T]: T[K] extends JSONSerializable
+      ? T[K]
+      : T[K] extends (readonly (infer E)[])
+        ? ToJSONSerializable<E>[]
+        : T[K] extends List<infer E>
+          ? ToJSONSerializable<E>[]
+          : never;
+  };
 
 interface ResizeTextOptions {
   outer: Signal<ElementRef<HTMLElement>>;
