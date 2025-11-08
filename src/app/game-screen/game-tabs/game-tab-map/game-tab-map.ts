@@ -5,7 +5,6 @@ import {
   effect,
   ElementRef,
   inject,
-  input,
   resource,
   signal,
   untracked,
@@ -40,7 +39,6 @@ import {
   VICTORY_LOCATION_CROP_LOOKUP,
   type VictoryLocationYamlKey,
 } from '../../../data/resolved-definitions';
-import type { AutopelagoClientAndData } from '../../../data/slot-data';
 import { GameStore } from '../../../store/autopelago-store';
 import { resizeEvents, strictObjectEntries } from '../../../util';
 
@@ -232,8 +230,6 @@ function createLandmarkMarkers(victoryLocationYamlKey: VictoryLocationYamlKey, s
 export class GameTabMap {
   readonly #store = inject(GameStore);
   readonly paused = this.#store.paused;
-
-  readonly game = input.required<AutopelagoClientAndData>();
 
   protected readonly pixiCanvas = viewChild.required<ElementRef<HTMLCanvasElement>>('pixiCanvas');
   protected readonly outerDiv = viewChild.required<ElementRef<HTMLDivElement>>('outer');

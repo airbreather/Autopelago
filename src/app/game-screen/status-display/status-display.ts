@@ -19,7 +19,7 @@ import { ProgressionItemStatus } from './progression-item-status/progression-ite
         </div>
       </div>
       <hr class="divider" />
-      <app-progression-item-status [game]="game()" class="bottom" />
+      <app-progression-item-status class="bottom" />
     </div>
   `,
   styles: `

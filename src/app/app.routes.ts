@@ -1,23 +1,19 @@
-import { DestroyRef, inject } from '@angular/core';
 import type { ResolveFn, Routes } from '@angular/router';
+import type { InitializeClientOptions } from './archipelago-client';
 
 import { ConnectScreen } from './connect-screen/connect-screen';
-import type { AutopelagoClientAndData } from './data/slot-data';
 
-const connectResolve: ResolveFn<AutopelagoClientAndData> = (route) => {
-  const destroyRef = inject(DestroyRef);
-  return import('./archipelago-client').then((m) => {
-    const qp = route.queryParamMap;
-    const host = qp.get('host');
-    const port = Number(qp.get('port'));
-    const slot = qp.get('slot');
-    const password = qp.get('password');
-    if (!(host && port && slot)) {
-      throw new Error('Missing required query params. host, port, and slot must be provided!');
-    }
+const resolveInitOptions: ResolveFn<Omit<InitializeClientOptions, 'destroyRef'>> = (route) => {
+  const qp = route.queryParamMap;
+  const host = qp.get('host');
+  const port = Number(qp.get('port'));
+  const slot = qp.get('slot');
+  const password = qp.get('password');
+  if (!(host && port && slot)) {
+    throw new Error('Missing required query params. host, port, and slot must be provided!');
+  }
 
-    return m.initializeClient({ host, port, slot, password, destroyRef });
-  });
+  return { host, port, slot, password };
 };
 
 export const routes: Routes = [
@@ -25,11 +21,11 @@ export const routes: Routes = [
   {
     path: 'game',
     loadComponent: () => import('./game-screen/game-screen').then(m => m.GameScreen),
-    resolve: { game: connectResolve },
+    resolve: { initOptions: resolveInitOptions },
   },
   {
     path: 'headless',
     loadComponent: () => import('./headless/headless').then(m => m.Headless),
-    resolve: { game: connectResolve },
+    resolve: { initOptions: resolveInitOptions },
   },
 ];

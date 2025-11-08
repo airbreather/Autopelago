@@ -1,9 +1,8 @@
 import { NgClass } from '@angular/common';
-import { Component, computed, inject, input, type Signal } from '@angular/core';
+import { Component, computed, inject, type Signal } from '@angular/core';
 import { PROGRESSION_ITEMS_BY_VICTORY_LOCATION } from '../../../data/items';
 import { BAKED_DEFINITIONS_FULL } from '../../../data/resolved-definitions';
 
-import type { AutopelagoClientAndData } from '../../../data/slot-data';
 import { GameStore } from '../../../store/autopelago-store';
 
 @Component({
@@ -49,7 +48,6 @@ import { GameStore } from '../../../store/autopelago-store';
   `,
 })
 export class ProgressionItemStatus {
-  readonly game = input.required<AutopelagoClientAndData>();
   readonly #gameStore = inject(GameStore);
   readonly items: Signal<readonly ItemModel[]>;
 

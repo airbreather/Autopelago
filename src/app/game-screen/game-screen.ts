@@ -1,16 +1,16 @@
-import { Component, computed, DestroyRef, effect, ElementRef, inject, input, viewChild } from '@angular/core';
+import { Component, computed, DestroyRef, effect, ElementRef, inject, input, resource, viewChild } from '@angular/core';
 import { rxResource, takeUntilDestroyed, toObservable } from '@angular/core/rxjs-interop';
 
 import { SplitAreaComponent, SplitComponent } from 'angular-split';
 import { Ticker } from 'pixi.js';
 
 import { map, mergeMap } from 'rxjs';
+import { initializeClient, type InitializeClientOptions } from '../archipelago-client';
 import {
   BAKED_DEFINITIONS_BY_VICTORY_LANDMARK,
   BAKED_DEFINITIONS_FULL,
   VICTORY_LOCATION_NAME_LOOKUP,
 } from '../data/resolved-definitions';
-import type { AutopelagoClientAndData } from '../data/slot-data';
 import { GameStore } from '../store/autopelago-store';
 
 import { GameScreenStore } from '../store/game-screen-store';
@@ -32,10 +32,14 @@ import { StatusDisplay } from './status-display/status-display';
       <as-split #split unit="pixel" direction="horizontal"
                 gutterDblClickDuration="500" (gutterDblClick)="onGutterDblClick()">
         <as-split-area class="left" [size]="leftSize()" [minSize]="minSize()" [maxSize]="maxSize()">
-          <app-status-display [game]="game()" />
+          @if (game.value(); as loadedGame) {
+            <app-status-display [game]="loadedGame" />
+          }
         </as-split-area>
         <as-split-area class="right">
-          <app-game-tabs [game]="game()" />
+          @if (game.value(); as loadedGame) {
+            <app-game-tabs [game]="loadedGame" />
+          }
         </as-split-area>
       </as-split>
     </div>
@@ -50,9 +54,14 @@ import { StatusDisplay } from './status-display/status-display';
 export class GameScreen {
   readonly #store = inject(GameScreenStore, { self: true });
   readonly #gameStore = inject(GameStore, { self: true });
-  readonly game = input.required<AutopelagoClientAndData>();
+  readonly #destroyRef = inject(DestroyRef);
+  readonly initOptions = input.required<Omit<InitializeClientOptions, 'destroyRef'>>();
   protected readonly splitRef = viewChild.required<SplitComponent>('split');
   protected readonly outerRef = viewChild.required<ElementRef<HTMLDivElement>>('outer');
+  protected readonly game = resource({
+    params: () => this.initOptions(),
+    loader: ({ params: initOptions }) => initializeClient({ ...initOptions, destroyRef: this.#destroyRef }),
+  }).asReadonly();
 
   readonly #width = rxResource<number | null, ElementRef<HTMLDivElement>>({
     defaultValue: null,
@@ -106,16 +115,21 @@ export class GameScreen {
     });
 
     const initEffect = effect(() => {
-      this.#init();
-      initEffect.destroy();
+      if (this.#init()) {
+        initEffect.destroy();
+      }
     });
     effect(() => {
       this.#sendUpdates();
     });
 
-    const destroyRef = inject(DestroyRef);
     const e = effect(() => {
-      const { client } = this.game();
+      const game = this.game.value();
+      if (!game) {
+        return;
+      }
+
+      const { client } = game;
       const pkg = client.package.findPackage('Autopelago');
       const victoryLocationYamlKey = this.#gameStore.victoryLocationYamlKey();
       if (!(pkg && victoryLocationYamlKey)) {
@@ -132,7 +146,7 @@ export class GameScreen {
         }
       };
       Ticker.shared.add(DELETE_ME);
-      destroyRef.onDestroy(() => Ticker.shared.remove(DELETE_ME));
+      this.#destroyRef.onDestroy(() => Ticker.shared.remove(DELETE_ME));
       e.destroy();
     });
   }
@@ -145,7 +159,12 @@ export class GameScreen {
   }
 
   #init() {
-    const { client, slotData, storedData } = this.game();
+    const game = this.game.value();
+    if (!game) {
+      return false;
+    }
+
+    const { client, slotData, storedData } = game;
     const itemsJustReceived: number[] = [];
     const victoryLocationYamlKey = VICTORY_LOCATION_NAME_LOOKUP[slotData.victory_location_name];
     const pkg = client.package.findPackage('Autopelago');
@@ -174,12 +193,19 @@ export class GameScreen {
 
       this.#gameStore.receiveItems(itemsJustReceived);
     });
+
+    return true;
   }
 
   #prevSendUpdates: Promise<void> | null = null;
 
   #sendUpdates() {
-    const { client, storedDataKey } = this.game();
+    const game = this.game.value();
+    if (!game) {
+      return;
+    }
+
+    const { client, storedDataKey } = game;
     const newStoredData = this.#gameStore.asStoredData();
     const prevSendUpdates = this.#prevSendUpdates;
     if (!prevSendUpdates) {
