@@ -1,4 +1,4 @@
-import { Component, input } from '@angular/core';
+import { ChangeDetectionStrategy, Component, input } from '@angular/core';
 import type { AutopelagoClientAndData } from '../../../data/slot-data';
 
 import { AurasDisplay } from './auras-display/auras-display';
@@ -10,6 +10,7 @@ import { ProgressionItemStatus } from './progression-item-status/progression-ite
   imports: [
     AurasDisplay, PlayerNameAndNavigation, ProgressionItemStatus,
   ],
+  changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <div class="outer">
       <div class="top">

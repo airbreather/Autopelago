@@ -1,4 +1,4 @@
-import { Component, DestroyRef, effect, inject, input, resource, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, DestroyRef, effect, inject, input, resource, signal } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { RouterLink } from '@angular/router';
 import { type ActiveToast, ToastrService } from 'ngx-toastr';
@@ -20,6 +20,7 @@ import { GameContent } from './game-content/game-content';
     GameScreenStore,
     GameStore,
   ],
+  changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <div #outer class="outer">
       @let loadedGame = game.value();

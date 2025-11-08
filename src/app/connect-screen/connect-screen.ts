@@ -1,10 +1,11 @@
-import { Component, effect, ElementRef, inject, signal, viewChild } from '@angular/core';
+import { ChangeDetectionStrategy, Component, effect, ElementRef, inject, signal, viewChild } from '@angular/core';
 import { Router } from '@angular/router';
 
 import { ConnectScreenStore } from '../store/connect-screen.store';
 
 @Component({
   selector: 'app-connect-screen',
+  changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <form #allInputs class="root" (submit)="onConnect($event)">
       <div class="inputs">

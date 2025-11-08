@@ -1,4 +1,4 @@
-import { Component, computed, effect, ElementRef, inject, input, viewChild } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, effect, ElementRef, inject, input, viewChild } from '@angular/core';
 import { rxResource, takeUntilDestroyed, toObservable } from '@angular/core/rxjs-interop';
 
 import { SplitAreaComponent, SplitComponent } from 'angular-split';
@@ -28,6 +28,7 @@ import { StatusDisplay } from './status-display/status-display';
     GameScreenStore,
     GameStore,
   ],
+  changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <div #outer class="outer">
       <as-split #split unit="pixel" direction="horizontal"

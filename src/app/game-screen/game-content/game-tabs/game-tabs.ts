@@ -1,4 +1,4 @@
-import { Component, inject, input } from '@angular/core';
+import { ChangeDetectionStrategy, Component, inject, input } from '@angular/core';
 import type { AutopelagoClientAndData } from '../../../data/slot-data';
 
 import { GameScreenStore, type GameTab } from '../../../store/game-screen-store';
@@ -13,6 +13,7 @@ import { GameTabTextClient } from './game-tab-text-client/game-tab-text-client';
     GameTabArcade,
     GameTabTextClient,
   ],
+  changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <div class="outer">
       <div class="top">

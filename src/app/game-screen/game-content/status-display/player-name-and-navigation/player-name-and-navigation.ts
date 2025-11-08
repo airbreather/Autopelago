@@ -1,4 +1,4 @@
-import { Component, DestroyRef, ElementRef, inject, Injector, viewChild } from '@angular/core';
+import { ChangeDetectionStrategy, Component, DestroyRef, ElementRef, inject, Injector, viewChild } from '@angular/core';
 
 import { RouterLink } from '@angular/router';
 
@@ -10,6 +10,7 @@ import { resizeText } from '../../../../util';
   imports: [
     RouterLink,
   ],
+  changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <div #outer class="outer">
       <div #playerNameDiv class="player-name">{{ playerName() }}</div>

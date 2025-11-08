@@ -1,4 +1,5 @@
 import {
+  ChangeDetectionStrategy,
   Component,
   computed,
   DestroyRef,
@@ -185,6 +186,7 @@ function createLandmarkMarkers(victoryLocationYamlKey: VictoryLocationYamlKey, s
 }
 
 @Component({
+  changeDetection: ChangeDetectionStrategy.OnPush,
   selector: 'app-game-tab-map',
   template: `
     <div #outer class="outer">

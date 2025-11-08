@@ -1,4 +1,4 @@
-import { Component, computed, DestroyRef, ElementRef, inject, Injector, signal, viewChild } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, DestroyRef, ElementRef, inject, Injector, signal, viewChild } from '@angular/core';
 import { GameStore } from '../../../../store/autopelago-store';
 
 import { resizeText } from '../../../../util';
@@ -6,6 +6,7 @@ import { resizeText } from '../../../../util';
 @Component({
   selector: 'app-auras-display',
   imports: [],
+  changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <details #outer class="outer" open>
       <summary #ratCountElement class="rat-count">RATS: {{ ratCount() }}</summary>
