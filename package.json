@@ -8,9 +8,9 @@
   },
   "scripts": {
     "ng": "ng",
-    "prestart": "bun prepare.ts",
-    "prebuild": "bun prepare.ts",
-    "prewatch": "bun prepare.ts",
+    "prestart": "yq . AutopelagoDefinitions.yml | jq . -c > src/app/data/baked.json",
+    "prebuild": "yq . AutopelagoDefinitions.yml | jq . -c > src/app/data/baked.json",
+    "prewatch": "yq . AutopelagoDefinitions.yml | jq . -c > src/app/data/baked.json",
     "start": "ng serve",
     "build": "ng build",
     "watch": "ng build --watch --configuration development",
