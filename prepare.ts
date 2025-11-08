@@ -8,4 +8,4 @@ await Promise.all([
   bakeData(),
 ]);
 
-export { }
+export { };
