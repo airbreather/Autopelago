@@ -32,6 +32,9 @@ function handleTick(this: Headless, ticker: Ticker) {
 @Component({
   selector: 'app-headless',
   imports: [],
+  providers: [
+    GameStore,
+  ],
   template: `
     <p>
       check your browser console, bro!
@@ -40,7 +43,7 @@ function handleTick(this: Headless, ticker: Ticker) {
   styles: '',
 })
 export class Headless {
-  readonly #gameStore = inject(GameStore);
+  readonly #gameStore = inject(GameStore, { self: true });
   protected readonly game = input.required<AutopelagoClientAndData>();
   remaining = Math.floor(Math.random() * (TICK_INTERVAL_MAX - TICK_INTERVAL_MIN) + TICK_INTERVAL_MIN);
 

@@ -23,6 +23,10 @@ import { StatusDisplay } from './status-display/status-display';
   imports: [
     SplitComponent, SplitAreaComponent, StatusDisplay, GameTabs,
   ],
+  providers: [
+    GameScreenStore,
+    GameStore,
+  ],
   template: `
     <div #outer class="outer">
       <as-split #split unit="pixel" direction="horizontal"
@@ -44,8 +48,8 @@ import { StatusDisplay } from './status-display/status-display';
   `,
 })
 export class GameScreen {
-  readonly #store = inject(GameScreenStore);
-  readonly #gameStore = inject(GameStore);
+  readonly #store = inject(GameScreenStore, { self: true });
+  readonly #gameStore = inject(GameStore, { self: true });
   readonly game = input.required<AutopelagoClientAndData>();
   protected readonly splitRef = viewChild.required<SplitComponent>('split');
   protected readonly outerRef = viewChild.required<ElementRef<HTMLDivElement>>('outer');

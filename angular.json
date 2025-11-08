@@ -75,7 +75,15 @@
               "node_modules/ngx-toastr/toastr.css",
               "node_modules/normalize.css/normalize.css",
               "src/styles.scss"
-            ]
+            ],
+            "externalDependencies": [
+              "pixi.js",
+              "pixi-filters"
+            ],
+            "index": {
+              "input": "src/index.html",
+              "preloadInitial": false
+            }
           },
           "configurations": {
             "production": {

@@ -2,12 +2,7 @@ import { type DestroyRef, signal, type Signal } from '@angular/core';
 import { Client, type ConnectionOptions, type MessageNode } from 'archipelago.js';
 import { List } from 'immutable';
 import { BAKED_DEFINITIONS_BY_VICTORY_LANDMARK, VICTORY_LOCATION_NAME_LOOKUP } from './data/resolved-definitions';
-import {
-  type AutopelagoClientAndData,
-  type AutopelagoSlotData,
-  type AutopelagoStoredData,
-  validateAutopelagoStoredData,
-} from './data/slot-data';
+import type { AutopelagoClientAndData, AutopelagoSlotData, AutopelagoStoredData } from './data/slot-data';
 
 export interface InitializeClientOptions {
   host: string;
@@ -48,13 +43,9 @@ export async function initializeClient(initializeClientOptions: InitializeClient
 
   const player = client.players.self;
   const storedDataKey = `autopelago_${player.team.toString()}_${player.slot.toString()}`;
-  let storedData: AutopelagoStoredData | null = null;
+  let storedData: AutopelagoStoredData | null;
   try {
     storedData = await client.storage.fetch(storedDataKey);
-    if (storedData && !validateAutopelagoStoredData(storedData)) {
-      console.warn('invalid stored data', storedData, validateAutopelagoStoredData.errors);
-      storedData = null;
-    }
   }
   catch (err: unknown) {
     console.error('error fetching stored data', err);

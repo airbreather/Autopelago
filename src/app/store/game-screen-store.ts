@@ -19,7 +19,6 @@ const initialState: GameScreenState = {
 const STORAGE_KEY = 'autopelago-game-screen-state';
 
 export const GameScreenStore = signalStore(
-  { providedIn: 'root' },
   withImmutableState(initialState),
   withStorageSync(STORAGE_KEY),
   withMethods(store => ({

@@ -1,5 +1,4 @@
 ﻿import type { Signal } from '@angular/core';
-import { Ajv } from 'ajv';
 import type { Client, JSONRecord } from 'archipelago.js';
 import { List } from 'immutable';
 import type { Message } from '../archipelago-client';
@@ -47,51 +46,3 @@ export interface AutopelagoStoredData extends JSONRecord {
   priorityPriorityLocations: number[];
   priorityLocations: number[];
 }
-
-const ajv = new Ajv();
-export const validateAutopelagoStoredData = ajv.compile<AutopelagoStoredData>({
-  type: 'object',
-  properties: {
-    foodFactor: { type: 'number' },
-    luckFactor: { type: 'number' },
-    energyFactor: { type: 'number' },
-    styleFactor: { type: 'number' },
-    distractionCounter: { type: 'number' },
-    startledCounter: { type: 'number' },
-    hasConfidence: { type: 'boolean' },
-    mercyFactor: { type: 'number' },
-    sluggishCarryover: { type: 'boolean' },
-    processedReceivedItemCount: { type: 'number' },
-    currentLocation: { type: 'number' },
-    previousLocationEvidence: {
-      anyOf: [
-        { type: 'null' },
-        {
-          type: 'object',
-          properties: {
-            startled: { type: 'true' },
-            // TODO: MORE!!!!!
-          },
-        },
-      ],
-    },
-    priorityPriorityLocations: { type: 'array', items: { type: 'number' } },
-    priorityLocations: { type: 'array', items: { type: 'number' } },
-  },
-  required: [
-    'foodFactor',
-    'luckFactor',
-    'energyFactor',
-    'styleFactor',
-    'distractionCounter',
-    'startledCounter',
-    'hasConfidence',
-    'mercyFactor',
-    'sluggishCarryover',
-    'processedReceivedItemCount',
-    'currentLocation',
-    'previousLocationEvidence',
-    'priorityPriorityLocations',
-    'priorityLocations',
-  ],
-} as const);
