@@ -1,9 +1,0 @@
-{
-  "builders": {
-    "bake-data": {
-      "implementation": "./src/bake-data",
-      "schema": "./src/bake-data/schema.json",
-      "description": "Bakes the data from AutopelagoDefinitions.yml into .json files that can be directly imported."
-    }
-  }
-}

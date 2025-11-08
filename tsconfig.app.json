@@ -10,7 +10,6 @@
     "src/**/*.ts"
   ],
   "exclude": [
-    "src/**/*.spec.ts",
-    "src/bake-data/**/*.ts"
+    "src/**/*.spec.ts"
   ]
 }

@@ -8,9 +8,12 @@
   },
   "scripts": {
     "ng": "ng",
-    "start": "tsgo -p ./src/bake-data/tsconfig.json && ng run autopelago:bake-data && ng serve",
-    "build": "tsgo -p ./src/bake-data/tsconfig.json && ng run autopelago:bake-data && ng build",
-    "watch": "tsgo -p ./src/bake-data/tsconfig.json && ng run autopelago:bake-data && ng build --watch --configuration development",
+    "prestart": "bun prepare.ts",
+    "prebuild": "bun prepare.ts",
+    "prewatch": "bun prepare.ts",
+    "start": "ng serve",
+    "build": "ng build",
+    "watch": "ng build --watch --configuration development",
     "lint": "ng lint"
   },
   "prettier": {
@@ -52,6 +55,7 @@
     "@eslint/js": "^9.39.1",
     "@node-rs/xxhash": "^1.7.6",
     "@stylistic/eslint-plugin": "^5.5.0",
+    "@types/bun": "^1.3.2",
     "@typescript/native-preview": "^7.0.0-dev.20251107.1",
     "angular-eslint": "20.5.1",
     "eslint": "^9.39.1",
