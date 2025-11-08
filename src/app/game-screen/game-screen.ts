@@ -29,8 +29,10 @@ import { GameContent } from './game-content/game-content';
         }
       }
       @else {
-        <h1>{{connectingMessage()}}</h1>
-        <button class="return-button" routerLink="/">Back to Main Menu</button>
+        <div class="disconnected">
+          <h1>{{connectingMessage()}}</h1>
+          <button class="return-button" routerLink="/">Back to Main Menu</button>
+        </div>
       }
     </div>
   `,
@@ -38,6 +40,15 @@ import { GameContent } from './game-content/game-content';
     .outer {
       width: 100vw;
       height: 100vh;
+    }
+
+    .disconnected {
+      width: 100%;
+      height: 100%;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
     }
   `,
 })
