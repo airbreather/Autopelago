@@ -1,8 +1,7 @@
-import { Component, computed, DestroyRef, effect, ElementRef, inject, input, viewChild } from '@angular/core';
+import { Component, computed, effect, ElementRef, inject, input, viewChild } from '@angular/core';
 import { rxResource, takeUntilDestroyed, toObservable } from '@angular/core/rxjs-interop';
 
 import { SplitAreaComponent, SplitComponent } from 'angular-split';
-import { Ticker } from 'pixi.js';
 
 import { map, mergeMap } from 'rxjs';
 import {
@@ -52,7 +51,6 @@ import { StatusDisplay } from './status-display/status-display';
 export class GameContent {
   readonly #store = inject(GameScreenStore, { self: true });
   readonly #gameStore = inject(GameStore, { self: true });
-  readonly #destroyRef = inject(DestroyRef);
   readonly game = input.required<AutopelagoClientAndData>();
   protected readonly splitRef = viewChild.required<SplitComponent>('split');
   protected readonly outerRef = viewChild.required<ElementRef<HTMLDivElement>>('outer');
@@ -115,28 +113,6 @@ export class GameContent {
     });
     effect(() => {
       this.#sendUpdates();
-    });
-
-    const e = effect(() => {
-      const { client } = this.game();
-      const pkg = client.package.findPackage('Autopelago');
-      const victoryLocationYamlKey = this.#gameStore.victoryLocationYamlKey();
-      if (!(pkg && victoryLocationYamlKey)) {
-        return;
-      }
-
-      const defs = BAKED_DEFINITIONS_BY_VICTORY_LANDMARK[victoryLocationYamlKey];
-      const DELETE_ME = () => {
-        if (Math.random() < 0.003) {
-          const cur = defs.allLocations[this.#gameStore.currentLocation()];
-          this.#gameStore.checkLocations([cur.key]);
-          client.check(pkg.locationTable[cur.name]);
-          this.#gameStore.moveTo(Math.floor(Math.random() * defs.allLocations.length));
-        }
-      };
-      Ticker.shared.add(DELETE_ME);
-      this.#destroyRef.onDestroy(() => Ticker.shared.remove(DELETE_ME));
-      e.destroy();
     });
   }
 
