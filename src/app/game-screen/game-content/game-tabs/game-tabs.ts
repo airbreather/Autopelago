@@ -1,7 +1,7 @@
 import { Component, inject, input } from '@angular/core';
-import type { AutopelagoClientAndData } from '../../data/slot-data';
+import type { AutopelagoClientAndData } from '../../../data/slot-data';
 
-import { GameScreenStore, type GameTab } from '../../store/game-screen-store';
+import { GameScreenStore, type GameTab } from '../../../store/game-screen-store';
 import { GameTabArcade } from './game-tab-arcade/game-tab-arcade';
 import { GameTabMap } from './game-tab-map/game-tab-map';
 import { GameTabTextClient } from './game-tab-text-client/game-tab-text-client';

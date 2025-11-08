@@ -2,8 +2,8 @@ import { Component, DestroyRef, ElementRef, inject, Injector, viewChild } from '
 
 import { RouterLink } from '@angular/router';
 
-import { ConnectScreenStore } from '../../../store/connect-screen.store';
-import { resizeText } from '../../../util';
+import { ConnectScreenStore } from '../../../../store/connect-screen.store';
+import { resizeText } from '../../../../util';
 
 @Component({
   selector: 'app-player-name-and-navigation',
@@ -27,11 +27,6 @@ import { resizeText } from '../../../util';
 
     .player-name {
       font-size: 50px;
-    }
-
-    .return-button {
-      font-size: 30px;
-      text-wrap: nowrap;
     }
   `,
 })

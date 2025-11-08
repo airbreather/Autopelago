@@ -1,5 +1,5 @@
 import { Component, input } from '@angular/core';
-import type { AutopelagoClientAndData } from '../../data/slot-data';
+import type { AutopelagoClientAndData } from '../../../data/slot-data';
 
 import { AurasDisplay } from './auras-display/auras-display';
 import { PlayerNameAndNavigation } from './player-name-and-navigation/player-name-and-navigation';

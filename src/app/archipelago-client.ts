@@ -15,6 +15,10 @@ export interface InitializeClientOptions {
 export async function initializeClient(initializeClientOptions: InitializeClientOptions): Promise<AutopelagoClientAndData> {
   const { host, port, slot, password, destroyRef } = initializeClientOptions;
   const client = new Client();
+  destroyRef.onDestroy(() => {
+    client.socket.disconnect();
+  });
+
   // we have our own message log, so disable its own:
   client.options.maximumMessages = 0;
   const messageLog = createReactiveMessageLog(client, destroyRef);

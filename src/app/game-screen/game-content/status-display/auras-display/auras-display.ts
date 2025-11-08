@@ -1,7 +1,7 @@
 import { Component, computed, DestroyRef, ElementRef, inject, Injector, signal, viewChild } from '@angular/core';
-import { GameStore } from '../../../store/autopelago-store';
+import { GameStore } from '../../../../store/autopelago-store';
 
-import { resizeText } from '../../../util';
+import { resizeText } from '../../../../util';
 
 @Component({
   selector: 'app-auras-display',

@@ -6,21 +6,18 @@ const errorOptions: Partial<IndividualConfig<void>> = {
   disableTimeOut: true,
 } as const;
 
+export function toastError(toast: ToastrService, error: unknown, extraOptions?: Partial<IndividualConfig<void>>) {
+  return error instanceof Error
+    ? toast.error(error.message, error.name, { ...errorOptions, ...extraOptions })
+    : toast.error('An unexpected error has occurred.', 'Error', { ...errorOptions, ...extraOptions });
+}
+
 @Injectable()
 export class AppErrorHandler extends ErrorHandler {
   readonly #toast = inject(ToastrService);
 
   override handleError(error: unknown): void {
-    if (error instanceof Error) {
-      this.#toast.error(error.message, error.name, errorOptions);
-    }
-    else {
-      this.#toast.error(
-        'An unexpected error has occurred.',
-        'Error',
-      );
-    }
-
+    toastError(this.#toast, error);
     super.handleError(error);
   }
 }

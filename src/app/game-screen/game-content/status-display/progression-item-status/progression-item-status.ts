@@ -1,9 +1,9 @@
 import { NgClass } from '@angular/common';
 import { Component, computed, inject, type Signal } from '@angular/core';
-import { PROGRESSION_ITEMS_BY_VICTORY_LOCATION } from '../../../data/items';
-import { BAKED_DEFINITIONS_FULL } from '../../../data/resolved-definitions';
+import { PROGRESSION_ITEMS_BY_VICTORY_LOCATION } from '../../../../data/items';
+import { BAKED_DEFINITIONS_FULL } from '../../../../data/resolved-definitions';
 
-import { GameStore } from '../../../store/autopelago-store';
+import { GameStore } from '../../../../store/autopelago-store';
 
 @Component({
   selector: 'app-progression-item-status',
@@ -15,7 +15,7 @@ import { GameStore } from '../../../store/autopelago-store';
       @for (item of items(); track item.name) {
         <div class="item-container" [ngClass]="{ collected: item.collected() }">
           <img class="item"
-               src="assets/images/items.webp"
+               src="/assets/images/items.webp"
                [alt]="item.name"
                [style.object-position]="-item.offsetX() + 'px ' + -item.offsetY + 'px'">
         </div>

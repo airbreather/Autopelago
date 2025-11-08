@@ -1,6 +1,6 @@
 import { Component, effect, input, signal } from '@angular/core';
 import { Player } from 'archipelago.js';
-import type { AutopelagoClientAndData } from '../../../data/slot-data';
+import type { AutopelagoClientAndData } from '../../../../data/slot-data';
 
 @Component({
   selector: 'app-game-tab-text-client',

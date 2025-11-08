@@ -33,14 +33,14 @@ import {
   isFillerRegionYamlKey,
   isLandmarkYamlKey,
   LANDMARKS,
-} from '../../../data/locations';
+} from '../../../../data/locations';
 import {
   BAKED_DEFINITIONS_BY_VICTORY_LANDMARK,
   VICTORY_LOCATION_CROP_LOOKUP,
   type VictoryLocationYamlKey,
-} from '../../../data/resolved-definitions';
-import { GameStore } from '../../../store/autopelago-store';
-import { resizeEvents, strictObjectEntries } from '../../../util';
+} from '../../../../data/resolved-definitions';
+import { GameStore } from '../../../../store/autopelago-store';
+import { resizeEvents, strictObjectEntries } from '../../../../util';
 
 const fillerCoordsByRegionLookup = {
   captured_goldfish: getFillerCoordsByRegion('captured_goldfish'),

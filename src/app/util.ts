@@ -2,7 +2,7 @@ import { DestroyRef, effect, ElementRef, Injector, type Signal } from '@angular/
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import type { JSONSerializable } from 'archipelago.js';
 import { List } from 'immutable';
-import { Observable, retry, Subscription, timer } from 'rxjs';
+import { Observable, Subscription } from 'rxjs';
 
 export type EnumVal<T extends object> = T[keyof T];
 
@@ -64,18 +64,6 @@ export function resizeEvents<T extends HTMLElement>(el: T): Observable<ResizeObs
       obs.unobserve(el);
     };
   });
-}
-
-const DEFAULT_RETRY_DELAY = 500;
-const DEFAULT_RETRY_MAX_DELAY = 15000;
-const DEFAULT_RETRY_CONFIG = { delay: DEFAULT_RETRY_DELAY, maxDelay: DEFAULT_RETRY_MAX_DELAY };
-
-export function retryWithExponentialBackoff<T>({ delay, maxDelay } = DEFAULT_RETRY_CONFIG) {
-  return (obs: Observable<T>) => obs.pipe(
-    retry({
-      delay: (_, retryCount) => timer(Math.min(maxDelay, Math.pow(2, retryCount - 1) * delay)),
-    }),
-  );
 }
 
 export type ToJSONSerializable<T> =

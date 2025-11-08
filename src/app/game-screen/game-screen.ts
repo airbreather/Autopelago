@@ -1,27 +1,20 @@
-import { Component, computed, DestroyRef, effect, ElementRef, inject, input, resource, viewChild } from '@angular/core';
-import { rxResource, takeUntilDestroyed, toObservable } from '@angular/core/rxjs-interop';
+import { Component, DestroyRef, effect, inject, input, resource, signal } from '@angular/core';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
+import { RouterLink } from '@angular/router';
+import { type ActiveToast, ToastrService } from 'ngx-toastr';
+import { interval } from 'rxjs';
+import { toastError } from '../app-error-handler';
 
-import { SplitAreaComponent, SplitComponent } from 'angular-split';
-import { Ticker } from 'pixi.js';
-
-import { map, mergeMap } from 'rxjs';
 import { initializeClient, type InitializeClientOptions } from '../archipelago-client';
-import {
-  BAKED_DEFINITIONS_BY_VICTORY_LANDMARK,
-  BAKED_DEFINITIONS_FULL,
-  VICTORY_LOCATION_NAME_LOOKUP,
-} from '../data/resolved-definitions';
 import { GameStore } from '../store/autopelago-store';
-
 import { GameScreenStore } from '../store/game-screen-store';
-import { resizeEvents } from '../util';
-import { GameTabs } from './game-tabs/game-tabs';
-import { StatusDisplay } from './status-display/status-display';
+import { GameContent } from './game-content/game-content';
 
 @Component({
   selector: 'app-game-screen',
   imports: [
-    SplitComponent, SplitAreaComponent, StatusDisplay, GameTabs,
+    GameContent,
+    RouterLink,
   ],
   providers: [
     GameScreenStore,
@@ -29,19 +22,16 @@ import { StatusDisplay } from './status-display/status-display';
   ],
   template: `
     <div #outer class="outer">
-      <as-split #split unit="pixel" direction="horizontal"
-                gutterDblClickDuration="500" (gutterDblClick)="onGutterDblClick()">
-        <as-split-area class="left" [size]="leftSize()" [minSize]="minSize()" [maxSize]="maxSize()">
-          @if (game.value(); as loadedGame) {
-            <app-status-display [game]="loadedGame" />
-          }
-        </as-split-area>
-        <as-split-area class="right">
-          @if (game.value(); as loadedGame) {
-            <app-game-tabs [game]="loadedGame" />
-          }
-        </as-split-area>
-      </as-split>
+      @let loadedGame = game.value();
+      @if (loadedGame) {
+        @defer {
+          <app-game-content [game]="loadedGame" />
+        }
+      }
+      @else {
+        <h1>{{connectingMessage()}}</h1>
+        <button class="return-button" routerLink="/">Back to Main Menu</button>
+      }
     </div>
   `,
   styles: `
@@ -52,180 +42,54 @@ import { StatusDisplay } from './status-display/status-display';
   `,
 })
 export class GameScreen {
-  readonly #store = inject(GameScreenStore, { self: true });
-  readonly #gameStore = inject(GameStore, { self: true });
   readonly #destroyRef = inject(DestroyRef);
+  readonly #toast = inject(ToastrService);
+  #activeToast: ActiveToast<unknown> | null = null;
   readonly initOptions = input.required<Omit<InitializeClientOptions, 'destroyRef'>>();
-  protected readonly splitRef = viewChild.required<SplitComponent>('split');
-  protected readonly outerRef = viewChild.required<ElementRef<HTMLDivElement>>('outer');
+  protected readonly connectingMessage = signal('Connecting...');
   protected readonly game = resource({
     params: () => this.initOptions(),
-    loader: ({ params: initOptions }) => initializeClient({ ...initOptions, destroyRef: this.#destroyRef }),
-  }).asReadonly();
+    loader: async ({ params: initOptions }) => {
+      try {
+        const result = await initializeClient({ ...initOptions, destroyRef: this.#destroyRef });
+        if (this.#activeToast !== null) {
+          this.#toast.remove(this.#activeToast.toastId);
+          this.#activeToast = null;
+        }
 
-  readonly #width = rxResource<number | null, ElementRef<HTMLDivElement>>({
-    defaultValue: null,
-    params: () => this.outerRef(),
-    stream: ({ params: outerRef }) => {
-      return resizeEvents(outerRef.nativeElement).pipe(
-        map(() => outerRef.nativeElement.scrollWidth),
-      );
+        return result;
+      }
+      catch (err: unknown) {
+        if (this.#activeToast !== null) {
+          this.#toast.remove(this.#activeToast.toastId);
+        }
+
+        this.#activeToast = toastError(this.#toast, err, { easeTime: 0 });
+        return undefined;
+      }
     },
   });
 
-  readonly minSize = computed(() => {
-    const width = this.#width.value();
-    if (!width) {
-      return 100;
-    }
-
-    return Math.min(100, width - 40);
-  });
-
-  readonly maxSize = computed(() => {
-    const width = this.#width.value();
-    if (!width) {
-      return Number.MAX_SAFE_INTEGER;
-    }
-
-    return width - 40;
-  });
-
-  readonly leftSize = computed(() => {
-    let val = this.#store.leftSize();
-    if (!val) {
-      const width = this.#width.value();
-      if (width) {
-        val = width * 0.2;
-      }
-      else {
-        val = this.minSize();
-      }
-    }
-
-    return Math.min(Math.max(val, this.minSize()), this.maxSize());
-  });
-
   constructor() {
-    toObservable(this.splitRef).pipe(
-      mergeMap(split => split.dragProgress$),
-      takeUntilDestroyed(),
-    ).subscribe((evt) => {
-      this.#store.updateLeftSize(evt.sizes[0] as number);
-    });
-
-    const initEffect = effect(() => {
-      if (this.#init()) {
-        initEffect.destroy();
-      }
-    });
+    interval(30000)
+      .pipe(takeUntilDestroyed())
+      .subscribe(() => {
+        if (!(this.game.value() || this.game.isLoading())) {
+          this.game.reload();
+        }
+      });
     effect(() => {
-      this.#sendUpdates();
-    });
-
-    const e = effect(() => {
       const game = this.game.value();
       if (!game) {
         return;
       }
 
+      this.connectingMessage.set('Disconnected! Trying to reconnect...');
       const { client } = game;
-      const pkg = client.package.findPackage('Autopelago');
-      const victoryLocationYamlKey = this.#gameStore.victoryLocationYamlKey();
-      if (!(pkg && victoryLocationYamlKey)) {
-        return;
-      }
-
-      const defs = BAKED_DEFINITIONS_BY_VICTORY_LANDMARK[victoryLocationYamlKey];
-      const DELETE_ME = () => {
-        if (Math.random() < 0.003) {
-          const cur = defs.allLocations[this.#gameStore.currentLocation()];
-          this.#gameStore.checkLocations([cur.key]);
-          client.check(pkg.locationTable[cur.name]);
-          this.#gameStore.moveTo(Math.floor(Math.random() * defs.allLocations.length));
-        }
-      };
-      Ticker.shared.add(DELETE_ME);
-      this.#destroyRef.onDestroy(() => Ticker.shared.remove(DELETE_ME));
-      e.destroy();
-    });
-  }
-
-  onGutterDblClick() {
-    const width = this.#width.value();
-    if (width) {
-      this.#store.updateLeftSize(width * 0.2);
-    }
-  }
-
-  #init() {
-    const game = this.game.value();
-    if (!game) {
-      return false;
-    }
-
-    const { client, slotData, storedData } = game;
-    const itemsJustReceived: number[] = [];
-    const victoryLocationYamlKey = VICTORY_LOCATION_NAME_LOOKUP[slotData.victory_location_name];
-    const pkg = client.package.findPackage('Autopelago');
-    if (!pkg) {
-      throw new Error('could not find Autopelago package');
-    }
-
-    const locationNameLookup = BAKED_DEFINITIONS_BY_VICTORY_LANDMARK[victoryLocationYamlKey].locationNameLookup;
-    this.#gameStore.initFromServer(storedData, client.room.checkedLocations.map(l => locationNameLookup.get(pkg.reverseLocationTable[l]) ?? -1), slotData.lactose_intolerant, victoryLocationYamlKey);
-    for (const item of client.items.received) {
-      const itemKey = BAKED_DEFINITIONS_FULL.itemNameLookup.get(item.name);
-      if (typeof itemKey === 'number') {
-        itemsJustReceived.push(itemKey);
-      }
-    }
-
-    this.#gameStore.receiveItems(itemsJustReceived);
-    client.items.on('itemsReceived', (items) => {
-      itemsJustReceived.length = 0;
-      for (const item of items) {
-        const itemKey = BAKED_DEFINITIONS_FULL.itemNameLookup.get(item.name);
-        if (typeof itemKey === 'number') {
-          itemsJustReceived.push(itemKey);
-        }
-      }
-
-      this.#gameStore.receiveItems(itemsJustReceived);
-    });
-
-    return true;
-  }
-
-  #prevSendUpdates: Promise<void> | null = null;
-
-  #sendUpdates() {
-    const game = this.game.value();
-    if (!game) {
-      return;
-    }
-
-    const { client, storedDataKey } = game;
-    const newStoredData = this.#gameStore.asStoredData();
-    const prevSendUpdates = this.#prevSendUpdates;
-    if (!prevSendUpdates) {
-      // the first time through, the value (by definition) hasn't changed from the initial state, so
-      // there's no need to send this redundant update.
-      this.#prevSendUpdates = Promise.resolve();
-      return;
-    }
-
-    const mySendUpdates = this.#prevSendUpdates = prevSendUpdates.then(async () => {
-      if (this.#prevSendUpdates !== mySendUpdates) {
-        // another update was queued while we were waiting for this one to finish. this means that
-        // there's a newer promise (a)waiting on us, so we can just return.
-        return;
-      }
-
-      await client.storage
-        .prepare(storedDataKey, newStoredData)
-        .replace(newStoredData)
-        .commit(true);
+      client.socket.on('disconnected', () => {
+        this.game.value.set(undefined);
+        this.game.reload();
+      });
     });
   }
 }
