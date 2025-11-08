@@ -138,9 +138,8 @@ export class Headless {
       return;
     }
 
-    this.#prevSendUpdates = (async () => {
-      await prevSendUpdates;
-      if (this.#prevSendUpdates !== prevSendUpdates) {
+    const mySendUpdates = this.#prevSendUpdates = prevSendUpdates.then(async () => {
+      if (this.#prevSendUpdates !== mySendUpdates) {
         // another update was queued while we were waiting for this one to finish. this means that
         // there's a newer promise (a)waiting on us, so we can just return.
         return;
@@ -150,6 +149,6 @@ export class Headless {
         .prepare(storedDataKey, newStoredData)
         .replace(newStoredData)
         .commit(true);
-    })();
+    });
   }
 }
