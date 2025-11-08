@@ -18,13 +18,19 @@ import { GameTabTextClient } from './game-tab-text-client/game-tab-text-client';
       <div class="top">
         @switch (currentTab()) {
           @case ('map') {
-            <app-game-tab-map />
+            @defer {
+              <app-game-tab-map />
+            }
           }
           @case ('arcade') {
-            <app-game-tab-arcade />
+            @defer {
+              <app-game-tab-arcade />
+            }
           }
           @case ('text-client') {
-            <app-game-tab-text-client [game]="game()" />
+            @defer {
+              <app-game-tab-text-client [game]="game()" />
+            }
           }
         }
       </div>

@@ -64,6 +64,7 @@ export class GameScreen {
           this.#toast.remove(this.#activeToast.toastId);
         }
 
+        console.error('Error connecting when trying to connect:', err);
         this.#activeToast = toastError(this.#toast, err, { easeTime: 0 });
         return undefined;
       }

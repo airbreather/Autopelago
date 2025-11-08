@@ -23,9 +23,4 @@ export const routes: Routes = [
     loadComponent: () => import('./game-screen/game-screen').then(m => m.GameScreen),
     resolve: { initOptions: resolveInitOptions },
   },
-  {
-    path: 'headless',
-    loadComponent: () => import('./headless/headless').then(m => m.Headless),
-    resolve: { initOptions: resolveInitOptions },
-  },
 ];
