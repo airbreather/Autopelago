@@ -233,7 +233,7 @@ function createLandmarkMarkers(victoryLocationYamlKey: VictoryLocationYamlKey, e
       <div #pauseButtonContainer class="pause-button-container"
            [style.margin-top]="'-' + pauseButtonContainer.clientHeight + 'px'">
         <button class="rat-toggle-button"
-                [class.toggled-on]="paused()"
+                [class.toggled-on]="!running()"
                 (click)="togglePause()">
           ⏸
         </button>
@@ -267,7 +267,7 @@ function createLandmarkMarkers(victoryLocationYamlKey: VictoryLocationYamlKey, e
 })
 export class GameTabMap {
   readonly #store = inject(GameStore);
-  readonly paused = this.#store.paused;
+  protected readonly running = this.#store.running;
 
   readonly game = input.required<AutopelagoClientAndData>();
 
@@ -387,12 +387,12 @@ export class GameTabMap {
           app.resize();
         });
 
-        if (untracked(() => this.#store.paused())) {
-          app.resize();
-          app.render();
+        if (untracked(() => this.#store.running())) {
+          Ticker.shared.start();
         }
         else {
-          Ticker.shared.start();
+          app.resize();
+          app.render();
         }
       })();
     });
@@ -442,11 +442,11 @@ export class GameTabMap {
     });
 
     effect(() => {
-      if (this.#store.paused()) {
-        Ticker.shared.stop();
+      if (this.#store.running()) {
+        Ticker.shared.start();
       }
       else {
-        Ticker.shared.start();
+        Ticker.shared.stop();
       }
     });
   }

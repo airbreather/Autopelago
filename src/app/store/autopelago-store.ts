@@ -3,21 +3,23 @@ import { computed } from '@angular/core';
 
 import { patchState, signalStore, withComputed, withMethods } from '@ngrx/signals';
 import { List, Set } from 'immutable';
-import { BAKED_DEFINITIONS_FULL, type VictoryLocationYamlKey } from '../data/resolved-definitions';
-import type { AutopelagoStoredData } from '../data/slot-data';
+import {
+  BAKED_DEFINITIONS_BY_VICTORY_LANDMARK,
+  BAKED_DEFINITIONS_FULL,
+  VICTORY_LOCATION_NAME_LOOKUP,
+  type VictoryLocationYamlKey,
+} from '../data/resolved-definitions';
+import type { AutopelagoClientAndData, AutopelagoStoredData } from '../data/slot-data';
 import {
   type PreviousLocationEvidence,
   previousLocationEvidenceFromJSONSerializable,
   previousLocationEvidenceToJSONSerializable,
 } from '../game/previous-location-evidence';
+import { withCleverTimer } from './with-clever-timer';
 
 const initialState = {
   lactoseIntolerant: false,
   victoryLocationYamlKey: null as VictoryLocationYamlKey | null,
-  paused: false,
-  prevStepTimestamp: NaN,
-  workDoneWhenPaused: NaN,
-  nextStepDeadline: NaN,
   foodFactor: 0,
   luckFactor: 0,
   energyFactor: 0,
@@ -42,33 +44,12 @@ const STORAGE_KEY = 'autopelago-game-state';
 
 export const GameStore = signalStore(
   withImmutableState(initialState),
+  withCleverTimer(),
   withStorageSync({
     key: STORAGE_KEY,
-    select: ({ paused }) => ({ paused }),
+    select: ({ running }) => ({ paused: !running }),
   }),
   withComputed(store => ({
-    workDone: computed<number>(() => {
-      if (store.paused()) {
-        return store.workDoneWhenPaused();
-      }
-
-      const prevStepTimestamp = store.prevStepTimestamp();
-      const nextStepDeadline = store.nextStepDeadline();
-      if (Number.isNaN(prevStepTimestamp) || Number.isNaN(nextStepDeadline)) {
-        return NaN;
-      }
-
-      const now = Date.now();
-      if (now >= nextStepDeadline) {
-        return 1;
-      }
-
-      if (now <= prevStepTimestamp) {
-        return 0;
-      }
-
-      return (now - prevStepTimestamp) / (nextStepDeadline - prevStepTimestamp);
-    }),
     ratCount: computed<number>(() => {
       let ratCount = 0;
       const lookup = store.receivedItemCountLookup();
@@ -83,7 +64,7 @@ export const GameStore = signalStore(
   })),
   withComputed(store => ({
     asStoredData: computed<AutopelagoStoredData>(() => ({
-      workDone: store.workDone(),
+      workDone: store.workDoneSnapshot(),
       foodFactor: store.foodFactor(),
       luckFactor: store.luckFactor(),
       energyFactor: store.energyFactor(),
@@ -101,38 +82,15 @@ export const GameStore = signalStore(
     })),
   })),
   withMethods(store => ({
-    pause() {
-      patchState(store, { paused: true });
-    },
-    unpause() {
-      patchState(store, { paused: false });
-    },
-    togglePause() {
-      patchState(store, ({ paused }) => ({ paused: !paused }));
-    },
     moveTo(currentLocation: number) {
       patchState(store, { currentLocation });
-    },
-    initFromServer(storedData: AutopelagoStoredData, checkedLocations: Iterable<number>, lactoseIntolerant: boolean, victoryLocationYamlKey: VictoryLocationYamlKey) {
-      const patchData = {
-        ...storedData,
-        lactoseIntolerant,
-        victoryLocationYamlKey,
-        priorityLocations: List(storedData.priorityLocations),
-        priorityPriorityLocations: List(storedData.priorityPriorityLocations),
-        receivedItems: List<number>(),
-        receivedItemCountLookup: List<number>(Array<number>(BAKED_DEFINITIONS_FULL.allItems.length).fill(0)),
-        checkedLocations: Set<number>(checkedLocations),
-        previousLocationEvidence: previousLocationEvidenceFromJSONSerializable(storedData.previousLocationEvidence),
-      };
-      patchState(store, patchData);
     },
     checkLocations(locations: Iterable<number>) {
       const locationsArray = [...locations];
       console.log('marking locations checked:', locationsArray);
       patchState(store, ({ checkedLocations }) => ({ checkedLocations: checkedLocations.union(locationsArray) }));
     },
-    receiveItems(items: Iterable<number>) {
+    _receiveItems(items: Iterable<number>) {
       patchState(store, (prev) => {
         const result = {
           foodFactor: prev.foodFactor,
@@ -242,6 +200,59 @@ export const GameStore = signalStore(
 
         result.processedReceivedItemCount = result.receivedItems.size;
         return result;
+      });
+    },
+  })),
+  withMethods(store => ({
+    init(game: AutopelagoClientAndData) {
+      const { connectScreenStore, client, slotData, storedData } = game;
+      const victoryLocationYamlKey = VICTORY_LOCATION_NAME_LOOKUP[slotData.victory_location_name];
+      const pkg = client.package.findPackage('Autopelago');
+      if (!pkg) {
+        throw new Error('could not find Autopelago package');
+      }
+
+      const locationNameLookup = BAKED_DEFINITIONS_BY_VICTORY_LANDMARK[victoryLocationYamlKey].locationNameLookup;
+      patchState(store, {
+        ...storedData,
+        lactoseIntolerant: slotData.lactose_intolerant,
+        victoryLocationYamlKey,
+        priorityLocations: List(storedData.priorityLocations),
+        priorityPriorityLocations: List(storedData.priorityPriorityLocations),
+        receivedItems: List<number>(),
+        receivedItemCountLookup: List<number>(Array<number>(BAKED_DEFINITIONS_FULL.allItems.length).fill(0)),
+        checkedLocations: Set(client.room.checkedLocations.map(l => locationNameLookup.get(pkg.reverseLocationTable[l]) ?? -1)),
+        previousLocationEvidence: previousLocationEvidenceFromJSONSerializable(storedData.previousLocationEvidence),
+      });
+      const itemsJustReceived: number[] = [];
+      for (const item of client.items.received) {
+        const itemKey = BAKED_DEFINITIONS_FULL.itemNameLookup.get(item.name);
+        if (typeof itemKey === 'number') {
+          itemsJustReceived.push(itemKey);
+        }
+      }
+
+      store._receiveItems(itemsJustReceived);
+      client.items.on('itemsReceived', (items) => {
+        const itemsJustReceived: number[] = [];
+        for (const item of items) {
+          const itemKey = BAKED_DEFINITIONS_FULL.itemNameLookup.get(item.name);
+          if (typeof itemKey === 'number') {
+            itemsJustReceived.push(itemKey);
+          }
+        }
+
+        store._receiveItems(itemsJustReceived);
+      });
+      store._initTimer({
+        minDuration: connectScreenStore.minTime(),
+        maxDuration: connectScreenStore.maxTime(),
+      });
+
+      client.room.on('locationsChecked', (locations) => {
+        patchState(store, ({ checkedLocations }) => ({
+          checkedLocations: checkedLocations.union(locations.map(l => locationNameLookup.get(pkg.reverseLocationTable[l]) ?? -1)),
+        }));
       });
     },
   })),
