@@ -99,7 +99,8 @@
                   "inlineCritical": false
                 }
               },
-              "sourceMap": true
+              "sourceMap": true,
+              "serviceWorker": "ngsw-config.json"
             },
             "development": {
               "optimization": false,
