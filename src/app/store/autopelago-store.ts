@@ -105,7 +105,6 @@ export const GameStore = signalStore(
       patchState(store, ({ checkedLocations }) => ({ checkedLocations: checkedLocations.union(locationsArray) }));
     },
     receiveItems(items: Iterable<number>) {
-      const lactoseIntolerant = store.lactoseIntolerant();
       patchState(store, (prev) => {
         const result = {
           foodFactor: prev.foodFactor,
@@ -126,14 +125,6 @@ export const GameStore = signalStore(
               const itemFull = BAKED_DEFINITIONS_FULL.allItems[item];
               r.push(item);
               l.update(item, 0, i => i + 1);
-              if (r.size <= prev.processedReceivedItemCount) {
-                console.log('received previously known item', lactoseIntolerant ? itemFull.lactoseIntolerantName : itemFull.lactoseName);
-                continue;
-              }
-              else {
-                console.log('received new item', lactoseIntolerant ? itemFull.lactoseIntolerantName : itemFull.lactoseName);
-              }
-
               let subtractConfidence = false;
               let addConfidence = false;
               for (const aura of itemFull.aurasGranted) {
