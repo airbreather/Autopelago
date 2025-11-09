@@ -15,6 +15,9 @@ const initialState = {
   lactoseIntolerant: false,
   victoryLocationYamlKey: null as VictoryLocationYamlKey | null,
   paused: false,
+  prevStepTimestamp: NaN,
+  workDoneWhenPaused: NaN,
+  nextStepDeadline: NaN,
   foodFactor: 0,
   luckFactor: 0,
   energyFactor: 0,
@@ -44,6 +47,28 @@ export const GameStore = signalStore(
     select: ({ paused }) => ({ paused }),
   }),
   withComputed(store => ({
+    workDone: computed<number>(() => {
+      if (store.paused()) {
+        return store.workDoneWhenPaused();
+      }
+
+      const prevStepTimestamp = store.prevStepTimestamp();
+      const nextStepDeadline = store.nextStepDeadline();
+      if (Number.isNaN(prevStepTimestamp) || Number.isNaN(nextStepDeadline)) {
+        return NaN;
+      }
+
+      const now = Date.now();
+      if (now >= nextStepDeadline) {
+        return 1;
+      }
+
+      if (now <= prevStepTimestamp) {
+        return 0;
+      }
+
+      return (now - prevStepTimestamp) / (nextStepDeadline - prevStepTimestamp);
+    }),
     ratCount: computed<number>(() => {
       let ratCount = 0;
       const lookup = store.receivedItemCountLookup();
@@ -55,7 +80,10 @@ export const GameStore = signalStore(
       }
       return ratCount;
     }),
+  })),
+  withComputed(store => ({
     asStoredData: computed<AutopelagoStoredData>(() => ({
+      workDone: store.workDone(),
       foodFactor: store.foodFactor(),
       luckFactor: store.luckFactor(),
       energyFactor: store.energyFactor(),

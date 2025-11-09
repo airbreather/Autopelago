@@ -31,6 +31,7 @@ export interface AutopelagoSlotData extends JSONRecord {
 }
 
 export interface AutopelagoStoredData extends JSONRecord {
+  workDone: number;
   foodFactor: number;
   luckFactor: number;
   energyFactor: number;

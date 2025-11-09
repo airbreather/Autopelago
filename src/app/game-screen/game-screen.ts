@@ -5,8 +5,9 @@ import { type ActiveToast, ToastrService } from 'ngx-toastr';
 import { interval } from 'rxjs';
 import { toastError } from '../app-error-handler';
 
-import { initializeClient, type InitializeClientOptions } from '../archipelago-client';
+import { initializeClient } from '../archipelago-client';
 import { GameStore } from '../store/autopelago-store';
+import { ConnectScreenStore } from '../store/connect-screen.store';
 import { GameScreenStore } from '../store/game-screen-store';
 import { GameContent } from './game-content/game-content';
 
@@ -57,13 +58,21 @@ export class GameScreen {
   readonly #destroyRef = inject(DestroyRef);
   readonly #toast = inject(ToastrService);
   #activeToast: ActiveToast<unknown> | null = null;
-  readonly initOptions = input.required<Omit<InitializeClientOptions, 'destroyRef'>>();
+  readonly connectScreenStore = input.required<InstanceType<typeof ConnectScreenStore>>();
   protected readonly connectingMessage = signal('Connecting...');
   protected readonly game = resource({
-    params: () => this.initOptions(),
-    loader: async ({ params: initOptions }) => {
+    params: () => {
+      const connectScreenStore = this.connectScreenStore();
+      return {
+        slot: connectScreenStore.slot(),
+        host: connectScreenStore.host(),
+        port: connectScreenStore.port(),
+        password: connectScreenStore.password(),
+      };
+    },
+    loader: async ({ params }) => {
       try {
-        const result = await initializeClient({ ...initOptions, destroyRef: this.#destroyRef });
+        const result = await initializeClient({ ...params, destroyRef: this.#destroyRef });
         if (this.#activeToast !== null) {
           this.#toast.remove(this.#activeToast.toastId);
           this.#activeToast = null;
@@ -84,6 +93,12 @@ export class GameScreen {
   });
 
   constructor() {
+    this.#destroyRef.onDestroy(() => {
+      if (this.#activeToast !== null) {
+        this.#toast.remove(this.#activeToast.toastId);
+        this.#activeToast = null;
+      }
+    });
     interval(30000)
       .pipe(takeUntilDestroyed())
       .subscribe(() => {

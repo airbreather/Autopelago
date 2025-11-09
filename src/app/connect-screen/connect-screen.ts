@@ -208,22 +208,7 @@ export class ConnectScreen {
     try {
       this.#connecting.set(true);
       await this.#router.navigate(['./game'], {
-        queryParams: {
-          host: this.host(),
-          port: this.port(),
-          slot: this.slot(),
-          password: this.password(),
-          minTime: this.minTime(),
-          maxTime: this.maxTime(),
-          enableTileAnimations: this.enableTileAnimations(),
-          enableRatAnimations: this.enableRatAnimations(),
-          sendChatMessages: this.sendChatMessages(),
-          whenTargetChanges: this.whenTargetChanges(),
-          whenBecomingBlocked: this.whenBecomingBlocked(),
-          whenStillBlocked: this.whenStillBlocked(),
-          whenBecomingUnblocked: this.whenBecomingUnblocked(),
-          forOneTimeEvents: this.forOneTimeEvents(),
-        },
+        queryParams: this.#store.queryParams(),
       });
     }
     catch (err: unknown) {

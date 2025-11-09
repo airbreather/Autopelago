@@ -59,6 +59,7 @@ export async function initializeClient(initializeClientOptions: InitializeClient
   if (!storedData) {
     const victoryLocationYamlKey = VICTORY_LOCATION_NAME_LOOKUP[slotData.victory_location_name];
     storedData = {
+      workDone: NaN,
       foodFactor: 0,
       luckFactor: 0,
       energyFactor: 0,
