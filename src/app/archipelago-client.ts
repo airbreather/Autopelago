@@ -3,17 +3,19 @@ import { Client, type ConnectionOptions, type MessageNode } from 'archipelago.js
 import { List } from 'immutable';
 import { BAKED_DEFINITIONS_BY_VICTORY_LANDMARK, VICTORY_LOCATION_NAME_LOOKUP } from './data/resolved-definitions';
 import type { AutopelagoClientAndData, AutopelagoSlotData, AutopelagoStoredData } from './data/slot-data';
+import type { ConnectScreenStore } from './store/connect-screen.store';
 
 export interface InitializeClientOptions {
-  host: string;
-  port: number;
-  slot: string;
-  password: string | null;
+  connectScreenStore: InstanceType<typeof ConnectScreenStore>;
   destroyRef: DestroyRef;
 }
 
 export async function initializeClient(initializeClientOptions: InitializeClientOptions): Promise<AutopelagoClientAndData> {
-  const { host, port, slot, password, destroyRef } = initializeClientOptions;
+  const { connectScreenStore, destroyRef } = initializeClientOptions;
+  const slot = connectScreenStore.slot();
+  const host = connectScreenStore.host();
+  const port = connectScreenStore.port();
+  const password = connectScreenStore.password();
   const client = new Client();
   destroyRef.onDestroy(() => {
     client.socket.disconnect();
@@ -81,7 +83,7 @@ export async function initializeClient(initializeClientOptions: InitializeClient
       .commit(true);
   }
 
-  return { client, messageLog, slotData, storedData, storedDataKey };
+  return { connectScreenStore, client, messageLog, slotData, storedData, storedDataKey };
 }
 
 export interface Message {

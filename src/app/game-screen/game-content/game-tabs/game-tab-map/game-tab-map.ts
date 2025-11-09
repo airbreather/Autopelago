@@ -6,6 +6,7 @@ import {
   effect,
   ElementRef,
   inject,
+  input,
   resource,
   signal,
   untracked,
@@ -32,14 +33,15 @@ import {
   fillerRegionCoords,
   type FillerRegionYamlKey,
   isFillerRegionYamlKey,
-  isLandmarkYamlKey,
   LANDMARKS,
+  type LandmarkYamlKey,
 } from '../../../../data/locations';
 import {
   BAKED_DEFINITIONS_BY_VICTORY_LANDMARK,
   VICTORY_LOCATION_CROP_LOOKUP,
   type VictoryLocationYamlKey,
 } from '../../../../data/resolved-definitions';
+import type { AutopelagoClientAndData } from '../../../../data/slot-data';
 import { GameStore } from '../../../../store/autopelago-store';
 import { resizeEvents, strictObjectEntries } from '../../../../util';
 
@@ -86,7 +88,25 @@ const CYCLE = 1000;
 const HALF_CYCLE = CYCLE / 2;
 const QUARTER_CYCLE = CYCLE / 4;
 
-function createPlayerToken(texture: Texture, destroyRef: DestroyRef) {
+interface SpriteBoxBase {
+  animated: boolean;
+  onSprite: Sprite;
+  offSprite: Sprite;
+}
+
+interface NotAnimatedSpriteBox extends SpriteBoxBase {
+  animated: false;
+}
+
+interface AnimatedSpriteBox extends SpriteBoxBase {
+  animated: true;
+  onSprite: AnimatedSprite;
+  offSprite: AnimatedSprite;
+}
+
+type SpriteBox = NotAnimatedSpriteBox | AnimatedSpriteBox;
+
+function createPlayerToken(texture: Texture, enableRatAnimations: boolean, destroyRef: DestroyRef) {
   const playerToken = new Sprite(texture);
   playerToken.position.set(2, 80);
   playerToken.scale.set(0.25);
@@ -97,18 +117,21 @@ function createPlayerToken(texture: Texture, destroyRef: DestroyRef) {
   })];
   playerToken.anchor.set(0.5);
 
-  const playerTokenContext = {
-    playerToken,
-    cycleTime: 0,
-  };
+  if (enableRatAnimations) {
+    const playerTokenContext = {
+      playerToken,
+      cycleTime: 0,
+    };
 
-  function doRotation(this: typeof playerTokenContext, t: Ticker) {
-    this.cycleTime = (this.cycleTime + t.deltaMS) % CYCLE;
-    this.playerToken.rotation = (Math.abs(this.cycleTime - HALF_CYCLE) - QUARTER_CYCLE) * ROTATION_SCALE;
+    function doRotation(this: typeof playerTokenContext, t: Ticker) {
+      this.cycleTime = (this.cycleTime + t.deltaMS) % CYCLE;
+      this.playerToken.rotation = (Math.abs(this.cycleTime - HALF_CYCLE) - QUARTER_CYCLE) * ROTATION_SCALE;
+    }
+
+    Ticker.shared.add(doRotation, playerTokenContext);
+    destroyRef.onDestroy(() => Ticker.shared.remove(doRotation, playerTokenContext));
   }
 
-  Ticker.shared.add(doRotation, playerTokenContext);
-  destroyRef.onDestroy(() => Ticker.shared.remove(doRotation, playerTokenContext));
   return playerToken;
 }
 
@@ -155,12 +178,7 @@ for (const [landmarkKey, landmark] of Object.entries(LANDMARKS)) {
   spritesheetData.animations[`${landmarkKey}_off`] = [`${landmarkKey}_off_1`, `${landmarkKey}_off_2`];
 }
 
-function createLandmarkMarkers(victoryLocationYamlKey: VictoryLocationYamlKey, spritesheet: Spritesheet) {
-  const validLandmarksLookup = new Set(BAKED_DEFINITIONS_BY_VICTORY_LANDMARK[victoryLocationYamlKey]
-    .allRegions
-    .map(r => r.yamlKey)
-    .filter(k => isLandmarkYamlKey(k)));
-
+function createLandmarkMarkers(victoryLocationYamlKey: VictoryLocationYamlKey, enableTileAnimations: boolean, spritesheet: Spritesheet) {
   const landmarksContainer = new Container({
     filters: [new DropShadowFilter({
       blur: 1,
@@ -170,19 +188,37 @@ function createLandmarkMarkers(victoryLocationYamlKey: VictoryLocationYamlKey, s
   });
 
   // Create sprites for each landmark
-  landmarksContainer.addChild(...strictObjectEntries(LANDMARKS)
-    .filter(([landmarkKey]) => validLandmarksLookup.has(landmarkKey))
-    .map(([landmarkKey, landmark]) => {
-      const isOn = Math.random() < 0.5;
-      const anim = new AnimatedSprite(spritesheet.animations[`${landmarkKey}_${isOn ? 'on' : 'off'}`]);
+  const landmarkSpriteLookup: Partial<Record<LandmarkYamlKey, SpriteBox>> = { };
+  const createSprite = (landmarkKey: LandmarkYamlKey, displaying: 'on' | 'off') => {
+    const frames = spritesheet.animations[`${landmarkKey}_${displaying}`];
+    let sprite: Sprite;
+    if (enableTileAnimations) {
+      const anim = sprite = new AnimatedSprite(frames);
       anim.animationSpeed = 1 / (500 * Ticker.targetFPMS);
-      anim.position.set(landmark.coords[0] - 8, landmark.coords[1] - 8);
       anim.play();
-      return anim;
-    }),
-  );
+    }
+    else {
+      sprite = new Sprite(frames[0]);
+    }
 
-  return landmarksContainer;
+    sprite.position.set(LANDMARKS[landmarkKey].coords[0] - 8, LANDMARKS[landmarkKey].coords[1] - 8);
+    landmarksContainer.addChild(sprite);
+    return sprite;
+  };
+
+  for (const region of BAKED_DEFINITIONS_BY_VICTORY_LANDMARK[victoryLocationYamlKey].allRegions) {
+    if (!('loc' in region)) {
+      continue;
+    }
+
+    landmarkSpriteLookup[region.yamlKey] = {
+      animated: enableTileAnimations,
+      onSprite: createSprite(region.yamlKey, 'on'),
+      offSprite: createSprite(region.yamlKey, 'off'),
+    } as SpriteBox;
+  }
+
+  return { landmarksContainer, landmarkSpriteLookup };
 }
 
 @Component({
@@ -233,6 +269,8 @@ export class GameTabMap {
   readonly #store = inject(GameStore);
   readonly paused = this.#store.paused;
 
+  readonly game = input.required<AutopelagoClientAndData>();
+
   protected readonly pixiCanvas = viewChild.required<ElementRef<HTMLCanvasElement>>('pixiCanvas');
   protected readonly outerDiv = viewChild.required<ElementRef<HTMLDivElement>>('outer');
 
@@ -263,6 +301,8 @@ export class GameTabMap {
       },
     });
     const playerToken = signal<Sprite | null>(null);
+    const landmarkMarkersContainer = signal<Container | null>(null);
+    const landmarkSpriteLookup = signal<Partial<Record<LandmarkYamlKey, SpriteBox>> | null>(null);
     const fillerMarkersContainer = signal<Container | null>(null);
     effect(() => {
       const fillerMarkers = fillerMarkersContainer();
@@ -300,6 +340,8 @@ export class GameTabMap {
     effect(() => {
       const canvas = this.pixiCanvas().nativeElement;
       const outerDiv = this.outerDiv().nativeElement;
+      const enableRatAnimations = this.game().connectScreenStore.enableRatAnimations();
+      const enableTileAnimations = this.game().connectScreenStore.enableTileAnimations();
       const victoryLocationYamlKey = this.#store.victoryLocationYamlKey();
       const playerTokenTexture = playerTokenTextureResource.value();
       const landmarkSpritesheet = landmarkSpritesheetResource.value();
@@ -326,9 +368,12 @@ export class GameTabMap {
         fillerMarkersContainer.set(fillerMarkers);
         app.stage.addChild(fillerMarkers);
         Ticker.shared.stop();
-        app.stage.addChild(createLandmarkMarkers(victoryLocationYamlKey, landmarkSpritesheet));
+        const landmarkMarkers = createLandmarkMarkers(victoryLocationYamlKey, enableTileAnimations, landmarkSpritesheet);
+        landmarkMarkersContainer.set(landmarkMarkers.landmarksContainer);
+        landmarkSpriteLookup.set(landmarkMarkers.landmarkSpriteLookup);
+        app.stage.addChild(landmarkMarkers.landmarksContainer);
         Ticker.shared.stop();
-        const playerTokenNotNull = createPlayerToken(playerTokenTexture, destroyRef);
+        const playerTokenNotNull = createPlayerToken(playerTokenTexture, enableRatAnimations, destroyRef);
         app.stage.addChild(playerTokenNotNull);
         playerToken.set(playerTokenNotNull);
         Ticker.shared.stop();
@@ -363,6 +408,37 @@ export class GameTabMap {
       const defs = BAKED_DEFINITIONS_BY_VICTORY_LANDMARK[victoryLocationYamlKey];
       const [x, y] = defs.allLocations[currentLocation].coords;
       playerTokenNotNull.position.set(x, y);
+    });
+
+    effect(() => {
+      const victoryLocationYamlKey = this.#store.victoryLocationYamlKey();
+      const landmarkMarkersContainerNotNull = landmarkMarkersContainer();
+      const landmarkSpriteLookupNotNull = landmarkSpriteLookup();
+      if (!(victoryLocationYamlKey && landmarkMarkersContainerNotNull && landmarkSpriteLookupNotNull)) {
+        return;
+      }
+
+      const checkedLocations = this.#store.checkedLocations();
+      const defs = BAKED_DEFINITIONS_BY_VICTORY_LANDMARK[victoryLocationYamlKey];
+      for (const [_, landmark] of strictObjectEntries(defs.allRegions)) {
+        if (!('loc' in landmark)) {
+          continue;
+        }
+
+        const spriteBox = landmarkSpriteLookupNotNull[landmark.yamlKey];
+        if (!spriteBox) {
+          continue;
+        }
+
+        if (checkedLocations.includes(landmark.loc)) {
+          spriteBox.onSprite.visible = false;
+          spriteBox.offSprite.visible = true;
+        }
+        else {
+          spriteBox.onSprite.visible = true;
+          spriteBox.offSprite.visible = false;
+        }
+      }
     });
 
     effect(() => {

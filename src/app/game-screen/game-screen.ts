@@ -3,8 +3,8 @@ import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { RouterLink } from '@angular/router';
 import { type ActiveToast, ToastrService } from 'ngx-toastr';
 import { interval } from 'rxjs';
-import { toastError } from '../app-error-handler';
 
+import { toastError } from '../app-error-handler';
 import { initializeClient } from '../archipelago-client';
 import { GameStore } from '../store/autopelago-store';
 import { ConnectScreenStore } from '../store/connect-screen.store';
@@ -61,18 +61,13 @@ export class GameScreen {
   readonly connectScreenStore = input.required<InstanceType<typeof ConnectScreenStore>>();
   protected readonly connectingMessage = signal('Connecting...');
   protected readonly game = resource({
-    params: () => {
-      const connectScreenStore = this.connectScreenStore();
-      return {
-        slot: connectScreenStore.slot(),
-        host: connectScreenStore.host(),
-        port: connectScreenStore.port(),
-        password: connectScreenStore.password(),
-      };
-    },
+    params: () => ({
+      connectScreenStore: this.connectScreenStore(),
+      destroyRef: this.#destroyRef,
+    }),
     loader: async ({ params }) => {
       try {
-        const result = await initializeClient({ ...params, destroyRef: this.#destroyRef });
+        const result = await initializeClient(params);
         if (this.#activeToast !== null) {
           this.#toast.remove(this.#activeToast.toastId);
           this.#activeToast = null;

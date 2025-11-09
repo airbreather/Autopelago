@@ -3,12 +3,14 @@ import type { Client, JSONRecord } from 'archipelago.js';
 import { List } from 'immutable';
 import type { Message } from '../archipelago-client';
 import type { PreviousLocationEvidence } from '../game/previous-location-evidence';
+import type { ConnectScreenStore } from '../store/connect-screen.store';
 import type { ToJSONSerializable } from '../util';
 import type { AutopelagoBuff, AutopelagoTrap, VictoryLocationName } from './resolved-definitions';
 
 export type AutopelagoUserCustomizableMessage = [string, number];
 
 export interface AutopelagoClientAndData {
+  connectScreenStore: InstanceType<typeof ConnectScreenStore>;
   client: Client;
   messageLog: Signal<List<Message>>;
   slotData: AutopelagoSlotData;

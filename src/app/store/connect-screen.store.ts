@@ -4,7 +4,7 @@ import type { ParamMap } from '@angular/router';
 
 import { patchState, signalStore, withComputed, withMethods } from '@ngrx/signals';
 
-type ShortQueryParameterNames =
+type ShortQueryParameterName =
   | 'h'
   | 'p'
   | 's'
@@ -22,8 +22,8 @@ type ShortQueryParameterNames =
   ;
 
 type QueryParamNameBidirectionalMap =
-  & Record<keyof typeof initialState, ShortQueryParameterNames>
-  & Record<ShortQueryParameterNames, keyof typeof initialState>
+  & Record<keyof typeof initialState, ShortQueryParameterName>
+  & Record<ShortQueryParameterName, keyof typeof initialState>
   ;
 
 const QUERY_PARAM_NAME_MAP = {
@@ -82,6 +82,23 @@ const initialState = {
 // Local storage key
 const STORAGE_KEY = 'autopelago-connect-screen-state';
 
+type BooleanKey = {
+  [K in keyof typeof initialState]: typeof initialState[K] extends boolean ? K : never;
+}[keyof typeof initialState];
+
+function readBoolean(qp: ParamMap, key: BooleanKey): boolean {
+  switch (qp.get(QUERY_PARAM_NAME_MAP[key])) {
+    case '0':
+      return false;
+
+    case '1':
+      return true;
+
+    default:
+      return initialState[key];
+  }
+}
+
 export const ConnectScreenStore = signalStore(
   { providedIn: 'root' },
   withImmutableState(initialState),
@@ -125,14 +142,14 @@ export const ConnectScreenStore = signalStore(
         password: qp.get(QUERY_PARAM_NAME_MAP.password),
         minTime: Number(qp.get(QUERY_PARAM_NAME_MAP.minTime)) || initialState.minTime,
         maxTime: Number(qp.get(QUERY_PARAM_NAME_MAP.maxTime)) || initialState.maxTime,
-        enableTileAnimations: Boolean(qp.get(QUERY_PARAM_NAME_MAP.enableTileAnimations) ?? initialState.enableTileAnimations),
-        enableRatAnimations: Boolean(qp.get(QUERY_PARAM_NAME_MAP.enableRatAnimations) ?? initialState.enableRatAnimations),
-        sendChatMessages: Boolean(qp.get(QUERY_PARAM_NAME_MAP.sendChatMessages) ?? initialState.sendChatMessages),
-        whenTargetChanges: Boolean(qp.get(QUERY_PARAM_NAME_MAP.whenTargetChanges) ?? initialState.whenTargetChanges),
-        whenBecomingBlocked: Boolean(qp.get(QUERY_PARAM_NAME_MAP.whenBecomingBlocked) ?? initialState.whenBecomingBlocked),
-        whenStillBlocked: Boolean(qp.get(QUERY_PARAM_NAME_MAP.whenStillBlocked) ?? initialState.whenStillBlocked),
-        whenBecomingUnblocked: Boolean(qp.get(QUERY_PARAM_NAME_MAP.whenBecomingUnblocked) ?? initialState.whenBecomingUnblocked),
-        forOneTimeEvents: Boolean(qp.get(QUERY_PARAM_NAME_MAP.forOneTimeEvents) ?? initialState.forOneTimeEvents),
+        enableTileAnimations: readBoolean(qp, 'enableTileAnimations'),
+        enableRatAnimations: readBoolean(qp, 'enableRatAnimations'),
+        sendChatMessages: readBoolean(qp, 'sendChatMessages'),
+        whenTargetChanges: readBoolean(qp, 'whenTargetChanges'),
+        whenBecomingBlocked: readBoolean(qp, 'whenBecomingBlocked'),
+        whenStillBlocked: readBoolean(qp, 'whenStillBlocked'),
+        whenBecomingUnblocked: readBoolean(qp, 'whenBecomingUnblocked'),
+        forOneTimeEvents: readBoolean(qp, 'forOneTimeEvents'),
       });
     },
 
