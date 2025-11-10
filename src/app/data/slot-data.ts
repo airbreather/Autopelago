@@ -2,7 +2,7 @@
 import type { Client, JSONRecord } from 'archipelago.js';
 import { List } from 'immutable';
 import type { Message } from '../archipelago-client';
-import type { PreviousLocationEvidence } from '../game/previous-location-evidence';
+import type { LocationEvidence } from '../game/location-evidence';
 import type { ConnectScreenStore } from '../store/connect-screen.store';
 import type { ToJSONSerializable } from '../util';
 import type { AutopelagoBuff, AutopelagoTrap, VictoryLocationName } from './resolved-definitions';
@@ -45,7 +45,7 @@ export interface AutopelagoStoredData extends JSONRecord {
   sluggishCarryover: boolean;
   processedReceivedItemCount: number;
   currentLocation: number;
-  previousLocationEvidence: ToJSONSerializable<PreviousLocationEvidence>;
+  previousLocationEvidence: ToJSONSerializable<LocationEvidence>;
   priorityPriorityLocations: number[];
   priorityLocations: number[];
 }

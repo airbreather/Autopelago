@@ -141,6 +141,11 @@ export function isFillerRegionYamlKey(yamlKey: string): yamlKey is FillerRegionY
   return yamlKey in FILLER_DEFINING_COORDS;
 }
 
+export type RegionYamlKey = LandmarkYamlKey | FillerRegionYamlKey;
+export function isRegionYamlKey(yamlKey: string): yamlKey is RegionYamlKey {
+  return isLandmarkYamlKey(yamlKey) || isFillerRegionYamlKey(yamlKey);
+}
+
 const PREPARED_FILLERS = stricterObjectFromEntries(
   strictObjectEntries(FILLER_DEFINING_COORDS)
     .map(([yamlKey, definingCoords]) => [yamlKey, convertDefiningPoints(yamlKey === 'Menu', definingCoords)]),

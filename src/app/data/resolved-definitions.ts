@@ -5,7 +5,15 @@ import Queue from 'yocto-queue';
 import { stricterIsArray, strictObjectEntries } from '../util';
 
 import * as baked from './baked.json';
-import { fillerRegionCoords, type FillerRegionYamlKey, LANDMARKS, type LandmarkYamlKey } from './locations';
+import {
+  fillerRegionCoords,
+  type FillerRegionYamlKey,
+  isFillerRegionYamlKey,
+  isLandmarkYamlKey,
+  LANDMARKS,
+  type LandmarkYamlKey,
+  type RegionYamlKey,
+} from './locations';
 
 export type AutopelagoBuff =
   'well_fed'
@@ -126,6 +134,7 @@ export const BAKED_DEFINITIONS_BY_VICTORY_LANDMARK = {
 export interface AutopelagoDefinitions {
   allItems: readonly Readonly<AutopelagoItem>[];
   progressionItemsByYamlKey: ReadonlyMap<string, number>;
+  victoryLocationsByYamlKey: ReadonlyMap<VictoryLocationYamlKey, number>;
   itemsWithNonzeroRatCounts: readonly number[];
   itemNameLookup: ReadonlyMap<string, number>;
 
@@ -304,12 +313,13 @@ function resolveMainDefinitions(
   // Now process regions and locations
   const allRegions: AutopelagoRegion[] = [];
   const allLocations: AutopelagoLocation[] = [];
-  const regionNameToIndex = new Map<string, number>();
+  const regionYamlKeyLookup = new Map<RegionYamlKey, number>();
+  const victoryLocationsByYamlKey = new Map<VictoryLocationYamlKey, number>();
 
   // Process landmarks first
   for (const [landmarkKey, landmark] of strictObjectEntries(yamlFile.regions.landmarks)) {
     const regionIndex = allRegions.length;
-    regionNameToIndex.set(landmarkKey, regionIndex);
+    regionYamlKeyLookup.set(landmarkKey, regionIndex);
 
     const locationIndex = allLocations.length;
 
@@ -334,6 +344,14 @@ function resolveMainDefinitions(
       requirement: convertRequirement(landmark.requires),
     };
 
+    switch (landmarkKey) {
+      case 'captured_goldfish':
+      case 'secret_cache':
+      case 'snakes_on_a_planet':
+        victoryLocationsByYamlKey.set(landmarkKey, locationIndex);
+        break;
+    }
+
     allRegions.push(landmarkRegion);
   }
 
@@ -341,7 +359,7 @@ function resolveMainDefinitions(
   const locationCountByFillerRegion: Partial<Record<FillerRegionYamlKey, number>> = {};
   for (const [fillerKey, filler] of strictObjectEntries(yamlFile.regions.fillers)) {
     const regionIndex = allRegions.length;
-    regionNameToIndex.set(fillerKey, regionIndex);
+    regionYamlKeyLookup.set(fillerKey, regionIndex);
 
     // Calculate number of locations based on unrandomized items
     const unrandomizedItems = filler.unrandomized_items;
@@ -380,10 +398,10 @@ function resolveMainDefinitions(
     }
     else {
       // Find the single landmark this filler exits to and subtract 1
-      if (filler.exits.length !== 1) {
+      if (filler.exits.length !== 1 || !isLandmarkYamlKey(filler.exits[0])) {
         throw new Error(`Filler ${fillerKey} should exit to exactly one landmark`);
       }
-      const landmarkIndex = regionNameToIndex.get(filler.exits[0]);
+      const landmarkIndex = regionYamlKeyLookup.get(filler.exits[0]);
       if (landmarkIndex === undefined) {
         throw new Error(`Unknown landmark: ${filler.exits[0]}`);
       }
@@ -430,7 +448,7 @@ function resolveMainDefinitions(
 
   // Process landmark exits
   for (const [landmarkKey, landmark] of strictObjectEntries(yamlFile.regions.landmarks)) {
-    const landmarkIndex = regionNameToIndex.get(landmarkKey);
+    const landmarkIndex = regionYamlKeyLookup.get(landmarkKey);
     if (landmarkIndex === undefined) {
       continue;
     }
@@ -443,7 +461,11 @@ function resolveMainDefinitions(
     // Landmarks can exit to fillers
     if ('exits' in landmark) {
       for (const exitKey of landmark.exits) {
-        const exitIndex = regionNameToIndex.get(exitKey);
+        if (!isFillerRegionYamlKey(exitKey)) {
+          throw new Error(`Landmark ${landmarkKey} exits to invalid region: ${exitKey}`);
+        }
+
+        const exitIndex = regionYamlKeyLookup.get(exitKey);
         if (exitIndex !== undefined) {
           landmarkConnections.forward.push(exitIndex);
           const targetConnections = regionConnections.get(exitIndex);
@@ -456,8 +478,8 @@ function resolveMainDefinitions(
   }
 
   // Process filler exits
-  for (const [fillerKey, filler] of Object.entries(yamlFile.regions.fillers)) {
-    const fillerIndex = regionNameToIndex.get(fillerKey);
+  for (const [fillerKey, filler] of strictObjectEntries(yamlFile.regions.fillers)) {
+    const fillerIndex = regionYamlKeyLookup.get(fillerKey);
     if (fillerIndex === undefined) {
       continue;
     }
@@ -469,7 +491,10 @@ function resolveMainDefinitions(
 
     // Fillers exit to landmarks
     for (const exitKey of filler.exits) {
-      const exitIndex = regionNameToIndex.get(exitKey);
+      if (!isLandmarkYamlKey(exitKey)) {
+        throw new Error(`Filler ${fillerKey} exits to invalid region: ${exitKey}`);
+      }
+      const exitIndex = regionYamlKeyLookup.get(exitKey);
       if (exitIndex !== undefined) {
         fillerConnections.forward.push(exitIndex);
         const targetConnections = regionConnections.get(exitIndex);
@@ -596,7 +621,7 @@ function resolveMainDefinitions(
   }
 
   // Find start region and location
-  const startRegionIndex = regionNameToIndex.get('Menu');
+  const startRegionIndex = regionYamlKeyLookup.get('Menu');
   if (startRegionIndex === undefined) {
     throw new Error('Menu region not found');
   }
@@ -639,6 +664,7 @@ function resolveMainDefinitions(
   return {
     allItems,
     progressionItemsByYamlKey,
+    victoryLocationsByYamlKey,
     itemsWithNonzeroRatCounts,
     allLocations,
     allRegions,
@@ -774,6 +800,14 @@ function withVictoryLocation(defs: AutopelagoDefinitions, location: VictoryLocat
     locationNameLookup.set(location.name, locationIndex);
   }
 
+  const newVictoryLocationsByYamlKey = new Map<VictoryLocationYamlKey, number>();
+  for (const [locationKey, locationIndex] of defs.victoryLocationsByYamlKey.entries()) {
+    const newLocationIndex = oldToNewLocationMap.get(locationIndex);
+    if (newLocationIndex !== undefined) {
+      newVictoryLocationsByYamlKey.set(locationKey, newLocationIndex);
+    }
+  }
+
   return {
     ...defs,
     allLocations,
@@ -781,5 +815,6 @@ function withVictoryLocation(defs: AutopelagoDefinitions, location: VictoryLocat
     startRegion: newStartRegion,
     startLocation: newStartLocation,
     locationNameLookup,
+    victoryLocationsByYamlKey: newVictoryLocationsByYamlKey,
   };
 }

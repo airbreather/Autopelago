@@ -11,10 +11,10 @@ import {
 } from '../data/resolved-definitions';
 import type { AutopelagoClientAndData, AutopelagoStoredData } from '../data/slot-data';
 import {
-  type PreviousLocationEvidence,
-  previousLocationEvidenceFromJSONSerializable,
-  previousLocationEvidenceToJSONSerializable,
-} from '../game/previous-location-evidence';
+  type LocationEvidence,
+  locationEvidenceFromJSONSerializable,
+  locationEvidenceToJSONSerializable,
+} from '../game/location-evidence';
 import { withCleverTimer } from './with-clever-timer';
 
 const initialState = {
@@ -31,7 +31,7 @@ const initialState = {
   sluggishCarryover: false,
   processedReceivedItemCount: 0,
   currentLocation: -1,
-  previousLocationEvidence: null as PreviousLocationEvidence,
+  previousLocationEvidence: null as LocationEvidence,
   priorityPriorityLocations: List<number>(),
   priorityLocations: List<number>(),
   receivedItems: List<number>(),
@@ -76,7 +76,7 @@ export const GameStore = signalStore(
       sluggishCarryover: store.sluggishCarryover(),
       processedReceivedItemCount: store.processedReceivedItemCount(),
       currentLocation: store.currentLocation(),
-      previousLocationEvidence: previousLocationEvidenceToJSONSerializable(store.previousLocationEvidence()),
+      previousLocationEvidence: locationEvidenceToJSONSerializable(store.previousLocationEvidence()),
       priorityPriorityLocations: store.priorityPriorityLocations().toJS(),
       priorityLocations: store.priorityLocations().toJS(),
     })),
@@ -222,7 +222,7 @@ export const GameStore = signalStore(
         receivedItems: List<number>(),
         receivedItemCountLookup: List<number>(Array<number>(BAKED_DEFINITIONS_FULL.allItems.length).fill(0)),
         checkedLocations: Set(client.room.checkedLocations.map(l => locationNameLookup.get(pkg.reverseLocationTable[l]) ?? -1)),
-        previousLocationEvidence: previousLocationEvidenceFromJSONSerializable(storedData.previousLocationEvidence),
+        previousLocationEvidence: locationEvidenceFromJSONSerializable(storedData.previousLocationEvidence),
       });
       const itemsJustReceived: number[] = [];
       for (const item of client.items.received) {

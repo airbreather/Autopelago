@@ -189,7 +189,7 @@ function createLandmarkMarkers(victoryLocationYamlKey: VictoryLocationYamlKey, e
 
   // Create sprites for each landmark
   const landmarkSpriteLookup: Partial<Record<LandmarkYamlKey, SpriteBox>> = { };
-  const createSprite = (landmarkKey: LandmarkYamlKey, displaying: 'on' | 'off') => {
+  function createSprite(landmarkKey: LandmarkYamlKey, displaying: 'on' | 'off') {
     const frames = spritesheet.animations[`${landmarkKey}_${displaying}`];
     let sprite: Sprite;
     if (enableTileAnimations) {
@@ -204,7 +204,7 @@ function createLandmarkMarkers(victoryLocationYamlKey: VictoryLocationYamlKey, e
     sprite.position.set(LANDMARKS[landmarkKey].coords[0] - 8, LANDMARKS[landmarkKey].coords[1] - 8);
     landmarksContainer.addChild(sprite);
     return sprite;
-  };
+  }
 
   for (const region of BAKED_DEFINITIONS_BY_VICTORY_LANDMARK[victoryLocationYamlKey].allRegions) {
     if (!('loc' in region)) {

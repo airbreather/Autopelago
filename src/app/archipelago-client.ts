@@ -93,12 +93,12 @@ export interface Message {
 
 function createReactiveMessageLog(client: Client, destroyRef?: DestroyRef): Signal<List<Readonly<Message>>> {
   const messageLog = signal(List<Readonly<Message>>());
-  const onMessage = (_text: string, nodes: readonly MessageNode[]) => {
+  function onMessage(_text: string, nodes: readonly MessageNode[]) {
     messageLog.update(messages => messages.push({
       ts: new Date(),
       nodes,
     }));
-  };
+  }
 
   client.messages.on('message', onMessage);
   if (destroyRef) {
