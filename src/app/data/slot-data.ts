@@ -1,17 +1,33 @@
 ﻿import type { Signal } from '@angular/core';
-import type { Client, JSONRecord } from 'archipelago.js';
+import type BitArray from '@bitarray/typedarray';
+import type { Client, JSONRecord, PackageMetadata } from 'archipelago.js';
 import { List } from 'immutable';
 import type { Message } from '../archipelago-client';
 import type { LocationEvidence } from '../game/location-evidence';
 import type { ConnectScreenStore } from '../store/connect-screen.store';
 import type { ToJSONSerializable } from '../util';
-import type { AutopelagoBuff, AutopelagoTrap, VictoryLocationName } from './resolved-definitions';
+import type {
+  AutopelagoAura,
+  AutopelagoBuff,
+  AutopelagoItem,
+  AutopelagoTrap,
+  VictoryLocationName,
+} from './resolved-definitions';
 
 export type AutopelagoUserCustomizableMessage = [string, number];
+
+export interface ResolvedAutopelagoItem extends AutopelagoItem {
+  lactoseAwareName: string;
+  enabledAurasGranted: readonly AutopelagoAura[];
+}
 
 export interface AutopelagoClientAndData {
   connectScreenStore: InstanceType<typeof ConnectScreenStore>;
   client: Client;
+  pkg: PackageMetadata;
+  resolvedItems: readonly ResolvedAutopelagoItem[];
+  locationIsProgression: Readonly<BitArray>;
+  locationIsTrap: Readonly<BitArray>;
   messageLog: Signal<List<Message>>;
   slotData: AutopelagoSlotData;
   storedData: AutopelagoStoredData;

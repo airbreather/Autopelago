@@ -35,13 +35,15 @@ function createPausableTimer(options: CreatePausableTimerOptions): PausableTimer
 
   function sendNotificationIfNeeded(now: number) {
     if (now >= nextDeadline) {
-      nextDeadline = now + (remainingDuration || getNextDuration());
+      nextDeadline = now + getNextDuration();
     }
   }
 
   function setNextTimeout(now: number) {
     timeout = setTimeout(() => {
-      sendNotificationIfNeeded(Date.now());
+      const newNow = Date.now();
+      sendNotificationIfNeeded(newNow);
+      setNextTimeout(newNow);
     }, nextDeadline - now);
   }
 
@@ -73,6 +75,13 @@ function createPausableTimer(options: CreatePausableTimerOptions): PausableTimer
       setNextTimeout(resumeTime);
     },
   };
+  if (running) {
+    setNextTimeout(Date.now());
+  }
+  else {
+    remainingDuration = initialDuration;
+  }
+
   return timer;
 }
 
@@ -100,6 +109,11 @@ export function withCleverTimer() {
       },
       unregisterCallback: (callback: () => void) => {
         store._callbacks = store._callbacks.filter(c => c !== callback);
+      },
+      runCallbacks: () => {
+        for (const callback of store._callbacks) {
+          callback();
+        }
       },
       pause: () => {
         const timer = store._timer();
@@ -136,20 +150,19 @@ export function withCleverTimer() {
           throw new Error('minDuration must be <= maxDuration');
         }
 
+        minDuration *= 1000;
+        maxDuration *= 1000;
         const range = maxDuration - minDuration;
-        function getNextDuration() {
+        function outerGetNextDuration() {
           store._prevDuration = (minDuration + Math.floor(Math.random() * range));
           return store._prevDuration;
         }
         const timer = createPausableTimer({
           running: store.running(),
-          initialDuration: getNextDuration(),
+          initialDuration: outerGetNextDuration(),
           getNextDuration() {
-            for (const callback of store._callbacks) {
-              callback();
-            }
-
-            return getNextDuration();
+            store.runCallbacks();
+            return outerGetNextDuration();
           },
         });
         patchState(store, { _timer: timer });

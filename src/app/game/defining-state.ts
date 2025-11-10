@@ -2,7 +2,6 @@ import { List } from 'immutable';
 import rand from 'pure-rand';
 
 import type { AutopelagoBuff, AutopelagoTrap, VictoryLocationYamlKey } from '../data/resolved-definitions';
-import type { DerivedGameState } from './derived-state';
 import type { LocationEvidence } from './location-evidence';
 
 export interface UserRequestedLocation {
@@ -41,45 +40,4 @@ export interface DefiningGameState {
 
   // intentionally omitted: anything that can be computed from the above values.
   // for that, see derived-state.ts.
-}
-
-export function extractLocationEvidence(gameState: DerivedGameState): LocationEvidence {
-  const {
-    defs: { allRegions },
-    startledCounter,
-    auraDrivenLocations,
-    userRequestedLocations,
-    regionIsHardLocked,
-  } = gameState;
-
-  if (startledCounter > 0) {
-    return { startled: true };
-  }
-
-  const firstAuraDrivenLocation = auraDrivenLocations.first() ?? null;
-  if (firstAuraDrivenLocation !== null) {
-    return { startled: false, firstAuraDrivenLocation };
-  }
-
-  const clearedOrClearableLandmarks = List(
-    allRegions
-      .filter((region, i) => 'loc' in region && !regionIsHardLocked[i])
-      .map((_region, i) => i),
-  );
-
-  if (userRequestedLocations.size > 0) {
-    return {
-      startled: false,
-      firstAuraDrivenLocation: null,
-      clearedOrClearableLandmarks: List(clearedOrClearableLandmarks),
-      userRequestedLocations: userRequestedLocations,
-    };
-  }
-
-  return {
-    startled: false,
-    firstAuraDrivenLocation: null,
-    clearedOrClearableLandmarks: List(clearedOrClearableLandmarks),
-    userRequestedLocations: null,
-  };
 }

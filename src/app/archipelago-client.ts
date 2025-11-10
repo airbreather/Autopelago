@@ -1,7 +1,13 @@
 import { type DestroyRef, signal, type Signal } from '@angular/core';
+import BitArray from '@bitarray/typedarray';
 import { Client, type ConnectionOptions, type MessageNode } from 'archipelago.js';
 import { List } from 'immutable';
-import { BAKED_DEFINITIONS_BY_VICTORY_LANDMARK, VICTORY_LOCATION_NAME_LOOKUP } from './data/resolved-definitions';
+import {
+  type AutopelagoAura,
+  BAKED_DEFINITIONS_BY_VICTORY_LANDMARK,
+  BAKED_DEFINITIONS_FULL,
+  VICTORY_LOCATION_NAME_LOOKUP,
+} from './data/resolved-definitions';
 import type { AutopelagoClientAndData, AutopelagoSlotData, AutopelagoStoredData } from './data/slot-data';
 import type { ConnectScreenStore } from './store/connect-screen.store';
 
@@ -47,6 +53,8 @@ export async function initializeClient(initializeClientOptions: InitializeClient
     options,
   );
 
+  const victoryLocationYamlKey = VICTORY_LOCATION_NAME_LOOKUP[slotData.victory_location_name];
+  const defs = BAKED_DEFINITIONS_BY_VICTORY_LANDMARK[victoryLocationYamlKey];
   const player = client.players.self;
   const storedDataKey = `autopelago_${player.team.toString()}_${player.slot.toString()}`;
   let storedData: AutopelagoStoredData | null;
@@ -59,7 +67,6 @@ export async function initializeClient(initializeClientOptions: InitializeClient
   }
 
   if (!storedData) {
-    const victoryLocationYamlKey = VICTORY_LOCATION_NAME_LOOKUP[slotData.victory_location_name];
     storedData = {
       workDone: NaN,
       foodFactor: 0,
@@ -72,7 +79,7 @@ export async function initializeClient(initializeClientOptions: InitializeClient
       mercyFactor: 0,
       sluggishCarryover: false,
       processedReceivedItemCount: 0,
-      currentLocation: BAKED_DEFINITIONS_BY_VICTORY_LANDMARK[victoryLocationYamlKey].startLocation,
+      currentLocation: defs.startLocation,
       previousLocationEvidence: null,
       priorityPriorityLocations: [],
       priorityLocations: [],
@@ -83,7 +90,37 @@ export async function initializeClient(initializeClientOptions: InitializeClient
       .commit(true);
   }
 
-  return { connectScreenStore, client, messageLog, slotData, storedData, storedDataKey };
+  const pkg = client.package.findPackage('Autopelago');
+  if (!pkg) {
+    throw new Error('Autopelago package not found');
+  }
+
+  const locationNetworkNameLookup = pkg.locationTable;
+  const items = await client.scout(defs.allLocations.map(l => locationNetworkNameLookup[l.name]));
+  const locationIsProgression = new BitArray(defs.allLocations.length);
+  const locationIsTrap = new BitArray(defs.allLocations.length);
+  for (const item of items) {
+    if (item.progression) {
+      locationIsProgression[locationNetworkNameLookup[item.locationName]] = 1;
+    }
+
+    if (item.trap) {
+      locationIsTrap[locationNetworkNameLookup[item.locationName]] = 1;
+    }
+  }
+
+  return {
+    connectScreenStore,
+    client,
+    pkg,
+    resolvedItems: resolveItems(slotData),
+    messageLog,
+    slotData,
+    locationIsProgression,
+    locationIsTrap,
+    storedData,
+    storedDataKey,
+  };
 }
 
 export interface Message {
@@ -108,4 +145,13 @@ function createReactiveMessageLog(client: Client, destroyRef?: DestroyRef): Sign
   }
 
   return messageLog.asReadonly();
+}
+
+function resolveItems(slotData: AutopelagoSlotData) {
+  const enabledAuras = new Set<AutopelagoAura>([...slotData.enabled_buffs, ...slotData.enabled_traps]);
+  return BAKED_DEFINITIONS_FULL.allItems.map(item => ({
+    ...item,
+    lactoseAwareName: slotData.lactose_intolerant ? item.lactoseIntolerantName : item.lactoseName,
+    enabledAurasGranted: item.aurasGranted.filter(a => enabledAuras.has(a)),
+  }));
 }

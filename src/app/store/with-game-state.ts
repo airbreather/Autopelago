@@ -12,6 +12,9 @@ export function withGameState() {
       gameState: null as DefiningGameState | null,
     }),
     withMethods(store => ({
+      initGameState(_gameState: DefiningGameState) {
+        // empty for now
+      },
       advance() {
         const gameState = store.gameState();
         if (!gameState) {

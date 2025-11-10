@@ -1,8 +1,50 @@
 import BitArray from '@bitarray/typedarray';
+import { List } from 'immutable';
 import Queue from 'yocto-queue';
-import { extractLocationEvidence } from '../defining-state';
-import { locationEvidenceEquals } from '../location-evidence';
+import type { DerivedGameState } from '../derived-state';
+import { type LocationEvidence, locationEvidenceEquals } from '../location-evidence';
 import type { TurnState, TurnStateWithConfirmedTargetLocation } from '../turn-state';
+
+function extractLocationEvidence(gameState: DerivedGameState): LocationEvidence {
+  const {
+    defs: { allRegions },
+    startledCounter,
+    auraDrivenLocations,
+    userRequestedLocations,
+    regionIsHardLocked,
+  } = gameState;
+
+  if (startledCounter > 0) {
+    return { startled: true };
+  }
+
+  const firstAuraDrivenLocation = auraDrivenLocations.first() ?? null;
+  if (firstAuraDrivenLocation !== null) {
+    return { startled: false, firstAuraDrivenLocation };
+  }
+
+  const clearedOrClearableLandmarks = List(
+    allRegions
+      .filter((region, i) => 'loc' in region && !regionIsHardLocked[i])
+      .map((_region, i) => i),
+  );
+
+  if (userRequestedLocations.size > 0) {
+    return {
+      startled: false,
+      firstAuraDrivenLocation: null,
+      clearedOrClearableLandmarks: List(clearedOrClearableLandmarks),
+      userRequestedLocations: userRequestedLocations,
+    };
+  }
+
+  return {
+    startled: false,
+    firstAuraDrivenLocation: null,
+    clearedOrClearableLandmarks: List(clearedOrClearableLandmarks),
+    userRequestedLocations: null,
+  };
+}
 
 function calculateTargetLocation(state: TurnState): Pick<TurnStateWithConfirmedTargetLocation, 'targetLocation' | 'targetLocationReason'> {
   if (state.startledCounter > 0) {
@@ -79,18 +121,23 @@ function findClosestUncheckedLocation(state: TurnState): number | null {
 }
 
 export default function (state: TurnState): TurnStateWithConfirmedTargetLocation {
+  const previousEvidence = state.previousLocationEvidence;
+  const currentEvidence = extractLocationEvidence(state);
+  const evidenceChanged = !locationEvidenceEquals(previousEvidence, currentEvidence);
   let remainingActions = state.remainingActions;
-  if (!state.confirmedTarget) {
-    const previousEvidence = state.previousLocationEvidence;
-    const currentEvidence = extractLocationEvidence(state);
-    if (!locationEvidenceEquals(previousEvidence, currentEvidence)) {
-      --remainingActions;
+  if (state.confirmedTarget) {
+    if (!evidenceChanged) {
+      return state;
     }
+  }
+  else if (!evidenceChanged) {
+    --remainingActions;
   }
 
   return {
     ...state,
     remainingActions,
+    previousLocationEvidence: currentEvidence,
     confirmedTarget: true,
     ...calculateTargetLocation(state),
   };

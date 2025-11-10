@@ -1,4 +1,4 @@
-import { type DefiningGameState, extractLocationEvidence } from '../defining-state';
+import type { DefiningGameState } from '../defining-state';
 import type { TurnState } from '../turn-state';
 
 function extractDefiningProps(state: DefiningGameState): DefiningGameState {
@@ -33,6 +33,5 @@ export default function (state: TurnState): DefiningGameState {
     sluggishCarryover: state.remainingActions < 0,
     startledCounter,
     mercyFactor: state.mercyFactor + (bumpMercyFactor ? 1 : 0),
-    previousLocationEvidence: extractLocationEvidence(state),
   };
 }
