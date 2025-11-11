@@ -10,8 +10,8 @@ import {
   type AutopelagoItem,
   BAKED_DEFINITIONS_BY_VICTORY_LANDMARK,
 } from '../data/resolved-definitions';
-import type { AutopelagoStoredData } from '../data/slot-data';
-import type { DefiningGameState, UserRequestedLocation } from '../game/defining-state';
+import type { AutopelagoStoredData, UserRequestedLocation } from '../data/slot-data';
+import type { DefiningGameState } from '../game/defining-state';
 import {
   buildRequirementIsSatisfied,
   Desirability,

@@ -34,7 +34,7 @@ function createPausableTimer(options: CreatePausableTimerOptions): PausableTimer
   let timeout = NaN;
 
   function sendNotificationIfNeeded(now: number) {
-    if (now >= nextDeadline) {
+    while (now >= nextDeadline) {
       nextDeadline = now + getNextDuration();
     }
   }

@@ -1,15 +1,10 @@
 import type BitArray from '@bitarray/typedarray';
-import type { JSONRecord } from 'archipelago.js';
 import { List, Set as ImmutableSet } from 'immutable';
 import rand from 'pure-rand';
 
 import type { AutopelagoBuff, AutopelagoTrap, VictoryLocationYamlKey } from '../data/resolved-definitions';
+import type { UserRequestedLocation } from '../data/slot-data';
 import type { TargetLocationEvidence } from './target-location-evidence';
-
-export interface UserRequestedLocation extends JSONRecord {
-  location: number;
-  userName: string;
-}
 
 export interface DefiningGameState {
   // values that don't change throughout the entire run:

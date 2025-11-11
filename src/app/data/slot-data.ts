@@ -3,7 +3,6 @@ import type BitArray from '@bitarray/typedarray';
 import type { Client, JSONRecord, PackageMetadata } from 'archipelago.js';
 import { List } from 'immutable';
 import type { Message } from '../archipelago-client';
-import type { UserRequestedLocation } from '../game/defining-state';
 import type { TargetLocationEvidence } from '../game/target-location-evidence';
 import type { ConnectScreenStore } from '../store/connect-screen.store';
 import type { ToJSONSerializable } from '../util';
@@ -47,6 +46,11 @@ export interface AutopelagoSlotData extends JSONRecord {
   msg_exit_bk: AutopelagoUserCustomizableMessage[];
   msg_completed_goal: AutopelagoUserCustomizableMessage[];
   lactose_intolerant: boolean;
+}
+
+export interface UserRequestedLocation extends JSONRecord {
+  location: number;
+  userName: string;
 }
 
 export interface AutopelagoStoredData extends JSONRecord {
