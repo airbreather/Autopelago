@@ -3,6 +3,11 @@ import type { TurnState } from '../turn-state';
 
 function extractDefiningProps(state: DefiningGameState): DefiningGameState {
   return {
+    lactoseIntolerant: state.lactoseIntolerant,
+    locationIsProgression: state.locationIsProgression,
+    locationIsTrap: state.locationIsTrap,
+    processedReceivedItemCount: state.processedReceivedItemCount,
+    workDone: state.workDone,
     victoryLocationYamlKey: state.victoryLocationYamlKey,
     enabledBuffs: state.enabledBuffs,
     enabledTraps: state.enabledTraps,
@@ -18,7 +23,7 @@ function extractDefiningProps(state: DefiningGameState): DefiningGameState {
     currentLocation: state.currentLocation,
     auraDrivenLocations: state.auraDrivenLocations,
     userRequestedLocations: state.userRequestedLocations,
-    previousLocationEvidence: state.previousLocationEvidence,
+    previousTargetLocationEvidence: state.previousTargetLocationEvidence,
     receivedItems: state.receivedItems,
     checkedLocations: state.checkedLocations,
     prng: state.prng,

@@ -3,7 +3,8 @@ import type BitArray from '@bitarray/typedarray';
 import type { Client, JSONRecord, PackageMetadata } from 'archipelago.js';
 import { List } from 'immutable';
 import type { Message } from '../archipelago-client';
-import type { LocationEvidence } from '../game/location-evidence';
+import type { UserRequestedLocation } from '../game/defining-state';
+import type { TargetLocationEvidence } from '../game/target-location-evidence';
 import type { ConnectScreenStore } from '../store/connect-screen.store';
 import type { ToJSONSerializable } from '../util';
 import type {
@@ -61,7 +62,7 @@ export interface AutopelagoStoredData extends JSONRecord {
   sluggishCarryover: boolean;
   processedReceivedItemCount: number;
   currentLocation: number;
-  previousLocationEvidence: ToJSONSerializable<LocationEvidence>;
-  priorityPriorityLocations: number[];
-  priorityLocations: number[];
+  previousTargetLocationEvidence: ToJSONSerializable<TargetLocationEvidence>;
+  auraDrivenLocations: number[];
+  userRequestedLocations: UserRequestedLocation[];
 }

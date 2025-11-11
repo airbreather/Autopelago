@@ -55,14 +55,10 @@ export class ProgressionItemStatus {
   constructor() {
     this.items = computed(() => {
       const victoryLocationYamlKey = this.#gameStore.victoryLocationYamlKey();
-      if (!victoryLocationYamlKey) {
-        return [];
-      }
-
       const lactoseIntolerant = this.#gameStore.lactoseIntolerant();
       return PROGRESSION_ITEMS_BY_VICTORY_LOCATION[victoryLocationYamlKey].map((itemYamlKey, index) => {
         const item = BAKED_DEFINITIONS_FULL.progressionItemsByYamlKey.get(itemYamlKey) ?? -1;
-        const collected = computed(() => this.#gameStore.receivedItemCountLookup().get(item, 0) > 0);
+        const collected = computed(() => this.#gameStore.receivedItemCountLookup()[item] > 0);
         return {
           name: lactoseIntolerant
             ? BAKED_DEFINITIONS_FULL.allItems[item].lactoseIntolerantName

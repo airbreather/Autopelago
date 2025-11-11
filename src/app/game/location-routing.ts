@@ -1,32 +1,53 @@
 import BitArray from '@bitarray/typedarray';
 import Queue from 'yocto-queue';
 
-import type { AutopelagoDefinitions, AutopelagoRegion, AutopelagoRequirement } from '../data/resolved-definitions';
+import {
+  type AutopelagoDefinitions,
+  type AutopelagoRegion,
+  type AutopelagoRequirement,
+  BAKED_DEFINITIONS_FULL,
+} from '../data/resolved-definitions';
 import type { EnumVal } from '../util';
+import type { UserRequestedLocation } from './defining-state';
+
+export function buildRequirementIsSatisfied(relevantItemCount: readonly number[]): (req: AutopelagoRequirement) => boolean {
+  const allItems = BAKED_DEFINITIONS_FULL.allItems;
+  const ratCount = relevantItemCount.reduce((acc, val, i) => acc + (val * allItems[i].ratCount), 0);
+
+  function isSatisfied(req: AutopelagoRequirement): boolean {
+    if ('item' in req) {
+      return relevantItemCount[req.item] >= 1;
+    }
+
+    if ('ratCount' in req) {
+      return ratCount >= req.ratCount;
+    }
+
+    const minRequired = req.minRequired === 'all' ? req.children.length : req.minRequired;
+    return req.children.reduce((acc, req) => acc + (isSatisfied(req) ? 1 : 0), 0) >= minRequired;
+  }
+
+  return isSatisfied;
+}
+
+type VisitResult = 'allow' | 'stop-this-path' | 'stop-all-paths';
+export interface VisitReachableRegionsFromClosestToFarthestOptions {
+  visit(r: number): VisitResult;
+  defs: Readonly<AutopelagoDefinitions>;
+  relevantItemCount: readonly number[];
+  isStartled: boolean;
+  landmarkIsChecked: Readonly<BitArray>;
+  startRegion?: number;
+}
 
 export interface DetermineDesirabilityOptions {
   defs: Readonly<AutopelagoDefinitions>;
   victoryLocation: number;
-  itemCount: readonly number[];
+  relevantItemCount: readonly number[];
   locationIsChecked: Readonly<BitArray>;
   isStartled: boolean;
-  userRequestedLocation: number | null;
-  auraDrivenLocation: number | null;
-}
-
-export interface DetermineTargetLocationOptions {
-  currentLocation: number;
-  defs: Readonly<AutopelagoDefinitions>;
-  desirability: readonly number[];
-}
-
-export interface DetermineRouteOptions {
-  currentLocation: number;
-  targetLocation: number;
-  isStartled: boolean;
-  defs: Readonly<AutopelagoDefinitions>;
-  regionIsLocked: Readonly<BitArray>;
-  locationIsChecked: Readonly<BitArray>;
+  userRequestedLocations: Iterable<UserRequestedLocation>;
+  auraDrivenLocations: Iterable<number>;
 }
 
 export type TargetLocationReason =
@@ -58,11 +79,6 @@ const desirabilityMap: TargetLocationReason[] = [
   'startled',
 ];
 
-export interface TargetLocationResult {
-  location: number;
-  reason: TargetLocationReason;
-}
-
 export function determineDesirability(options: Readonly<DetermineDesirabilityOptions>): EnumVal<typeof Desirability>[] {
   const {
     defs: {
@@ -70,29 +86,15 @@ export function determineDesirability(options: Readonly<DetermineDesirabilityOpt
       startRegion,
       allLocations,
       allRegions,
-      allItems,
     },
     victoryLocation,
-    itemCount,
+    relevantItemCount,
     locationIsChecked,
     isStartled,
-    userRequestedLocation,
-    auraDrivenLocation,
+    userRequestedLocations,
+    auraDrivenLocations,
   } = options;
-  const ratCount = itemCount.reduce((acc, val, i) => acc + (val * allItems[i].ratCount), 0);
-
-  function isSatisfied(req: AutopelagoRequirement): boolean {
-    if ('item' in req) {
-      return itemCount[req.item] >= 1;
-    }
-
-    if ('ratCount' in req) {
-      return ratCount >= req.ratCount;
-    }
-
-    const minRequired = req.minRequired === 'all' ? req.children.length : req.minRequired;
-    return req.children.reduce((acc, req) => acc + (isSatisfied(req) ? 1 : 0), 0) >= minRequired;
-  }
+  const isSatisfied = buildRequirementIsSatisfied(relevantItemCount);
 
   // be VERY careful about the ordering of how we fill this array. earlier blocks get overwritten by
   // later blocks that should take precedence.
@@ -104,13 +106,13 @@ export function determineDesirability(options: Readonly<DetermineDesirabilityOpt
   }
 
   // next precedence: user requested
-  if (userRequestedLocation !== null) {
-    result[userRequestedLocation] = Desirability.USER_REQUESTED;
+  for (const { location } of userRequestedLocations) {
+    result[location] = Desirability.USER_REQUESTED;
   }
 
   // next precedence: aura driven
-  if (auraDrivenLocation !== null) {
-    result[auraDrivenLocation] = Desirability.AURA_DRIVEN;
+  for (const location of auraDrivenLocations) {
+    result[location] = Desirability.AURA_DRIVEN;
   }
 
   // now address the landmarks by walking to each from the start region. determineTargetLocation
@@ -151,6 +153,17 @@ export function determineDesirability(options: Readonly<DetermineDesirabilityOpt
   return result;
 }
 
+export interface TargetLocationResult {
+  readonly location: number;
+  readonly reason: TargetLocationReason;
+}
+
+export interface DetermineTargetLocationOptions {
+  currentLocation: number;
+  defs: Readonly<AutopelagoDefinitions>;
+  desirability: readonly number[];
+}
+
 export function determineTargetLocation(options: Readonly<DetermineTargetLocationOptions>): TargetLocationResult {
   const { currentLocation, defs: { allLocations }, desirability } = options;
   let bestLocation = currentLocation;
@@ -184,6 +197,19 @@ export function determineTargetLocation(options: Readonly<DetermineTargetLocatio
     location: bestLocation,
     reason: desirabilityMap[resultDesirability],
   };
+}
+
+export function targetLocationResultsEqual(a: TargetLocationResult, b: TargetLocationResult): boolean {
+  return a.location === b.location && a.reason === b.reason;
+}
+
+export interface DetermineRouteOptions {
+  currentLocation: number;
+  targetLocation: number;
+  isStartled: boolean;
+  defs: Readonly<AutopelagoDefinitions>;
+  regionIsLocked: Readonly<BitArray>;
+  locationIsChecked: Readonly<BitArray>;
 }
 
 export function determineRoute(options: Readonly<DetermineRouteOptions>): number[] {

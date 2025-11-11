@@ -140,6 +140,7 @@ export interface AutopelagoDefinitions {
 
   allLocations: readonly Readonly<AutopelagoLocation>[];
   allRegions: readonly Readonly<AutopelagoRegion>[];
+  landmarkRegionCount: number;
   startRegion: number;
   startLocation: number;
   locationNameLookup: ReadonlyMap<string, number>;
@@ -354,6 +355,8 @@ function resolveMainDefinitions(
 
     allRegions.push(landmarkRegion);
   }
+
+  const landmarkRegionCount = allRegions.length;
 
   // Process fillers
   const locationCountByFillerRegion: Partial<Record<FillerRegionYamlKey, number>> = {};
@@ -668,6 +671,7 @@ function resolveMainDefinitions(
     itemsWithNonzeroRatCounts,
     allLocations,
     allRegions,
+    landmarkRegionCount,
     startRegion: startRegionIndex,
     startLocation: startLocationIndex,
     itemNameLookup,
@@ -808,10 +812,18 @@ function withVictoryLocation(defs: AutopelagoDefinitions, location: VictoryLocat
     }
   }
 
+  let landmarkRegionCount = 0;
+  for (const newRegion of allRegions) {
+    if ('loc' in newRegion) {
+      ++landmarkRegionCount;
+    }
+  }
+
   return {
     ...defs,
     allLocations,
     allRegions,
+    landmarkRegionCount,
     startRegion: newStartRegion,
     startLocation: newStartLocation,
     locationNameLookup,

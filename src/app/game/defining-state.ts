@@ -1,19 +1,24 @@
-import { List } from 'immutable';
+import type BitArray from '@bitarray/typedarray';
+import type { JSONRecord } from 'archipelago.js';
+import { List, Set as ImmutableSet } from 'immutable';
 import rand from 'pure-rand';
 
 import type { AutopelagoBuff, AutopelagoTrap, VictoryLocationYamlKey } from '../data/resolved-definitions';
-import type { LocationEvidence } from './location-evidence';
+import type { TargetLocationEvidence } from './target-location-evidence';
 
-export interface UserRequestedLocation {
+export interface UserRequestedLocation extends JSONRecord {
   location: number;
   userName: string;
 }
 
 export interface DefiningGameState {
   // values that don't change throughout the entire run:
+  readonly lactoseIntolerant: boolean;
   readonly victoryLocationYamlKey: VictoryLocationYamlKey;
   readonly enabledBuffs: ReadonlySet<AutopelagoBuff>;
   readonly enabledTraps: ReadonlySet<AutopelagoTrap>;
+  readonly locationIsProgression: Readonly<BitArray>;
+  readonly locationIsTrap: Readonly<BitArray>;
 
   // other values that get persisted on the server:
   readonly foodFactor: number;
@@ -25,19 +30,18 @@ export interface DefiningGameState {
   readonly hasConfidence: boolean;
   readonly mercyFactor: number;
   readonly sluggishCarryover: boolean;
+  readonly processedReceivedItemCount: number;
   readonly currentLocation: number;
+  readonly workDone: number;
   readonly auraDrivenLocations: List<number>;
-  readonly userRequestedLocations: List<Readonly<UserRequestedLocation>>;
-  readonly previousLocationEvidence: LocationEvidence;
+  readonly userRequestedLocations: List<UserRequestedLocation>;
+  readonly previousTargetLocationEvidence: TargetLocationEvidence;
 
   // other values that are also persisted on the server, but in a different form:
   readonly receivedItems: List<number>;
-  readonly checkedLocations: List<number>;
+  readonly checkedLocations: ImmutableSet<number>;
 
   // other values that still affect how we transition to the next state, but which can reasonably be
   // dropped
   readonly prng: rand.RandomGenerator;
-
-  // intentionally omitted: anything that can be computed from the above values.
-  // for that, see derived-state.ts.
 }

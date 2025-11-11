@@ -66,7 +66,7 @@ export async function initializeClient(initializeClientOptions: InitializeClient
     storedData = null;
   }
 
-  if (!storedData) {
+  if (storedData === null) {
     storedData = {
       workDone: NaN,
       foodFactor: 0,
@@ -80,9 +80,9 @@ export async function initializeClient(initializeClientOptions: InitializeClient
       sluggishCarryover: false,
       processedReceivedItemCount: 0,
       currentLocation: defs.startLocation,
-      previousLocationEvidence: null,
-      priorityPriorityLocations: [],
-      priorityLocations: [],
+      previousTargetLocationEvidence: null,
+      auraDrivenLocations: [],
+      userRequestedLocations: [],
     };
     await client.storage
       .prepare(storedDataKey, storedData)

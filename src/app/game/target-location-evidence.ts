@@ -2,56 +2,67 @@ import { List } from 'immutable';
 import type { ToJSONSerializable } from '../util';
 import type { UserRequestedLocation } from './defining-state';
 
-interface LocationChosenBecauseStartled {
-  startled: true;
+interface Startled {
+  isStartled: true;
 }
 
-interface LocationChosenBecauseAuraDriven {
-  startled: false;
+interface AuraDriven {
+  isStartled: false;
   firstAuraDrivenLocation: number;
 }
 
-interface LocationChosenBecauseUserRequested {
-  startled: false;
+interface UserRequested {
+  isStartled: false;
   firstAuraDrivenLocation: null;
   clearedOrClearableLandmarks: List<number>;
-  userRequestedLocations: List<Readonly<UserRequestedLocation>>;
+  userRequestedLocations: List<UserRequestedLocation>;
 }
 
-interface LocationChosenBecauseClosestReachableUnchecked {
-  startled: false;
+interface ClosestReachableUncheckedOrNowhereToMove {
+  isStartled: false;
   firstAuraDrivenLocation: null;
   clearedOrClearableLandmarks: List<number>;
   userRequestedLocations: null;
 }
 
-export type LocationEvidence =
+export type TargetLocationEvidence =
   | null
-  | LocationChosenBecauseStartled
-  | LocationChosenBecauseAuraDriven
-  | LocationChosenBecauseUserRequested
-  | LocationChosenBecauseClosestReachableUnchecked
+  | Startled
+  | AuraDriven
+  | UserRequested
+  | ClosestReachableUncheckedOrNowhereToMove
   ;
 
-export function locationEvidenceToJSONSerializable(locationEvidence: LocationEvidence) {
-  if (
-    locationEvidence === null
-    || locationEvidence.startled
-    || locationEvidence.firstAuraDrivenLocation !== null) {
+export function targetLocationEvidenceToJSONSerializable(locationEvidence: TargetLocationEvidence): ToJSONSerializable<TargetLocationEvidence> {
+  if (locationEvidence === null) {
     return null;
   }
 
+  if (locationEvidence.isStartled) {
+    return { isStartled: true };
+  }
+
+  if (typeof locationEvidence.firstAuraDrivenLocation === 'number') {
+    return {
+      isStartled: false,
+      firstAuraDrivenLocation: locationEvidence.firstAuraDrivenLocation,
+    };
+  }
+
   return {
-    ...locationEvidence,
+    isStartled: false,
+    firstAuraDrivenLocation: null,
     clearedOrClearableLandmarks: locationEvidence.clearedOrClearableLandmarks.toJS(),
-    userRequestedLocations: locationEvidence.userRequestedLocations?.toJS() ?? null,
-  };
+    userRequestedLocations: locationEvidence.userRequestedLocations
+      ? [...locationEvidence.userRequestedLocations]
+      : null,
+  } satisfies ToJSONSerializable<TargetLocationEvidence>;
 }
 
-export function locationEvidenceFromJSONSerializable(locationEvidence: ToJSONSerializable<LocationEvidence>) {
+export function targetLocationEvidenceFromJSONSerializable(locationEvidence: ToJSONSerializable<TargetLocationEvidence>) {
   if (
     locationEvidence === null
-    || locationEvidence.startled
+    || locationEvidence.isStartled
     || locationEvidence.firstAuraDrivenLocation !== null) {
     return null;
   }
@@ -65,7 +76,7 @@ export function locationEvidenceFromJSONSerializable(locationEvidence: ToJSONSer
   };
 }
 
-export function locationEvidenceEquals(a: LocationEvidence, b: LocationEvidence) {
+export function targetLocationEvidenceEquals(a: TargetLocationEvidence, b: TargetLocationEvidence) {
   if (a === null) {
     return b === null;
   }
@@ -74,11 +85,11 @@ export function locationEvidenceEquals(a: LocationEvidence, b: LocationEvidence)
     return false;
   }
 
-  if (a.startled) {
-    return b.startled;
+  if (a.isStartled) {
+    return b.isStartled;
   }
 
-  if (b.startled) {
+  if (b.isStartled) {
     return false;
   }
 

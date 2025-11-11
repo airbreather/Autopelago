@@ -2,10 +2,10 @@ import BitArray from '@bitarray/typedarray';
 import { List } from 'immutable';
 import Queue from 'yocto-queue';
 import type { DerivedGameState } from '../derived-state';
-import { type LocationEvidence, locationEvidenceEquals } from '../location-evidence';
+import { type TargetLocationEvidence, targetLocationEvidenceEquals } from '../target-location-evidence';
 import type { TurnState, TurnStateWithConfirmedTargetLocation } from '../turn-state';
 
-function extractLocationEvidence(gameState: DerivedGameState): LocationEvidence {
+function extractLocationEvidence(gameState: DerivedGameState): TargetLocationEvidence {
   const {
     defs: { allRegions },
     startledCounter,
@@ -15,12 +15,12 @@ function extractLocationEvidence(gameState: DerivedGameState): LocationEvidence 
   } = gameState;
 
   if (startledCounter > 0) {
-    return { startled: true };
+    return { isStartled: true };
   }
 
   const firstAuraDrivenLocation = auraDrivenLocations.first() ?? null;
   if (firstAuraDrivenLocation !== null) {
-    return { startled: false, firstAuraDrivenLocation };
+    return { isStartled: false, firstAuraDrivenLocation };
   }
 
   const clearedOrClearableLandmarks = List(
@@ -31,7 +31,7 @@ function extractLocationEvidence(gameState: DerivedGameState): LocationEvidence 
 
   if (userRequestedLocations.size > 0) {
     return {
-      startled: false,
+      isStartled: false,
       firstAuraDrivenLocation: null,
       clearedOrClearableLandmarks: List(clearedOrClearableLandmarks),
       userRequestedLocations: userRequestedLocations,
@@ -39,7 +39,7 @@ function extractLocationEvidence(gameState: DerivedGameState): LocationEvidence 
   }
 
   return {
-    startled: false,
+    isStartled: false,
     firstAuraDrivenLocation: null,
     clearedOrClearableLandmarks: List(clearedOrClearableLandmarks),
     userRequestedLocations: null,
@@ -121,9 +121,9 @@ function findClosestUncheckedLocation(state: TurnState): number | null {
 }
 
 export default function (state: TurnState): TurnStateWithConfirmedTargetLocation {
-  const previousEvidence = state.previousLocationEvidence;
+  const previousEvidence = state.previousTargetLocationEvidence;
   const currentEvidence = extractLocationEvidence(state);
-  const evidenceChanged = !locationEvidenceEquals(previousEvidence, currentEvidence);
+  const evidenceChanged = !targetLocationEvidenceEquals(previousEvidence, currentEvidence);
   let remainingActions = state.remainingActions;
   if (state.confirmedTarget) {
     if (!evidenceChanged) {
@@ -137,7 +137,7 @@ export default function (state: TurnState): TurnStateWithConfirmedTargetLocation
   return {
     ...state,
     remainingActions,
-    previousLocationEvidence: currentEvidence,
+    previousTargetLocationEvidence: currentEvidence,
     confirmedTarget: true,
     ...calculateTargetLocation(state),
   };
