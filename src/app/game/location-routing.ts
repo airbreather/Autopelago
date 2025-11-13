@@ -206,12 +206,34 @@ export function targetLocationResultsEqual(a: TargetLocationResult, b: TargetLoc
 export interface DetermineRouteOptions {
   currentLocation: number;
   targetLocation: number;
-  isStartled: boolean;
   defs: Readonly<AutopelagoDefinitions>;
   regionIsLocked: Readonly<BitArray>;
-  locationIsChecked: Readonly<BitArray>;
 }
 
 export function determineRoute(options: Readonly<DetermineRouteOptions>): number[] {
-  return [...new Set([options.currentLocation, options.targetLocation])];
+  const { currentLocation, targetLocation, defs: { allLocations }, regionIsLocked } = options;
+  const prev = allLocations.map(() => ({ l: NaN, d: Infinity }));
+  prev[currentLocation].d = 0;
+  const q = new Queue<number>();
+  q.enqueue(currentLocation);
+  for (let l = q.dequeue(); l !== undefined; l = q.dequeue()) {
+    for (const [l2] of allLocations[l].connected.all) {
+      if (prev[l2].d > prev[l].d + 1 && !regionIsLocked[allLocations[l2].regionLocationKey[0]]) {
+        prev[l2].d = prev[l].d + 1;
+        prev[l2].l = l;
+        q.enqueue(l2);
+      }
+    }
+
+    if (prev[targetLocation].d !== Infinity) {
+      break;
+    }
+  }
+
+  const result: number[] = [];
+  for (let l = targetLocation; !Number.isNaN(l); l = prev[l].l) {
+    result.push(l);
+  }
+
+  return result.reverse();
 }

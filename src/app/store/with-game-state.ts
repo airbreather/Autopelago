@@ -1,6 +1,6 @@
-import { computed } from '@angular/core';
+import { computed, untracked } from '@angular/core';
 import BitArray from '@bitarray/typedarray';
-import { signalStoreFeature, withComputed, withState } from '@ngrx/signals';
+import { patchState, signalStoreFeature, withComputed, withMethods, withState } from '@ngrx/signals';
 import { itemClassifications } from 'archipelago.js';
 import { List, Set as ImmutableSet } from 'immutable';
 import rand from 'pure-rand';
@@ -16,6 +16,7 @@ import {
   buildRequirementIsSatisfied,
   Desirability,
   determineDesirability,
+  determineRoute,
   determineTargetLocation,
   type TargetLocationResult,
   targetLocationResultsEqual,
@@ -26,7 +27,7 @@ import {
   targetLocationEvidenceEquals,
   targetLocationEvidenceToJSONSerializable,
 } from '../game/target-location-evidence';
-import type { EnumVal } from '../util';
+import { type EnumVal, type Mutable } from '../util';
 
 function arraysEqual(a: readonly number[], b: readonly number[]) {
   return a.length === b.length && a.every((v, i) => v === b[i]);
@@ -88,6 +89,8 @@ const initialState: DefiningGameState = {
   receivedItems: List<number>(),
   checkedLocations: ImmutableSet<number>(),
   prng: rand.xoroshiro128plus(42),
+  outgoingCheckedLocations: ImmutableSet<number>(),
+  outgoingVictory: false,
 };
 
 export function withGameState() {
@@ -253,6 +256,17 @@ export function withGameState() {
       const targetLocationReason = computed(() => {
         return _targetLocationDetail().reason;
       });
+      const targetLocationRoute = computed(() => {
+        return determineRoute({
+          // when ONLY the current location changes, that's just because the player is traversing
+          // the route that we calculated. this is expensive enough that it's preferable to have our
+          // callers have to look for where their current location is along the route each time.
+          currentLocation: untracked(() => store.currentLocation()),
+          targetLocation: targetLocation(),
+          defs: defs(),
+          regionIsLocked: isStartled() ? _regionLocks().regionIsSoftLocked : _regionLocks().regionIsHardLocked,
+        });
+      });
       const asStoredData = computed<AutopelagoStoredData>(() => ({
         foodFactor: store.foodFactor(),
         luckFactor: store.luckFactor(),
@@ -290,8 +304,137 @@ export function withGameState() {
         _targetLocationDetail,
         targetLocation,
         targetLocationReason,
+        targetLocationRoute,
         asStoredData,
       };
     }),
+    withMethods(store => ({
+      advance() {
+        let remainingActions = 3;
+        patchState(store, (prev) => {
+          const result = { } as Mutable<Partial<typeof prev>>;
+
+          if (prev.sluggishCarryover) {
+            remainingActions--;
+            result.sluggishCarryover = false;
+          }
+
+          if (prev.foodFactor < 0) {
+            remainingActions--;
+            result.foodFactor = prev.foodFactor + 1;
+          }
+          else if (prev.foodFactor > 0) {
+            remainingActions++;
+            result.foodFactor = prev.foodFactor - 1;
+          }
+
+          if (prev.distractionCounter > 0) {
+            // being startled takes priority over a distraction. you just saw a ghost, you're not
+            // thinking about the Rubik's Cube that you got at about the same time!
+            if (prev.startledCounter === 0) {
+              remainingActions = 0;
+            }
+
+            result.distractionCounter = prev.distractionCounter - 1;
+          }
+
+          return result;
+        });
+
+        // these two will be needed for the TODO below.
+        /*
+        let locationAttempts = 0;
+        let checkedAnyLocations = false;
+        */
+        let confirmedTarget = false;
+
+        // positive energyFactor lets the player make up to 2x as much distance in a single round of
+        // (only) movement. in the past, this was uncapped, which basically meant that the player
+        // would often teleport great distances, which was against the spirit of the whole thing.
+        let energyBank = remainingActions;
+        while (remainingActions > 0 && store.checkedLocations().size < store.defs().allLocations.length) {
+          patchState(store, (prev) => {
+            const result = { } as Mutable<Partial<typeof prev>>;
+
+            --remainingActions;
+            if (!confirmedTarget) {
+              const targetLocationEvidence = store.targetLocationEvidence();
+              if (!targetLocationEvidenceEquals(prev.previousTargetLocationEvidence, targetLocationEvidence)) {
+                if (prev.startledCounter > 0) {
+                  ++remainingActions;
+                }
+
+                result.previousTargetLocationEvidence = targetLocationEvidence;
+                confirmedTarget = true;
+                return result;
+              }
+            }
+
+            let moved = false;
+            result.currentLocation = prev.currentLocation;
+            const targetLocation = store.targetLocation();
+            if (result.currentLocation !== targetLocation) {
+              if (prev.energyFactor < 0) {
+                --remainingActions;
+                result.energyFactor = prev.energyFactor + 1;
+              }
+              else if (prev.energyFactor > 0 && energyBank > 0) {
+                ++remainingActions;
+                --energyBank;
+                result.energyFactor = prev.energyFactor - 1;
+              }
+
+              // we're not in the right spot, so we're going to move at least a bit. playtesting
+              // has shown that very long moves can be very boring (and a little too frequent). to
+              // combat this, every time the player decides to move, they can advance up to three
+              // whole spaces towards their target. this keeps the overall progression speed the
+              // same in dense areas.
+              const route = store.targetLocationRoute();
+              let j = 0;
+              while (route[j] !== result.currentLocation) {
+                j++;
+              }
+              for (let i = 0; i < 3 && result.currentLocation !== targetLocation; i++) {
+                result.currentLocation = route[++j];
+                moved = true;
+              }
+            }
+
+            if (!moved && prev.startledCounter === 0 && !(store.locationIsChecked()[result.currentLocation])) {
+              // TODO: roll for it, don't just auto-succeed
+              result.outgoingCheckedLocations = prev.outgoingCheckedLocations.add(result.currentLocation);
+            }
+
+            if (result.currentLocation === targetLocation) {
+              switch (store.targetLocationReason()) {
+                case 'user-requested':
+                  result.userRequestedLocations = prev.userRequestedLocations.filter(l => l.location !== targetLocation);
+                  break;
+
+                case 'aura-driven':
+                  result.auraDrivenLocations = prev.auraDrivenLocations.filter(l => l !== targetLocation);
+                  break;
+
+                case 'go-mode':
+                  result.outgoingVictory = true;
+                  break;
+              }
+            }
+
+            return result;
+          });
+        }
+
+        patchState(store, (prev) => {
+          const result = { } as Mutable<Partial<typeof prev>>;
+          result.sluggishCarryover = remainingActions < 0;
+          if (prev.startledCounter > 0) {
+            result.startledCounter = prev.startledCounter - 1;
+          }
+
+          return result;
+        });
+      },
+    })),
   );
 }

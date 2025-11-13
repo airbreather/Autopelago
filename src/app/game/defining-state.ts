@@ -39,4 +39,8 @@ export interface DefiningGameState {
   // other values that still affect how we transition to the next state, but which can reasonably be
   // dropped
   readonly prng: rand.RandomGenerator;
+
+  // other values used to signal what we need to send to the server:
+  outgoingCheckedLocations: ImmutableSet<number>;
+  outgoingVictory: boolean;
 }

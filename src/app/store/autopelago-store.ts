@@ -1,6 +1,7 @@
+import { effect } from '@angular/core';
 import BitArray from '@bitarray/typedarray';
 
-import { patchState, signalStore, withMethods } from '@ngrx/signals';
+import { patchState, signalStore, withHooks, withMethods, withState } from '@ngrx/signals';
 import { List, Set as ImmutableSet } from 'immutable';
 import Queue from 'yocto-queue';
 import {
@@ -10,16 +11,16 @@ import {
 } from '../data/resolved-definitions';
 import type { AutopelagoClientAndData } from '../data/slot-data';
 import type { DefiningGameState } from '../game/defining-state';
-import { endTurn, performTurnAction, startTurn } from '../game/state-functions';
-import derive from '../game/state-functions/derive';
 import { targetLocationEvidenceFromJSONSerializable } from '../game/target-location-evidence';
-import type { TurnState } from '../game/turn-state';
 import { withCleverTimer } from './with-clever-timer';
 import { withGameState } from './with-game-state';
 
 export const GameStore = signalStore(
   withCleverTimer(),
   withGameState(),
+  withState({
+    game: null as AutopelagoClientAndData | null,
+  }),
   withMethods((store) => {
     function _receiveItems(items: Iterable<number>) {
       const { allItems, allLocations } = store.defs();
@@ -181,70 +182,10 @@ export const GameStore = signalStore(
           });
         });
 
-        result.processedReceivedItemCount = result.receivedItems.size;
+        result.processedReceivedItemCount += result.receivedItems.size;
         return result;
       });
     }
-    function advance() {
-      if (store.checkedLocations().size === store.defs().allLocations.length) {
-        return;
-      }
-
-      const gameState: DefiningGameState = {
-        lactoseIntolerant: store.lactoseIntolerant(),
-        victoryLocationYamlKey: store.victoryLocationYamlKey(),
-        enabledBuffs: store.enabledBuffs(),
-        enabledTraps: store.enabledTraps(),
-        locationIsProgression: store.locationIsProgression(),
-        locationIsTrap: store.locationIsTrap(),
-        foodFactor: store.foodFactor(),
-        luckFactor: store.luckFactor(),
-        energyFactor: store.energyFactor(),
-        styleFactor: store.styleFactor(),
-        distractionCounter: store.distractionCounter(),
-        startledCounter: store.startledCounter(),
-        hasConfidence: store.hasConfidence(),
-        mercyFactor: store.mercyFactor(),
-        sluggishCarryover: store.sluggishCarryover(),
-        processedReceivedItemCount: store.processedReceivedItemCount(),
-        currentLocation: store.currentLocation(),
-        workDone: store.workDone(),
-        auraDrivenLocations: store.auraDrivenLocations(),
-        userRequestedLocations: store.userRequestedLocations(),
-        previousTargetLocationEvidence: store.previousTargetLocationEvidence(),
-        receivedItems: store.receivedItems(),
-        checkedLocations: store.checkedLocations(),
-        prng: store.prng(),
-      };
-
-      let turnState: TurnState = startTurn(derive(gameState));
-      while (turnState.remainingActions > 0) {
-        turnState = performTurnAction(turnState);
-      }
-
-      const finalGameState = endTurn(turnState);
-      patchState(store, {
-        foodFactor: finalGameState.foodFactor,
-        luckFactor: finalGameState.luckFactor,
-        energyFactor: finalGameState.energyFactor,
-        styleFactor: finalGameState.styleFactor,
-        distractionCounter: finalGameState.distractionCounter,
-        startledCounter: finalGameState.startledCounter,
-        hasConfidence: finalGameState.hasConfidence,
-        mercyFactor: finalGameState.mercyFactor,
-        sluggishCarryover: finalGameState.sluggishCarryover,
-        processedReceivedItemCount: finalGameState.processedReceivedItemCount,
-        currentLocation: finalGameState.currentLocation,
-        workDone: finalGameState.workDone,
-        auraDrivenLocations: finalGameState.auraDrivenLocations,
-        userRequestedLocations: finalGameState.userRequestedLocations,
-        previousTargetLocationEvidence: finalGameState.previousTargetLocationEvidence,
-        receivedItems: finalGameState.receivedItems,
-        checkedLocations: finalGameState.checkedLocations,
-        prng: finalGameState.prng,
-      });
-    }
-
     function init(game: AutopelagoClientAndData) {
       const { client, pkg, slotData, storedData, locationIsProgression, locationIsTrap } = game;
 
@@ -253,6 +194,7 @@ export const GameStore = signalStore(
       const locationNameLookup = BAKED_DEFINITIONS_BY_VICTORY_LANDMARK[victoryLocationYamlKey].locationNameLookup;
       patchState(store, {
         ...storedData,
+        game,
         locationIsProgression,
         locationIsTrap,
         lactoseIntolerant: slotData.lactose_intolerant,
@@ -291,14 +233,42 @@ export const GameStore = signalStore(
       });
 
       setInterval(() => {
-        advance();
+        store.advance();
       }, 1000);
     }
 
     return {
       _receiveItems,
       init,
-      advance,
     };
+  }),
+  withHooks({
+    onInit(store) {
+      effect(() => {
+        const game = store.game();
+        if (!game) {
+          return;
+        }
+
+        const outgoingCheckedLocations = store.outgoingCheckedLocations();
+        if (outgoingCheckedLocations.size > 0) {
+          const defs = store.defs();
+          const locationNameLookup = game.pkg.locationTable;
+          game.client.check(...outgoingCheckedLocations.map(l => locationNameLookup[defs.allLocations[l].name]));
+          patchState(store, { outgoingCheckedLocations: outgoingCheckedLocations.clear() });
+        }
+      });
+
+      effect(() => {
+        const game = store.game();
+        if (!game) {
+          return;
+        }
+
+        if (store.outgoingVictory()) {
+          game.client.goal();
+        }
+      });
+    },
   }),
 );

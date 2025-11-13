@@ -6,6 +6,13 @@ import { Observable, Subscription } from 'rxjs';
 
 export type EnumVal<T extends object> = T[keyof T];
 
+export type Mutable<T> = {
+  -readonly [P in keyof T]: T[P];
+};
+export function shallowCloneAsMutable<T extends object>(obj: T): Mutable<T> {
+  return { ...obj };
+}
+
 // BEGIN section that was discovered by:
 // https://dev.to/harry0000/a-bit-convenient-typescript-type-definitions-for-objectentries-d6g
 type TupleEntry<T extends readonly unknown[], I extends unknown[] = [], R = never> =
