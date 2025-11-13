@@ -91,6 +91,7 @@ const initialState: DefiningGameState = {
   prng: rand.xoroshiro128plus(42),
   outgoingCheckedLocations: ImmutableSet<number>(),
   outgoingVictory: false,
+  outgoingMoves: List<readonly [number, number]>(),
 };
 
 export function withGameState() {
@@ -309,6 +310,13 @@ export function withGameState() {
       };
     }),
     withMethods(store => ({
+      consumeOutgoingMoves() {
+        const outgoingMoves = store.outgoingMoves();
+        if (outgoingMoves.size > 0) {
+          patchState(store, { outgoingMoves: outgoingMoves.clear() });
+        }
+        return outgoingMoves;
+      },
       advance() {
         let remainingActions = 3;
         patchState(store, (prev) => {
@@ -395,7 +403,11 @@ export function withGameState() {
                 j++;
               }
               for (let i = 0; i < 3 && result.currentLocation !== targetLocation; i++) {
-                result.currentLocation = route[++j];
+                if (!('outgoingMoves' in result)) {
+                  result.outgoingMoves = prev.outgoingMoves;
+                }
+
+                result.outgoingMoves = result.outgoingMoves.push([result.currentLocation, result.currentLocation = route[++j]]);
                 moved = true;
               }
             }

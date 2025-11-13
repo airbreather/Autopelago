@@ -40,7 +40,8 @@ export interface DefiningGameState {
   // dropped
   readonly prng: rand.RandomGenerator;
 
-  // other values used to signal what we need to send to the server:
+  // other values used to indicate autonomous actions that haven't been observed yet:
   outgoingCheckedLocations: ImmutableSet<number>;
   outgoingVictory: boolean;
+  outgoingMoves: List<readonly [number, number]>;
 }

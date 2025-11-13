@@ -82,6 +82,10 @@ export const GameStore = signalStore(
             for (const item of items) {
               const itemFull = allItems[item];
               r.push(item);
+              if (r.size <= result.processedReceivedItemCount) {
+                continue;
+              }
+
               let subtractConfidence = false;
               let addConfidence = false;
               for (const aura of itemFull.aurasGranted) {
@@ -179,10 +183,15 @@ export const GameStore = signalStore(
                 result.hasConfidence = true;
               }
             }
+
+            // Startled is extremely punishing. after a big release, it can be very annoying to just
+            // sit there and wait for too many turns in a row. same concept applies to Distracted.
+            result.startledCounter = Math.min(result.startledCounter, 3);
+            result.distractionCounter = Math.min(result.distractionCounter, 3);
           });
         });
 
-        result.processedReceivedItemCount += result.receivedItems.size;
+        result.processedReceivedItemCount = result.receivedItems.size;
         return result;
       });
     }

@@ -27,6 +27,7 @@ import {
   Texture,
   Ticker,
 } from 'pixi.js';
+import Queue from 'yocto-queue';
 
 import {
   type Filler,
@@ -35,6 +36,7 @@ import {
   isFillerRegionYamlKey,
   LANDMARKS,
   type LandmarkYamlKey,
+  type Vec2,
 } from '../../../../data/locations';
 import {
   BAKED_DEFINITIONS_BY_VICTORY_LANDMARK,
@@ -306,11 +308,11 @@ export class GameTabMap {
     const fillerMarkersContainer = signal<Container | null>(null);
     effect(() => {
       const fillerMarkers = fillerMarkersContainer();
-      const victoryLocationYamlKey = this.#store.victoryLocationYamlKey();
-      if (!(fillerMarkers && victoryLocationYamlKey)) {
+      if (!fillerMarkers) {
         return;
       }
 
+      const victoryLocationYamlKey = this.#store.victoryLocationYamlKey();
       const checkedLocations = this.#store.checkedLocations();
       const defs = BAKED_DEFINITIONS_BY_VICTORY_LANDMARK[victoryLocationYamlKey];
       const coordsByRegion = fillerCoordsByRegionLookup[victoryLocationYamlKey];
@@ -342,13 +344,13 @@ export class GameTabMap {
       const outerDiv = this.outerDiv().nativeElement;
       const enableRatAnimations = this.game().connectScreenStore.enableRatAnimations();
       const enableTileAnimations = this.game().connectScreenStore.enableTileAnimations();
-      const victoryLocationYamlKey = this.#store.victoryLocationYamlKey();
       const playerTokenTexture = playerTokenTextureResource.value();
       const landmarkSpritesheet = landmarkSpritesheetResource.value();
-      if (!(playerTokenTexture && landmarkSpritesheet && victoryLocationYamlKey)) {
+      if (!(playerTokenTexture && landmarkSpritesheet)) {
         return;
       }
 
+      const victoryLocationYamlKey = this.#store.victoryLocationYamlKey();
       canvas.height = VICTORY_LOCATION_CROP_LOOKUP[victoryLocationYamlKey];
       const reciprocalOriginalWidth = 1 / canvas.width;
       const reciprocalOriginalHeight = 1 / canvas.height;
@@ -397,29 +399,77 @@ export class GameTabMap {
       })();
     });
 
+    const MOVE_DUR = 100;
+    let prog = 0;
+    const queuedMoves = new Queue<{ from: Vec2; to: Vec2 }>();
+    let animatePlayerMoveCallback: ((t: Ticker) => void) | null = null;
     effect(() => {
       const playerTokenNotNull = playerToken();
-      const victoryLocationYamlKey = this.#store.victoryLocationYamlKey();
-      const currentLocation = this.#store.currentLocation();
-      if (!(playerTokenNotNull && victoryLocationYamlKey && currentLocation)) {
+      if (!playerTokenNotNull) {
         return;
       }
 
-      const defs = BAKED_DEFINITIONS_BY_VICTORY_LANDMARK[victoryLocationYamlKey];
-      const [x, y] = defs.allLocations[currentLocation].coords;
-      playerTokenNotNull.position.set(x, y);
+      const moves = this.#store.consumeOutgoingMoves();
+      if (moves.size === 0) {
+        return;
+      }
+
+      const defs = this.#store.defs();
+      for (const [prev, next] of moves) {
+        const prevCoords = defs.allLocations[prev].coords;
+        const nextCoords = defs.allLocations[next].coords;
+        queuedMoves.enqueue({ from: [...prevCoords], to: nextCoords });
+      }
+
+      if (animatePlayerMoveCallback !== null) {
+        return;
+      }
+
+      animatePlayerMoveCallback = (t) => {
+        if (animatePlayerMoveCallback === null) {
+          return;
+        }
+
+        prog += t.deltaMS;
+        while (prog >= MOVE_DUR) {
+          const fullMove = queuedMoves.dequeue();
+          if (queuedMoves.size === 0 && fullMove !== undefined) {
+            playerTokenNotNull.position.set(...defs.allLocations[this.#store.currentLocation()].coords);
+            t.remove(animatePlayerMoveCallback);
+            animatePlayerMoveCallback = null;
+            prog = 0;
+            return;
+          }
+
+          prog -= MOVE_DUR;
+        }
+
+        const nextMove = queuedMoves.peek();
+        if (nextMove === undefined) {
+          playerTokenNotNull.position.set(...defs.allLocations[this.#store.currentLocation()].coords);
+          t.remove(animatePlayerMoveCallback);
+          animatePlayerMoveCallback = null;
+          prog = 0;
+          return;
+        }
+
+        const fraction = prog / MOVE_DUR;
+        const x = nextMove.from[0] + (nextMove.to[0] - nextMove.from[0]) * fraction;
+        const y = nextMove.from[1] + (nextMove.to[1] - nextMove.from[1]) * fraction;
+        playerTokenNotNull.position.set(x, y);
+      };
+      Ticker.shared.add(animatePlayerMoveCallback);
     });
 
     effect(() => {
-      const victoryLocationYamlKey = this.#store.victoryLocationYamlKey();
       const landmarkMarkersContainerNotNull = landmarkMarkersContainer();
       const landmarkSpriteLookupNotNull = landmarkSpriteLookup();
-      if (!(victoryLocationYamlKey && landmarkMarkersContainerNotNull && landmarkSpriteLookupNotNull)) {
+      if (!(landmarkMarkersContainerNotNull && landmarkSpriteLookupNotNull)) {
         return;
       }
 
       const checkedLocations = this.#store.checkedLocations();
-      const defs = BAKED_DEFINITIONS_BY_VICTORY_LANDMARK[victoryLocationYamlKey];
+      const defs = this.#store.defs();
       for (const [_, landmark] of strictObjectEntries(defs.allRegions)) {
         if (!('loc' in landmark)) {
           continue;
