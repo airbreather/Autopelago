@@ -243,7 +243,7 @@ export const GameStore = signalStore(
 
       setInterval(() => {
         store.advance();
-      }, 1000);
+      }, 400);
     }
 
     return {

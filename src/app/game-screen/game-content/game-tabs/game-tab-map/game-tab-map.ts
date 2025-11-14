@@ -366,6 +366,8 @@ export class GameTabMap {
         });
         Ticker.shared.stop();
 
+        const currentLocation = this.#store.currentLocation();
+        const { allLocations } = this.#store.defs();
         const fillerMarkers = createFillerMarkers(fillerCoordsByRegionLookup[victoryLocationYamlKey]);
         fillerMarkersContainer.set(fillerMarkers);
         app.stage.addChild(fillerMarkers);
@@ -378,6 +380,7 @@ export class GameTabMap {
         const playerTokenNotNull = createPlayerToken(playerTokenTexture, enableRatAnimations, destroyRef);
         app.stage.addChild(playerTokenNotNull);
         playerToken.set(playerTokenNotNull);
+        playerTokenNotNull.position.set(...allLocations[currentLocation].coords);
         Ticker.shared.stop();
 
         resizeEvents(outerDiv).pipe(
@@ -399,7 +402,7 @@ export class GameTabMap {
       })();
     });
 
-    const MOVE_DUR = 100;
+    const MOVE_DUR = 40;
     let prog = 0;
     const queuedMoves = new Queue<{ from: Vec2; to: Vec2 }>();
     let animatePlayerMoveCallback: ((t: Ticker) => void) | null = null;

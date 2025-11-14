@@ -165,7 +165,7 @@ export interface DetermineTargetLocationOptions {
 }
 
 export function determineTargetLocation(options: Readonly<DetermineTargetLocationOptions>): TargetLocationResult {
-  const { currentLocation, defs: { allLocations }, desirability } = options;
+  const { currentLocation, defs: { allLocations, allRegions }, desirability } = options;
   let bestLocation = currentLocation;
   let resultDesirability = -1;
   const visited = new BitArray(allLocations.length);
@@ -193,6 +193,35 @@ export function determineTargetLocation(options: Readonly<DetermineTargetLocatio
     }
   }
 
+  if (resultDesirability > Desirability.UNCHECKED && resultDesirability < Desirability.STARTLED) {
+    // anything "weird" considers locations past soft-locked landmarks. for now, route calculation
+    // assumes that you can walk through the entire path without checking landmarks in between, so
+    // for now we need to actually target the closest unchecked landmark along the path, if any.
+    const prev = allRegions.map(() => ({ r: NaN, d: Infinity }));
+    const currentRegion = allLocations[currentLocation].regionLocationKey[0];
+    prev[currentRegion].d = 0;
+    q.enqueue(currentRegion);
+    for (let r = q.dequeue(); r !== undefined; r = q.dequeue()) {
+      const d = prev[r].d + 1;
+      for (const [r2] of allRegions[r].connected.all) {
+        if (prev[r2].d > d && !('loc' in allRegions[r2] && desirability[allRegions[r2].loc] === Desirability.AVOID)) {
+          prev[r2].d = d;
+          prev[r2].r = r;
+          q.enqueue(r2);
+        }
+      }
+    }
+
+    for (let r = allLocations[bestLocation].regionLocationKey[0]; !Number.isNaN(r); r = prev[r].r) {
+      const region = allRegions[r];
+      if ('loc' in region) {
+        if (desirability[region.loc] === Desirability.UNCHECKED) {
+          bestLocation = region.loc;
+        }
+      }
+    }
+  }
+
   return {
     location: bestLocation,
     reason: desirabilityMap[resultDesirability],
@@ -207,21 +236,25 @@ export interface DetermineRouteOptions {
   currentLocation: number;
   targetLocation: number;
   defs: Readonly<AutopelagoDefinitions>;
-  regionIsLocked: Readonly<BitArray>;
+  regionIsHardLocked: Readonly<BitArray>;
+  regionIsSoftLocked: Readonly<BitArray>;
 }
 
 export function determineRoute(options: Readonly<DetermineRouteOptions>): number[] {
-  const { currentLocation, targetLocation, defs: { allLocations }, regionIsLocked } = options;
+  const { currentLocation, targetLocation, defs: { allLocations }, regionIsSoftLocked, regionIsHardLocked } = options;
   const prev = allLocations.map(() => ({ l: NaN, d: Infinity }));
   prev[currentLocation].d = 0;
   const q = new Queue<number>();
   q.enqueue(currentLocation);
   for (let l = q.dequeue(); l !== undefined; l = q.dequeue()) {
+    const d = prev[l].d + 1;
     for (const [l2] of allLocations[l].connected.all) {
-      if (prev[l2].d > prev[l].d + 1 && !regionIsLocked[allLocations[l2].regionLocationKey[0]]) {
-        prev[l2].d = prev[l].d + 1;
+      if (prev[l2].d > d && !regionIsHardLocked[allLocations[l2].regionLocationKey[0]]) {
+        prev[l2].d = d;
         prev[l2].l = l;
-        q.enqueue(l2);
+        if (!regionIsSoftLocked[allLocations[l2].regionLocationKey[0]]) {
+          q.enqueue(l2);
+        }
       }
     }
 

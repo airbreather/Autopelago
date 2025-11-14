@@ -192,8 +192,8 @@ export class AurasDisplay {
 
   readonly distraction = this.#gameStore.distractionCounter;
   readonly startled = this.#gameStore.startledCounter;
-  readonly smart = signal(false);
-  readonly conspiratorial = signal(true);
+  readonly smart = this.#gameStore.targetLocationChosenBecauseSmart;
+  readonly conspiratorial = this.#gameStore.targetLocationChosenBecauseConspiratorial;
   readonly stylish = this.#gameStore.styleFactor;
   readonly confidence = signal(false);
 

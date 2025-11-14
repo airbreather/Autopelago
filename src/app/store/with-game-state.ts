@@ -257,6 +257,12 @@ export function withGameState() {
       const targetLocationReason = computed(() => {
         return _targetLocationDetail().reason;
       });
+      const targetLocationChosenBecauseSmart = computed(() => {
+        return targetLocationReason() === 'aura-driven' && store.locationIsProgression()[targetLocation()];
+      });
+      const targetLocationChosenBecauseConspiratorial = computed(() => {
+        return targetLocationReason() === 'aura-driven' && store.locationIsTrap()[targetLocation()];
+      });
       const targetLocationRoute = computed(() => {
         return determineRoute({
           // when ONLY the current location changes, that's just because the player is traversing
@@ -265,7 +271,8 @@ export function withGameState() {
           currentLocation: untracked(() => store.currentLocation()),
           targetLocation: targetLocation(),
           defs: defs(),
-          regionIsLocked: isStartled() ? _regionLocks().regionIsSoftLocked : _regionLocks().regionIsHardLocked,
+          regionIsHardLocked: isStartled() ? _regionLocks().regionIsSoftLocked : _regionLocks().regionIsHardLocked,
+          regionIsSoftLocked: _regionLocks().regionIsSoftLocked,
         });
       });
       const asStoredData = computed<AutopelagoStoredData>(() => ({
@@ -305,6 +312,8 @@ export function withGameState() {
         _targetLocationDetail,
         targetLocation,
         targetLocationReason,
+        targetLocationChosenBecauseSmart,
+        targetLocationChosenBecauseConspiratorial,
         targetLocationRoute,
         asStoredData,
       };
@@ -401,6 +410,9 @@ export function withGameState() {
               let j = 0;
               while (route[j] !== result.currentLocation) {
                 j++;
+                if (j >= route.length) {
+                  throw new Error('route did not contain the current location!');
+                }
               }
               for (let i = 0; i < 3 && result.currentLocation !== targetLocation; i++) {
                 if (!('outgoingMoves' in result)) {

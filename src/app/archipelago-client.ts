@@ -101,11 +101,11 @@ export async function initializeClient(initializeClientOptions: InitializeClient
   const locationIsTrap = new BitArray(defs.allLocations.length);
   for (const item of items) {
     if (item.progression) {
-      locationIsProgression[locationNetworkNameLookup[item.locationName]] = 1;
+      locationIsProgression[defs.locationNameLookup.get(item.locationName) ?? -1] = 1;
     }
 
     if (item.trap) {
-      locationIsTrap[locationNetworkNameLookup[item.locationName]] = 1;
+      locationIsTrap[defs.locationNameLookup.get(item.locationName) ?? -1] = 1;
     }
   }
 
