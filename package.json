@@ -31,7 +31,6 @@
   "private": true,
   "dependencies": {
     "@angular-architects/ngrx-toolkit": "^20.4.2",
-    "@angular/animations": "^20.3.10",
     "@angular/common": "^20.3.10",
     "@angular/compiler": "^20.3.10",
     "@angular/core": "^20.3.10",
