@@ -427,6 +427,20 @@ export function withGameState() {
             if (!moved && prev.startledCounter === 0 && !(store.locationIsChecked()[result.currentLocation])) {
               // TODO: roll for it, don't just auto-succeed
               result.outgoingCheckedLocations = prev.outgoingCheckedLocations.add(result.currentLocation);
+
+              // at least adjust the aura, though.
+              if (prev.luckFactor > 0) {
+                result.luckFactor = prev.luckFactor - 1;
+              }
+              else {
+                if (prev.styleFactor > 0) {
+                  result.styleFactor = prev.styleFactor - 1;
+                }
+
+                if (prev.luckFactor < 0) {
+                  result.luckFactor = prev.luckFactor + 1;
+                }
+              }
             }
 
             if (result.currentLocation === targetLocation) {
