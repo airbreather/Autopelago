@@ -1,11 +1,10 @@
 import { withImmutableState } from '@angular-architects/ngrx-toolkit';
-import { effect } from '@angular/core';
-import { patchState, signalStoreFeature, withHooks, withMethods, withProps } from '@ngrx/signals';
-import { List } from 'immutable';
+import { patchState, signalStoreFeature, withMethods, withProps } from '@ngrx/signals';
 
 interface PausableTimerBase {
   running: boolean;
-  remainingDuration: number;
+  registerCallback(this: void, callback: (this: void) => void): void;
+  unregisterCallback(this: void, callback: (this: void) => void): void;
 }
 
 interface PausableTimerPaused extends PausableTimerBase {
@@ -21,68 +20,65 @@ interface PausableTimerRunning extends PausableTimerBase {
 type PausableTimer = PausableTimerPaused | PausableTimerRunning;
 
 interface CreatePausableTimerOptions {
-  running: boolean;
-  initialDuration: number;
   getNextDuration(this: void): number;
 }
 
 function createPausableTimer(options: CreatePausableTimerOptions): PausableTimer {
-  const { running, initialDuration, getNextDuration } = options;
+  const { getNextDuration } = options;
 
-  let nextDeadline = Date.now() + initialDuration;
-  let remainingDuration = NaN;
-  let timeout = NaN;
+  let remainingDurationIfPaused = getNextDuration();
+  let nextDeadlineIfRunning = NaN;
+  let timeoutIfRunning = NaN;
 
-  function sendNotificationIfNeeded(now: number) {
-    while (now >= nextDeadline) {
-      nextDeadline = now + getNextDuration();
+  const callbacks: (() => void)[] = [];
+  const setNextTimeout = () => {
+    remainingDurationIfPaused = NaN;
+    const duration = remainingDurationIfPaused || getNextDuration();
+    timeoutIfRunning = setTimeout(() => {
+      for (const callback of callbacks) {
+        callback();
+      }
+
+      setNextTimeout();
+    }, duration);
+    nextDeadlineIfRunning = Date.now() + duration;
+  };
+  const resume = () => {
+    if (Number.isFinite(nextDeadlineIfRunning)) {
+      return;
     }
-  }
 
-  function setNextTimeout(now: number) {
-    timeout = setTimeout(() => {
-      const newNow = Date.now();
-      sendNotificationIfNeeded(newNow);
-      setNextTimeout(newNow);
-    }, nextDeadline - now);
-  }
+    setNextTimeout();
+  };
 
-  const timer = {
-    running,
-    get remainingDuration() {
-      return remainingDuration || (nextDeadline - Date.now());
+  const pause = () => {
+    const pausedTime = Date.now();
+    if (Number.isFinite(remainingDurationIfPaused)) {
+      return;
+    }
+
+    clearTimeout(timeoutIfRunning);
+    timeoutIfRunning = NaN;
+    remainingDurationIfPaused = Math.max(0, nextDeadlineIfRunning - pausedTime);
+    nextDeadlineIfRunning = NaN;
+  };
+
+  return {
+    get running() {
+      return Number.isFinite(nextDeadlineIfRunning);
     },
-    pause() {
-      const pauseTime = Date.now();
-      if (!timer.running) {
-        throw new Error('timer is not running');
-      }
-
-      clearTimeout(timeout);
-      timeout = NaN;
-      sendNotificationIfNeeded(pauseTime);
-      remainingDuration = nextDeadline - pauseTime;
+    pause,
+    resume,
+    registerCallback(callback: (this: void) => void) {
+      callbacks.push(callback);
     },
-    resume() {
-      if (timer.running) {
-        throw new Error('timer is already running');
+    unregisterCallback(callback: (this: void) => void) {
+      const idx = callbacks.indexOf(callback);
+      if (idx > -1) {
+        callbacks.splice(idx, 1);
       }
-
-      timer.running = true;
-      const resumeTime = Date.now();
-      nextDeadline = resumeTime + remainingDuration;
-      remainingDuration = NaN;
-      setNextTimeout(resumeTime);
     },
   };
-  if (running) {
-    setNextTimeout(Date.now());
-  }
-  else {
-    remainingDuration = initialDuration;
-  }
-
-  return timer;
 }
 
 export function withCleverTimer() {
@@ -92,102 +88,87 @@ export function withCleverTimer() {
       _timer: null as PausableTimer | null,
     }),
     withProps(() => ({
-      _prevDuration: NaN,
-      _callbacks: List<() => void>(),
+      _callbacksBeforeTimerRegistered: [] as (() => void)[],
     })),
     withMethods(store => ({
-      workDoneSnapshot: () => {
-        const timer = store._timer();
-        if (!timer) {
-          return 0;
-        }
-
-        return timer.remainingDuration / store._prevDuration;
-      },
       registerCallback: (callback: () => void) => {
-        store._callbacks = store._callbacks.push(callback);
+        const timer = store._timer();
+        if (timer === null) {
+          store._callbacksBeforeTimerRegistered.push(callback);
+        }
+        else {
+          timer.registerCallback(callback);
+        }
       },
       unregisterCallback: (callback: () => void) => {
-        store._callbacks = store._callbacks.filter(c => c !== callback);
-      },
-      runCallbacks: () => {
-        for (const callback of store._callbacks) {
-          callback();
+        const timer = store._timer();
+        if (timer === null) {
+          const idx = store._callbacksBeforeTimerRegistered.indexOf(callback);
+          if (idx > -1) {
+            store._callbacksBeforeTimerRegistered.splice(idx, 1);
+          }
+        }
+        else {
+          timer.unregisterCallback(callback);
         }
       },
       pause: () => {
         const timer = store._timer();
-        if (!timer) {
-          throw new Error('call init() first');
+        if (timer?.running) {
+          timer.pause();
+          patchState(store, { running: false });
         }
-
-        patchState(store, { running: false });
       },
       resume: () => {
         const timer = store._timer();
-        if (!timer) {
-          throw new Error('call init() first');
+        if (timer?.running === false) {
+          timer.resume();
+          patchState(store, { running: true });
         }
-
-        patchState(store, { running: true });
       },
       togglePause: () => {
         const timer = store._timer();
-        if (!timer) {
-          throw new Error('call init() first');
+        if (timer === null) {
+          return;
         }
 
-        patchState(store, ({ running }) => ({ running: !running }));
+        if (timer.running) {
+          timer.pause();
+          patchState(store, { running: false });
+        }
+        else {
+          timer.resume();
+          patchState(store, { running: true });
+        }
       },
     })),
     withMethods(store => ({
-      _initTimer: ({ minDuration, maxDuration }: { minDuration: number; maxDuration: number }) => {
+      _initTimer: ({ minDurationMilliseconds, maxDurationMilliseconds }: { minDurationMilliseconds: number; maxDurationMilliseconds: number }) => {
         if (store._timer()) {
           throw new Error('already initialized');
         }
 
-        if (!(minDuration <= maxDuration)) {
-          throw new Error('minDuration must be <= maxDuration');
+        if (!(minDurationMilliseconds <= maxDurationMilliseconds)) {
+          throw new Error('min must be <= max');
         }
 
-        minDuration *= 1000;
-        maxDuration *= 1000;
-        const range = maxDuration - minDuration;
-        function outerGetNextDuration() {
-          store._prevDuration = (minDuration + Math.floor(Math.random() * range));
-          return store._prevDuration;
-        }
+        const range = maxDurationMilliseconds - minDurationMilliseconds;
         const timer = createPausableTimer({
-          running: store.running(),
-          initialDuration: outerGetNextDuration(),
-          getNextDuration() {
-            store.runCallbacks();
-            return outerGetNextDuration();
-          },
+          getNextDuration: () => minDurationMilliseconds + Math.floor(Math.random() * range),
         });
+        for (const callback of store._callbacksBeforeTimerRegistered) {
+          timer.registerCallback(callback);
+        }
+        if (store.running()) {
+          if (timer.running) {
+            timer.pause();
+          }
+          else {
+            timer.resume();
+          }
+        }
         patchState(store, { _timer: timer });
       },
     })),
-    withHooks({
-      onInit(store) {
-        effect(() => {
-          const timer = store._timer();
-          if (!timer) {
-            return;
-          }
-
-          if (store.running()) {
-            if (!timer.running) {
-              timer.resume();
-            }
-          }
-          else {
-            if (timer.running) {
-              timer.pause();
-            }
-          }
-        });
-      },
-    }),
   );
 }

@@ -31,8 +31,8 @@ const QUERY_PARAM_NAME_MAP = {
   port: 'p',
   slot: 's',
   password: 'w',
-  minTime: 't',
-  maxTime: 'T',
+  minTimeSeconds: 't',
+  maxTimeSeconds: 'T',
   enableTileAnimations: 'A',
   enableRatAnimations: 'a',
   sendChatMessages: 'c',
@@ -45,8 +45,8 @@ const QUERY_PARAM_NAME_MAP = {
   p: 'port',
   s: 'slot',
   w: 'password',
-  t: 'minTime',
-  T: 'maxTime',
+  t: 'minTimeSeconds',
+  T: 'maxTimeSeconds',
   A: 'enableTileAnimations',
   a: 'enableRatAnimations',
   c: 'sendChatMessages',
@@ -67,8 +67,8 @@ const initialState = {
   host: 'archipelago.gg',
   port: 38281,
   password: '' as string | null,
-  minTime: 20,
-  maxTime: 30,
+  minTimeSeconds: 20,
+  maxTimeSeconds: 30,
   enableTileAnimations: true,
   enableRatAnimations: true,
   sendChatMessages: true,
@@ -114,8 +114,8 @@ export const ConnectScreenStore = signalStore(
       [QUERY_PARAM_NAME_MAP.port]: store.port(),
       [QUERY_PARAM_NAME_MAP.slot]: store.slot(),
       [QUERY_PARAM_NAME_MAP.password]: store.password(),
-      [QUERY_PARAM_NAME_MAP.minTime]: store.minTime(),
-      [QUERY_PARAM_NAME_MAP.maxTime]: store.maxTime(),
+      [QUERY_PARAM_NAME_MAP.minTimeSeconds]: store.minTimeSeconds(),
+      [QUERY_PARAM_NAME_MAP.maxTimeSeconds]: store.maxTimeSeconds(),
       [QUERY_PARAM_NAME_MAP.enableTileAnimations]: store.enableTileAnimations() ? 1 : 0,
       [QUERY_PARAM_NAME_MAP.enableRatAnimations]: store.enableRatAnimations() ? 1 : 0,
       [QUERY_PARAM_NAME_MAP.sendChatMessages]: store.sendChatMessages() ? 1 : 0,
@@ -140,8 +140,8 @@ export const ConnectScreenStore = signalStore(
         host,
         port,
         password: qp.get(QUERY_PARAM_NAME_MAP.password),
-        minTime: Number(qp.get(QUERY_PARAM_NAME_MAP.minTime)) || initialState.minTime,
-        maxTime: Number(qp.get(QUERY_PARAM_NAME_MAP.maxTime)) || initialState.maxTime,
+        minTimeSeconds: Number(qp.get(QUERY_PARAM_NAME_MAP.minTimeSeconds)) || initialState.minTimeSeconds,
+        maxTimeSeconds: Number(qp.get(QUERY_PARAM_NAME_MAP.maxTimeSeconds)) || initialState.maxTimeSeconds,
         enableTileAnimations: readBoolean(qp, 'enableTileAnimations'),
         enableRatAnimations: readBoolean(qp, 'enableRatAnimations'),
         sendChatMessages: readBoolean(qp, 'sendChatMessages'),
@@ -182,11 +182,11 @@ export const ConnectScreenStore = signalStore(
     },
 
     updateMinTime(minTime: number) {
-      patchState(store, { minTime });
+      patchState(store, { minTimeSeconds: minTime });
     },
 
     updateMaxTime(maxTime: number) {
-      patchState(store, { maxTime });
+      patchState(store, { maxTimeSeconds: maxTime });
     },
 
     updateEnableTileAnimations(enableTileAnimations: boolean) {

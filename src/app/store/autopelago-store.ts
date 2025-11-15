@@ -196,7 +196,7 @@ export const GameStore = signalStore(
       });
     }
     function init(game: AutopelagoClientAndData) {
-      const { client, pkg, slotData, storedData, locationIsProgression, locationIsTrap } = game;
+      const { connectScreenStore, client, pkg, slotData, storedData, locationIsProgression, locationIsTrap } = game;
 
       const victoryLocationYamlKey = VICTORY_LOCATION_NAME_LOOKUP[slotData.victory_location_name];
 
@@ -241,9 +241,11 @@ export const GameStore = signalStore(
         }));
       });
 
-      setInterval(() => {
-        store.advance();
-      }, 400);
+      store.registerCallback(store.advance);
+      store._initTimer({
+        minDurationMilliseconds: connectScreenStore.minTimeSeconds() * 1000,
+        maxDurationMilliseconds: connectScreenStore.maxTimeSeconds() * 1000,
+      });
     }
 
     return {

@@ -405,7 +405,7 @@ export class GameTabMap {
       })();
     });
 
-    const MOVE_DUR = 40;
+    const MOVE_DUR = 200;
     let prog = 0;
     const queuedMoves = new Queue<{ from: Vec2; to: Vec2 }>();
     let animatePlayerMoveCallback: ((t: Ticker) => void) | null = null;

@@ -15,14 +15,14 @@ import { ConnectScreenStore } from '../store/connect-screen.store';
                id="slot"
                type="text"
                [value]="slot()"
-               (input)="updateSlot(slotInput.value)" />
+               (input)="updateSlot(slotInput.value)"/>
         <label for="host">Host:</label>
         <input #hostInput
                required
                id="host"
                type="text"
                [value]="host()"
-               (input)="updateHost(hostInput.value)" />
+               (input)="updateHost(hostInput.value)"/>
         <label for="port">Port:</label>
         <input #portInput
                required
@@ -31,27 +31,27 @@ import { ConnectScreenStore } from '../store/connect-screen.store';
                min="1"
                max="65535"
                [value]="port()"
-               (input)="updatePort(portInput.valueAsNumber)" />
+               (input)="updatePort(portInput.valueAsNumber)"/>
         <label for="password">Password:</label>
         <input #passwordInput
                id="password"
                type="password"
                [value]="password()"
-               (input)="updatePassword(passwordInput.value)" />
+               (input)="updatePassword(passwordInput.value)"/>
         <fieldset class="inputs" [style.grid-column]="'span 2'">
           <legend>Time Between Steps (sec.)</legend>
           <label for="minTime">Minimum:</label>
           <input #minTimeInput
                  id="minTime"
                  type="number"
-                 [value]="minTime()"
-                 (input)="updateMinTime(minTimeInput.valueAsNumber)" />
+                 [value]="minTimeSeconds()"
+                 (input)="updateMinTime(minTimeInput.valueAsNumber)"/>
           <label for="maxTime">Maximum:</label>
           <input #maxTimeInput
                  id="maxTime"
                  type="number"
-                 [value]="maxTime()"
-                 (input)="updateMaxTime(maxTimeInput.valueAsNumber)" />
+                 [value]="maxTimeSeconds()"
+                 (input)="updateMaxTime(maxTimeInput.valueAsNumber)"/>
         </fieldset>
       </div>
       <div class="inputs">
@@ -59,21 +59,21 @@ import { ConnectScreenStore } from '../store/connect-screen.store';
                id="enableTileAnimations"
                type="checkbox"
                [checked]="enableTileAnimations()"
-               (input)="updateEnableTileAnimations(enableTileAnimationsInput.checked)" />
+               (input)="updateEnableTileAnimations(enableTileAnimationsInput.checked)"/>
         <label for="enableTileAnimations">Enable tile animations</label>
 
         <input #enableRatAnimationsInput
                id="enableRatAnimations"
                type="checkbox"
                [checked]="enableRatAnimations()"
-               (input)="updateEnableRatAnimations(enableRatAnimationsInput.checked)" />
+               (input)="updateEnableRatAnimations(enableRatAnimationsInput.checked)"/>
         <label for="enableRatAnimations">Enable rat animations</label>
 
         <input #sendChatMessagesInput
                id="sendChatMessages"
                type="checkbox"
                [checked]="sendChatMessages()"
-               (input)="updateSendChatMessages(sendChatMessagesInput.checked)" />
+               (input)="updateSendChatMessages(sendChatMessagesInput.checked)"/>
         <label for="sendChatMessages">Send chat messages...</label>
       </div>
       <div class="inputs" [style.padding-left]="'20px'">
@@ -82,7 +82,7 @@ import { ConnectScreenStore } from '../store/connect-screen.store';
                type="checkbox"
                [disabled]="!sendChatMessages()"
                [checked]="whenTargetChanges()"
-               (input)="updateWhenTargetChanges(whenTargetChangesInput.checked)" />
+               (input)="updateWhenTargetChanges(whenTargetChangesInput.checked)"/>
         <label for="whenTargetChanges">when target changes</label>
 
         <input #whenBecomingBlockedInput
@@ -90,7 +90,7 @@ import { ConnectScreenStore } from '../store/connect-screen.store';
                type="checkbox"
                [disabled]="!sendChatMessages()"
                [checked]="whenBecomingBlocked()"
-               (input)="updateWhenBecomingBlocked(whenBecomingBlockedInput.checked)" />
+               (input)="updateWhenBecomingBlocked(whenBecomingBlockedInput.checked)"/>
         <label for="whenBecomingBlocked">when becoming blocked</label>
 
         <input #whenStillBlockedInput
@@ -98,7 +98,7 @@ import { ConnectScreenStore } from '../store/connect-screen.store';
                type="checkbox"
                [disabled]="!(sendChatMessages() && whenBecomingBlocked())"
                [checked]="whenStillBlocked()"
-               (input)="updateWhenStillBlocked(whenStillBlockedInput.checked)" />
+               (input)="updateWhenStillBlocked(whenStillBlockedInput.checked)"/>
         <label for="whenStillBlocked">when STILL blocked</label>
 
         <input #whenBecomingUnblockedInput
@@ -106,7 +106,7 @@ import { ConnectScreenStore } from '../store/connect-screen.store';
                type="checkbox"
                [disabled]="!sendChatMessages()"
                [checked]="whenBecomingUnblocked()"
-               (input)="updateWhenBecomingUnblocked(whenBecomingUnblockedInput.checked)" />
+               (input)="updateWhenBecomingUnblocked(whenBecomingUnblockedInput.checked)"/>
         <label for="whenBecomingUnblocked">when becoming unblocked</label>
 
         <input #forOneTimeEventsInput
@@ -114,13 +114,13 @@ import { ConnectScreenStore } from '../store/connect-screen.store';
                type="checkbox"
                [disabled]="!sendChatMessages()"
                [checked]="forOneTimeEvents()"
-               (input)="updateForOneTimeEvents(forOneTimeEventsInput.checked)" />
+               (input)="updateForOneTimeEvents(forOneTimeEventsInput.checked)"/>
         <label for="forOneTimeEvents">for one-time events</label>
       </div>
       <input class="submit-button"
              type="submit"
              [disabled]="connecting() || !allInputs.checkValidity()"
-             [value]="connecting() ? 'Connecting...' : 'Connect'" />
+             [value]="connecting() ? 'Connecting...' : 'Connect'"/>
     </form>
   `,
   styles: `
@@ -156,8 +156,8 @@ export class ConnectScreen {
   readonly slot = this.#store.slot;
   readonly port = this.#store.port;
   readonly password = this.#store.password;
-  readonly minTime = this.#store.minTime;
-  readonly maxTime = this.#store.maxTime;
+  readonly minTimeSeconds = this.#store.minTimeSeconds;
+  readonly maxTimeSeconds = this.#store.maxTimeSeconds;
   readonly enableTileAnimations = this.#store.enableTileAnimations;
   readonly enableRatAnimations = this.#store.enableRatAnimations;
   readonly sendChatMessages = this.#store.sendChatMessages;
@@ -176,7 +176,7 @@ export class ConnectScreen {
       const minTimeInput = this.minTimeInput();
       const maxTimeInput = this.maxTimeInput();
       if (minTimeInput && maxTimeInput) {
-        if (this.minTime() > this.maxTime()) {
+        if (this.minTimeSeconds() > this.maxTimeSeconds()) {
           minTimeInput.nativeElement.setCustomValidity('Min cannot be greater than max.');
           maxTimeInput.nativeElement.setCustomValidity('Min cannot be greater than max.');
         }
