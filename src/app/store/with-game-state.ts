@@ -90,7 +90,6 @@ const initialState: DefiningGameState = {
   checkedLocations: ImmutableSet<number>(),
   prng: rand.xoroshiro128plus(42),
   outgoingCheckedLocations: ImmutableSet<number>(),
-  outgoingVictory: false,
   outgoingMoves: List<readonly [number, number]>(),
 };
 
@@ -451,10 +450,6 @@ export function withGameState() {
 
                 case 'aura-driven':
                   result.auraDrivenLocations = prev.auraDrivenLocations.filter(l => l !== targetLocation);
-                  break;
-
-                case 'go-mode':
-                  result.outgoingVictory = true;
                   break;
               }
             }

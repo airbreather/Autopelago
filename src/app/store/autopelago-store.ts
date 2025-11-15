@@ -268,14 +268,15 @@ export const GameStore = signalStore(
         }
       });
 
-      effect(() => {
+      const goalEffect = effect(() => {
         const game = store.game();
         if (!game) {
           return;
         }
 
-        if (store.outgoingVictory()) {
+        if (store.checkedLocations().has(store.victoryLocation())) {
           game.client.goal();
+          goalEffect.destroy();
         }
       });
     },

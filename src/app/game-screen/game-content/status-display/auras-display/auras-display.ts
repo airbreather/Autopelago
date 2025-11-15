@@ -136,6 +136,7 @@ import { resizeText } from '../../../../util';
 
     .bar-value {
       text-align: end;
+      min-width: 3ch;
     }
 
     .normative-auras {

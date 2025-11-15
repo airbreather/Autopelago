@@ -247,6 +247,10 @@ export function determineRoute(options: Readonly<DetermineRouteOptions>): number
   const q = new Queue<number>();
   q.enqueue(currentLocation);
   for (let l = q.dequeue(); l !== undefined; l = q.dequeue()) {
+    if (l === targetLocation) {
+      break;
+    }
+
     const d = prev[l].d + 1;
     for (const [l2] of allLocations[l].connected.all) {
       if (prev[l2].d > d && !regionIsHardLocked[allLocations[l2].regionLocationKey[0]]) {
@@ -256,10 +260,6 @@ export function determineRoute(options: Readonly<DetermineRouteOptions>): number
           q.enqueue(l2);
         }
       }
-    }
-
-    if (prev[targetLocation].d !== Infinity) {
-      break;
     }
   }
 
