@@ -108,7 +108,7 @@ interface AnimatedSpriteBox extends SpriteBoxBase {
 
 type SpriteBox = NotAnimatedSpriteBox | AnimatedSpriteBox;
 
-function createPlayerToken(texture: Texture, enableRatAnimations: boolean, destroyRef: DestroyRef) {
+function createPlayerToken(angleBox: { angle: number; scaleX: 0.25 | -0.25 }, texture: Texture, enableRatAnimations: boolean, destroyRef: DestroyRef) {
   const playerToken = new Sprite(texture);
   playerToken.position.set(2, 80);
   playerToken.scale.set(0.25);
@@ -123,11 +123,13 @@ function createPlayerToken(texture: Texture, enableRatAnimations: boolean, destr
     const playerTokenContext = {
       playerToken,
       cycleTime: 0,
+      angleBox,
     };
 
     function doRotation(this: typeof playerTokenContext, t: Ticker) {
       this.cycleTime = (this.cycleTime + t.deltaMS) % CYCLE;
-      this.playerToken.rotation = (Math.abs(this.cycleTime - HALF_CYCLE) - QUARTER_CYCLE) * ROTATION_SCALE;
+      this.playerToken.scale.x = angleBox.scaleX;
+      this.playerToken.rotation = this.angleBox.angle + (Math.abs(this.cycleTime - HALF_CYCLE) - QUARTER_CYCLE) * ROTATION_SCALE;
     }
 
     Ticker.shared.add(doRotation, playerTokenContext);
@@ -339,6 +341,7 @@ export class GameTabMap {
 
       fillerMarkers.replaceChild(fillerMarkers.children[0], gfx);
     });
+    const angleBox: { angle: number; scaleX: 0.25 | -0.25 } = { angle: 0, scaleX: 0.25 };
     effect(() => {
       const canvas = this.pixiCanvas().nativeElement;
       const outerDiv = this.outerDiv().nativeElement;
@@ -377,7 +380,7 @@ export class GameTabMap {
         landmarkSpriteLookup.set(landmarkMarkers.landmarkSpriteLookup);
         app.stage.addChild(landmarkMarkers.landmarksContainer);
         Ticker.shared.stop();
-        const playerTokenNotNull = createPlayerToken(playerTokenTexture, enableRatAnimations, destroyRef);
+        const playerTokenNotNull = createPlayerToken(angleBox, playerTokenTexture, enableRatAnimations, destroyRef);
         app.stage.addChild(playerTokenNotNull);
         playerToken.set(playerTokenNotNull);
         playerTokenNotNull.position.set(...allLocations[currentLocation].coords);
@@ -460,6 +463,14 @@ export class GameTabMap {
         const x = nextMove.from[0] + (nextMove.to[0] - nextMove.from[0]) * fraction;
         const y = nextMove.from[1] + (nextMove.to[1] - nextMove.from[1]) * fraction;
         playerTokenNotNull.position.set(x, y);
+        angleBox.angle = Math.atan2(nextMove.to[1] - nextMove.from[1], nextMove.to[0] - nextMove.from[0]);
+        if (Math.abs(angleBox.angle) < Math.PI / 2) {
+          angleBox.scaleX = 0.25;
+        }
+        else {
+          angleBox.angle -= Math.PI;
+          angleBox.scaleX = -0.25;
+        }
       };
       Ticker.shared.add(animatePlayerMoveCallback);
     });
