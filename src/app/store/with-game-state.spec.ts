@@ -2,9 +2,14 @@ import { inject, InjectionToken, provideZonelessChangeDetection } from '@angular
 import { TestBed } from '@angular/core/testing';
 import BitArray from '@bitarray/typedarray';
 import { patchState, signalStore, withHooks } from '@ngrx/signals';
+import { List, Set as ImmutableSet } from 'immutable';
 import rand from 'pure-rand';
 import { describe, expect, test } from 'vitest';
-import { BAKED_DEFINITIONS_BY_VICTORY_LANDMARK, type VictoryLocationYamlKey } from '../data/resolved-definitions';
+import {
+  BAKED_DEFINITIONS_BY_VICTORY_LANDMARK,
+  getLocs,
+  type VictoryLocationYamlKey,
+} from '../data/resolved-definitions';
 import type { DefiningGameState } from '../game/defining-state';
 import { strictObjectEntries } from '../util';
 import { withGameState } from './with-game-state';
@@ -26,7 +31,7 @@ const TestingStore = signalStore(
 );
 
 describe('withGameState', () => {
-  test('should initialize basic state', () => {
+  test('first attempts should make sense', () => {
     const { startLocation, allLocations } = BAKED_DEFINITIONS_BY_VICTORY_LANDMARK.snakes_on_a_planet;
     const store = getStoreWith({
       ...initialGameStateFor('snakes_on_a_planet'),
@@ -64,6 +69,24 @@ describe('withGameState', () => {
 
     // they made a successful check this round, so mercy factor shouldn't have been incremented!
     expect(store.mercyFactor()).toStrictEqual(0);
+  });
+
+  test.for([0, 1, 2, 3, 4, 5, 6])('should only try basketball with at least five rats: %d', (ratCount) => {
+    const { allRegions, allLocations, itemNameLookup, locationNameLookup } = BAKED_DEFINITIONS_BY_VICTORY_LANDMARK.snakes_on_a_planet;
+    const packRat = itemNameLookup.get('Pack Rat') ?? NaN;
+    const basketball = locationNameLookup.get('Basketball') ?? NaN;
+    const immediatelyBeforeBasketball = allLocations[basketball].connected.backward[0];
+    const beforeBasketball = allRegions[allLocations[basketball].regionLocationKey[0]].connected.backward[0];
+
+    const store = getStoreWith({
+      ...initialGameStateFor('snakes_on_a_planet'),
+      checkedLocations: ImmutableSet(getLocs(allRegions[beforeBasketball])),
+      receivedItems: List(Array<number>(ratCount).fill(packRat)),
+      currentLocation: immediatelyBeforeBasketball,
+      prng: prngs.lucky.prng,
+    });
+    store.advance();
+    expect(store.checkedLocations().has(basketball)).toEqual(ratCount >= 5);
   });
 });
 
