@@ -49,8 +49,8 @@ function bitArraysEqual(a: Readonly<BitArray>, b: Readonly<BitArray>) {
 function regionLocksEqual(a: RegionLocks, b: RegionLocks) {
   return bitArraysEqual(a.regionIsSoftLocked, b.regionIsSoftLocked)
     && bitArraysEqual(a.regionIsHardLocked, b.regionIsHardLocked)
-    && bitArraysEqual(a.landmarkRegionIsSoftLocked, b.landmarkRegionIsSoftLocked)
-    && bitArraysEqual(a.landmarkRegionIsHardLocked, b.landmarkRegionIsHardLocked);
+    && bitArraysEqual(a.regionIsLandmarkAndNotHardLocked, b.regionIsLandmarkAndNotHardLocked)
+    && bitArraysEqual(a.regionIsLandmarkAndNotSoftLocked, b.regionIsLandmarkAndNotSoftLocked);
 }
 
 function findPlayerByAlias(players: PlayersManager, alias: string) {
@@ -115,8 +115,8 @@ function getPermanentRollModifier(ratCount: number) {
 interface RegionLocks {
   readonly regionIsHardLocked: Readonly<BitArray>;
   readonly regionIsSoftLocked: Readonly<BitArray>;
-  readonly landmarkRegionIsHardLocked: Readonly<BitArray>;
-  readonly landmarkRegionIsSoftLocked: Readonly<BitArray>;
+  readonly regionIsLandmarkAndNotHardLocked: Readonly<BitArray>;
+  readonly regionIsLandmarkAndNotSoftLocked: Readonly<BitArray>;
 }
 
 export interface ResolvedItem extends AutopelagoItem {
@@ -145,7 +145,12 @@ const initialState: DefiningGameState = {
   workDone: NaN,
   auraDrivenLocations: List<number>(),
   userRequestedLocations: List<Readonly<UserRequestedLocation>>(),
-  previousTargetLocationEvidence: null,
+  previousTargetLocationEvidence: {
+    isStartled: false,
+    userRequestedLocations: null,
+    firstAuraDrivenLocation: null,
+    clearedOrClearableLandmarks: List<number>(),
+  },
   receivedItems: List<number>(),
   checkedLocations: ImmutableSet<number>(),
   prng: rand.xoroshiro128plus(42),
@@ -220,13 +225,11 @@ export function withGameState() {
         const locationIsChecked_ = locationIsChecked();
         const regionIsHardLocked = new BitArray(allRegions.length);
         const regionIsSoftLocked = new BitArray(allRegions.length);
-        const landmarkRegionIsHardLocked = new BitArray(allRegions.length);
-        const landmarkRegionIsSoftLocked = new BitArray(allRegions.length);
+        const regionIsLandmarkAndNotHardLocked = new BitArray(allRegions.length);
+        const regionIsLandmarkAndNotSoftLocked = new BitArray(allRegions.length);
         for (let i = 0; i < allRegions.length; i++) {
           regionIsHardLocked[i] = 1;
           regionIsSoftLocked[i] = 1;
-          landmarkRegionIsHardLocked[i] = 1;
-          landmarkRegionIsSoftLocked[i] = 1;
         }
         const isSatisfied = buildRequirementIsSatisfied(_relevantItemCountLookup());
         const visited = new BitArray(allRegions.length);
@@ -245,13 +248,13 @@ export function withGameState() {
 
           const region = allRegions[r];
           if ('loc' in region) {
-            landmarkRegionIsHardLocked[r] = 0;
             if (!isSatisfied(region.requirement)) {
               continue;
             }
+            regionIsLandmarkAndNotHardLocked[r] = 1;
             if (locationIsChecked_[region.loc]) {
               regionIsSoftLocked[r] = 0;
-              landmarkRegionIsSoftLocked[r] = 0;
+              regionIsLandmarkAndNotSoftLocked[r] = 1;
             }
           }
           else {
@@ -265,15 +268,15 @@ export function withGameState() {
         return {
           get regionIsHardLocked() { return regionIsHardLocked; },
           get regionIsSoftLocked() { return regionIsSoftLocked; },
-          get landmarkRegionIsHardLocked() { return landmarkRegionIsHardLocked; },
-          get landmarkRegionIsSoftLocked() { return landmarkRegionIsSoftLocked; },
+          get regionIsLandmarkAndNotHardLocked() { return regionIsLandmarkAndNotHardLocked; },
+          get regionIsLandmarkAndNotSoftLocked() { return regionIsLandmarkAndNotSoftLocked; },
         };
       }, { equal: regionLocksEqual });
       const _clearedOrClearableLandmarks = computed<readonly number[]>(() => {
-        const { landmarkRegionIsHardLocked } = _regionLocks();
+        const { regionIsLandmarkAndNotHardLocked } = _regionLocks();
         const result: number[] = [];
-        for (let i = 0; i < landmarkRegionIsHardLocked.length; i++) {
-          if (landmarkRegionIsHardLocked[i]) {
+        for (let i = 0; i < regionIsLandmarkAndNotHardLocked.length; i++) {
+          if (regionIsLandmarkAndNotHardLocked[i]) {
             result.push(i);
           }
         }

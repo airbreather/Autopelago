@@ -16,7 +16,8 @@
     "start": "ng serve",
     "build": "ng build",
     "watch": "ng build --watch --configuration development",
-    "lint": "ng lint"
+    "lint": "ng lint",
+    "test": "ng test"
   },
   "prettier": {
     "overrides": [
@@ -64,9 +65,11 @@
     "@typescript/native-preview": "^7.0.0-dev.20251114.1",
     "angular-eslint": "20.6.0",
     "eslint": "^9.39.1",
+    "jsdom": "^27.2.0",
     "pixi-filters": "^6.1.4",
     "pixi.js": "^8.14.1",
     "typescript-eslint": "^8.46.4",
+    "vitest": "^4.0.9",
     "yaml": "^2.8.1"
   }
 }
