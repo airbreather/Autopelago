@@ -27,6 +27,7 @@ const TestingStore = signalStore(
 
 describe('withGameState', () => {
   test('should initialize basic state', () => {
+    const { startLocation, allLocations } = BAKED_DEFINITIONS_BY_VICTORY_LANDMARK.snakes_on_a_planet;
     const store = getStoreWith({
       ...initialGameStateFor('snakes_on_a_planet'),
       prng: prngs._8_13_18_9_13.prng,
@@ -43,6 +44,26 @@ describe('withGameState', () => {
     expect(store.checkedLocations().size).toStrictEqual(0);
     expect(store.mercyFactor()).toStrictEqual(1);
     expect(store.prng().getState()).toStrictEqual(expectedPrng.getState());
+
+    // the next attempt should succeed despite rolling the same as the previous step because the
+    // cumulative penalty has worn off and the mercy modifier adds +1.
+    rand.unsafeUniformIntDistribution(1, 20, expectedPrng);
+    rand.unsafeUniformIntDistribution(1, 20, expectedPrng);
+
+    store.advance();
+
+    const secondLocation = allLocations[startLocation].connected.forward[0];
+    expect([...store.checkedLocations()]).toStrictEqual([startLocation]);
+    expect(store.targetLocation()).toStrictEqual(secondLocation);
+
+    // because they succeeded on their first attempt, they have just enough actions to reach and
+    // then make a feeble attempt at the next location on the route
+    expect(store.currentLocation()).toStrictEqual(secondLocation);
+    expect([...store.checkedLocations()]).toStrictEqual([startLocation]);
+    expect(store.prng().getState()).toStrictEqual(expectedPrng.getState());
+
+    // they made a successful check this round, so mercy factor shouldn't have been incremented!
+    expect(store.mercyFactor()).toStrictEqual(0);
   });
 });
 
