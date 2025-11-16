@@ -43,6 +43,7 @@
     "@ngrx/signals": "^20.1.0",
     "angular-split": "^20.0.0",
     "archipelago.js": "^2.0.4",
+    "core-js": "^3.46.0",
     "immutable": "^5.1.4",
     "ngx-toastr": "^19.1.0",
     "normalize.css": "^8.0.1",

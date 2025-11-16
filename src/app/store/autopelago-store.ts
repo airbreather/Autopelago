@@ -2,6 +2,7 @@ import { effect } from '@angular/core';
 import BitArray from '@bitarray/typedarray';
 
 import { patchState, signalStore, withHooks, withMethods, withState } from '@ngrx/signals';
+import type { SayPacket } from 'archipelago.js';
 import { List, Set as ImmutableSet } from 'immutable';
 import Queue from 'yocto-queue';
 import {
@@ -20,6 +21,7 @@ export const GameStore = signalStore(
   withGameState(),
   withState({
     game: null as AutopelagoClientAndData | null,
+    processedMessageCount: 0,
   }),
   withMethods((store) => {
     function _receiveItems(items: Iterable<number>) {
@@ -280,6 +282,35 @@ export const GameStore = signalStore(
           game.client.goal();
           goalEffect.destroy();
         }
+      });
+
+      effect(() => {
+        const game = store.game();
+        if (!game) {
+          return;
+        }
+
+        const client = game.client;
+        const players = client.players;
+        let processedMessageCount = store.processedMessageCount();
+        for (const message of game.messageLog().skip(processedMessageCount)) {
+          store.processMessage(message, players);
+          ++processedMessageCount;
+        }
+
+        patchState(store, ({ outgoingMessages }) => {
+          if (outgoingMessages.size > 0) {
+            client.socket.send(...outgoingMessages.map(msg => ({
+              cmd: 'Say',
+              text: msg,
+            } satisfies SayPacket)));
+          }
+
+          return {
+            outgoingMessages: outgoingMessages.clear(),
+            processedMessageCount,
+          };
+        });
       });
     },
   }),

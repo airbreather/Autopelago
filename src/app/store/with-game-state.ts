@@ -1,10 +1,11 @@
 import { computed, untracked } from '@angular/core';
 import BitArray from '@bitarray/typedarray';
 import { patchState, signalStoreFeature, withComputed, withMethods, withState } from '@ngrx/signals';
-import { itemClassifications } from 'archipelago.js';
+import { itemClassifications, PlayersManager } from 'archipelago.js';
 import { List, Set as ImmutableSet } from 'immutable';
 import rand from 'pure-rand';
 import Queue from 'yocto-queue';
+import type { Message } from '../archipelago-client';
 import {
   type AutopelagoAura,
   type AutopelagoItem,
@@ -52,6 +53,17 @@ function regionLocksEqual(a: RegionLocks, b: RegionLocks) {
     && bitArraysEqual(a.landmarkRegionIsHardLocked, b.landmarkRegionIsHardLocked);
 }
 
+function findPlayerByAlias(players: PlayersManager, alias: string) {
+  for (const t of players.teams) {
+    for (const p of t) {
+      if (p.alias === alias) {
+        return p;
+      }
+    }
+  }
+  return null;
+}
+
 interface RegionLocks {
   readonly regionIsHardLocked: Readonly<BitArray>;
   readonly regionIsSoftLocked: Readonly<BitArray>;
@@ -91,6 +103,7 @@ const initialState: DefiningGameState = {
   prng: rand.xoroshiro128plus(42),
   outgoingCheckedLocations: ImmutableSet<number>(),
   outgoingMoves: List<readonly [number, number]>(),
+  outgoingMessages: List<string>(),
 };
 
 export function withGameState() {
@@ -290,7 +303,7 @@ export function withGameState() {
         auraDrivenLocations: store.auraDrivenLocations().toJS(),
         userRequestedLocations: store.userRequestedLocations().toJS().map(l => ({
           location: l.location,
-          userName: l.userName,
+          userSlot: l.userSlot,
         })),
         previousTargetLocationEvidence: targetLocationEvidenceToJSONSerializable(store.previousTargetLocationEvidence()),
       }));
@@ -324,6 +337,96 @@ export function withGameState() {
           patchState(store, { outgoingMoves: outgoingMoves.clear() });
         }
         return outgoingMoves;
+      },
+      processMessage(msg: Message, players: PlayersManager) {
+        const text = msg.nodes.map(n => n.text).join('');
+        let taggedSlotOrAlias = `@${players.self.name} `;
+        let tagIndex = text.indexOf(taggedSlotOrAlias);
+        if (tagIndex < 0) {
+          taggedSlotOrAlias = `@${players.self.alias} `;
+          tagIndex = text.indexOf(taggedSlotOrAlias);
+        }
+
+        if (tagIndex < 0) {
+          return;
+        }
+
+        // chat message format is "{UserAlias}: {Message}", so it needs to be at least this long.
+        if (tagIndex <= ': '.length) {
+          return;
+        }
+
+        const probablyPlayerAlias = text.substring(0, tagIndex - ': '.length);
+        const requestingPlayer = findPlayerByAlias(players, probablyPlayerAlias);
+        const requestingSlotNumber = requestingPlayer?.slot ?? 0;
+        if (probablyPlayerAlias !== '[Server]') {
+          if (!requestingPlayer) {
+            // this isn't necessarily an error or a mistaken assumption. it could just be that the
+            // '@${SlotName}' happened partway through their message. don't test every single user's
+            // alias against every single chat message that contains '@${SlotName}', just require it
+            // to be at the start of the message. done.
+            return;
+          }
+
+          if (requestingPlayer.team !== players.self.team) {
+            // nice try
+            const outgoingMessage = `${probablyPlayerAlias}, only members of my team can send me commands.`;
+            patchState(store, ({ outgoingMessages }) => ({ outgoingMessages: outgoingMessages.push(outgoingMessage) }));
+            return;
+          }
+        }
+
+        // if we got here, then the entire rest of the message after "@{SlotName}" is the command.
+        const defs = store.defs();
+        const slotOrAliasMatcher = new RegExp(`^${RegExp.escape(taggedSlotOrAlias.normalize())}`);
+        const cmd = text.substring(tagIndex).normalize().replace(slotOrAliasMatcher, '');
+        if (/^go /i.exec(cmd)) {
+          const quotesMatcher = /^"*|"*$/g;
+          const locName = cmd.substring('go '.length).replaceAll(quotesMatcher, '');
+          const loc = defs.locationNameLookup.get(locName);
+          if (loc) {
+            // get the true name of it
+            const exactLocName = defs.allLocations[loc].name;
+            if (store.auraDrivenLocations().includes(loc)) {
+              const outgoingMessage = store.locationIsProgression()[loc]
+                ? `Don't worry, ${probablyPlayerAlias}, a little bird already told me ALL about ${exactLocName}.`
+                : `Don't worry, ${probablyPlayerAlias}, I'm already on my way to ${exactLocName} after getting an anonymous tip about it.`;
+              patchState(store, ({ outgoingMessages }) => ({ outgoingMessages: outgoingMessages.push(outgoingMessage) }));
+              return;
+            }
+
+            const alreadyRequested = store.userRequestedLocations().find(l => l.location === loc);
+            if (alreadyRequested) {
+              if (alreadyRequested.userSlot === requestingSlotNumber) {
+                const outgoingMessage = `Hey, ${probablyPlayerAlias}, no worries, I remember ${exactLocName} from when you asked me before.`;
+                patchState(store, ({ outgoingMessages }) => ({ outgoingMessages: outgoingMessages.push(outgoingMessage) }));
+              }
+              else {
+                const firstRequestingUser = alreadyRequested.userSlot === 0
+                  ? 'the server'
+                  : players.teams[players.self.team][alreadyRequested.userSlot].alias;
+                const outgoingMessage = `All right, I'll prioritize ${exactLocName} for you, ${probablyPlayerAlias}. Just so you know, ${firstRequestingUser} already asked me to go there first, but I'll remember that you want me to go there too, in case they change their mind.`;
+                patchState(store, ({ userRequestedLocations, outgoingMessages }) => ({
+                  userRequestedLocations: userRequestedLocations.push({ location: loc, userSlot: requestingSlotNumber }),
+                  outgoingMessages: outgoingMessages.push(outgoingMessage),
+                }));
+              }
+            }
+            else {
+              const outgoingMessage = store._regionLocks().regionIsHardLocked[defs.allLocations[loc].regionLocationKey[0]]
+                ? `I'll keep it in mind that ${exactLocName} is important to you, ${probablyPlayerAlias}. I can't get there just yet, though, so please be patient with me...`
+                : `All right, I'll prioritize ${exactLocName} for you, ${probablyPlayerAlias}!`;
+              patchState(store, ({ userRequestedLocations, outgoingMessages }) => ({
+                userRequestedLocations: userRequestedLocations.push({ location: loc, userSlot: requestingSlotNumber }),
+                outgoingMessages: outgoingMessages.push(outgoingMessage),
+              }));
+            }
+          }
+          else {
+            const outgoingMessage = `Um... excuse me, but... I don't know what a '${locName}' is...`;
+            patchState(store, ({ outgoingMessages }) => ({ outgoingMessages: outgoingMessages.push(outgoingMessage) }));
+          }
+        }
       },
       advance() {
         let remainingActions = 3;

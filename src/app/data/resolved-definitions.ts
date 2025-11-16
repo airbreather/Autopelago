@@ -1,6 +1,7 @@
 import BitArray from '@bitarray/typedarray';
 import { itemClassifications } from 'archipelago.js';
 import Queue from 'yocto-queue';
+import { MapByCaseInsensitiveString, type ReadonlyMapByCaseInsensitiveString } from '../map-by-case-insensitive-string';
 
 import { stricterIsArray, strictObjectEntries } from '../util';
 
@@ -143,7 +144,7 @@ export interface AutopelagoDefinitions {
   landmarkRegionCount: number;
   startRegion: number;
   startLocation: number;
-  locationNameLookup: ReadonlyMap<string, number>;
+  locationNameLookup: ReadonlyMapByCaseInsensitiveString<number, 'en'>;
 }
 
 type YamlRequirement =
@@ -643,7 +644,7 @@ function resolveMainDefinitions(
     itemNameLookup.set(item.lactoseIntolerantName, itemIndex);
   }
 
-  const locationNameLookup = new Map<string, number>();
+  const locationNameLookup = new MapByCaseInsensitiveString<number>('en');
   for (const [locationIndex, location] of allLocations.entries()) {
     locationNameLookup.set(location.name, locationIndex);
   }
@@ -799,7 +800,7 @@ function withVictoryLocation(defs: AutopelagoDefinitions, location: VictoryLocat
     throw new Error('Failed to find remapped start region or location');
   }
 
-  const locationNameLookup = new Map<string, number>();
+  const locationNameLookup = new MapByCaseInsensitiveString<number>('en');
   for (const [locationIndex, location] of allLocations.entries()) {
     locationNameLookup.set(location.name, locationIndex);
   }

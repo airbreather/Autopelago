@@ -43,4 +43,5 @@ export interface DefiningGameState {
   // other values used to indicate autonomous actions that haven't been observed yet:
   outgoingCheckedLocations: ImmutableSet<number>;
   outgoingMoves: List<readonly [number, number]>;
+  outgoingMessages: List<string>;
 }

@@ -50,7 +50,7 @@ export interface AutopelagoSlotData extends JSONRecord {
 
 export interface UserRequestedLocation extends JSONRecord {
   location: number;
-  userName: string;
+  userSlot: number;
 }
 
 export interface AutopelagoStoredData extends JSONRecord {
