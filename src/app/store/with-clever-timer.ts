@@ -32,8 +32,8 @@ function createPausableTimer(options: CreatePausableTimerOptions): PausableTimer
 
   const callbacks: (() => void)[] = [];
   const setNextTimeout = () => {
-    remainingDurationIfPaused = NaN;
     const duration = remainingDurationIfPaused || getNextDuration();
+    remainingDurationIfPaused = NaN;
     timeoutIfRunning = setTimeout(() => {
       for (const callback of callbacks) {
         callback();
