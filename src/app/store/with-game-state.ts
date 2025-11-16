@@ -64,6 +64,54 @@ function findPlayerByAlias(players: PlayersManager, alias: string) {
   return null;
 }
 
+interface ModifyRollOptions {
+  d20: number;
+  ratCount: number;
+  mercy: number;
+  multi: number;
+  unlucky: boolean;
+  stylish: boolean;
+}
+function modifyRoll({ d20, ratCount, mercy, multi, unlucky, stylish }: ModifyRollOptions) {
+  return d20 + getPermanentRollModifier(ratCount) + mercy + (multi * -5) + (unlucky ? -5 : 0) + (stylish ? 5 : 0);
+}
+
+function getPermanentRollModifier(ratCount: number) {
+  // diminishing returns
+  let rolling = 0;
+
+  // +1 for every 3 rats up to the first 12
+  if (ratCount <= 12) {
+    rolling += Math.floor(ratCount / 3);
+    return rolling;
+  }
+
+  rolling += 4;
+  ratCount -= 12;
+
+  // beyond that, +1 for every 5 rats up to the next 15
+  if (ratCount <= 15) {
+    rolling += Math.floor(ratCount / 5);
+    return rolling;
+  }
+
+  rolling += 3;
+  ratCount -= 15;
+
+  // beyond that, +1 for every 7 rats up to the next 14
+  if (ratCount <= 14) {
+    rolling += Math.floor(ratCount / 7);
+    return rolling;
+  }
+
+  rolling += 2;
+  ratCount -= 14;
+
+  // everything else is +1 for every 8 rats.
+  rolling += Math.floor(ratCount / 8);
+  return rolling;
+}
+
 interface RegionLocks {
   readonly regionIsHardLocked: Readonly<BitArray>;
   readonly regionIsSoftLocked: Readonly<BitArray>;
@@ -430,6 +478,10 @@ export function withGameState() {
       },
       advance() {
         let remainingActions = 3;
+        let multi = 0;
+        let isFirstCheck = true;
+        let bumpMercyModifierForNextTime = false;
+        const { allLocations } = store.defs();
         patchState(store, (prev) => {
           const result = { } as Mutable<Partial<typeof prev>>;
 
@@ -471,7 +523,7 @@ export function withGameState() {
         // (only) movement. in the past, this was uncapped, which basically meant that the player
         // would often teleport great distances, which was against the spirit of the whole thing.
         let energyBank = remainingActions;
-        while (remainingActions > 0 && store.checkedLocations().size < store.defs().allLocations.length) {
+        while (remainingActions > 0 && store.checkedLocations().size < allLocations.length) {
           patchState(store, (prev) => {
             const result = { } as Mutable<Partial<typeof prev>>;
 
@@ -527,21 +579,54 @@ export function withGameState() {
             }
 
             if (!moved && prev.startledCounter === 0 && !(store.locationIsChecked()[result.currentLocation])) {
-              // TODO: roll for it, don't just auto-succeed
-              result.outgoingCheckedLocations = prev.outgoingCheckedLocations.add(result.currentLocation);
-
-              // at least adjust the aura, though.
-              if (prev.luckFactor > 0) {
+              let unlucky = false;
+              let lucky = false;
+              let stylish = false;
+              if (prev.luckFactor < 0) {
+                unlucky = true;
+                result.luckFactor = prev.luckFactor + 1;
+              }
+              else if (prev.luckFactor > 0) {
+                lucky = true;
                 result.luckFactor = prev.luckFactor - 1;
               }
-              else {
-                if (prev.styleFactor > 0) {
-                  result.styleFactor = prev.styleFactor - 1;
+
+              if (prev.styleFactor > 0 && !lucky) {
+                result.styleFactor = prev.styleFactor - 1;
+                stylish = true;
+              }
+
+              let roll = 0;
+              let success = lucky;
+              if (success) {
+                console.log('lucky!');
+              }
+              if (!success) {
+                let d20: number;
+                [d20, result.prng] = rand.uniformIntDistribution(1, 20, prev.prng);
+                roll = modifyRoll({
+                  d20,
+                  ratCount: store.ratCount(),
+                  mercy: prev.mercyFactor,
+                  stylish,
+                  unlucky,
+                  multi: multi++,
+                });
+                success = roll >= allLocations[result.currentLocation].abilityCheckDC;
+                console.log(roll, '=', d20, roll >= d20 ? '+' : '-', Math.abs(roll - d20), success ? '>=' : '<', allLocations[result.currentLocation].abilityCheckDC);
+                if (isFirstCheck && !success) {
+                  bumpMercyModifierForNextTime = true;
                 }
 
-                if (prev.luckFactor < 0) {
-                  result.luckFactor = prev.luckFactor + 1;
-                }
+                isFirstCheck = false;
+              }
+
+              if (success) {
+                console.log('success at', allLocations[result.currentLocation].name);
+                result.outgoingCheckedLocations = prev.outgoingCheckedLocations.add(result.currentLocation);
+                result.checkedLocations = prev.checkedLocations.add(result.currentLocation);
+                result.mercyFactor = 0;
+                bumpMercyModifierForNextTime = false;
               }
             }
 
@@ -566,6 +651,9 @@ export function withGameState() {
           result.sluggishCarryover = remainingActions < 0;
           if (prev.startledCounter > 0) {
             result.startledCounter = prev.startledCounter - 1;
+          }
+          if (bumpMercyModifierForNextTime) {
+            result.mercyFactor = prev.mercyFactor + 1;
           }
 
           return result;
