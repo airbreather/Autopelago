@@ -2,6 +2,7 @@ import { inject, InjectionToken, provideZonelessChangeDetection } from '@angular
 import { TestBed } from '@angular/core/testing';
 import BitArray from '@bitarray/typedarray';
 import { patchState, signalStore, withHooks } from '@ngrx/signals';
+import { unprotected } from '@ngrx/signals/testing';
 import { List, Set as ImmutableSet } from 'immutable';
 import rand from 'pure-rand';
 import { describe, expect, test } from 'vitest';
@@ -88,16 +89,55 @@ describe('withGameState', () => {
     store.advance();
     expect(store.checkedLocations().has(basketball)).toEqual(ratCount >= 5);
   });
+  // note: very early versions of the game used to go towards whichever of the two landmarks was
+  // unblocked, but that turned out to be overkill. the separate tests remained, but their asserts
+  // were changed to always just accept either direction.
+  test.for(['Angry Turtles', 'Prawn Stars'])('should head further after completing Basketball (unblock %s first)', (unblockFirst) => {
+    const { allRegions, allLocations, itemNameLookup, locationNameLookup } = BAKED_DEFINITIONS_BY_VICTORY_LANDMARK.snakes_on_a_planet;
+    const packRat = itemNameLookup.get('Pack Rat') ?? NaN;
+    const pizzaRat = itemNameLookup.get('Pizza Rat') ?? NaN;
+    const premiumCanOfPrawnFood = itemNameLookup.get('Premium Can of Prawn Food') ?? NaN;
+    const basketball = locationNameLookup.get('Basketball') ?? NaN;
+    const prawnStars = locationNameLookup.get('Prawn Stars') ?? NaN;
+    const angryTurtles = locationNameLookup.get('Angry Turtles') ?? NaN;
+    const beforeBasketball = allRegions[allLocations[basketball].regionLocationKey[0]].connected.backward[0];
+    const beforePrawnStars = allRegions[allLocations[prawnStars].regionLocationKey[0]].connected.backward[0];
+    const beforeAngryTurtles = allRegions[allLocations[angryTurtles].regionLocationKey[0]].connected.backward[0];
+
+    const store = getStoreWith({
+      ...initialGameStateFor('snakes_on_a_planet'),
+      checkedLocations: ImmutableSet(getLocs(allRegions[beforeBasketball])),
+      receivedItems: List(Array<number>(5).fill(packRat)).push(unblockFirst === 'Angry Turtles' ? pizzaRat : premiumCanOfPrawnFood),
+      currentLocation: basketball,
+      prng: prngs.lucky.prng,
+    });
+    store.advance();
+
+    // because we roll so well, we can actually use our three actions to complete two checks:
+    // basketball, then move, then complete that first location that we moved to.
+    expect(allLocations[store.currentLocation()].regionLocationKey).toBeOneOf([[beforePrawnStars, 0], [beforeAngryTurtles, 0]]);
+    expect(allLocations[store.targetLocation()].regionLocationKey).toBeOneOf([[beforePrawnStars, 1], [beforeAngryTurtles, 1]]);
+  });
 });
 
 function getStoreWith(initialData: Partial<DefiningGameState>): InstanceType<typeof TestingStore> {
-  return TestBed.configureTestingModule({
+  const store = TestBed.configureTestingModule({
     providers: [
       provideZonelessChangeDetection(),
       TestingStore,
       { provide: INITIAL_DATA, useValue: initialData },
     ],
   }).inject(TestingStore);
+
+  // tests are ported from the C# version which has a more primitive version of "do we need to burn
+  // an action to figure out the new target location?": whereas it just checks to see if the target
+  // location changed since the end of the previous turn, we actually simulate the rat spending an
+  // action every time its state changed in a way that could theoretically affect the target - even
+  // if the target didn't change! ...but I want the tests as close to the C# version as possible, so
+  // by default let's set it up so that we DON'T burn an action each time. those tests that expect
+  // the target to change will be able to replicate this by simply setting it to null.
+  patchState(unprotected(store), { previousTargetLocationEvidence: store.targetLocationEvidence() });
+  return store;
 }
 
 function initialGameStateFor(victoryLocationYamlKey: VictoryLocationYamlKey): Partial<DefiningGameState> {
