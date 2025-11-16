@@ -13,6 +13,7 @@
     "prestart": "yq . AutopelagoDefinitions.yml --output-format json --indent 0 > src/app/data/baked.json",
     "prebuild": "yq . AutopelagoDefinitions.yml --output-format json --indent 0 > src/app/data/baked.json",
     "prewatch": "yq . AutopelagoDefinitions.yml --output-format json --indent 0 > src/app/data/baked.json",
+    "pretest": "yq . AutopelagoDefinitions.yml --output-format json --indent 0 > src/app/data/baked.json",
     "start": "ng serve",
     "build": "ng build",
     "watch": "ng build --watch --configuration development",
