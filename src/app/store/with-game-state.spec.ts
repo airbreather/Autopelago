@@ -1,3 +1,5 @@
+// noinspection DuplicatedCode
+
 import { inject, InjectionToken, provideZonelessChangeDetection } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import BitArray from '@bitarray/typedarray';
@@ -135,39 +137,31 @@ describe('withGameState', () => {
     expect(allLocations[store.currentLocation()].regionLocationKey).toBeOneOf([[beforePrawnStars, 0], [beforeAngryTurtles, 0]]);
     expect(allLocations[store.targetLocation()].regionLocationKey).toBeOneOf([[beforePrawnStars, 1], [beforeAngryTurtles, 1]]);
   });
-  test.for([...Range(1, 13)])('game should be winnable (id #%d)', (testId) => {
-    let prng = rand.xoroshiro128plus(2);
-    for (let i = 0; i < testId; i++) {
-      prng.unsafeJump?.();
-    }
-
-    let victoryLocationYamlKey: VictoryLocationYamlKey;
-    if ((testId % 3) === 0) {
-      victoryLocationYamlKey = 'captured_goldfish';
-    }
-    else if ((testId % 3) === 1) {
-      victoryLocationYamlKey = 'secret_cache';
-    }
-    else {
-      victoryLocationYamlKey = 'snakes_on_a_planet';
-    }
-
+  test.for(['captured_goldfish', 'secret_cache', 'snakes_on_a_planet'] as const)('game should be winnable (%s)', (victoryLocationYamlKey) => {
     const { allLocations, progressionItemsByYamlKey } = BAKED_DEFINITIONS_BY_VICTORY_LANDMARK[victoryLocationYamlKey];
-    const store = getStoreWith({
-      ...initialGameStateFor(victoryLocationYamlKey),
-      prng,
-    });
+    const store = getStoreWith(initialGameStateFor(victoryLocationYamlKey));
     let advancesSoFar = 0;
     const newReceivedItems: number[] = [];
     while (true) {
-      const prevCheckedLocations = store.checkedLocations();
+      // always roll high. these are the slowest tests by far, and with all the other tests we have
+      // for specific ranges and mercy factor, there's really no benefit to being "realistic" here.
+      patchState(unprotected(store), { prng: prngs.lucky.prng });
       store.advance();
+
+      // experimentally, this never exceeds 600 with these seeds.
+      expect(++advancesSoFar).toBeLessThan(2000);
+
+      const outgoingCheckedLocations = store.outgoingCheckedLocations();
+      if (outgoingCheckedLocations.size === 0) {
+        continue;
+      }
+
       const currCheckedLocations = store.checkedLocations();
       if (currCheckedLocations.size === allLocations.length) {
         break;
       }
 
-      for (const newCheckedLocation of currCheckedLocations.subtract(prevCheckedLocations)) {
+      for (const newCheckedLocation of outgoingCheckedLocations) {
         const location = allLocations[newCheckedLocation];
         if (location.unrandomizedProgressionItemYamlKey !== null) {
           newReceivedItems.push(progressionItemsByYamlKey.get(location.unrandomizedProgressionItemYamlKey) ?? NaN);
@@ -179,8 +173,7 @@ describe('withGameState', () => {
         newReceivedItems.length = 0;
       }
 
-      // experimentally, this never exceeds 600 with these seeds.
-      expect(++advancesSoFar).toBeLessThan(2000);
+      patchState(unprotected(store), { outgoingCheckedLocations: outgoingCheckedLocations.clear() });
     }
   });
 
@@ -292,7 +285,6 @@ describe('withGameState', () => {
     });
 
     // 4 actions are "check, move, check, move".
-    // noinspection DuplicatedCode
     store.advance();
     expect(store.checkedLocations().size).toStrictEqual(2);
     expect(allLocations[store.currentLocation()].regionLocationKey[1]).toStrictEqual(2);
@@ -332,7 +324,6 @@ describe('withGameState', () => {
     expect(allLocations[store.currentLocation()].regionLocationKey[1]).toStrictEqual(1);
 
     // 2 actions are "check, move".
-    // noinspection DuplicatedCode
     store.advance();
     expect(store.checkedLocations().size).toStrictEqual(2);
     expect(allLocations[store.currentLocation()].regionLocationKey[1]).toStrictEqual(2);
@@ -352,6 +343,83 @@ describe('withGameState', () => {
     expect(allLocations[store.targetLocation()].regionLocationKey[1]).toStrictEqual(5);
     expect(store.foodFactor()).toStrictEqual(-4);
   });
+
+  test('distraction counter should waste entire round', () => {
+    const { allLocations } = BAKED_DEFINITIONS_BY_VICTORY_LANDMARK.captured_goldfish;
+    const store = getStoreWith({
+      ...initialGameStateFor('captured_goldfish'),
+      prng: prngs.lucky.prng,
+    });
+
+    // distraction should also burn through your food factor.
+    store.receiveItems([singleAuraItems.well_fed]);
+
+    // distraction counter won't go above 3.
+    store.receiveItems(Range(0, 3).map(() => singleAuraItems.distracted));
+    Range(0, 3).forEach(store.advance);
+    store.receiveItems(Range(0, 2).map(() => singleAuraItems.distracted));
+    Range(0, 2).forEach(store.advance);
+
+    // 3 actions are "check, move, check"
+    store.advance();
+    expect(store.checkedLocations().size).toStrictEqual(2);
+    expect(allLocations[store.currentLocation()].regionLocationKey[1]).toStrictEqual(1);
+    expect(allLocations[store.targetLocation()].regionLocationKey[1]).toStrictEqual(2);
+  });
+
+  test('style factor should improve modifier', () => {
+    const { allLocations } = BAKED_DEFINITIONS_BY_VICTORY_LANDMARK.captured_goldfish;
+    const store = getStoreWith({
+      ...initialGameStateFor('captured_goldfish'),
+      prng: prngs._6_11.prng,
+    });
+
+    store.receiveItems(Range(0, 2).map(() => singleAuraItems.stylish));
+
+    // 3 actions are "check, move, check"
+    store.advance();
+    expect(store.checkedLocations().size).toStrictEqual(2);
+    expect(allLocations[store.currentLocation()].regionLocationKey[1]).toStrictEqual(1);
+    expect(allLocations[store.targetLocation()].regionLocationKey[1]).toStrictEqual(2);
+  });
+
+  test('go mode', () => {
+    const { allLocations, allRegions, progressionItemsByYamlKey, startRegion, victoryLocationsByYamlKey } = BAKED_DEFINITIONS_BY_VICTORY_LANDMARK.snakes_on_a_planet;
+    const victoryLocation = victoryLocationsByYamlKey.get('snakes_on_a_planet') ?? NaN;
+    const lastItemYamlKey = 'mongoose_in_a_combat_spacecraft';
+    const store = getStoreWith({
+      ...initialGameStateFor('snakes_on_a_planet'),
+      receivedItems: List(allLocations
+        .filter(l => l.unrandomizedProgressionItemYamlKey !== null && l.unrandomizedProgressionItemYamlKey !== lastItemYamlKey)
+        .map(l => progressionItemsByYamlKey.get(l.unrandomizedProgressionItemYamlKey ?? '') ?? NaN)),
+      prng: prngs.unlucky.prng,
+    });
+
+    // make a couple of steps where we have all items except the very last one. this is SOMEWHAT
+    // YAML-dependent, but seriously, if you advance 2 times with rolls forced to be natural 1,
+    // and that somehow brings you out of the starting region, then that's a BIG change.
+    for (let i = 0; i < 2; i++) {
+      store.advance();
+      expect(allLocations[store.targetLocation()].regionLocationKey[0]).toStrictEqual(startRegion);
+      patchState(unprotected(store), { prng: prngs.unlucky.prng });
+    }
+
+    // now give it that last randomized item and see it shoot for the moon all the way through.
+    store.receiveItems([progressionItemsByYamlKey.get(lastItemYamlKey) ?? NaN]);
+
+    let advancesSoFar = 0;
+    while (true) {
+      patchState(unprotected(store), { prng: prngs.lucky.prng });
+      store.advance();
+      if (store.locationIsChecked()[victoryLocation]) {
+        break;
+      }
+
+      // it's probably impossible for it to even go above 31, probably.
+      expect(++advancesSoFar).toBeLessThan(50);
+      expect(allRegions[allLocations[store.targetLocation()].regionLocationKey[0]]).toHaveProperty('loc');
+    }
+  });
 });
 
 function getStoreWith(initialData: Partial<DefiningGameState>): InstanceType<typeof TestingStore> {
@@ -367,9 +435,8 @@ function getStoreWith(initialData: Partial<DefiningGameState>): InstanceType<typ
   // an action to figure out the new target location?": whereas it just checks to see if the target
   // location changed since the end of the previous turn, we actually simulate the rat spending an
   // action every time its state changed in a way that could theoretically affect the target - even
-  // if the target didn't change! ...but I want the tests as close to the C# version as possible, so
-  // by default let's set it up so that we DON'T burn an action each time. those tests that expect
-  // the target to change will be able to replicate this by simply setting it to null.
+  // if the target didn't change! ...but I want the tests as close to the C# version as possible for
+  // the initial port (at least), so by default let's set it up so that we DON'T burn actions.
   patchState(unprotected(store), { previousTargetLocationEvidence: store.targetLocationEvidence() });
   return store;
 }
@@ -418,7 +485,11 @@ const prngs = {
   _20_20_1_20_20_20_20_1: {
     rolls: [20, 20, 1, 20, 20, 20, 20, 1],
     prng: rand.xoroshiro128plus.fromState([721066624, -315573484, -1770911155, -50848825]),
-  }
+  },
+  _6_11: {
+    rolls: [6, 11],
+    prng: rand.xoroshiro128plus.fromState([-1170094942, -569190855, 990179148, -182617468]),
+  },
 } as const;
 
 // noinspection JSUnusedLocalSymbols

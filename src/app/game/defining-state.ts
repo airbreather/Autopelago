@@ -41,7 +41,7 @@ export interface DefiningGameState {
   readonly prng: rand.RandomGenerator;
 
   // other values used to indicate autonomous actions that haven't been observed yet:
-  outgoingCheckedLocations: ImmutableSet<number>;
+  outgoingCheckedLocations: List<number>;
   outgoingMoves: List<readonly [number, number]>;
   outgoingMessages: List<string>;
 }

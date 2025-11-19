@@ -30,6 +30,8 @@ import {
 } from '../game/target-location-evidence';
 import { type EnumVal, type Mutable } from '../util';
 
+const IS_VITEST = 'vitest' in import.meta;
+
 function arraysEqual(a: readonly number[], b: readonly number[]) {
   return a.length === b.length && a.every((v, i) => v === b[i]);
 }
@@ -154,7 +156,7 @@ const initialState: DefiningGameState = {
   receivedItems: List<number>(),
   checkedLocations: ImmutableSet<number>(),
   prng: rand.xoroshiro128plus(42),
-  outgoingCheckedLocations: ImmutableSet<number>(),
+  outgoingCheckedLocations: List<number>(),
   outgoingMoves: List<readonly [number, number]>(),
   outgoingMessages: List<string>(),
 };
@@ -775,7 +777,9 @@ export function withGameState() {
               let roll = 0;
               let success = lucky;
               if (success) {
-                console.log('lucky!');
+                if (!IS_VITEST) {
+                  console.log('lucky!');
+                }
               }
               if (!success) {
                 let d20: number;
@@ -789,7 +793,9 @@ export function withGameState() {
                   multi: multi++,
                 });
                 success = roll >= allLocations[result.currentLocation].abilityCheckDC;
-                console.log(roll, '=', d20, roll >= d20 ? '+' : '-', Math.abs(roll - d20), success ? '>=' : '<', allLocations[result.currentLocation].abilityCheckDC);
+                if (!IS_VITEST) {
+                  console.log(roll, '=', d20, roll >= d20 ? '+' : '-', Math.abs(roll - d20), success ? '>=' : '<', allLocations[result.currentLocation].abilityCheckDC);
+                }
                 if (isFirstCheck && !success) {
                   bumpMercyModifierForNextTime = true;
                 }
@@ -798,8 +804,10 @@ export function withGameState() {
               }
 
               if (success) {
-                console.log('success at', allLocations[result.currentLocation].name);
-                result.outgoingCheckedLocations = prev.outgoingCheckedLocations.add(result.currentLocation);
+                if (!IS_VITEST) {
+                  console.log('success at', allLocations[result.currentLocation].name);
+                }
+                result.outgoingCheckedLocations = prev.outgoingCheckedLocations.push(result.currentLocation);
                 result.checkedLocations = prev.checkedLocations.add(result.currentLocation);
                 result.mercyFactor = 0;
                 bumpMercyModifierForNextTime = false;
