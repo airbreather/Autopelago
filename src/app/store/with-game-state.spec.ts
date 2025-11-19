@@ -26,7 +26,10 @@ const singleAuraItems = stricterObjectFromEntries(
 
 describe('self', () => {
   test.each(strictObjectEntries(prngs))('rolls for %s continue to match what they used to', (name, { rolls, prng }) => {
-    assertPrngWillRoll(rolls, prng);
+    prng = prng.clone();
+    for (const roll of rolls) {
+      expect(rand.unsafeUniformIntDistribution(1, 20, prng)).toStrictEqual(roll);
+    }
   });
 });
 
@@ -660,12 +663,4 @@ function _prngThatWillRoll(vals: readonly number[]): rand.RandomGenerator {
   }
 
   return result;
-}
-
-function assertPrngWillRoll(vals: readonly number[], prng: rand.RandomGenerator) {
-  let roll: number;
-  for (const item of vals) {
-    [roll, prng] = rand.uniformIntDistribution(1, 20, prng);
-    expect(roll).toStrictEqual(item);
-  }
 }
