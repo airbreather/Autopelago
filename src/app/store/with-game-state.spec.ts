@@ -3,7 +3,7 @@ import { TestBed } from '@angular/core/testing';
 import BitArray from '@bitarray/typedarray';
 import { patchState, signalStore, withHooks } from '@ngrx/signals';
 import { unprotected } from '@ngrx/signals/testing';
-import { List, Set as ImmutableSet } from 'immutable';
+import { List, Range, Set as ImmutableSet } from 'immutable';
 import rand from 'pure-rand';
 import { describe, expect, test } from 'vitest';
 import {
@@ -117,6 +117,54 @@ describe('withGameState', () => {
     // basketball, then move, then complete that first location that we moved to.
     expect(allLocations[store.currentLocation()].regionLocationKey).toBeOneOf([[beforePrawnStars, 0], [beforeAngryTurtles, 0]]);
     expect(allLocations[store.targetLocation()].regionLocationKey).toBeOneOf([[beforePrawnStars, 1], [beforeAngryTurtles, 1]]);
+  });
+  test.for([...Range(1, 13)])('game should be winnable (id #%d)', (testId) => {
+    let prng = rand.xoroshiro128plus(2);
+    for (let i = 0; i < testId; ++i) {
+      prng.unsafeJump?.();
+    }
+
+    let victoryLocationYamlKey: VictoryLocationYamlKey;
+    if ((testId % 3) === 0) {
+      victoryLocationYamlKey = 'captured_goldfish';
+    }
+    else if ((testId % 3) === 1) {
+      victoryLocationYamlKey = 'secret_cache';
+    }
+    else {
+      victoryLocationYamlKey = 'snakes_on_a_planet';
+    }
+
+    const { allLocations, progressionItemsByYamlKey } = BAKED_DEFINITIONS_BY_VICTORY_LANDMARK[victoryLocationYamlKey];
+    const store = getStoreWith({
+      ...initialGameStateFor(victoryLocationYamlKey),
+      prng,
+    });
+    let advancesSoFar = 0;
+    const newReceivedItems: number[] = [];
+    while (true) {
+      const prevCheckedLocations = store.checkedLocations();
+      store.advance();
+      const currCheckedLocations = store.checkedLocations();
+      if (currCheckedLocations.size === allLocations.length) {
+        break;
+      }
+
+      for (const newCheckedLocation of currCheckedLocations.subtract(prevCheckedLocations)) {
+        const location = allLocations[newCheckedLocation];
+        if (location.unrandomizedProgressionItemYamlKey !== null) {
+          newReceivedItems.push(progressionItemsByYamlKey.get(location.unrandomizedProgressionItemYamlKey) ?? NaN);
+        }
+      }
+
+      if (newReceivedItems.length > 0) {
+        store.receiveItems(newReceivedItems);
+        newReceivedItems.length = 0;
+      }
+
+      // experimentally, this never exceeds 600 with these seeds.
+      expect(++advancesSoFar).toBeLessThan(2000);
+    }
   });
 });
 

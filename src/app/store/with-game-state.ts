@@ -382,6 +382,179 @@ export function withGameState() {
       };
     }),
     withMethods(store => ({
+      receiveItems(items: Iterable<number>) {
+        const { allItems, allLocations } = store.defs();
+        patchState(store, (prev) => {
+          const result = {
+            foodFactor: prev.foodFactor,
+            luckFactor: prev.luckFactor,
+            energyFactor: prev.energyFactor,
+            styleFactor: prev.styleFactor,
+            distractionCounter: prev.distractionCounter,
+            startledCounter: prev.startledCounter,
+            hasConfidence: prev.hasConfidence,
+            // the remainder will be clobbered. just helping TypeScript.
+            receivedItems: prev.receivedItems,
+            processedReceivedItemCount: prev.processedReceivedItemCount,
+            auraDrivenLocations: prev.auraDrivenLocations,
+            userRequestedLocations: prev.userRequestedLocations,
+          } satisfies Partial<DefiningGameState>;
+          result.auraDrivenLocations = result.auraDrivenLocations.withMutations((a) => {
+            result.receivedItems = prev.receivedItems.withMutations((r) => {
+              const locs = allLocations;
+              const validProgressionItems = new BitArray(prev.locationIsProgression);
+              const validTrapItems = new BitArray(prev.locationIsTrap);
+              for (const loc of [...prev.checkedLocations, ...prev.auraDrivenLocations]) {
+                validProgressionItems[loc] = 0;
+                validTrapItems[loc] = 0;
+              }
+              function addLocation(include: BitArray) {
+                const { regionIsHardLocked } = store._regionLocks();
+                const visited = new BitArray(include.length);
+                const q = new Queue<number>();
+
+                function tryEnqueue(loc: number) {
+                  if (visited[loc]) {
+                    return;
+                  }
+
+                  if (!regionIsHardLocked[locs[loc].regionLocationKey[0]]) {
+                    q.enqueue(loc);
+                  }
+
+                  visited[loc] = 1;
+                }
+
+                tryEnqueue(prev.currentLocation);
+                for (let loc = q.dequeue(); loc !== undefined; loc = q.dequeue()) {
+                  if (include[loc]) {
+                    include[loc] = 0;
+                    a.push(loc);
+                    break;
+                  }
+
+                  for (const [c] of locs[loc].connected.all) {
+                    tryEnqueue(c);
+                  }
+                }
+              }
+
+              for (const item of items) {
+                const itemFull = allItems[item];
+                r.push(item);
+                if (r.size <= result.processedReceivedItemCount) {
+                  continue;
+                }
+
+                let subtractConfidence = false;
+                let addConfidence = false;
+                for (const aura of itemFull.aurasGranted) {
+                  switch (aura) {
+                    case 'well_fed':
+                      result.foodFactor += 5;
+                      break;
+
+                    case 'upset_tummy':
+                      if (result.hasConfidence) {
+                        subtractConfidence = true;
+                      }
+                      else {
+                        result.foodFactor -= 5;
+                      }
+
+                      break;
+
+                    case 'lucky':
+                      ++result.luckFactor;
+                      break;
+
+                    case 'unlucky':
+                      if (result.hasConfidence) {
+                        subtractConfidence = true;
+                      }
+                      else {
+                        --result.luckFactor;
+                      }
+
+                      break;
+
+                    case 'energized':
+                      result.energyFactor += 5;
+                      break;
+
+                    case 'sluggish':
+                      if (result.hasConfidence) {
+                        subtractConfidence = true;
+                      }
+                      else {
+                        result.energyFactor -= 5;
+                      }
+
+                      break;
+
+                    case 'distracted':
+                      if (result.hasConfidence) {
+                        subtractConfidence = true;
+                      }
+                      else {
+                        ++result.distractionCounter;
+                      }
+
+                      break;
+
+                    case 'stylish':
+                      result.styleFactor += 2;
+                      break;
+
+                    case 'startled':
+                      if (result.hasConfidence) {
+                        subtractConfidence = true;
+                      }
+                      else {
+                        ++result.startledCounter;
+                      }
+
+                      break;
+
+                    case 'smart':
+                      addLocation(validProgressionItems);
+                      break;
+
+                    case 'conspiratorial':
+                      if (result.hasConfidence) {
+                        subtractConfidence = true;
+                      }
+                      else {
+                        addLocation(validTrapItems);
+                      }
+                      break;
+
+                    case 'confident':
+                      addConfidence = true;
+                      break;
+                  }
+                }
+
+                if (subtractConfidence) {
+                  result.hasConfidence = false;
+                }
+
+                if (addConfidence) {
+                  result.hasConfidence = true;
+                }
+              }
+
+              // Startled is extremely punishing. after a big release, it can be very annoying to just
+              // sit there and wait for too many turns in a row. same concept applies to Distracted.
+              result.startledCounter = Math.min(result.startledCounter, 3);
+              result.distractionCounter = Math.min(result.distractionCounter, 3);
+            });
+          });
+
+          result.processedReceivedItemCount = result.receivedItems.size;
+          return result;
+        });
+      },
       consumeOutgoingMoves() {
         const outgoingMoves = store.outgoingMoves();
         if (outgoingMoves.size > 0) {

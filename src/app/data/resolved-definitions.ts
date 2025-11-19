@@ -59,6 +59,7 @@ export interface AutopelagoLocation {
   flavorText: string | null;
   abilityCheckDC: number;
   connected: Readonly<Connected>;
+  unrandomizedProgressionItemYamlKey: string | null;
 }
 
 export interface AutopelagoRegionBase {
@@ -334,6 +335,7 @@ function resolveMainDefinitions(
       flavorText: landmark.flavor_text,
       abilityCheckDC: landmark.ability_check_dc,
       connected: toConnected([], []), // Will be filled later
+      unrandomizedProgressionItemYamlKey: landmark.unrandomized_item,
     });
 
     // Create the landmark region
@@ -367,33 +369,39 @@ function resolveMainDefinitions(
 
     // Calculate number of locations based on unrandomized items
     const unrandomizedItems = filler.unrandomized_items;
-    let locationCount = 0;
+    const progressionItemYamlKeys: (string | null)[] = [];
 
     if ('key' in unrandomizedItems) {
       for (const keyItem of unrandomizedItems.key) {
         if (typeof keyItem === 'object') {
-          locationCount += keyItem.count;
+          for (let i = 0; i < keyItem.count; i++) {
+            progressionItemYamlKeys.push(keyItem.item);
+          }
         }
         else {
-          locationCount += 1;
+          progressionItemYamlKeys.push(keyItem);
         }
       }
     }
 
     if ('filler' in unrandomizedItems) {
-      locationCount += unrandomizedItems.filler;
+      for (let i = 0; i < unrandomizedItems.filler; i++) {
+        progressionItemYamlKeys.push(null);
+      }
     }
 
     if ('useful_nonprogression' in unrandomizedItems) {
-      locationCount += unrandomizedItems.useful_nonprogression;
+      for (let i = 0; i < unrandomizedItems.useful_nonprogression; i++) {
+        progressionItemYamlKeys.push(null);
+      }
     }
 
     // Ensure at least one location
-    if (locationCount === 0) {
+    if (progressionItemYamlKeys.length === 0) {
       throw new Error(`Filler ${fillerKey} has no locations`);
     }
 
-    locationCountByFillerRegion[fillerKey] = locationCount;
+    locationCountByFillerRegion[fillerKey] = progressionItemYamlKeys.length;
 
     // Determine ability check DC
     let abilityCheckDC: number;
@@ -415,7 +423,7 @@ function resolveMainDefinitions(
 
     // Create locations for this filler
     const locationIndices: number[] = [];
-    for (let i = 0; i < locationCount; i++) {
+    for (let i = 0; i < progressionItemYamlKeys.length; i++) {
       const locationIndex = allLocations.length;
       locationIndices.push(locationIndex);
 
@@ -427,6 +435,7 @@ function resolveMainDefinitions(
         flavorText: null,
         abilityCheckDC,
         connected: toConnected([], []), // Will be filled later
+        unrandomizedProgressionItemYamlKey: progressionItemYamlKeys[i],
       });
     }
 
