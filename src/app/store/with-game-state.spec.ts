@@ -21,14 +21,14 @@ import { withGameState } from './with-game-state';
 
 const singleAuraItems = stricterObjectFromEntries(
   (['well_fed', 'upset_tummy', 'lucky', 'unlucky', 'energized', 'sluggish', 'distracted', 'stylish', 'startled', 'smart', 'conspiratorial', 'confident'] as const)
-    .map(aura => ([aura, BAKED_DEFINITIONS_FULL.allItems.findIndex(i => i.aurasGranted.length === 1 && i.aurasGranted[0] === aura)]))
+    .map(aura => ([aura, BAKED_DEFINITIONS_FULL.allItems.findIndex(i => i.aurasGranted.length === 1 && i.aurasGranted[0] === aura)])),
 ) satisfies Record<AutopelagoAura, number>;
 
 describe('self', () => {
   test.each(strictObjectEntries(prngs))('rolls for %s continue to match what they used to', (name, { rolls, prng }) => {
     assertPrngWillRoll(rolls, prng);
   });
-})
+});
 
 const INITIAL_DATA = new InjectionToken<Partial<DefiningGameState>>('INITIAL_DATA');
 const TestingStore = signalStore(
@@ -49,7 +49,7 @@ describe('withGameState', () => {
     });
 
     // we're on the first location. we should fail three times and then yield.
-    let expectedPrng = prngs._8_13_18_9_13.prng.clone();
+    const expectedPrng = prngs._8_13_18_9_13.prng.clone();
     rand.unsafeUniformIntDistribution(1, 20, expectedPrng);
     rand.unsafeUniformIntDistribution(1, 20, expectedPrng);
     rand.unsafeUniformIntDistribution(1, 20, expectedPrng);
@@ -86,7 +86,7 @@ describe('withGameState', () => {
       allRegions,
       allLocations,
       itemNameLookup,
-      locationNameLookup
+      locationNameLookup,
     } = BAKED_DEFINITIONS_BY_VICTORY_LANDMARK.snakes_on_a_planet;
     const packRat = itemNameLookup.get('Pack Rat') ?? NaN;
     const basketball = locationNameLookup.get('Basketball') ?? NaN;
@@ -111,7 +111,7 @@ describe('withGameState', () => {
       allRegions,
       allLocations,
       itemNameLookup,
-      locationNameLookup
+      locationNameLookup,
     } = BAKED_DEFINITIONS_BY_VICTORY_LANDMARK.snakes_on_a_planet;
     const packRat = itemNameLookup.get('Pack Rat') ?? NaN;
     const pizzaRat = itemNameLookup.get('Pizza Rat') ?? NaN;
@@ -142,7 +142,7 @@ describe('withGameState', () => {
     const store = getStoreWith(initialGameStateFor(victoryLocationYamlKey));
     let advancesSoFar = 0;
     const newReceivedItems: number[] = [];
-    while (true) {
+    for (;;) {
       // always roll high. these are the slowest tests by far, and with all the other tests we have
       // for specific ranges and mercy factor, there's really no benefit to being "realistic" here.
       patchState(unprotected(store), { prng: prngs.lucky.prng });
@@ -177,7 +177,7 @@ describe('withGameState', () => {
     }
   });
 
-  test.for([1, 2, 3])('lucky aura should force success: %d instances', effectCount => {
+  test.for([1, 2, 3])('lucky aura should force success: %d instances', (effectCount) => {
     const store = getStoreWith({
       ...initialGameStateFor('captured_goldfish'),
     });
@@ -408,7 +408,7 @@ describe('withGameState', () => {
     store.receiveItems([progressionItemsByYamlKey.get(lastItemYamlKey) ?? NaN]);
 
     let advancesSoFar = 0;
-    while (true) {
+    for (;;) {
       patchState(unprotected(store), { prng: prngs.lucky.prng });
       store.advance();
       if (store.locationIsChecked()[victoryLocation]) {
@@ -519,8 +519,8 @@ function _prngThatWillRoll(vals: readonly number[]): rand.RandomGenerator {
 
 function assertPrngWillRoll(vals: readonly number[], prng: rand.RandomGenerator) {
   let roll: number;
-  for (let i = 0; i < vals.length; i++) {
+  for (const item of vals) {
     [roll, prng] = rand.uniformIntDistribution(1, 20, prng);
-    expect(roll).toStrictEqual(vals[i]);
+    expect(roll).toStrictEqual(item);
   }
 }
