@@ -80,7 +80,12 @@ describe('withGameState', () => {
   });
 
   test.for([0, 1, 2, 3, 4, 5, 6])('should only try basketball with at least five rats: %d', (ratCount) => {
-    const { allRegions, allLocations, itemNameLookup, locationNameLookup } = BAKED_DEFINITIONS_BY_VICTORY_LANDMARK.snakes_on_a_planet;
+    const {
+      allRegions,
+      allLocations,
+      itemNameLookup,
+      locationNameLookup
+    } = BAKED_DEFINITIONS_BY_VICTORY_LANDMARK.snakes_on_a_planet;
     const packRat = itemNameLookup.get('Pack Rat') ?? NaN;
     const basketball = locationNameLookup.get('Basketball') ?? NaN;
     const immediatelyBeforeBasketball = allLocations[basketball].connected.backward[0];
@@ -100,7 +105,12 @@ describe('withGameState', () => {
   // unblocked, but that turned out to be overkill. the separate tests remained, but their asserts
   // were changed to always just accept either direction.
   test.for(['Angry Turtles', 'Prawn Stars'])('should head further after completing Basketball (unblock %s first)', (unblockFirst) => {
-    const { allRegions, allLocations, itemNameLookup, locationNameLookup } = BAKED_DEFINITIONS_BY_VICTORY_LANDMARK.snakes_on_a_planet;
+    const {
+      allRegions,
+      allLocations,
+      itemNameLookup,
+      locationNameLookup
+    } = BAKED_DEFINITIONS_BY_VICTORY_LANDMARK.snakes_on_a_planet;
     const packRat = itemNameLookup.get('Pack Rat') ?? NaN;
     const pizzaRat = itemNameLookup.get('Pizza Rat') ?? NaN;
     const premiumCanOfPrawnFood = itemNameLookup.get('Premium Can of Prawn Food') ?? NaN;
@@ -173,105 +183,175 @@ describe('withGameState', () => {
       expect(++advancesSoFar).toBeLessThan(2000);
     }
   });
-});
 
-test.for([1, 2, 3])('lucky aura should force success: %d instances', effectCount => {
-  const store = getStoreWith({
-    ...initialGameStateFor('captured_goldfish'),
+  test.for([1, 2, 3])('lucky aura should force success: %d instances', effectCount => {
+    const store = getStoreWith({
+      ...initialGameStateFor('captured_goldfish'),
+    });
+    store.receiveItems(Range(0, effectCount).map(() => singleAuraItems.lucky));
+    for (let i = 0; i < 3; i++) {
+      // lucky should force it, so all rolls should be low
+      patchState(unprotected(store), { prng: prngs.unlucky.prng });
+      store.advance();
+    }
+
+    expect(store.checkedLocations().size).toStrictEqual(effectCount);
   });
-  store.receiveItems(Range(0, effectCount).map(() => singleAuraItems.lucky));
-  for (let i = 0; i < 3; i++) {
-    // lucky should force it, so all rolls should be low
-    patchState(unprotected(store), { prng: prngs.unlucky.prng });
+
+  test('unlucky aura should reduce modifier', () => {
+    const store = getStoreWith({
+      ...initialGameStateFor('captured_goldfish'),
+      prng: prngs._13_18_20_12_13.prng,
+    });
+    store.receiveItems(Range(0, 4).map(() => singleAuraItems.unlucky));
+
+    // normally, a 13 as your first roll should pass, but with Unlucky it's not enough. the 18
+    // also fails because -5 from the aura and -5 from the second attempt. even a natural 20
+    // can't save you from a -15, so this first Advance call should utterly fail.
     store.advance();
-  }
+    expect(store.checkedLocations().size).toStrictEqual(0);
 
-  expect(store.checkedLocations().size).toStrictEqual(effectCount);
-});
+    // remember, after the first roll fails on a turn and no subsequent rolls pass during
+    // that same turn, then the next turn's rolls get +1.
+    expect(store.mercyFactor()).toStrictEqual(1);
 
-test('unlucky aura should reduce modifier', () => {
-  const store = getStoreWith({
-    ...initialGameStateFor('captured_goldfish'),
-    prng: prngs._13_18_20_12_13.prng,
-  });
-  store.receiveItems(Range(0, 4).map(() => singleAuraItems.unlucky));
-
-  // normally, a 13 as your first roll should pass, but with Unlucky it's not enough. the 18
-  // also fails because -5 from the aura and -5 from the second attempt. even a natural 20
-  // can't save you from a -15, so this first Advance call should utterly fail.
-  store.advance();
-  expect(store.checkedLocations().size).toStrictEqual(0);
-
-  // remember, after the first roll fails on a turn and no subsequent rolls pass during
-  // that same turn, then the next turn's rolls get +1.
-  expect(store.mercyFactor()).toStrictEqual(1);
-
-  // the 12+1 burns the final Unlucky buff, so following it up with 13+1 overcomes the mere -5
-  // from trying a second time on the same Advance call.
-  store.advance();
-
-  expect(store.checkedLocations().size).toStrictEqual(1);
-
-  // our first roll failed, but then a roll passed, so this modifier should be reset.
-  expect(store.mercyFactor()).toStrictEqual(0);
-});
-
-test('positive energy factor should give extra movement', () => {
-  const { itemNameLookup, locationNameLookup } = BAKED_DEFINITIONS_BY_VICTORY_LANDMARK.captured_goldfish;
-  const packRat = itemNameLookup.get('Pack Rat') ?? NaN;
-  const premiumCanOfPrawnFood = itemNameLookup.get('Premium Can of Prawn Food') ?? NaN;
-  const pieRat = itemNameLookup.get('Pie Rat') ?? NaN;
-
-  const basketball = locationNameLookup.get('Basketball') ?? NaN;
-  const prawnStars = locationNameLookup.get('Prawn Stars') ?? NaN;
-  const pirateBakeSale = locationNameLookup.get('Pirate Bake Sale') ?? NaN;
-
-  const store = getStoreWith({
-    ...initialGameStateFor('captured_goldfish'),
-    checkedLocations: ImmutableSet([basketball, prawnStars]),
-    userRequestedLocations: List([{ userSlot: 1, location: pirateBakeSale }]),
-  });
-  store.receiveItems([
-    singleAuraItems.energized,
-    ...Range(0, 5).map(() => packRat),
-    premiumCanOfPrawnFood,
-    pieRat,
-  ]);
-
-  for (let i = 0; i < 5; i++) {
-    patchState(unprotected(store), { prng: prngs.unlucky.prng });
+    // the 12+1 burns the final Unlucky buff, so following it up with 13+1 overcomes the mere -5
+    // from trying a second time on the same Advance call.
     store.advance();
-  }
 
-  expect(store.currentLocation()).toStrictEqual(pirateBakeSale);
-});
+    expect(store.checkedLocations().size).toStrictEqual(1);
 
-test('negative energy factor should encumber movement', () => {
-  const store = getStoreWith({
-    ...initialGameStateFor('captured_goldfish'),
-    energyFactor: -3,
-    prng: prngs._20_20_1_20_20_20_20_1.prng,
+    // our first roll failed, but then a roll passed, so this modifier should be reset.
+    expect(store.mercyFactor()).toStrictEqual(0);
   });
 
-  // 3 actions are "check, move, (movement penalty)".
-  store.advance();
-  expect(store.checkedLocations().size).toStrictEqual(1);
+  test('positive energy factor should give extra movement', () => {
+    const { itemNameLookup, locationNameLookup } = BAKED_DEFINITIONS_BY_VICTORY_LANDMARK.captured_goldfish;
+    const packRat = itemNameLookup.get('Pack Rat') ?? NaN;
+    const premiumCanOfPrawnFood = itemNameLookup.get('Premium Can of Prawn Food') ?? NaN;
+    const pieRat = itemNameLookup.get('Pie Rat') ?? NaN;
 
-  // 3 actions are "check, move, (movement penalty)" again.
-  store.advance();
-  expect(store.checkedLocations().size).toStrictEqual(2);
+    const basketball = locationNameLookup.get('Basketball') ?? NaN;
+    const prawnStars = locationNameLookup.get('Prawn Stars') ?? NaN;
+    const pirateBakeSale = locationNameLookup.get('Pirate Bake Sale') ?? NaN;
 
-  // 3 actions are "fail, check, move".
-  store.advance();
-  expect(store.checkedLocations().size).toStrictEqual(3);
+    const store = getStoreWith({
+      ...initialGameStateFor('captured_goldfish'),
+      checkedLocations: ImmutableSet([basketball, prawnStars]),
+      userRequestedLocations: List([{ userSlot: 1, location: pirateBakeSale }]),
+    });
+    store.receiveItems([
+      singleAuraItems.energized,
+      ...Range(0, 5).map(() => packRat),
+      premiumCanOfPrawnFood,
+      pieRat,
+    ]);
 
-  // 3 actions are "(movement penalty), check, move".
-  store.advance();
-  expect(store.checkedLocations().size).toStrictEqual(4);
+    for (let i = 0; i < 5; i++) {
+      patchState(unprotected(store), { prng: prngs.unlucky.prng });
+      store.advance();
+    }
 
-  // 3 actions are "check, move, check".
-  store.advance();
-  expect(store.checkedLocations().size).toStrictEqual(6);
+    expect(store.currentLocation()).toStrictEqual(pirateBakeSale);
+  });
+
+  test('negative energy factor should encumber movement', () => {
+    const store = getStoreWith({
+      ...initialGameStateFor('captured_goldfish'),
+      energyFactor: -3,
+      prng: prngs._20_20_1_20_20_20_20_1.prng,
+    });
+
+    // 3 actions are "check, move, (movement penalty)".
+    store.advance();
+    expect(store.checkedLocations().size).toStrictEqual(1);
+
+    // 3 actions are "check, move, (movement penalty)" again.
+    store.advance();
+    expect(store.checkedLocations().size).toStrictEqual(2);
+
+    // 3 actions are "fail, check, move".
+    store.advance();
+    expect(store.checkedLocations().size).toStrictEqual(3);
+
+    // 3 actions are "(movement penalty), check, move".
+    store.advance();
+    expect(store.checkedLocations().size).toStrictEqual(4);
+
+    // 3 actions are "check, move, check".
+    store.advance();
+    expect(store.checkedLocations().size).toStrictEqual(6);
+  });
+
+  test('positive food factor should grant one extra action', () => {
+    const { allLocations } = BAKED_DEFINITIONS_BY_VICTORY_LANDMARK.captured_goldfish;
+    const store = getStoreWith({
+      ...initialGameStateFor('captured_goldfish'),
+      foodFactor: 2,
+      prng: prngs.lucky.prng,
+    });
+
+    // 4 actions are "check, move, check, move".
+    // noinspection DuplicatedCode
+    store.advance();
+    expect(store.checkedLocations().size).toStrictEqual(2);
+    expect(allLocations[store.currentLocation()].regionLocationKey[1]).toStrictEqual(2);
+
+    // 4 actions are "check, move, check, move".
+    store.advance();
+    expect(store.checkedLocations().size).toStrictEqual(4);
+    expect(allLocations[store.currentLocation()].regionLocationKey[1]).toStrictEqual(4);
+
+    // 3 actions are "check, move, check".
+    store.advance();
+    expect(store.checkedLocations().size).toStrictEqual(6);
+    expect(allLocations[store.currentLocation()].regionLocationKey[1]).toStrictEqual(5);
+    expect(allLocations[store.targetLocation()].regionLocationKey[1]).toStrictEqual(6);
+
+    store.receiveItems([singleAuraItems.well_fed]);
+
+    // 4 actions are "move, check, move, check".
+    store.advance();
+    expect(store.checkedLocations().size).toStrictEqual(8);
+    expect(allLocations[store.currentLocation()].regionLocationKey[1]).toStrictEqual(7);
+    expect(allLocations[store.targetLocation()].regionLocationKey[1]).toStrictEqual(8);
+    expect(store.foodFactor()).toStrictEqual(4);
+  });
+
+  test('negative food factor should subtract one action', () => {
+    const { allLocations } = BAKED_DEFINITIONS_BY_VICTORY_LANDMARK.captured_goldfish;
+    const store = getStoreWith({
+      ...initialGameStateFor('captured_goldfish'),
+      foodFactor: -2,
+      prng: prngs.lucky.prng,
+    });
+
+    // 2 actions are "check, move".
+    store.advance();
+    expect(store.checkedLocations().size).toStrictEqual(1);
+    expect(allLocations[store.currentLocation()].regionLocationKey[1]).toStrictEqual(1);
+
+    // 2 actions are "check, move".
+    // noinspection DuplicatedCode
+    store.advance();
+    expect(store.checkedLocations().size).toStrictEqual(2);
+    expect(allLocations[store.currentLocation()].regionLocationKey[1]).toStrictEqual(2);
+
+    // 3 actions are "check, move, check".
+    store.advance();
+    expect(store.checkedLocations().size).toStrictEqual(4);
+    expect(allLocations[store.currentLocation()].regionLocationKey[1]).toStrictEqual(3);
+    expect(allLocations[store.targetLocation()].regionLocationKey[1]).toStrictEqual(4);
+
+    store.receiveItems([singleAuraItems.upset_tummy]);
+
+    // 2 actions are "move, check".
+    store.advance();
+    expect(store.checkedLocations().size).toStrictEqual(5);
+    expect(allLocations[store.currentLocation()].regionLocationKey[1]).toStrictEqual(4);
+    expect(allLocations[store.targetLocation()].regionLocationKey[1]).toStrictEqual(5);
+    expect(store.foodFactor()).toStrictEqual(-4);
+  });
 });
 
 function getStoreWith(initialData: Partial<DefiningGameState>): InstanceType<typeof TestingStore> {
