@@ -3,7 +3,7 @@
 import { inject, InjectionToken, provideZonelessChangeDetection } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import BitArray from '@bitarray/typedarray';
-import { patchState, signalStore, withHooks } from '@ngrx/signals';
+import { getState, patchState, signalStore, withHooks } from '@ngrx/signals';
 import { unprotected } from '@ngrx/signals/testing';
 import { List, Range, Set as ImmutableSet } from 'immutable';
 import rand from 'pure-rand';
@@ -419,6 +419,81 @@ describe('withGameState', () => {
       expect(++advancesSoFar).toBeLessThan(50);
       expect(allRegions[allLocations[store.targetLocation()].regionLocationKey[0]]).toHaveProperty('loc');
     }
+  });
+
+  test('user-requested locations should shift target', () => {
+    const { itemNameLookup, locationNameLookup } = BAKED_DEFINITIONS_BY_VICTORY_LANDMARK.captured_goldfish;
+    const packRat = itemNameLookup.get('Pack Rat') ?? NaN;
+    const premiumCanOfPrawnFood = itemNameLookup.get('Premium Can of Prawn Food') ?? NaN;
+
+    const basketball = locationNameLookup.get('Basketball') ?? NaN;
+    const prawnStars = locationNameLookup.get('Prawn Stars') ?? NaN;
+
+    const store = getStoreWith({
+      ...initialGameStateFor('captured_goldfish'),
+      prng: prngs.unlucky.prng,
+    });
+
+    // getState(store) isn't completely identical to initialGameStateFor: the former gets the values
+    // for ALL the state, not just what we explicitly initialize in initialGameStateFor.
+    const initialState = getState(store);
+    expect(store.processUserRequestedLocation(1, prawnStars)).toStrictEqual({
+      kind: 'newly-added',
+    });
+    // should NOT be targeting Prawn Stars now, because we can't reach it out the gate.
+    expect(store.targetLocation()).not.toStrictEqual(prawnStars);
+
+    // just restart it, giving it what's needed to reach Prawn Stars
+    patchState(unprotected(store), {
+      ...initialState,
+      checkedLocations: ImmutableSet([basketball]),
+      receivedItems: List([
+        ...Range(0, 5).map(() => packRat),
+        premiumCanOfPrawnFood,
+      ]),
+      prng: prngs.unlucky.prng,
+    });
+    const firstResult = store.processUserRequestedLocation(1, prawnStars);
+    const sameUserResult = store.processUserRequestedLocation(1, prawnStars);
+    expect(firstResult).toStrictEqual<typeof firstResult>({
+      kind: 'newly-added',
+    });
+    expect(store.targetLocation()).toStrictEqual(prawnStars);
+    expect(store.targetLocationReason()).toStrictEqual('user-requested');
+    expect(sameUserResult).toStrictEqual<typeof sameUserResult>({
+      kind: 'already-requested',
+      userSlot: 1,
+    });
+    expect(store.userRequestedLocations()).toStrictEqual(List([
+      { userSlot: 1, location: prawnStars },
+    ]));
+    const differentUserResult = store.processUserRequestedLocation(2, prawnStars);
+    expect(differentUserResult).toStrictEqual<typeof differentUserResult>({
+      kind: 'already-requested',
+      userSlot: 1,
+    });
+    expect(store.userRequestedLocations()).toStrictEqual(List([
+      { userSlot: 1, location: prawnStars },
+      { userSlot: 2, location: prawnStars },
+    ]));
+
+    // teleport the rat over to Prawn Stars and have it do its thing (remember it's rolling all
+    // natural 1s today).
+    patchState(unprotected(store), { currentLocation: prawnStars });
+    store.advance();
+
+    // it should still be there, and it should still be our priority location.
+    expect(store.currentLocation()).toStrictEqual(prawnStars);
+    expect(store.userRequestedLocations()).toStrictEqual(List([
+      { userSlot: 1, location: prawnStars },
+      { userSlot: 2, location: prawnStars },
+    ]));
+
+    // now roll natural 20s.
+    patchState(unprotected(store), { prng: prngs.lucky.prng });
+    store.advance();
+
+    expect(store.userRequestedLocations()).toStrictEqual(List());
   });
 });
 

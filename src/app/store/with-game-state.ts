@@ -383,427 +383,458 @@ export function withGameState() {
         asStoredData,
       };
     }),
-    withMethods(store => ({
-      receiveItems(items: Iterable<number>) {
-        const { allItems, allLocations } = store.defs();
-        patchState(store, (prev) => {
-          const result = {
-            foodFactor: prev.foodFactor,
-            luckFactor: prev.luckFactor,
-            energyFactor: prev.energyFactor,
-            styleFactor: prev.styleFactor,
-            distractionCounter: prev.distractionCounter,
-            startledCounter: prev.startledCounter,
-            hasConfidence: prev.hasConfidence,
-            // the remainder will be clobbered. just helping TypeScript.
-            receivedItems: prev.receivedItems,
-            processedReceivedItemCount: prev.processedReceivedItemCount,
-            auraDrivenLocations: prev.auraDrivenLocations,
-            userRequestedLocations: prev.userRequestedLocations,
-          } satisfies Partial<DefiningGameState>;
-          result.auraDrivenLocations = result.auraDrivenLocations.withMutations((a) => {
-            result.receivedItems = prev.receivedItems.withMutations((r) => {
-              const locs = allLocations;
-              const validProgressionItems = new BitArray(prev.locationIsProgression);
-              const validTrapItems = new BitArray(prev.locationIsTrap);
-              for (const loc of [...prev.checkedLocations, ...prev.auraDrivenLocations]) {
-                validProgressionItems[loc] = 0;
-                validTrapItems[loc] = 0;
-              }
-              function addLocation(include: BitArray) {
-                const { regionIsHardLocked } = store._regionLocks();
-                const visited = new BitArray(include.length);
-                const q = new Queue<number>();
+    withMethods((store) => {
+      interface AlreadyAuraDrivenResult {
+        kind: 'already-aura-driven';
+      }
+      interface AlreadyRequested {
+        kind: 'already-requested';
+        userSlot: number;
+      }
+      interface NewlyAdded {
+        kind: 'newly-added';
+      }
+      type ProcessUserRequestedLocationResult = AlreadyAuraDrivenResult | AlreadyRequested | NewlyAdded;
+      function processUserRequestedLocation(userSlot: number, location: number): ProcessUserRequestedLocationResult {
+        if (store.auraDrivenLocations().includes(location)) {
+          return { kind: 'already-aura-driven' };
+        }
 
-                function tryEnqueue(loc: number) {
-                  if (visited[loc]) {
-                    return;
-                  }
+        const alreadyRequested = store.userRequestedLocations().find(l => l.location === location);
+        if (alreadyRequested) {
+          if (alreadyRequested.userSlot !== userSlot) {
+            patchState(store, ({ userRequestedLocations }) => ({
+              userRequestedLocations: userRequestedLocations.push({ location, userSlot }),
+            }));
+          }
 
-                  if (!regionIsHardLocked[locs[loc].regionLocationKey[0]]) {
-                    q.enqueue(loc);
-                  }
+          return { kind: 'already-requested', userSlot: alreadyRequested.userSlot };
+        }
 
-                  visited[loc] = 1;
+        patchState(store, ({ userRequestedLocations }) => ({
+          userRequestedLocations: userRequestedLocations.push({
+            location: location,
+            userSlot: userSlot,
+          }),
+        }));
+        return { kind: 'newly-added' };
+      }
+      function getMessageForProcessUserRequestedLocationResult(loc: number, requestingSlotNumber: number, result: ProcessUserRequestedLocationResult, probablyPlayerAlias: string, players: PlayersManager) {
+        const { allLocations } = store.defs();
+        // get the true name of it
+        const exactLocName = allLocations[loc].name;
+        if (result.kind === 'already-aura-driven') {
+          return store.locationIsProgression()[loc]
+            ? `Don't worry, ${probablyPlayerAlias}, a little bird already told me ALL about ${exactLocName}.`
+            : `Don't worry, ${probablyPlayerAlias}, I'm already on my way to ${exactLocName} after getting an anonymous tip about it.`;
+        }
+
+        if (result.kind === 'already-requested') {
+          if (result.userSlot === requestingSlotNumber) {
+            return `Hey, ${probablyPlayerAlias}, no worries, I remember ${exactLocName} from when you asked me before.`;
+          }
+
+          const firstRequestingUser = result.userSlot === 0
+            ? 'the server'
+            : players.teams[players.self.team][result.userSlot].alias;
+          return `All right, I'll prioritize ${exactLocName} for you, ${probablyPlayerAlias}. Just so you know, ${firstRequestingUser} already asked me to go there first, but I'll remember that you want me to go there too, in case they change their mind.`;
+        }
+
+        return store._regionLocks().regionIsHardLocked[allLocations[loc].regionLocationKey[0]]
+          ? `I'll keep it in mind that ${exactLocName} is important to you, ${probablyPlayerAlias}. I can't get there just yet, though, so please be patient with me...`
+          : `All right, I'll prioritize ${exactLocName} for you, ${probablyPlayerAlias}!`;
+      }
+      return {
+        processUserRequestedLocation,
+        receiveItems(items: Iterable<number>) {
+          const { allItems, allLocations } = store.defs();
+          patchState(store, (prev) => {
+            const result = {
+              foodFactor: prev.foodFactor,
+              luckFactor: prev.luckFactor,
+              energyFactor: prev.energyFactor,
+              styleFactor: prev.styleFactor,
+              distractionCounter: prev.distractionCounter,
+              startledCounter: prev.startledCounter,
+              hasConfidence: prev.hasConfidence,
+              // the remainder will be clobbered. just helping TypeScript.
+              receivedItems: prev.receivedItems,
+              processedReceivedItemCount: prev.processedReceivedItemCount,
+              auraDrivenLocations: prev.auraDrivenLocations,
+              userRequestedLocations: prev.userRequestedLocations,
+            } satisfies Partial<DefiningGameState>;
+            result.auraDrivenLocations = result.auraDrivenLocations.withMutations((a) => {
+              result.receivedItems = prev.receivedItems.withMutations((r) => {
+                const locs = allLocations;
+                const validProgressionItems = new BitArray(prev.locationIsProgression);
+                const validTrapItems = new BitArray(prev.locationIsTrap);
+                for (const loc of [...prev.checkedLocations, ...prev.auraDrivenLocations]) {
+                  validProgressionItems[loc] = 0;
+                  validTrapItems[loc] = 0;
                 }
+                function addLocation(include: BitArray) {
+                  const { regionIsHardLocked } = store._regionLocks();
+                  const visited = new BitArray(include.length);
+                  const q = new Queue<number>();
 
-                tryEnqueue(prev.currentLocation);
-                for (let loc = q.dequeue(); loc !== undefined; loc = q.dequeue()) {
-                  if (include[loc]) {
-                    include[loc] = 0;
-                    a.push(loc);
-                    break;
+                  function tryEnqueue(loc: number) {
+                    if (visited[loc]) {
+                      return;
+                    }
+
+                    if (!regionIsHardLocked[locs[loc].regionLocationKey[0]]) {
+                      q.enqueue(loc);
+                    }
+
+                    visited[loc] = 1;
                   }
 
-                  for (const [c] of locs[loc].connected.all) {
-                    tryEnqueue(c);
-                  }
-                }
-              }
-
-              for (const item of items) {
-                const itemFull = allItems[item];
-                r.push(item);
-                if (r.size <= result.processedReceivedItemCount) {
-                  continue;
-                }
-
-                let subtractConfidence = false;
-                let addConfidence = false;
-                for (const aura of itemFull.aurasGranted) {
-                  switch (aura) {
-                    case 'well_fed':
-                      result.foodFactor += 5;
+                  tryEnqueue(prev.currentLocation);
+                  for (let loc = q.dequeue(); loc !== undefined; loc = q.dequeue()) {
+                    if (include[loc]) {
+                      include[loc] = 0;
+                      a.push(loc);
                       break;
+                    }
 
-                    case 'upset_tummy':
-                      if (result.hasConfidence) {
-                        subtractConfidence = true;
-                      }
-                      else {
-                        result.foodFactor -= 5;
-                      }
-
-                      break;
-
-                    case 'lucky':
-                      ++result.luckFactor;
-                      break;
-
-                    case 'unlucky':
-                      if (result.hasConfidence) {
-                        subtractConfidence = true;
-                      }
-                      else {
-                        --result.luckFactor;
-                      }
-
-                      break;
-
-                    case 'energized':
-                      result.energyFactor += 5;
-                      break;
-
-                    case 'sluggish':
-                      if (result.hasConfidence) {
-                        subtractConfidence = true;
-                      }
-                      else {
-                        result.energyFactor -= 5;
-                      }
-
-                      break;
-
-                    case 'distracted':
-                      if (result.hasConfidence) {
-                        subtractConfidence = true;
-                      }
-                      else {
-                        ++result.distractionCounter;
-                      }
-
-                      break;
-
-                    case 'stylish':
-                      result.styleFactor += 2;
-                      break;
-
-                    case 'startled':
-                      if (result.hasConfidence) {
-                        subtractConfidence = true;
-                      }
-                      else {
-                        ++result.startledCounter;
-                      }
-
-                      break;
-
-                    case 'smart':
-                      addLocation(validProgressionItems);
-                      break;
-
-                    case 'conspiratorial':
-                      if (result.hasConfidence) {
-                        subtractConfidence = true;
-                      }
-                      else {
-                        addLocation(validTrapItems);
-                      }
-                      break;
-
-                    case 'confident':
-                      addConfidence = true;
-                      break;
+                    for (const [c] of locs[loc].connected.all) {
+                      tryEnqueue(c);
+                    }
                   }
                 }
 
-                if (subtractConfidence) {
-                  result.hasConfidence = false;
+                for (const item of items) {
+                  const itemFull = allItems[item];
+                  r.push(item);
+                  if (r.size <= result.processedReceivedItemCount) {
+                    continue;
+                  }
+
+                  let subtractConfidence = false;
+                  let addConfidence = false;
+                  for (const aura of itemFull.aurasGranted) {
+                    switch (aura) {
+                      case 'well_fed':
+                        result.foodFactor += 5;
+                        break;
+
+                      case 'upset_tummy':
+                        if (result.hasConfidence) {
+                          subtractConfidence = true;
+                        }
+                        else {
+                          result.foodFactor -= 5;
+                        }
+
+                        break;
+
+                      case 'lucky':
+                        ++result.luckFactor;
+                        break;
+
+                      case 'unlucky':
+                        if (result.hasConfidence) {
+                          subtractConfidence = true;
+                        }
+                        else {
+                          --result.luckFactor;
+                        }
+
+                        break;
+
+                      case 'energized':
+                        result.energyFactor += 5;
+                        break;
+
+                      case 'sluggish':
+                        if (result.hasConfidence) {
+                          subtractConfidence = true;
+                        }
+                        else {
+                          result.energyFactor -= 5;
+                        }
+
+                        break;
+
+                      case 'distracted':
+                        if (result.hasConfidence) {
+                          subtractConfidence = true;
+                        }
+                        else {
+                          ++result.distractionCounter;
+                        }
+
+                        break;
+
+                      case 'stylish':
+                        result.styleFactor += 2;
+                        break;
+
+                      case 'startled':
+                        if (result.hasConfidence) {
+                          subtractConfidence = true;
+                        }
+                        else {
+                          ++result.startledCounter;
+                        }
+
+                        break;
+
+                      case 'smart':
+                        addLocation(validProgressionItems);
+                        break;
+
+                      case 'conspiratorial':
+                        if (result.hasConfidence) {
+                          subtractConfidence = true;
+                        }
+                        else {
+                          addLocation(validTrapItems);
+                        }
+                        break;
+
+                      case 'confident':
+                        addConfidence = true;
+                        break;
+                    }
+                  }
+
+                  if (subtractConfidence) {
+                    result.hasConfidence = false;
+                  }
+
+                  if (addConfidence) {
+                    result.hasConfidence = true;
+                  }
                 }
 
-                if (addConfidence) {
-                  result.hasConfidence = true;
-                }
-              }
-
-              // Startled is extremely punishing. after a big release, it can be very annoying to just
-              // sit there and wait for too many turns in a row. same concept applies to Distracted.
-              result.startledCounter = Math.min(result.startledCounter, 3);
-              result.distractionCounter = Math.min(result.distractionCounter, 3);
+                // Startled is extremely punishing. after a big release, it can be very annoying to just
+                // sit there and wait for too many turns in a row. same concept applies to Distracted.
+                result.startledCounter = Math.min(result.startledCounter, 3);
+                result.distractionCounter = Math.min(result.distractionCounter, 3);
+              });
             });
+
+            result.processedReceivedItemCount = result.receivedItems.size;
+            return result;
           });
+        },
+        consumeOutgoingMoves() {
+          const outgoingMoves = store.outgoingMoves();
+          if (outgoingMoves.size > 0) {
+            patchState(store, { outgoingMoves: outgoingMoves.clear() });
+          }
+          return outgoingMoves;
+        },
+        processMessage(msg: Message, players: PlayersManager) {
+          const text = msg.nodes.map(n => n.text).join('');
+          let taggedSlotOrAlias = `@${players.self.name} `;
+          let tagIndex = text.indexOf(taggedSlotOrAlias);
+          if (tagIndex < 0) {
+            taggedSlotOrAlias = `@${players.self.alias} `;
+            tagIndex = text.indexOf(taggedSlotOrAlias);
+          }
 
-          result.processedReceivedItemCount = result.receivedItems.size;
-          return result;
-        });
-      },
-      consumeOutgoingMoves() {
-        const outgoingMoves = store.outgoingMoves();
-        if (outgoingMoves.size > 0) {
-          patchState(store, { outgoingMoves: outgoingMoves.clear() });
-        }
-        return outgoingMoves;
-      },
-      processMessage(msg: Message, players: PlayersManager) {
-        const text = msg.nodes.map(n => n.text).join('');
-        let taggedSlotOrAlias = `@${players.self.name} `;
-        let tagIndex = text.indexOf(taggedSlotOrAlias);
-        if (tagIndex < 0) {
-          taggedSlotOrAlias = `@${players.self.alias} `;
-          tagIndex = text.indexOf(taggedSlotOrAlias);
-        }
-
-        if (tagIndex < 0) {
-          return;
-        }
-
-        // chat message format is "{UserAlias}: {Message}", so it needs to be at least this long.
-        if (tagIndex <= ': '.length) {
-          return;
-        }
-
-        const probablyPlayerAlias = text.substring(0, tagIndex - ': '.length);
-        const requestingPlayer = findPlayerByAlias(players, probablyPlayerAlias);
-        const requestingSlotNumber = requestingPlayer?.slot ?? 0;
-        if (probablyPlayerAlias !== '[Server]') {
-          if (!requestingPlayer) {
-            // this isn't necessarily an error or a mistaken assumption. it could just be that the
-            // '@${SlotName}' happened partway through their message. don't test every single user's
-            // alias against every single chat message that contains '@${SlotName}', just require it
-            // to be at the start of the message. done.
+          if (tagIndex < 0) {
             return;
           }
 
-          if (requestingPlayer.team !== players.self.team) {
-            // nice try
-            const outgoingMessage = `${probablyPlayerAlias}, only members of my team can send me commands.`;
-            patchState(store, ({ outgoingMessages }) => ({ outgoingMessages: outgoingMessages.push(outgoingMessage) }));
+          // chat message format is "{UserAlias}: {Message}", so it needs to be at least this long.
+          if (tagIndex <= ': '.length) {
             return;
           }
-        }
 
-        // if we got here, then the entire rest of the message after "@{SlotName}" is the command.
-        const defs = store.defs();
-        const slotOrAliasMatcher = new RegExp(`^${RegExp.escape(taggedSlotOrAlias.normalize())}`);
-        const cmd = text.substring(tagIndex).normalize().replace(slotOrAliasMatcher, '');
-        if (/^go /i.exec(cmd)) {
-          const quotesMatcher = /^"*|"*$/g;
-          const locName = cmd.substring('go '.length).replaceAll(quotesMatcher, '');
-          const loc = defs.locationNameLookup.get(locName);
-          if (loc) {
-            // get the true name of it
-            const exactLocName = defs.allLocations[loc].name;
-            if (store.auraDrivenLocations().includes(loc)) {
-              const outgoingMessage = store.locationIsProgression()[loc]
-                ? `Don't worry, ${probablyPlayerAlias}, a little bird already told me ALL about ${exactLocName}.`
-                : `Don't worry, ${probablyPlayerAlias}, I'm already on my way to ${exactLocName} after getting an anonymous tip about it.`;
-              patchState(store, ({ outgoingMessages }) => ({ outgoingMessages: outgoingMessages.push(outgoingMessage) }));
+          const probablyPlayerAlias = text.substring(0, tagIndex - ': '.length);
+          const requestingPlayer = findPlayerByAlias(players, probablyPlayerAlias);
+          const requestingSlotNumber = requestingPlayer?.slot ?? 0;
+          if (probablyPlayerAlias !== '[Server]') {
+            if (!requestingPlayer) {
+              // this isn't necessarily an error or a mistaken assumption. it could just be that the
+              // '@${SlotName}' happened partway through their message. don't test every single user's
+              // alias against every single chat message that contains '@${SlotName}', just require it
+              // to be at the start of the message. done.
               return;
             }
 
-            const alreadyRequested = store.userRequestedLocations().find(l => l.location === loc);
-            if (alreadyRequested) {
-              if (alreadyRequested.userSlot === requestingSlotNumber) {
-                const outgoingMessage = `Hey, ${probablyPlayerAlias}, no worries, I remember ${exactLocName} from when you asked me before.`;
-                patchState(store, ({ outgoingMessages }) => ({ outgoingMessages: outgoingMessages.push(outgoingMessage) }));
-              }
-              else {
-                const firstRequestingUser = alreadyRequested.userSlot === 0
-                  ? 'the server'
-                  : players.teams[players.self.team][alreadyRequested.userSlot].alias;
-                const outgoingMessage = `All right, I'll prioritize ${exactLocName} for you, ${probablyPlayerAlias}. Just so you know, ${firstRequestingUser} already asked me to go there first, but I'll remember that you want me to go there too, in case they change their mind.`;
-                patchState(store, ({ userRequestedLocations, outgoingMessages }) => ({
-                  userRequestedLocations: userRequestedLocations.push({ location: loc, userSlot: requestingSlotNumber }),
-                  outgoingMessages: outgoingMessages.push(outgoingMessage),
-                }));
-              }
+            if (requestingPlayer.team !== players.self.team) {
+              // nice try
+              const outgoingMessage = `${probablyPlayerAlias}, only members of my team can send me commands.`;
+              patchState(store, ({ outgoingMessages }) => ({ outgoingMessages: outgoingMessages.push(outgoingMessage) }));
+              return;
+            }
+          }
+
+          // if we got here, then the entire rest of the message after "@{SlotName}" is the command.
+          const defs = store.defs();
+          const slotOrAliasMatcher = new RegExp(`^${RegExp.escape(taggedSlotOrAlias.normalize())}`);
+          const cmd = text.substring(tagIndex).normalize().replace(slotOrAliasMatcher, '');
+          if (/^go /i.exec(cmd)) {
+            const quotesMatcher = /^"*|"*$/g;
+            const locName = cmd.substring('go '.length).replaceAll(quotesMatcher, '');
+            const loc = defs.locationNameLookup.get(locName);
+            if (loc) {
+              const result = processUserRequestedLocation(players.self.slot, loc);
+              const outgoingMessage = getMessageForProcessUserRequestedLocationResult(loc, requestingSlotNumber, result, probablyPlayerAlias, players);
+              patchState(store, ({ outgoingMessages }) => ({ outgoingMessages: outgoingMessages.push(outgoingMessage) }));
             }
             else {
-              const outgoingMessage = store._regionLocks().regionIsHardLocked[defs.allLocations[loc].regionLocationKey[0]]
-                ? `I'll keep it in mind that ${exactLocName} is important to you, ${probablyPlayerAlias}. I can't get there just yet, though, so please be patient with me...`
-                : `All right, I'll prioritize ${exactLocName} for you, ${probablyPlayerAlias}!`;
-              patchState(store, ({ userRequestedLocations, outgoingMessages }) => ({
-                userRequestedLocations: userRequestedLocations.push({ location: loc, userSlot: requestingSlotNumber }),
-                outgoingMessages: outgoingMessages.push(outgoingMessage),
-              }));
+              const outgoingMessage = `Um... excuse me, but... I don't know what a '${locName}' is...`;
+              patchState(store, ({ outgoingMessages }) => ({ outgoingMessages: outgoingMessages.push(outgoingMessage) }));
             }
           }
-          else {
-            const outgoingMessage = `Um... excuse me, but... I don't know what a '${locName}' is...`;
-            patchState(store, ({ outgoingMessages }) => ({ outgoingMessages: outgoingMessages.push(outgoingMessage) }));
-          }
-        }
-      },
-      advance() {
-        let remainingActions = 3;
-        let multi = 0;
-        let isFirstCheck = true;
-        let bumpMercyModifierForNextTime = false;
-        const { allLocations } = store.defs();
-        patchState(store, (prev) => {
-          const result = { } as Mutable<Partial<typeof prev>>;
-
-          if (prev.sluggishCarryover) {
-            remainingActions--;
-            result.sluggishCarryover = false;
-          }
-
-          if (prev.foodFactor < 0) {
-            remainingActions--;
-            result.foodFactor = prev.foodFactor + 1;
-          }
-          else if (prev.foodFactor > 0) {
-            remainingActions++;
-            result.foodFactor = prev.foodFactor - 1;
-          }
-
-          if (prev.distractionCounter > 0) {
-            // being startled takes priority over a distraction. you just saw a ghost, you're not
-            // thinking about the Rubik's Cube that you got at about the same time!
-            if (prev.startledCounter === 0) {
-              remainingActions = 0;
-            }
-
-            result.distractionCounter = prev.distractionCounter - 1;
-          }
-
-          return result;
-        });
-
-        // these two will be needed for the TODO below.
-        /*
-        let locationAttempts = 0;
-        let checkedAnyLocations = false;
-        */
-        let confirmedTarget = false;
-
-        // positive energyFactor lets the player make up to 2x as much distance in a single round of
-        // (only) movement. in the past, this was uncapped, which basically meant that the player
-        // would often teleport great distances, which was against the spirit of the whole thing.
-        let energyBank = remainingActions;
-        while (remainingActions > 0 && store.checkedLocations().size < allLocations.length) {
+        },
+        advance() {
+          let remainingActions = 3;
+          let multi = 0;
+          let isFirstCheck = true;
+          let bumpMercyModifierForNextTime = false;
+          const { allLocations } = store.defs();
           patchState(store, (prev) => {
-            const result = { } as Mutable<Partial<typeof prev>>;
+            const result = {} as Mutable<Partial<typeof prev>>;
 
-            --remainingActions;
-            if (!confirmedTarget) {
-              const targetLocationEvidence = store.targetLocationEvidence();
-              if (!targetLocationEvidenceEquals(prev.previousTargetLocationEvidence, targetLocationEvidence)) {
-                if (prev.startledCounter > 0) {
+            if (prev.sluggishCarryover) {
+              remainingActions--;
+              result.sluggishCarryover = false;
+            }
+
+            if (prev.foodFactor < 0) {
+              remainingActions--;
+              result.foodFactor = prev.foodFactor + 1;
+            }
+            else if (prev.foodFactor > 0) {
+              remainingActions++;
+              result.foodFactor = prev.foodFactor - 1;
+            }
+
+            if (prev.distractionCounter > 0) {
+              // being startled takes priority over a distraction. you just saw a ghost, you're not
+              // thinking about the Rubik's Cube that you got at about the same time!
+              if (prev.startledCounter === 0) {
+                remainingActions = 0;
+              }
+
+              result.distractionCounter = prev.distractionCounter - 1;
+            }
+
+            return result;
+          });
+
+          // these two will be needed for the TODO below.
+          /*
+          let locationAttempts = 0;
+          let checkedAnyLocations = false;
+          */
+          let confirmedTarget = false;
+
+          // positive energyFactor lets the player make up to 2x as much distance in a single round of
+          // (only) movement. in the past, this was uncapped, which basically meant that the player
+          // would often teleport great distances, which was against the spirit of the whole thing.
+          let energyBank = remainingActions;
+          while (remainingActions > 0 && store.checkedLocations().size < allLocations.length) {
+            patchState(store, (prev) => {
+              const result = {} as Mutable<Partial<typeof prev>>;
+
+              --remainingActions;
+              if (!confirmedTarget) {
+                const targetLocationEvidence = store.targetLocationEvidence();
+                if (!targetLocationEvidenceEquals(prev.previousTargetLocationEvidence, targetLocationEvidence)) {
+                  if (prev.startledCounter > 0) {
+                    ++remainingActions;
+                  }
+
+                  result.previousTargetLocationEvidence = targetLocationEvidence;
+                  confirmedTarget = true;
+                  return result;
+                }
+              }
+
+              let moved = false;
+              result.currentLocation = prev.currentLocation;
+              const targetLocation = store.targetLocation();
+              if (result.currentLocation !== targetLocation) {
+                if (prev.energyFactor < 0) {
+                  --remainingActions;
+                  result.energyFactor = prev.energyFactor + 1;
+                }
+                else if (prev.energyFactor > 0 && energyBank > 0) {
                   ++remainingActions;
+                  --energyBank;
+                  result.energyFactor = prev.energyFactor - 1;
                 }
 
-                result.previousTargetLocationEvidence = targetLocationEvidence;
-                confirmedTarget = true;
-                return result;
-              }
-            }
+                // we're not in the right spot, so we're going to move at least a bit. playtesting
+                // has shown that very long moves can be very boring (and a little too frequent). to
+                // combat this, every time the player decides to move, they can advance up to three
+                // whole spaces towards their target. this keeps the overall progression speed the
+                // same in dense areas.
+                const route = store.targetLocationRoute();
+                let j = 0;
+                while (route[j] !== result.currentLocation) {
+                  j++;
+                  if (j >= route.length) {
+                    throw new Error('route did not contain the current location!');
+                  }
+                }
+                for (let i = 0; i < 3 && result.currentLocation !== targetLocation; i++) {
+                  if (!('outgoingMoves' in result)) {
+                    result.outgoingMoves = prev.outgoingMoves;
+                  }
 
-            let moved = false;
-            result.currentLocation = prev.currentLocation;
-            const targetLocation = store.targetLocation();
-            if (result.currentLocation !== targetLocation) {
-              if (prev.energyFactor < 0) {
-                --remainingActions;
-                result.energyFactor = prev.energyFactor + 1;
-              }
-              else if (prev.energyFactor > 0 && energyBank > 0) {
-                ++remainingActions;
-                --energyBank;
-                result.energyFactor = prev.energyFactor - 1;
-              }
-
-              // we're not in the right spot, so we're going to move at least a bit. playtesting
-              // has shown that very long moves can be very boring (and a little too frequent). to
-              // combat this, every time the player decides to move, they can advance up to three
-              // whole spaces towards their target. this keeps the overall progression speed the
-              // same in dense areas.
-              const route = store.targetLocationRoute();
-              let j = 0;
-              while (route[j] !== result.currentLocation) {
-                j++;
-                if (j >= route.length) {
-                  throw new Error('route did not contain the current location!');
+                  result.outgoingMoves = result.outgoingMoves.push([result.currentLocation, result.currentLocation = route[++j]]);
+                  moved = true;
                 }
               }
-              for (let i = 0; i < 3 && result.currentLocation !== targetLocation; i++) {
-                if (!('outgoingMoves' in result)) {
-                  result.outgoingMoves = prev.outgoingMoves;
+
+              if (!moved && prev.startledCounter === 0 && !(store.locationIsChecked()[result.currentLocation])) {
+                let unlucky = false;
+                let lucky = false;
+                let stylish = false;
+                if (prev.luckFactor < 0) {
+                  unlucky = true;
+                  result.luckFactor = prev.luckFactor + 1;
+                }
+                else if (prev.luckFactor > 0) {
+                  lucky = true;
+                  result.luckFactor = prev.luckFactor - 1;
                 }
 
-                result.outgoingMoves = result.outgoingMoves.push([result.currentLocation, result.currentLocation = route[++j]]);
-                moved = true;
-              }
-            }
-
-            if (!moved && prev.startledCounter === 0 && !(store.locationIsChecked()[result.currentLocation])) {
-              let unlucky = false;
-              let lucky = false;
-              let stylish = false;
-              if (prev.luckFactor < 0) {
-                unlucky = true;
-                result.luckFactor = prev.luckFactor + 1;
-              }
-              else if (prev.luckFactor > 0) {
-                lucky = true;
-                result.luckFactor = prev.luckFactor - 1;
-              }
-
-              if (prev.styleFactor > 0 && !lucky) {
-                result.styleFactor = prev.styleFactor - 1;
-                stylish = true;
-              }
-
-              let roll = 0;
-              let success = lucky;
-              if (success) {
-                if (!IS_VITEST) {
-                  console.log('lucky!');
-                }
-              }
-              if (!success) {
-                let d20: number;
-                [d20, result.prng] = rand.uniformIntDistribution(1, 20, prev.prng);
-                roll = modifyRoll({
-                  d20,
-                  ratCount: store.ratCount(),
-                  mercy: prev.mercyFactor,
-                  stylish,
-                  unlucky,
-                  multi: multi++,
-                });
-                success = roll >= allLocations[result.currentLocation].abilityCheckDC;
-                if (!IS_VITEST) {
-                  console.log(roll, '=', d20, roll >= d20 ? '+' : '-', Math.abs(roll - d20), success ? '>=' : '<', allLocations[result.currentLocation].abilityCheckDC);
-                }
-                if (isFirstCheck && !success) {
-                  bumpMercyModifierForNextTime = true;
+                if (prev.styleFactor > 0 && !lucky) {
+                  result.styleFactor = prev.styleFactor - 1;
+                  stylish = true;
                 }
 
-                isFirstCheck = false;
-              }
+                let roll = 0;
+                let success = lucky;
+                if (success) {
+                  if (!IS_VITEST) {
+                    console.log('lucky!');
+                  }
+                }
+                if (!success) {
+                  let d20: number;
+                  [d20, result.prng] = rand.uniformIntDistribution(1, 20, prev.prng);
+                  roll = modifyRoll({
+                    d20,
+                    ratCount: store.ratCount(),
+                    mercy: prev.mercyFactor,
+                    stylish,
+                    unlucky,
+                    multi: multi++,
+                  });
+                  success = roll >= allLocations[result.currentLocation].abilityCheckDC;
+                  if (!IS_VITEST) {
+                    console.log(roll, '=', d20, roll >= d20 ? '+' : '-', Math.abs(roll - d20), success ? '>=' : '<', allLocations[result.currentLocation].abilityCheckDC);
+                  }
+                  if (isFirstCheck && !success) {
+                    bumpMercyModifierForNextTime = true;
+                  }
 
-              if (success) {
+                  isFirstCheck = false;
+                }
+
+                if (!success) {
+                  return result;
+                }
                 if (!IS_VITEST) {
                   console.log('success at', allLocations[result.currentLocation].name);
                 }
@@ -812,37 +843,37 @@ export function withGameState() {
                 result.mercyFactor = 0;
                 bumpMercyModifierForNextTime = false;
               }
-            }
 
-            if (result.currentLocation === targetLocation) {
-              switch (store.targetLocationReason()) {
-                case 'user-requested':
-                  result.userRequestedLocations = prev.userRequestedLocations.filter(l => l.location !== targetLocation);
-                  break;
+              if (result.currentLocation === targetLocation) {
+                switch (store.targetLocationReason()) {
+                  case 'user-requested':
+                    result.userRequestedLocations = prev.userRequestedLocations.filter(l => l.location !== targetLocation);
+                    break;
 
-                case 'aura-driven':
-                  result.auraDrivenLocations = prev.auraDrivenLocations.filter(l => l !== targetLocation);
-                  break;
+                  case 'aura-driven':
+                    result.auraDrivenLocations = prev.auraDrivenLocations.filter(l => l !== targetLocation);
+                    break;
+                }
               }
+
+              return result;
+            });
+          }
+
+          patchState(store, (prev) => {
+            const result = {} as Mutable<Partial<typeof prev>>;
+            result.sluggishCarryover = remainingActions < 0;
+            if (prev.startledCounter > 0) {
+              result.startledCounter = prev.startledCounter - 1;
+            }
+            if (bumpMercyModifierForNextTime) {
+              result.mercyFactor = prev.mercyFactor + 1;
             }
 
             return result;
           });
-        }
-
-        patchState(store, (prev) => {
-          const result = { } as Mutable<Partial<typeof prev>>;
-          result.sluggishCarryover = remainingActions < 0;
-          if (prev.startledCounter > 0) {
-            result.startledCounter = prev.startledCounter - 1;
-          }
-          if (bumpMercyModifierForNextTime) {
-            result.mercyFactor = prev.mercyFactor + 1;
-          }
-
-          return result;
-        });
-      },
-    })),
+        },
+      };
+    }),
   );
 }
