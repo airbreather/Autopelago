@@ -7,13 +7,20 @@ import { List, Range, Set as ImmutableSet } from 'immutable';
 import rand from 'pure-rand';
 import { describe, expect, test } from 'vitest';
 import {
+  type AutopelagoAura,
   BAKED_DEFINITIONS_BY_VICTORY_LANDMARK,
+  BAKED_DEFINITIONS_FULL,
   getLocs,
   type VictoryLocationYamlKey,
 } from '../data/resolved-definitions';
 import type { DefiningGameState } from '../game/defining-state';
-import { strictObjectEntries } from '../util';
+import { stricterObjectFromEntries, strictObjectEntries } from '../util';
 import { withGameState } from './with-game-state';
+
+const singleAuraItems = stricterObjectFromEntries(
+  (['well_fed', 'upset_tummy', 'lucky', 'unlucky', 'energized', 'sluggish', 'distracted', 'stylish', 'startled', 'smart', 'conspiratorial', 'confident'] as const)
+    .map(aura => ([aura, BAKED_DEFINITIONS_FULL.allItems.findIndex(i => i.aurasGranted.length === 1 && i.aurasGranted[0] === aura)]))
+) satisfies Record<AutopelagoAura, number>;
 
 describe('self', () => {
   test.each(strictObjectEntries(prngs))('rolls for %s continue to match what they used to', (name, { rolls, prng }) => {
@@ -120,7 +127,7 @@ describe('withGameState', () => {
   });
   test.for([...Range(1, 13)])('game should be winnable (id #%d)', (testId) => {
     let prng = rand.xoroshiro128plus(2);
-    for (let i = 0; i < testId; ++i) {
+    for (let i = 0; i < testId; i++) {
       prng.unsafeJump?.();
     }
 
@@ -166,6 +173,105 @@ describe('withGameState', () => {
       expect(++advancesSoFar).toBeLessThan(2000);
     }
   });
+});
+
+test.for([1, 2, 3])('lucky aura should force success: %d instances', effectCount => {
+  const store = getStoreWith({
+    ...initialGameStateFor('captured_goldfish'),
+  });
+  store.receiveItems(Range(0, effectCount).map(() => singleAuraItems.lucky));
+  for (let i = 0; i < 3; i++) {
+    // lucky should force it, so all rolls should be low
+    patchState(unprotected(store), { prng: prngs.unlucky.prng });
+    store.advance();
+  }
+
+  expect(store.checkedLocations().size).toStrictEqual(effectCount);
+});
+
+test('unlucky aura should reduce modifier', () => {
+  const store = getStoreWith({
+    ...initialGameStateFor('captured_goldfish'),
+    prng: prngs._13_18_20_12_13.prng,
+  });
+  store.receiveItems(Range(0, 4).map(() => singleAuraItems.unlucky));
+
+  // normally, a 13 as your first roll should pass, but with Unlucky it's not enough. the 18
+  // also fails because -5 from the aura and -5 from the second attempt. even a natural 20
+  // can't save you from a -15, so this first Advance call should utterly fail.
+  store.advance();
+  expect(store.checkedLocations().size).toStrictEqual(0);
+
+  // remember, after the first roll fails on a turn and no subsequent rolls pass during
+  // that same turn, then the next turn's rolls get +1.
+  expect(store.mercyFactor()).toStrictEqual(1);
+
+  // the 12+1 burns the final Unlucky buff, so following it up with 13+1 overcomes the mere -5
+  // from trying a second time on the same Advance call.
+  store.advance();
+
+  expect(store.checkedLocations().size).toStrictEqual(1);
+
+  // our first roll failed, but then a roll passed, so this modifier should be reset.
+  expect(store.mercyFactor()).toStrictEqual(0);
+});
+
+test('positive energy factor should give extra movement', () => {
+  const { itemNameLookup, locationNameLookup } = BAKED_DEFINITIONS_BY_VICTORY_LANDMARK.captured_goldfish;
+  const packRat = itemNameLookup.get('Pack Rat') ?? NaN;
+  const premiumCanOfPrawnFood = itemNameLookup.get('Premium Can of Prawn Food') ?? NaN;
+  const pieRat = itemNameLookup.get('Pie Rat') ?? NaN;
+
+  const basketball = locationNameLookup.get('Basketball') ?? NaN;
+  const prawnStars = locationNameLookup.get('Prawn Stars') ?? NaN;
+  const pirateBakeSale = locationNameLookup.get('Pirate Bake Sale') ?? NaN;
+
+  const store = getStoreWith({
+    ...initialGameStateFor('captured_goldfish'),
+    checkedLocations: ImmutableSet([basketball, prawnStars]),
+    userRequestedLocations: List([{ userSlot: 1, location: pirateBakeSale }]),
+  });
+  store.receiveItems([
+    singleAuraItems.energized,
+    ...Range(0, 5).map(() => packRat),
+    premiumCanOfPrawnFood,
+    pieRat,
+  ]);
+
+  for (let i = 0; i < 5; i++) {
+    patchState(unprotected(store), { prng: prngs.unlucky.prng });
+    store.advance();
+  }
+
+  expect(store.currentLocation()).toStrictEqual(pirateBakeSale);
+});
+
+test('negative energy factor should encumber movement', () => {
+  const store = getStoreWith({
+    ...initialGameStateFor('captured_goldfish'),
+    energyFactor: -3,
+    prng: prngs._20_20_1_20_20_20_20_1.prng,
+  });
+
+  // 3 actions are "check, move, (movement penalty)".
+  store.advance();
+  expect(store.checkedLocations().size).toStrictEqual(1);
+
+  // 3 actions are "check, move, (movement penalty)" again.
+  store.advance();
+  expect(store.checkedLocations().size).toStrictEqual(2);
+
+  // 3 actions are "fail, check, move".
+  store.advance();
+  expect(store.checkedLocations().size).toStrictEqual(3);
+
+  // 3 actions are "(movement penalty), check, move".
+  store.advance();
+  expect(store.checkedLocations().size).toStrictEqual(4);
+
+  // 3 actions are "check, move, check".
+  store.advance();
+  expect(store.checkedLocations().size).toStrictEqual(6);
 });
 
 function getStoreWith(initialData: Partial<DefiningGameState>): InstanceType<typeof TestingStore> {
@@ -225,6 +331,14 @@ const prngs = {
     rolls: [8, 13, 18, 9, 13],
     prng: rand.xoroshiro128plus.fromState([-1796786197, 968774573, 301784831, 2049717482]),
   },
+  _13_18_20_12_13: {
+    rolls: [13, 18, 20, 12, 13],
+    prng: rand.xoroshiro128plus.fromState([1464423090, -986313637, 1654351542, -859231019]),
+  },
+  _20_20_1_20_20_20_20_1: {
+    rolls: [20, 20, 1, 20, 20, 20, 20, 1],
+    prng: rand.xoroshiro128plus.fromState([721066624, -315573484, -1770911155, -50848825]),
+  }
 } as const;
 
 // noinspection JSUnusedLocalSymbols
