@@ -56,7 +56,7 @@ describe('withGameState', () => {
 
     store.advance();
 
-    expect(store.checkedLocations().size).toStrictEqual(0);
+    expect(store.checkedLocations()).toStrictEqual(ImmutableSet());
     expect(store.mercyFactor()).toStrictEqual(1);
     expect(store.prng().getState()).toStrictEqual(expectedPrng.getState());
 
@@ -192,6 +192,7 @@ describe('withGameState', () => {
   });
 
   test('unlucky aura should reduce modifier', () => {
+    const { allRegions, startRegion } = BAKED_DEFINITIONS_BY_VICTORY_LANDMARK.captured_goldfish;
     const store = getStoreWith({
       ...initialGameStateFor('captured_goldfish'),
       prng: prngs._13_18_20_12_13.prng,
@@ -202,7 +203,7 @@ describe('withGameState', () => {
     // also fails because -5 from the aura and -5 from the second attempt. even a natural 20
     // can't save you from a -15, so this first Advance call should utterly fail.
     store.advance();
-    expect(store.checkedLocations().size).toStrictEqual(0);
+    expect(store.checkedLocations()).toStrictEqual(ImmutableSet());
 
     // remember, after the first roll fails on a turn and no subsequent rolls pass during
     // that same turn, then the next turn's rolls get +1.
@@ -212,7 +213,7 @@ describe('withGameState', () => {
     // from trying a second time on the same Advance call.
     store.advance();
 
-    expect(store.checkedLocations().size).toStrictEqual(1);
+    expect(store.checkedLocations()).toStrictEqual(ImmutableSet([getLocs(allRegions[startRegion])[0]]));
 
     // our first roll failed, but then a roll passed, so this modifier should be reset.
     expect(store.mercyFactor()).toStrictEqual(0);
@@ -249,6 +250,8 @@ describe('withGameState', () => {
   });
 
   test('negative energy factor should encumber movement', () => {
+    const { allRegions, startRegion } = BAKED_DEFINITIONS_BY_VICTORY_LANDMARK.captured_goldfish;
+    const startRegionLocs = getLocs(allRegions[startRegion]);
     const store = getStoreWith({
       ...initialGameStateFor('captured_goldfish'),
       energyFactor: -3,
@@ -257,27 +260,28 @@ describe('withGameState', () => {
 
     // 3 actions are "check, move, (movement penalty)".
     store.advance();
-    expect(store.checkedLocations().size).toStrictEqual(1);
+    expect(store.checkedLocations()).toStrictEqual(ImmutableSet(startRegionLocs.slice(0, 1)));
 
     // 3 actions are "check, move, (movement penalty)" again.
     store.advance();
-    expect(store.checkedLocations().size).toStrictEqual(2);
+    expect(store.checkedLocations()).toStrictEqual(ImmutableSet(startRegionLocs.slice(0, 2)));
 
     // 3 actions are "fail, check, move".
     store.advance();
-    expect(store.checkedLocations().size).toStrictEqual(3);
+    expect(store.checkedLocations()).toStrictEqual(ImmutableSet(startRegionLocs.slice(0, 3)));
 
     // 3 actions are "(movement penalty), check, move".
     store.advance();
-    expect(store.checkedLocations().size).toStrictEqual(4);
+    expect(store.checkedLocations()).toStrictEqual(ImmutableSet(startRegionLocs.slice(0, 4)));
 
     // 3 actions are "check, move, check".
     store.advance();
-    expect(store.checkedLocations().size).toStrictEqual(6);
+    expect(store.checkedLocations()).toStrictEqual(ImmutableSet(startRegionLocs.slice(0, 6)));
   });
 
   test('positive food factor should grant one extra action', () => {
-    const { allLocations } = BAKED_DEFINITIONS_BY_VICTORY_LANDMARK.captured_goldfish;
+    const { allLocations, allRegions, startRegion } = BAKED_DEFINITIONS_BY_VICTORY_LANDMARK.captured_goldfish;
+    const startRegionLocs = getLocs(allRegions[startRegion]);
     const store = getStoreWith({
       ...initialGameStateFor('captured_goldfish'),
       foodFactor: 2,
@@ -286,17 +290,17 @@ describe('withGameState', () => {
 
     // 4 actions are "check, move, check, move".
     store.advance();
-    expect(store.checkedLocations().size).toStrictEqual(2);
+    expect(store.checkedLocations()).toStrictEqual(ImmutableSet(startRegionLocs.slice(0, 2)));
     expect(allLocations[store.currentLocation()].regionLocationKey[1]).toStrictEqual(2);
 
     // 4 actions are "check, move, check, move".
     store.advance();
-    expect(store.checkedLocations().size).toStrictEqual(4);
+    expect(store.checkedLocations()).toStrictEqual(ImmutableSet(startRegionLocs.slice(0, 4)));
     expect(allLocations[store.currentLocation()].regionLocationKey[1]).toStrictEqual(4);
 
     // 3 actions are "check, move, check".
     store.advance();
-    expect(store.checkedLocations().size).toStrictEqual(6);
+    expect(store.checkedLocations()).toStrictEqual(ImmutableSet(startRegionLocs.slice(0, 6)));
     expect(allLocations[store.currentLocation()].regionLocationKey[1]).toStrictEqual(5);
     expect(allLocations[store.targetLocation()].regionLocationKey[1]).toStrictEqual(6);
 
@@ -304,14 +308,15 @@ describe('withGameState', () => {
 
     // 4 actions are "move, check, move, check".
     store.advance();
-    expect(store.checkedLocations().size).toStrictEqual(8);
+    expect(store.checkedLocations()).toStrictEqual(ImmutableSet(startRegionLocs.slice(0, 8)));
     expect(allLocations[store.currentLocation()].regionLocationKey[1]).toStrictEqual(7);
     expect(allLocations[store.targetLocation()].regionLocationKey[1]).toStrictEqual(8);
     expect(store.foodFactor()).toStrictEqual(4);
   });
 
   test('negative food factor should subtract one action', () => {
-    const { allLocations } = BAKED_DEFINITIONS_BY_VICTORY_LANDMARK.captured_goldfish;
+    const { allLocations, allRegions, startRegion } = BAKED_DEFINITIONS_BY_VICTORY_LANDMARK.captured_goldfish;
+    const startRegionLocs = getLocs(allRegions[startRegion]);
     const store = getStoreWith({
       ...initialGameStateFor('captured_goldfish'),
       foodFactor: -2,
@@ -320,17 +325,17 @@ describe('withGameState', () => {
 
     // 2 actions are "check, move".
     store.advance();
-    expect(store.checkedLocations().size).toStrictEqual(1);
+    expect(store.checkedLocations()).toStrictEqual(ImmutableSet(startRegionLocs.slice(0, 1)));
     expect(allLocations[store.currentLocation()].regionLocationKey[1]).toStrictEqual(1);
 
     // 2 actions are "check, move".
     store.advance();
-    expect(store.checkedLocations().size).toStrictEqual(2);
+    expect(store.checkedLocations()).toStrictEqual(ImmutableSet(startRegionLocs.slice(0, 2)));
     expect(allLocations[store.currentLocation()].regionLocationKey[1]).toStrictEqual(2);
 
     // 3 actions are "check, move, check".
     store.advance();
-    expect(store.checkedLocations().size).toStrictEqual(4);
+    expect(store.checkedLocations()).toStrictEqual(ImmutableSet(startRegionLocs.slice(0, 4)));
     expect(allLocations[store.currentLocation()].regionLocationKey[1]).toStrictEqual(3);
     expect(allLocations[store.targetLocation()].regionLocationKey[1]).toStrictEqual(4);
 
@@ -338,14 +343,15 @@ describe('withGameState', () => {
 
     // 2 actions are "move, check".
     store.advance();
-    expect(store.checkedLocations().size).toStrictEqual(5);
+    expect(store.checkedLocations()).toStrictEqual(ImmutableSet(startRegionLocs.slice(0, 5)));
     expect(allLocations[store.currentLocation()].regionLocationKey[1]).toStrictEqual(4);
     expect(allLocations[store.targetLocation()].regionLocationKey[1]).toStrictEqual(5);
     expect(store.foodFactor()).toStrictEqual(-4);
   });
 
   test('distraction counter should waste entire round', () => {
-    const { allLocations } = BAKED_DEFINITIONS_BY_VICTORY_LANDMARK.captured_goldfish;
+    const { allLocations, allRegions, startRegion } = BAKED_DEFINITIONS_BY_VICTORY_LANDMARK.captured_goldfish;
+    const startRegionLocs = getLocs(allRegions[startRegion]);
     const store = getStoreWith({
       ...initialGameStateFor('captured_goldfish'),
       prng: prngs.lucky.prng,
@@ -362,13 +368,14 @@ describe('withGameState', () => {
 
     // 3 actions are "check, move, check"
     store.advance();
-    expect(store.checkedLocations().size).toStrictEqual(2);
+    expect(store.checkedLocations()).toStrictEqual(ImmutableSet(startRegionLocs.slice(0, 2)));
     expect(allLocations[store.currentLocation()].regionLocationKey[1]).toStrictEqual(1);
     expect(allLocations[store.targetLocation()].regionLocationKey[1]).toStrictEqual(2);
   });
 
   test('style factor should improve modifier', () => {
-    const { allLocations } = BAKED_DEFINITIONS_BY_VICTORY_LANDMARK.captured_goldfish;
+    const { allLocations, allRegions, startRegion } = BAKED_DEFINITIONS_BY_VICTORY_LANDMARK.captured_goldfish;
+    const startRegionLocs = getLocs(allRegions[startRegion]);
     const store = getStoreWith({
       ...initialGameStateFor('captured_goldfish'),
       prng: prngs._6_11.prng,
@@ -378,7 +385,7 @@ describe('withGameState', () => {
 
     // 3 actions are "check, move, check"
     store.advance();
-    expect(store.checkedLocations().size).toStrictEqual(2);
+    expect(store.checkedLocations()).toStrictEqual(ImmutableSet(startRegionLocs.slice(0, 2)));
     expect(allLocations[store.currentLocation()].regionLocationKey[1]).toStrictEqual(1);
     expect(allLocations[store.targetLocation()].regionLocationKey[1]).toStrictEqual(2);
   });
@@ -494,6 +501,69 @@ describe('withGameState', () => {
     store.advance();
 
     expect(store.userRequestedLocations()).toStrictEqual(List());
+  });
+
+  test('startled should move player towards start', () => {
+    const { allRegions, startLocation, startRegion } = BAKED_DEFINITIONS_BY_VICTORY_LANDMARK.captured_goldfish;
+    const lastLocationInStartRegion = getLocs(allRegions[startRegion])[-1];
+    const store = getStoreWith({
+      ...initialGameStateFor('captured_goldfish'),
+
+      // force the first steps to move it towards the last reachable location in this region
+      prng: prngs.unlucky.prng,
+      userRequestedLocations: List([{ userSlot: 0, location: lastLocationInStartRegion }]),
+    });
+
+    store.advance();
+    const middleLocation = store.currentLocation();
+    store.advance();
+    // if this next one fails, then it's because the YAML file changed too much.
+    expect(store.currentLocation()).not.toStrictEqual(lastLocationInStartRegion);
+
+    // even though it's all high rolls, we shouldn't have any checks because the rat is hard-prioritizing.
+    expect(store.checkedLocations()).toStrictEqual(ImmutableSet());
+
+    store.receiveItems([singleAuraItems.startled]);
+    expect(store.targetLocation()).toStrictEqual(startLocation);
+
+    // it used all its movement to get from middleLocation to here previously, so being startled
+    // should cause it to use that same movement to get exactly back to middleLocation again.
+    store.advance();
+    expect(store.startledCounter()).toStrictEqual(0);
+    expect(store.currentLocation()).toStrictEqual(middleLocation);
+  });
+
+  test('startled should take priority over distracted', () => {
+    const { allRegions, startRegion } = BAKED_DEFINITIONS_BY_VICTORY_LANDMARK.captured_goldfish;
+    const startRegionLocs = getLocs(allRegions[startRegion]);
+    const lastLocationInStartRegion = startRegionLocs.at(-1) ?? NaN;
+    const store = getStoreWith({
+      ...initialGameStateFor('captured_goldfish'),
+      prng: prngs.lucky.prng,
+      currentLocation: lastLocationInStartRegion,
+    });
+
+    store.receiveItems([
+      singleAuraItems.startled,
+      ...Range(0, 2).map(() => singleAuraItems.distracted),
+    ]);
+
+    // first step, we're startled out of our distraction.
+    store.advance();
+    const expectedStartledTarget = startRegionLocs.at(-10) ?? NaN;
+    expect(store.startledCounter()).toStrictEqual(0);
+    expect(store.distractionCounter()).toStrictEqual(1);
+    expect(store.currentLocation()).toStrictEqual(expectedStartledTarget);
+
+    // second step, there's a new distraction that we hadn't gotten to yet.
+    store.advance();
+    // distraction burns a whole step
+    expect(store.currentLocation()).toStrictEqual(expectedStartledTarget);
+
+    // now we're fine. 3 actions are "reorient, check, move".
+    store.advance();
+    expect(store.checkedLocations()).toStrictEqual(ImmutableSet([expectedStartledTarget]));
+    expect(store.currentLocation()).not.toStrictEqual(expectedStartledTarget);
   });
 });
 
