@@ -139,12 +139,7 @@
           }
         },
         "test": {
-          "builder": "@angular/build:unit-test",
-          "options": {
-            "tsConfig": "tsconfig.spec.json",
-            "runner": "vitest",
-            "buildTarget": "::development"
-          }
+          "builder": "@angular/build:unit-test"
         }
       }
     }

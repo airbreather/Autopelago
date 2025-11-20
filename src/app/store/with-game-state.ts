@@ -30,7 +30,8 @@ import {
 } from '../game/target-location-evidence';
 import { type EnumVal, type Mutable } from '../util';
 
-const IS_VITEST = 'vitest' in import.meta;
+const importMeta = import.meta as (ImportMeta & { env?: Partial<Record<string, unknown>> });
+const IS_VITEST = ('env' in importMeta) && ('VITEST' in importMeta.env);
 
 function arraysEqual(a: readonly number[], b: readonly number[]) {
   return a.length === b.length && a.every((v, i) => v === b[i]);

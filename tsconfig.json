@@ -5,11 +5,13 @@
   "compilerOptions": {
     "strict": true,
     "allowUnusedLabels": false,
+    "esModuleInterop": true,
     "exactOptionalPropertyTypes": true,
     "noImplicitOverride": true,
     "noPropertyAccessFromIndexSignature": true,
     "noImplicitReturns": true,
     "noFallthroughCasesInSwitch": true,
+    "moduleResolution": "bundler",
     "skipLibCheck": true,
     "isolatedModules": true,
     "experimentalDecorators": true,
