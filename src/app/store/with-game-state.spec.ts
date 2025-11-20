@@ -16,7 +16,7 @@ import {
   type VictoryLocationYamlKey,
 } from '../data/resolved-definitions';
 import type { DefiningGameState } from '../game/defining-state';
-import { stricterObjectFromEntries, strictObjectEntries } from '../util';
+import { type Mutable, stricterObjectFromEntries, strictObjectEntries } from '../util';
 import { withGameState } from './with-game-state';
 
 const singleAuraItems = stricterObjectFromEntries(
@@ -25,7 +25,7 @@ const singleAuraItems = stricterObjectFromEntries(
 ) satisfies Record<AutopelagoAura, number>;
 
 describe('self', () => {
-  test.each(strictObjectEntries(prngs))('rolls for %s continue to match what they used to', (name, { rolls, prng }) => {
+  test.each(strictObjectEntries(prngs))('rolls for %s continue to match what they used to', (_name, { rolls, prng }) => {
     prng = prng.clone();
     for (const roll of rolls) {
       expect(rand.unsafeUniformIntDistribution(1, 20, prng)).toStrictEqual(roll);
@@ -567,6 +567,111 @@ describe('withGameState', () => {
     store.advance();
     expect(store.checkedLocations()).toStrictEqual(ImmutableSet([expectedStartledTarget]));
     expect(store.currentLocation()).not.toStrictEqual(expectedStartledTarget);
+  });
+
+  test.each(['smart', 'conspiratorial'] as const)('%s should resolve to nearest reachable if possible (regression test for #100)', (aura) => {
+    const { allLocations, allRegions, locationNameLookup, startLocation, startRegion } = BAKED_DEFINITIONS_BY_VICTORY_LANDMARK.captured_goldfish;
+    const locationsBeforePrawnStars = getLocs(allRegions[allRegions[allLocations[locationNameLookup.get('Prawn Stars') ?? NaN].regionLocationKey[0]].connected.backward[0]]);
+    const startRegionLocs = getLocs(allRegions[startRegion]);
+    const initialGameState = initialGameStateFor('captured_goldfish') as Required<DefiningGameState>;
+    const spoilerData: Mutable<Readonly<BitArray>> = aura === 'conspiratorial'
+      ? initialGameState.locationIsTrap
+      : initialGameState.locationIsProgression;
+    spoilerData[startLocation] = 1;
+    spoilerData[locationsBeforePrawnStars[0]] = 1;
+    spoilerData[locationsBeforePrawnStars.at(-1) ?? NaN] = 1;
+    const store = getStoreWith({
+      ...initialGameState,
+      currentLocation: startRegionLocs.at(-1) ?? NaN,
+    });
+
+    // even though there's a target RIGHT on the other side, we still favor the nearest one that
+    // we can already reach with what we currently have.
+    store.receiveItems([singleAuraItems[aura]]);
+    expect(store.auraDrivenLocations()).toStrictEqual(List([startLocation]));
+    expect(store.targetLocation()).toStrictEqual(startLocation);
+    expect(store.targetLocationReason()).toStrictEqual('aura-driven');
+
+    // if there's nothing else that we can reach, then we should NOT target the unreachable one
+    // that's just out of reach. it should just fizzle.
+    store.receiveItems([singleAuraItems[aura]]);
+    expect(store.auraDrivenLocations()).toStrictEqual(List([startLocation]));
+    expect(store.targetLocation()).toStrictEqual(startLocation);
+    expect(store.targetLocationReason()).toStrictEqual('aura-driven');
+
+    // #100: it also shouldn't re-prioritize the same location after it's been checked. uniquely to
+    // this version (and not the C# version that it's ported from), this will respond to the server
+    // running a /send_location command. (we're probably still hopelessly lost for multiple active
+    // sessions on the same slot, though).
+    patchState(unprotected(store), ({ checkedLocations }) => ({ checkedLocations: checkedLocations.add(startLocation) }));
+    TestBed.tick(); // white-box: requirement is satisfied via an effect in onInit
+    expect(store.auraDrivenLocations()).toStrictEqual(List());
+    store.receiveItems([singleAuraItems[aura]]);
+    expect(store.auraDrivenLocations()).toStrictEqual(List());
+  });
+
+  test('user-requested locations past clearable landmarks should block the player (regression test for #45)', () => {
+    const { allLocations, allRegions, itemNameLookup, locationNameLookup, startRegion } = BAKED_DEFINITIONS_BY_VICTORY_LANDMARK.captured_goldfish;
+    const packRat = itemNameLookup.get('Pack Rat') ?? NaN;
+    const basketball = locationNameLookup.get('Basketball') ?? NaN;
+    const locationsBeforePrawnStars = getLocs(allRegions[allRegions[allLocations[locationNameLookup.get('Prawn Stars') ?? NaN].regionLocationKey[0]].connected.backward[0]]);
+    const startRegionLocs = getLocs(allRegions[startRegion]);
+
+    const store = getStoreWith({
+      ...initialGameStateFor('captured_goldfish'),
+      receivedItems: List(Range(0, 5).map(() => packRat)),
+      currentLocation: startRegionLocs.at(-1) ?? NaN,
+      userRequestedLocations: List([{ userSlot: 0, location: locationsBeforePrawnStars[1] }]),
+    });
+
+    // roll as low as possible for a few steps (not enough for the mercy factor to guarantee it).
+    const FAILURE_COUNT = 3;
+    for (let i = 0; i < FAILURE_COUNT; i++) {
+      patchState(unprotected(store), { prng: prngs.unlucky.prng });
+      store.advance();
+    }
+
+    // no cheating -- it actually has to clear the landmark first!
+    expect(store.currentLocation()).toStrictEqual(basketball);
+    expect(store.targetLocationReason()).toStrictEqual('user-requested');
+
+    // in fact, you know what, let's get a bit strict on exactly what needed to have happened here.
+    // it really needed to TRY as much as possible at each step. the first one is less relevant to
+    // what we're testing here since it depends on the details of target switching and movement, but
+    // as long as FAILURE_COUNT is greater than 1, its last attempt should have spent all 3 actions
+    // trying nothing but attempts at progressing towards its singular goal of helping the user out.
+    expect(store.mercyFactor()).toStrictEqual(FAILURE_COUNT);
+
+    // enforce it to the extent that its PRNG state must literally look exactly like it would look
+    // after rolling 3 times from where we forced it to start. no learned helplessness or anything.
+    const expectedPrng = prngs.unlucky.prng.clone();
+    rand.unsafeUniformIntDistribution(1, 20, expectedPrng);
+    rand.unsafeUniformIntDistribution(1, 20, expectedPrng);
+    rand.unsafeUniformIntDistribution(1, 20, expectedPrng);
+    expect(store.prng().getState()).toStrictEqual(expectedPrng.getState());
+  });
+
+  // this test was added in the C# version after playtesting revealed it to feel WAY too punishing
+  // when you exhaust everything available down one path of a fork and then have to backtrack to go
+  // the other way. we kept it so that it still costs two actions if you do a check between two move
+  // actions (as opposed to having the second piggyback on the one before it and not cost anything),
+  // but it felt just about right to get 3 spaces of movement from one action if you're ONLY moving.
+  test('long moves should be accelerated', () => {
+    const { allRegions, itemNameLookup, locationNameLookup, startRegion } = BAKED_DEFINITIONS_BY_VICTORY_LANDMARK.captured_goldfish;
+    const packRat = itemNameLookup.get('Pack Rat') ?? NaN;
+    const basketball = locationNameLookup.get('Basketball') ?? NaN;
+    const startRegionLocs = getLocs(allRegions[startRegion]);
+
+    const store = getStoreWith({
+      ...initialGameStateFor('captured_goldfish'),
+      receivedItems: List(Range(0, 5).map(() => packRat)),
+      userRequestedLocations: List([{ userSlot: 0, location: basketball }]),
+    });
+
+    store.advance();
+
+    // it needs to have moved forward 9 times.
+    expect(store.currentLocation()).toStrictEqual(startRegionLocs[9]);
   });
 });
 

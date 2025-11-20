@@ -1,6 +1,6 @@
-import { computed, untracked } from '@angular/core';
+import { computed, effect, untracked } from '@angular/core';
 import BitArray from '@bitarray/typedarray';
-import { patchState, signalStoreFeature, withComputed, withMethods, withState } from '@ngrx/signals';
+import { patchState, signalStoreFeature, withComputed, withHooks, withMethods, withState } from '@ngrx/signals';
 import { itemClassifications, PlayersManager } from 'archipelago.js';
 import { List, Set as ImmutableSet } from 'immutable';
 import rand from 'pure-rand';
@@ -440,9 +440,15 @@ export function withGameState() {
           return `All right, I'll prioritize ${exactLocName} for you, ${probablyPlayerAlias}. Just so you know, ${firstRequestingUser} already asked me to go there first, but I'll remember that you want me to go there too, in case they change their mind.`;
         }
 
-        return store._regionLocks().regionIsHardLocked[allLocations[loc].regionLocationKey[0]]
-          ? `I'll keep it in mind that ${exactLocName} is important to you, ${probablyPlayerAlias}. I can't get there just yet, though, so please be patient with me...`
-          : `All right, I'll prioritize ${exactLocName} for you, ${probablyPlayerAlias}!`;
+        if (store._regionLocks().regionIsHardLocked[allLocations[loc].regionLocationKey[0]]) {
+          return `I'll keep it in mind that ${exactLocName} is important to you, ${probablyPlayerAlias}. I can't get there just yet, though, so please be patient with me...`;
+        }
+
+        if (store.locationIsChecked()[loc]) {
+          return `All right, ${probablyPlayerAlias}, I'll go back to ${exactLocName}. I've already sent out its item before, but I trust you!`;
+        }
+
+        return `All right, I'll prioritize ${exactLocName} for you, ${probablyPlayerAlias}!`;
       }
       return {
         processUserRequestedLocation,
@@ -851,6 +857,8 @@ export function withGameState() {
                     break;
 
                   case 'aura-driven':
+                    // this is sometimes redundant with the effect in onInit, but I think that it's
+                    // also required here because microtasks aren't scheduled until after we return.
                     result.auraDrivenLocations = prev.auraDrivenLocations.filter(l => l !== targetLocation);
                     break;
                 }
@@ -874,6 +882,18 @@ export function withGameState() {
           });
         },
       };
+    }),
+    withHooks({
+      onInit(store) {
+        effect(() => {
+          const checkedLocations = store.checkedLocations();
+          const auraDrivenLocations = store.auraDrivenLocations();
+          const uncheckedAuraDrivenLocations = auraDrivenLocations.filter(l => !checkedLocations.has(l));
+          if (uncheckedAuraDrivenLocations.size !== auraDrivenLocations.size) {
+            patchState(store, { auraDrivenLocations: uncheckedAuraDrivenLocations });
+          }
+        });
+      },
     }),
   );
 }
