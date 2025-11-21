@@ -19,7 +19,7 @@ export interface InitializeClientOptions {
 export async function initializeClient(initializeClientOptions: InitializeClientOptions): Promise<AutopelagoClientAndData> {
   const { connectScreenStore, destroyRef } = initializeClientOptions;
   const slot = connectScreenStore.slot();
-  const host = connectScreenStore.host();
+  const host = connectScreenStore.host().replace(/:\d+$/, '');
   const port = connectScreenStore.port();
   const password = connectScreenStore.password();
   const client = new Client();

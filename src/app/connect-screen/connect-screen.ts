@@ -1,125 +1,98 @@
-import { ChangeDetectionStrategy, Component, effect, ElementRef, inject, signal, viewChild } from '@angular/core';
-import { Router } from '@angular/router';
+import { ChangeDetectionStrategy, Component, effect, inject, signal } from '@angular/core';
 
-import { ConnectScreenStore } from '../store/connect-screen.store';
+import { disabled, Field, form, max, min, required } from '@angular/forms/signals';
+import { Router } from '@angular/router';
+import {
+  CONNECT_SCREEN_STATE_DEFAULTS,
+  type ConnectScreenState,
+  queryParamsFromConnectScreenState,
+} from './connect-screen-state';
+
+// Local storage key
+const STORAGE_KEY = 'autopelago-connect-screen-state';
 
 @Component({
   selector: 'app-connect-screen',
   changeDetection: ChangeDetectionStrategy.OnPush,
+  imports: [
+    Field,
+  ],
   template: `
     <form #allInputs class="root" (submit)="onConnect($event)">
       <div class="inputs">
         <label for="slot">Slot:</label>
-        <input #slotInput
-               required
-               id="slot"
+        <input id="slot"
                type="text"
-               [value]="slot()"
-               (input)="updateSlot(slotInput.value)"/>
+               [field]="form.slot"/>
         <label for="host">Host:</label>
-        <input #hostInput
-               required
-               id="host"
+        <input id="host"
                type="text"
-               [value]="host()"
-               (input)="updateHost(hostInput.value)"/>
+               [field]="form.host"/>
         <label for="port">Port:</label>
-        <input #portInput
-               required
-               id="port"
+        <input id="port"
                type="number"
-               min="1"
-               max="65535"
-               [value]="port()"
-               (input)="updatePort(portInput.valueAsNumber)"/>
+               [field]="form.port"/>
         <label for="password">Password:</label>
-        <input #passwordInput
-               id="password"
+        <input id="password"
                type="password"
-               [value]="password()"
-               (input)="updatePassword(passwordInput.value)"/>
+               [field]="form.password"/>
         <fieldset class="inputs" [style.grid-column]="'span 2'">
           <legend>Time Between Steps (sec.)</legend>
-          <label for="minTime">Minimum:</label>
-          <input #minTimeInput
-                 id="minTime"
+          <label for="minTimeSeconds">Minimum:</label>
+          <input id="minTimeSeconds"
                  type="number"
-                 [value]="minTimeSeconds()"
-                 (input)="updateMinTime(minTimeInput.valueAsNumber)"/>
-          <label for="maxTime">Maximum:</label>
-          <input #maxTimeInput
-                 id="maxTime"
+                 [field]="form.minTimeSeconds"/>
+          <label for="maxTimeSeconds">Maximum:</label>
+          <input id="maxTimeSeconds"
                  type="number"
-                 [value]="maxTimeSeconds()"
-                 (input)="updateMaxTime(maxTimeInput.valueAsNumber)"/>
+                 [field]="form.maxTimeSeconds"/>
         </fieldset>
       </div>
       <div class="inputs">
-        <input #enableTileAnimationsInput
-               id="enableTileAnimations"
+        <input id="enableTileAnimations"
                type="checkbox"
-               [checked]="enableTileAnimations()"
-               (input)="updateEnableTileAnimations(enableTileAnimationsInput.checked)"/>
+               [field]="form.enableTileAnimations"/>
         <label for="enableTileAnimations">Enable tile animations</label>
 
-        <input #enableRatAnimationsInput
-               id="enableRatAnimations"
+        <input id="enableRatAnimations"
                type="checkbox"
-               [checked]="enableRatAnimations()"
-               (input)="updateEnableRatAnimations(enableRatAnimationsInput.checked)"/>
+               [field]="form.enableRatAnimations"/>
         <label for="enableRatAnimations">Enable rat animations</label>
 
-        <input #sendChatMessagesInput
-               id="sendChatMessages"
+        <input id="sendChatMessages"
                type="checkbox"
-               [checked]="sendChatMessages()"
-               (input)="updateSendChatMessages(sendChatMessagesInput.checked)"/>
+               [field]="form.sendChatMessages"/>
         <label for="sendChatMessages">Send chat messages...</label>
       </div>
       <div class="inputs" [style.padding-left]="'20px'">
-        <input #whenTargetChangesInput
-               id="whenTargetChanges"
+        <input id="whenTargetChanges"
                type="checkbox"
-               [disabled]="!sendChatMessages()"
-               [checked]="whenTargetChanges()"
-               (input)="updateWhenTargetChanges(whenTargetChangesInput.checked)"/>
+               [field]="form.whenTargetChanges"/>
         <label for="whenTargetChanges">when target changes</label>
 
-        <input #whenBecomingBlockedInput
-               id="whenBecomingBlocked"
+        <input id="whenBecomingBlocked"
                type="checkbox"
-               [disabled]="!sendChatMessages()"
-               [checked]="whenBecomingBlocked()"
-               (input)="updateWhenBecomingBlocked(whenBecomingBlockedInput.checked)"/>
+               [field]="form.whenBecomingBlocked"/>
         <label for="whenBecomingBlocked">when becoming blocked</label>
 
-        <input #whenStillBlockedInput
-               id="whenStillBlocked"
+        <input id="whenStillBlocked"
                type="checkbox"
-               [disabled]="!(sendChatMessages() && whenBecomingBlocked())"
-               [checked]="whenStillBlocked()"
-               (input)="updateWhenStillBlocked(whenStillBlockedInput.checked)"/>
+               [field]="form.whenStillBlocked"/>
         <label for="whenStillBlocked">when STILL blocked</label>
 
-        <input #whenBecomingUnblockedInput
-               id="whenBecomingUnblocked"
+        <input id="whenBecomingUnblocked"
                type="checkbox"
-               [disabled]="!sendChatMessages()"
-               [checked]="whenBecomingUnblocked()"
-               (input)="updateWhenBecomingUnblocked(whenBecomingUnblockedInput.checked)"/>
+               [field]="form.whenBecomingUnblocked"/>
         <label for="whenBecomingUnblocked">when becoming unblocked</label>
 
-        <input #forOneTimeEventsInput
-               id="forOneTimeEvents"
+        <input id="forOneTimeEvents"
                type="checkbox"
-               [disabled]="!sendChatMessages()"
-               [checked]="forOneTimeEvents()"
-               (input)="updateForOneTimeEvents(forOneTimeEventsInput.checked)"/>
+               [field]="form.forOneTimeEvents"/>
         <label for="forOneTimeEvents">for one-time events</label>
       </div>
       <input class="submit-button"
              type="submit"
-             [disabled]="connecting() || !allInputs.checkValidity()"
+             [disabled]="connecting() || !form().valid()"
              [value]="connecting() ? 'Connecting...' : 'Connect'"/>
     </form>
   `,
@@ -129,14 +102,14 @@ import { ConnectScreenStore } from '../store/connect-screen.store';
       flex-direction: column;
       margin: 5px;
 
-      >:not(:first-child) {
+      > :not(:first-child) {
         margin-top: 5px;
       }
     }
 
     .inputs {
       display: grid;
-      gap: calc(5rem/16);
+      gap: calc(5rem / 16);
       grid-template-columns: max-content 1fr;
 
       label {
@@ -147,68 +120,79 @@ import { ConnectScreenStore } from '../store/connect-screen.store';
   `,
 })
 export class ConnectScreen {
-  readonly #store = inject(ConnectScreenStore);
   readonly #router = inject(Router);
   readonly #connecting = signal(false);
   readonly connecting = this.#connecting.asReadonly();
+  readonly model = signal(CONNECT_SCREEN_STATE_DEFAULTS);
+  readonly form = form(this.model, (schemaPath) => {
+    /* eslint-disable @typescript-eslint/unbound-method */
+    required(schemaPath.slot);
+    required(schemaPath.host);
+    required(schemaPath.port);
+    min(schemaPath.port, 1);
+    max(schemaPath.port, 65535);
 
-  // Expose store properties as getters for template access
-  readonly slot = this.#store.slot;
-  readonly port = this.#store.port;
-  readonly password = this.#store.password;
-  readonly minTimeSeconds = this.#store.minTimeSeconds;
-  readonly maxTimeSeconds = this.#store.maxTimeSeconds;
-  readonly enableTileAnimations = this.#store.enableTileAnimations;
-  readonly enableRatAnimations = this.#store.enableRatAnimations;
-  readonly sendChatMessages = this.#store.sendChatMessages;
-  readonly whenTargetChanges = this.#store.whenTargetChanges;
-  readonly whenBecomingBlocked = this.#store.whenBecomingBlocked;
-  readonly whenStillBlocked = this.#store.whenStillBlocked;
-  readonly whenBecomingUnblocked = this.#store.whenBecomingUnblocked;
-  readonly forOneTimeEvents = this.#store.forOneTimeEvents;
-  readonly host = this.#store.host;
+    required(schemaPath.minTimeSeconds);
+    required(schemaPath.maxTimeSeconds);
+    max(schemaPath.minTimeSeconds, ({ valueOf }) => Math.max(0.1, valueOf(schemaPath.maxTimeSeconds)));
+    min(schemaPath.maxTimeSeconds, ({ valueOf }) => Math.max(0.1, valueOf(schemaPath.minTimeSeconds)));
 
-  protected readonly minTimeInput = viewChild<ElementRef<HTMLInputElement>>('minTimeInput');
-  protected readonly maxTimeInput = viewChild<ElementRef<HTMLInputElement>>('maxTimeInput');
+    disabled(schemaPath.whenTargetChanges, ({ valueOf }) => !valueOf(schemaPath.sendChatMessages));
+    disabled(schemaPath.whenBecomingBlocked, ({ valueOf }) => !valueOf(schemaPath.sendChatMessages));
+    disabled(schemaPath.whenStillBlocked, ({ valueOf }) => !valueOf(schemaPath.sendChatMessages) || !valueOf(schemaPath.whenBecomingBlocked));
+    disabled(schemaPath.whenBecomingUnblocked, ({ valueOf }) => !valueOf(schemaPath.sendChatMessages));
+    disabled(schemaPath.forOneTimeEvents, ({ valueOf }) => !valueOf(schemaPath.sendChatMessages));
+    /* eslint-enable @typescript-eslint/unbound-method */
+  });
 
   constructor() {
+    const saved = localStorage.getItem(STORAGE_KEY);
+    if (saved) {
+      let parsed: ConnectScreenState | null = null;
+      try {
+        parsed = JSON.parse(saved) as unknown as ConnectScreenState;
+      }
+      catch {
+        console.warn('Failed to parse saved connect screen state:', saved);
+      }
+
+      if (parsed) {
+        this.model.set(parsed);
+      }
+    }
+
     effect(() => {
-      const minTimeInput = this.minTimeInput();
-      const maxTimeInput = this.maxTimeInput();
-      if (minTimeInput && maxTimeInput) {
-        if (this.minTimeSeconds() > this.maxTimeSeconds()) {
-          minTimeInput.nativeElement.setCustomValidity('Min cannot be greater than max.');
-          maxTimeInput.nativeElement.setCustomValidity('Min cannot be greater than max.');
-        }
-        else {
-          minTimeInput.nativeElement.setCustomValidity('');
-          maxTimeInput.nativeElement.setCustomValidity('');
+      const portState = this.form.port();
+      const hostState = this.form.host();
+      if (portState.valid() && portState.dirty()) {
+        const port = portState.value();
+        hostState.value.update(host => Number.isInteger(port)
+          ? host.replace(/(?<=:)\d+$/, port.toString())
+          : host.replace(/:\d+$/, ''));
+      }
+      else if (hostState.valid() && hostState.dirty()) {
+        const host = hostState.value();
+        const m = /(?<=:)\d+$/.exec(host);
+        if (m) {
+          portState.value.set(Number(m[0]));
         }
       }
+
+      portState.reset();
+      hostState.reset();
+    });
+
+    effect(() => {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(this.form().value()));
     });
   }
-
-  updateSlot(value: string) { this.#store.updateSlot(value); }
-  updateHost(value: string) { this.#store.updateHost(value); }
-  updatePassword(value: string) { this.#store.updatePassword(value); }
-  updateMinTime(value: number) { this.#store.updateMinTime(value); }
-  updateMaxTime(value: number) { this.#store.updateMaxTime(value); }
-  updatePort(value: number) { this.#store.updatePort(value); }
-  updateEnableTileAnimations(value: boolean) { this.#store.updateEnableTileAnimations(value); }
-  updateEnableRatAnimations(value: boolean) { this.#store.updateEnableRatAnimations(value); }
-  updateSendChatMessages(value: boolean) { this.#store.updateSendChatMessages(value); }
-  updateWhenTargetChanges(value: boolean) { this.#store.updateWhenTargetChanges(value); }
-  updateWhenBecomingBlocked(value: boolean) { this.#store.updateWhenBecomingBlocked(value); }
-  updateWhenStillBlocked(value: boolean) { this.#store.updateWhenStillBlocked(value); }
-  updateWhenBecomingUnblocked(value: boolean) { this.#store.updateWhenBecomingUnblocked(value); }
-  updateForOneTimeEvents(value: boolean) { this.#store.updateForOneTimeEvents(value); }
 
   async onConnect(event: SubmitEvent) {
     event.preventDefault();
     try {
       this.#connecting.set(true);
       await this.#router.navigate(['./game'], {
-        queryParams: this.#store.queryParams(),
+        queryParams: queryParamsFromConnectScreenState(this.form().value()),
       });
     }
     catch (err: unknown) {

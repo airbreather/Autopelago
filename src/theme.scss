@@ -31,12 +31,15 @@ $region-color: #303030;
 
 // things from Avalonia.Themes.Fluent
 $text-control-background: $alt-medium-low;
+$text-control-background-disabled: $base-low;
 $text-control-border: $base-medium;
+$text-control-border-disabled: $base-low;
 $text-control-border-focused: $accent;
 $text-control-border-error: $error-text;
 $text-control-border-theme-thickness: 1px;
 $text-control-border-theme-thickness-focused: 2px;
 $text-control-foreground: $base-high;
+$text-control-foreground-disabled: $chrome-disabled-low;
 $text-control-theme-padding: calc(6rem/16) calc(6rem/16) calc(6rem/16) calc(10rem/16);
 
 $button-background: $base-low;

@@ -36,6 +36,12 @@ input[type='text'],input[type='password'],input[type='number'] {
   &:invalid {
     outline-color: theme.$text-control-border-error;
   }
+
+  &:disabled {
+    color: theme.$text-control-foreground-disabled;
+    background-color: theme.$text-control-background-disabled;
+    outline-color: theme.$text-control-border-disabled;
+  }
 }
 
 input[type='submit'],button {
