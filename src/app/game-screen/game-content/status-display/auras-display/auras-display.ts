@@ -1,17 +1,7 @@
-import {
-  ChangeDetectionStrategy,
-  Component,
-  computed,
-  DestroyRef,
-  ElementRef,
-  inject,
-  Injector,
-  signal,
-  viewChild,
-} from '@angular/core';
-import { GameStore } from '../../../../store/autopelago-store';
+import { ChangeDetectionStrategy, Component, computed, ElementRef, inject, signal, viewChild } from '@angular/core';
 
-import { resizeText } from '../../../../util';
+import { resizeText } from '../../../../resize-text';
+import { GameStore } from '../../../../store/autopelago-store';
 
 @Component({
   selector: 'app-auras-display',
@@ -214,8 +204,6 @@ export class AurasDisplay {
   });
 
   constructor() {
-    const destroy = inject(DestroyRef);
-    const injector = inject(Injector);
-    resizeText({ outer: this.outerElement, inner: this.ratCountElement, max: 30, destroy, injector });
+    resizeText({ outer: this.outerElement, inner: this.ratCountElement, max: 30 });
   }
 }

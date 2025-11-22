@@ -1,8 +1,6 @@
-import { DestroyRef, effect, ElementRef, Injector, type Signal } from '@angular/core';
-import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import type { JSONSerializable } from 'archipelago.js';
 import { List } from 'immutable';
-import { Observable, Subscription } from 'rxjs';
+import { Observable } from 'rxjs';
 
 export type EnumVal<T extends object> = T[keyof T];
 
@@ -112,48 +110,3 @@ export type ToJSONSerializable<T> =
           ? ToJSONSerializable<E>[]
           : never;
   };
-
-interface ResizeTextOptions {
-  outer: Signal<ElementRef<HTMLElement>>;
-  inner: Signal<ElementRef<HTMLElement>>;
-  destroy: DestroyRef;
-  injector: Injector;
-  max: number;
-}
-
-export function resizeText({ outer, inner, destroy, injector, max }: ResizeTextOptions) {
-  let prevSub = new Subscription();
-  effect(() => {
-    let prevTimeout: number | undefined;
-    prevSub.unsubscribe();
-    const outerElement = outer().nativeElement;
-    const innerElement = inner().nativeElement;
-    prevSub = resizeEvents(outerElement)
-      .pipe(takeUntilDestroyed(destroy))
-      .subscribe(() => {
-        clearTimeout(prevTimeout);
-        prevTimeout = setTimeout(() => {
-          fitTextToContainer(innerElement, outerElement, max);
-        }, 0);
-      });
-  }, { injector });
-}
-
-function fitTextToContainer(inner: HTMLElement, outer: HTMLElement, max: number) {
-  let fontSize = window.getComputedStyle(inner).fontSize;
-
-  while (inner.scrollWidth <= outer.clientWidth) {
-    const fontSizeNum = Math.min(max, Number(/^\d+/.exec(fontSize)) + 5);
-    if (fontSizeNum >= max) {
-      break;
-    }
-
-    fontSize = fontSize.replace(/^\d+/, fontSizeNum.toString());
-    inner.style.fontSize = fontSize;
-  }
-
-  while (inner.scrollWidth > outer.clientWidth) {
-    fontSize = fontSize.replace(/^\d+/, s => (Number(s) - 1).toString());
-    inner.style.fontSize = fontSize;
-  }
-}

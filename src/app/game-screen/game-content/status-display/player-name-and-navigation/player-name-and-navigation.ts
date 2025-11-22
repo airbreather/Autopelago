@@ -2,11 +2,8 @@ import {
   ChangeDetectionStrategy,
   Component,
   computed,
-  DestroyRef,
   effect,
   ElementRef,
-  inject,
-  Injector,
   input,
   signal,
   viewChild,
@@ -16,7 +13,7 @@ import { RouterLink } from '@angular/router';
 import type { Player } from 'archipelago.js';
 import type { AutopelagoClientAndData } from '../../../../data/slot-data';
 
-import { resizeText } from '../../../../util';
+import { resizeText } from '../../../../resize-text';
 
 @Component({
   selector: 'app-player-name-and-navigation',
@@ -58,10 +55,8 @@ export class PlayerNameAndNavigation {
   readonly returnButtonElement = viewChild.required<ElementRef<HTMLElement>>('returnButton');
 
   constructor() {
-    const destroy = inject(DestroyRef);
-    const injector = inject(Injector);
-    resizeText({ outer: this.outerElement, inner: this.playerNameElement, max: 50, destroy, injector });
-    resizeText({ outer: this.outerElement, inner: this.returnButtonElement, max: 30, destroy, injector });
+    resizeText({ outer: this.outerElement, inner: this.playerNameElement, max: 50 });
+    resizeText({ outer: this.outerElement, inner: this.returnButtonElement, max: 30 });
 
     effect((onCleanup) => {
       const { client } = this.game();
