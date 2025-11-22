@@ -7,7 +7,6 @@ import {
   ElementRef,
   inject,
   input,
-  resource,
   signal,
   untracked,
   viewChild,
@@ -15,26 +14,13 @@ import {
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { DropShadowFilter } from 'pixi-filters';
 
-import {
-  AnimatedSprite,
-  Application,
-  Assets,
-  Container,
-  Graphics,
-  Sprite,
-  Spritesheet,
-  type SpritesheetData,
-  Texture,
-  Ticker,
-} from 'pixi.js';
+import { Application, Container, Graphics, Ticker } from 'pixi.js';
 
 import {
   type Filler,
   fillerRegionCoords,
   type FillerRegionYamlKey,
   isFillerRegionYamlKey,
-  LANDMARKS,
-  type LandmarkYamlKey,
 } from '../../../../data/locations';
 import {
   BAKED_DEFINITIONS_BY_VICTORY_LANDMARK,
@@ -45,6 +31,7 @@ import type { AutopelagoClientAndData } from '../../../../data/slot-data';
 import { resizeEvents } from '../../../../element-size';
 import { GameStore } from '../../../../store/autopelago-store';
 import { strictObjectEntries } from '../../../../util';
+import { createLandmarkMarkers } from './landmark-markers';
 import { createPlayerToken } from './player-token';
 
 const fillerCoordsByRegionLookup = {
@@ -83,110 +70,6 @@ function createFillerMarkers(fillerCoordsByRegion: Readonly<Partial<Record<Fille
 
   graphicsContainer.addChild(gfx);
   return graphicsContainer;
-}
-
-interface SpriteBoxBase {
-  animated: boolean;
-  onSprite: Sprite;
-  offSprite: Sprite;
-}
-
-interface NotAnimatedSpriteBox extends SpriteBoxBase {
-  animated: false;
-}
-
-interface AnimatedSpriteBox extends SpriteBoxBase {
-  animated: true;
-  onSprite: AnimatedSprite;
-  offSprite: AnimatedSprite;
-}
-
-type SpriteBox = NotAnimatedSpriteBox | AnimatedSpriteBox;
-
-// Create spritesheet data with frame definitions for each landmark
-const spritesheetData: SpritesheetData & Required<Pick<SpritesheetData, 'animations'>> = {
-  frames: {},
-  meta: { scale: 4 },
-  animations: {},
-};
-
-// Generate frame definitions for each landmark
-for (const [landmarkKey, landmark] of Object.entries(LANDMARKS)) {
-  const offsetY = landmark.sprite_index * 65;
-
-  // OnFrame1 (offsetX: 0)
-  spritesheetData.frames[`${landmarkKey}_on_1`] = {
-    frame: { x: 0, y: offsetY, w: 64, h: 64 },
-    sourceSize: { w: 64, h: 64 },
-    spriteSourceSize: { x: 0, y: 0, w: 64, h: 64 },
-  };
-
-  // OnFrame2 (offsetX: 64)
-  spritesheetData.frames[`${landmarkKey}_on_2`] = {
-    frame: { x: 65, y: offsetY, w: 64, h: 64 },
-    sourceSize: { w: 64, h: 64 },
-    spriteSourceSize: { x: 0, y: 0, w: 64, h: 64 },
-  };
-
-  // OffFrame1 (offsetX: 128)
-  spritesheetData.frames[`${landmarkKey}_off_1`] = {
-    frame: { x: 130, y: offsetY, w: 64, h: 64 },
-    sourceSize: { w: 64, h: 64 },
-    spriteSourceSize: { x: 0, y: 0, w: 64, h: 64 },
-  };
-
-  // OffFrame2 (offsetX: 192)
-  spritesheetData.frames[`${landmarkKey}_off_2`] = {
-    frame: { x: 195, y: offsetY, w: 64, h: 64 },
-    sourceSize: { w: 64, h: 64 },
-    spriteSourceSize: { x: 0, y: 0, w: 64, h: 64 },
-  };
-
-  spritesheetData.animations[`${landmarkKey}_on`] = [`${landmarkKey}_on_1`, `${landmarkKey}_on_2`];
-  spritesheetData.animations[`${landmarkKey}_off`] = [`${landmarkKey}_off_1`, `${landmarkKey}_off_2`];
-}
-
-function createLandmarkMarkers(victoryLocationYamlKey: VictoryLocationYamlKey, enableTileAnimations: boolean, spritesheet: Spritesheet) {
-  const landmarksContainer = new Container({
-    filters: [new DropShadowFilter({
-      blur: 1,
-      offset: { x: 11.2, y: 11.2 },
-      color: 'black',
-    })],
-  });
-
-  // Create sprites for each landmark
-  const landmarkSpriteLookup: Partial<Record<LandmarkYamlKey, SpriteBox>> = { };
-  function createSprite(landmarkKey: LandmarkYamlKey, displaying: 'on' | 'off') {
-    const frames = spritesheet.animations[`${landmarkKey}_${displaying}`];
-    let sprite: Sprite;
-    if (enableTileAnimations) {
-      const anim = sprite = new AnimatedSprite(frames);
-      anim.animationSpeed = 1 / (500 * Ticker.targetFPMS);
-      anim.play();
-    }
-    else {
-      sprite = new Sprite(frames[0]);
-    }
-
-    sprite.position.set(LANDMARKS[landmarkKey].coords[0] - 8, LANDMARKS[landmarkKey].coords[1] - 8);
-    landmarksContainer.addChild(sprite);
-    return sprite;
-  }
-
-  for (const region of BAKED_DEFINITIONS_BY_VICTORY_LANDMARK[victoryLocationYamlKey].allRegions) {
-    if (!('loc' in region)) {
-      continue;
-    }
-
-    landmarkSpriteLookup[region.yamlKey] = {
-      animated: enableTileAnimations,
-      onSprite: createSprite(region.yamlKey, 'on'),
-      offSprite: createSprite(region.yamlKey, 'off'),
-    } as SpriteBox;
-  }
-
-  return { landmarksContainer, landmarkSpriteLookup };
 }
 
 @Component({
@@ -262,16 +145,10 @@ export class GameTabMap {
       ticker: Ticker.shared,
       enableRatAnimationsSignal: computed(() => this.game().connectScreenState.enableRatAnimations),
     });
-    const landmarkSpritesheetResource = resource({
-      loader: async () => {
-        const spritesheetTexture = await Assets.load<Texture>('assets/images/locations.webp');
-        const spritesheet = new Spritesheet(spritesheetTexture, spritesheetData);
-        await spritesheet.parse();
-        return spritesheet;
-      },
+    const landmarksResource = createLandmarkMarkers({
+      store: this.#store,
+      enableTileAnimationsSignal: computed(() => this.game().connectScreenState.enableTileAnimations),
     });
-    const landmarkMarkersContainer = signal<Container | null>(null);
-    const landmarkSpriteLookup = signal<Partial<Record<LandmarkYamlKey, SpriteBox>> | null>(null);
     const fillerMarkersContainer = signal<Container | null>(null);
     effect(() => {
       const fillerMarkers = fillerMarkersContainer();
@@ -309,10 +186,9 @@ export class GameTabMap {
     effect(() => {
       const canvas = this.pixiCanvas().nativeElement;
       const outerDiv = this.outerDiv().nativeElement;
-      const { enableTileAnimations } = this.game().connectScreenState;
       const playerToken = playerTokenResource.value();
-      const landmarkSpritesheet = landmarkSpritesheetResource.value();
-      if (!(playerToken && landmarkSpritesheet)) {
+      const landmarks = landmarksResource.value();
+      if (!(playerToken && landmarks)) {
         return;
       }
 
@@ -336,10 +212,7 @@ export class GameTabMap {
         fillerMarkersContainer.set(fillerMarkers);
         app.stage.addChild(fillerMarkers);
         Ticker.shared.stop();
-        const landmarkMarkers = createLandmarkMarkers(victoryLocationYamlKey, enableTileAnimations, landmarkSpritesheet);
-        landmarkMarkersContainer.set(landmarkMarkers.landmarksContainer);
-        landmarkSpriteLookup.set(landmarkMarkers.landmarkSpriteLookup);
-        app.stage.addChild(landmarkMarkers.landmarksContainer);
+        app.stage.addChild(landmarks.container);
         Ticker.shared.stop();
         app.stage.addChild(playerToken);
         Ticker.shared.stop();
@@ -361,36 +234,6 @@ export class GameTabMap {
           app.render();
         }
       })();
-    });
-
-    effect(() => {
-      const landmarkMarkersContainerNotNull = landmarkMarkersContainer();
-      const landmarkSpriteLookupNotNull = landmarkSpriteLookup();
-      if (!(landmarkMarkersContainerNotNull && landmarkSpriteLookupNotNull)) {
-        return;
-      }
-
-      const checkedLocations = this.#store.checkedLocations();
-      const defs = this.#store.defs();
-      for (const [_, landmark] of strictObjectEntries(defs.allRegions)) {
-        if (!('loc' in landmark)) {
-          continue;
-        }
-
-        const spriteBox = landmarkSpriteLookupNotNull[landmark.yamlKey];
-        if (!spriteBox) {
-          continue;
-        }
-
-        if (checkedLocations.includes(landmark.loc)) {
-          spriteBox.onSprite.visible = false;
-          spriteBox.offSprite.visible = true;
-        }
-        else {
-          spriteBox.onSprite.visible = true;
-          spriteBox.offSprite.visible = false;
-        }
-      }
     });
 
     effect(() => {
