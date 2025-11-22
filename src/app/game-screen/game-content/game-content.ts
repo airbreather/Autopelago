@@ -8,15 +8,15 @@ import {
   input,
   viewChild,
 } from '@angular/core';
-import { rxResource, takeUntilDestroyed, toObservable } from '@angular/core/rxjs-interop';
+import { takeUntilDestroyed, toObservable } from '@angular/core/rxjs-interop';
 
 import { SplitAreaComponent, SplitComponent } from 'angular-split';
 
-import { map, mergeMap } from 'rxjs';
+import { mergeMap } from 'rxjs';
 import type { AutopelagoClientAndData } from '../../data/slot-data';
+import { elementSizeSignal } from '../../element-size';
 import { GameStore } from '../../store/autopelago-store';
 import { GameScreenStore } from '../../store/game-screen-store';
-import { resizeEvents } from '../../util';
 import { GameTabs } from './game-tabs/game-tabs';
 import { StatusDisplay } from './status-display/status-display';
 
@@ -60,18 +60,11 @@ export class GameContent {
   protected readonly splitRef = viewChild.required<SplitComponent>('split');
   protected readonly outerRef = viewChild.required<ElementRef<HTMLDivElement>>('outer');
 
-  readonly #width = rxResource<number | null, ElementRef<HTMLDivElement>>({
-    defaultValue: null,
-    params: () => this.outerRef(),
-    stream: ({ params: outerRef }) => {
-      return resizeEvents(outerRef.nativeElement).pipe(
-        map(() => outerRef.nativeElement.scrollWidth),
-      );
-    },
-  });
+  readonly #size = elementSizeSignal(this.outerRef);
+  readonly #width = computed(() => this.#size().scrollWidth);
 
   readonly minSize = computed(() => {
-    const width = this.#width.value();
+    const width = this.#width();
     if (!width) {
       return 100;
     }
@@ -80,7 +73,7 @@ export class GameContent {
   });
 
   readonly maxSize = computed(() => {
-    const width = this.#width.value();
+    const width = this.#width();
     if (!width) {
       return Number.MAX_SAFE_INTEGER;
     }
@@ -91,7 +84,7 @@ export class GameContent {
   readonly leftSize = computed(() => {
     let val = this.#store.leftSize();
     if (!val) {
-      const width = this.#width.value();
+      const width = this.#width();
       if (width) {
         val = width * 0.2;
       }
@@ -121,7 +114,7 @@ export class GameContent {
   }
 
   onGutterDblClick() {
-    const width = this.#width.value();
+    const width = this.#width();
     if (width) {
       this.#store.updateLeftSize(width * 0.2);
     }

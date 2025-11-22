@@ -44,8 +44,9 @@ import {
   type VictoryLocationYamlKey,
 } from '../../../../data/resolved-definitions';
 import type { AutopelagoClientAndData } from '../../../../data/slot-data';
+import { resizeEvents } from '../../../../element-size';
 import { GameStore } from '../../../../store/autopelago-store';
-import { resizeEvents, strictObjectEntries } from '../../../../util';
+import { strictObjectEntries } from '../../../../util';
 
 const fillerCoordsByRegionLookup = {
   captured_goldfish: getFillerCoordsByRegion('captured_goldfish'),

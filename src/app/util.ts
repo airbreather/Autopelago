@@ -1,6 +1,5 @@
 import type { JSONSerializable } from 'archipelago.js';
 import { List } from 'immutable';
-import { Observable } from 'rxjs';
 
 export type EnumVal<T extends object> = T[keyof T];
 
@@ -78,26 +77,6 @@ export function stricterObjectFromEntries<T extends object, V>(entries: [k: keyo
 
 export function stricterIsArray<T>(value: T): value is Extract<T, readonly unknown[]> {
   return Array.isArray(value);
-}
-
-export interface ResizeObserverEvent<T extends HTMLElement> {
-  target: T;
-  entries: ResizeObserverEntry[];
-  observer: ResizeObserver;
-}
-
-export function resizeEvents<T extends HTMLElement>(el: T): Observable<ResizeObserverEvent<T>> {
-  return new Observable<ResizeObserverEvent<T>>((subscriber) => {
-    function next(this: T, entries: ResizeObserverEntry[], observer: ResizeObserver) {
-      subscriber.next({ target: this, entries, observer });
-    }
-
-    const obs = new ResizeObserver(next.bind(el));
-    obs.observe(el);
-    return () => {
-      obs.unobserve(el);
-    };
-  });
 }
 
 export type ToJSONSerializable<T> =
