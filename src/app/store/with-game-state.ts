@@ -57,9 +57,10 @@ function regionLocksEqual(a: RegionLocks, b: RegionLocks) {
 }
 
 function findPlayerByAlias(players: PlayersManager, alias: string) {
+  alias = alias.normalize();
   for (const t of players.teams) {
     for (const p of t) {
-      if (p.alias === alias) {
+      if (p.alias.normalize() === alias) {
         return p;
       }
     }
@@ -634,16 +635,12 @@ export function withGameState() {
           return outgoingMoves;
         },
         processMessage(msg: Message, players: PlayersManager) {
-          const text = msg.nodes.map(n => n.text).join('');
-          let taggedSlotOrAlias = `@${players.self.name} `;
+          const text = msg.nodes.map(n => n.text.normalize()).join('');
+          let taggedSlotOrAlias = `@${players.self.alias.normalize()} `;
           let tagIndex = text.indexOf(taggedSlotOrAlias);
           if (tagIndex < 0) {
-            taggedSlotOrAlias = `@${players.self.alias} `;
+            taggedSlotOrAlias = `@${players.self.name.normalize()} `;
             tagIndex = text.indexOf(taggedSlotOrAlias);
-          }
-
-          if (tagIndex < 0) {
-            return;
           }
 
           // chat message format is "{UserAlias}: {Message}", so it needs to be at least this long.
@@ -673,8 +670,7 @@ export function withGameState() {
 
           // if we got here, then the entire rest of the message after "@{SlotName}" is the command.
           const defs = store.defs();
-          const slotOrAliasMatcher = new RegExp(`^${RegExp.escape(taggedSlotOrAlias.normalize())}`);
-          const cmd = text.substring(tagIndex).normalize().replace(slotOrAliasMatcher, '');
+          const cmd = text.substring(tagIndex + taggedSlotOrAlias.length);
           if (/^go /i.exec(cmd)) {
             const quotesMatcher = /^"*|"*$/g;
             const locName = cmd.substring('go '.length).replaceAll(quotesMatcher, '');

@@ -74,9 +74,6 @@
               "pixi.js",
               "pixi-filters"
             ],
-            "polyfills": [
-              "src/polyfills.ts"
-            ],
             "index": {
               "input": "src/index.html",
               "preloadInitial": false
