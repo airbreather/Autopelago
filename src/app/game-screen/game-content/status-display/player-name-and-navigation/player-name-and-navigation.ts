@@ -1,8 +1,21 @@
-import { ChangeDetectionStrategy, Component, DestroyRef, ElementRef, inject, Injector, viewChild } from '@angular/core';
+import {
+  ChangeDetectionStrategy,
+  Component,
+  computed,
+  DestroyRef,
+  effect,
+  ElementRef,
+  inject,
+  Injector,
+  input,
+  signal,
+  viewChild,
+} from '@angular/core';
 
 import { RouterLink } from '@angular/router';
+import type { Player } from 'archipelago.js';
+import type { AutopelagoClientAndData } from '../../../../data/slot-data';
 
-import { ConnectScreenStore } from '../../../../store/connect-screen.store';
 import { resizeText } from '../../../../util';
 
 @Component({
@@ -32,9 +45,13 @@ import { resizeText } from '../../../../util';
   `,
 })
 export class PlayerNameAndNavigation {
-  readonly #connectScreenStore = inject(ConnectScreenStore);
+  readonly game = input.required<AutopelagoClientAndData>();
 
-  readonly playerName = this.#connectScreenStore.slot;
+  readonly #player = signal({ name: '', alias: '' });
+  readonly playerName = computed(() => {
+    const { name, alias } = this.#player();
+    return new RegExp(`(?<justAlias>.*)\\(${name}\\)`).exec(alias)?.groups?.['justAlias'] ?? alias;
+  });
 
   readonly outerElement = viewChild.required<ElementRef<HTMLElement>>('outer');
   readonly playerNameElement = viewChild.required<ElementRef<HTMLElement>>('playerNameDiv');
@@ -45,5 +62,18 @@ export class PlayerNameAndNavigation {
     const injector = inject(Injector);
     resizeText({ outer: this.outerElement, inner: this.playerNameElement, max: 50, destroy, injector });
     resizeText({ outer: this.outerElement, inner: this.returnButtonElement, max: 30, destroy, injector });
+
+    effect((onCleanup) => {
+      const { client } = this.game();
+      this.#player.set({ name: client.players.self.name, alias: client.players.self.alias });
+
+      const cb = (player: Player, _oldAlias: string, newAlias: string) => {
+        if (player.slot === client.players.self.slot) {
+          this.#player.set({ name: client.players.self.name, alias: newAlias });
+        }
+      };
+      client.players.on('aliasUpdated', cb);
+      onCleanup(() => client.players.off('aliasUpdated', cb));
+    });
   }
 }

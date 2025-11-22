@@ -3,8 +3,8 @@ import type BitArray from '@bitarray/typedarray';
 import type { Client, JSONRecord, PackageMetadata } from 'archipelago.js';
 import { List } from 'immutable';
 import type { Message } from '../archipelago-client';
+import type { ConnectScreenState } from '../connect-screen/connect-screen-state';
 import type { TargetLocationEvidence } from '../game/target-location-evidence';
-import type { ConnectScreenStore } from '../store/connect-screen.store';
 import type { ToJSONSerializable } from '../util';
 import type {
   AutopelagoAura,
@@ -22,7 +22,7 @@ export interface ResolvedAutopelagoItem extends AutopelagoItem {
 }
 
 export interface AutopelagoClientAndData {
-  connectScreenStore: InstanceType<typeof ConnectScreenStore>;
+  connectScreenState: ConnectScreenState;
   client: Client;
   pkg: PackageMetadata;
   resolvedItems: readonly ResolvedAutopelagoItem[];

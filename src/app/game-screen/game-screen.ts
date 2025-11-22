@@ -6,8 +6,8 @@ import { interval } from 'rxjs';
 
 import { toastError } from '../app-error-handler';
 import { initializeClient } from '../archipelago-client';
+import type { ConnectScreenState } from '../connect-screen/connect-screen-state';
 import { GameStore } from '../store/autopelago-store';
-import { ConnectScreenStore } from '../store/connect-screen.store';
 import { GameScreenStore } from '../store/game-screen-store';
 import { GameContent } from './game-content/game-content';
 
@@ -58,11 +58,11 @@ export class GameScreen {
   readonly #destroyRef = inject(DestroyRef);
   readonly #toast = inject(ToastrService);
   #activeToast: ActiveToast<unknown> | null = null;
-  readonly connectScreenStore = input.required<InstanceType<typeof ConnectScreenStore>>();
+  readonly connectScreenState = input.required<ConnectScreenState>();
   protected readonly connectingMessage = signal('Connecting...');
   protected readonly game = resource({
     params: () => ({
-      connectScreenStore: this.connectScreenStore(),
+      connectScreenState: this.connectScreenState(),
       destroyRef: this.#destroyRef,
     }),
     loader: async ({ params }) => {

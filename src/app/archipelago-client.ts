@@ -2,6 +2,7 @@ import { type DestroyRef, signal, type Signal } from '@angular/core';
 import BitArray from '@bitarray/typedarray';
 import { Client, type ConnectionOptions, type MessageNode } from 'archipelago.js';
 import { List } from 'immutable';
+import type { ConnectScreenState } from './connect-screen/connect-screen-state';
 import {
   type AutopelagoAura,
   BAKED_DEFINITIONS_BY_VICTORY_LANDMARK,
@@ -9,19 +10,15 @@ import {
   VICTORY_LOCATION_NAME_LOOKUP,
 } from './data/resolved-definitions';
 import type { AutopelagoClientAndData, AutopelagoSlotData, AutopelagoStoredData } from './data/slot-data';
-import type { ConnectScreenStore } from './store/connect-screen.store';
 
 export interface InitializeClientOptions {
-  connectScreenStore: InstanceType<typeof ConnectScreenStore>;
+  connectScreenState: ConnectScreenState;
   destroyRef: DestroyRef;
 }
 
 export async function initializeClient(initializeClientOptions: InitializeClientOptions): Promise<AutopelagoClientAndData> {
-  const { connectScreenStore, destroyRef } = initializeClientOptions;
-  const slot = connectScreenStore.slot();
-  const host = connectScreenStore.host().replace(/:\d+$/, '');
-  const port = connectScreenStore.port();
-  const password = connectScreenStore.password();
+  const { connectScreenState, destroyRef } = initializeClientOptions;
+  const { slot, host, port, password } = connectScreenState;
   const client = new Client();
   destroyRef.onDestroy(() => {
     client.socket.disconnect();
@@ -47,7 +44,7 @@ export async function initializeClient(initializeClientOptions: InitializeClient
   }
 
   const slotData = await client.login<AutopelagoSlotData>(
-    `${host}:${port.toString()}`,
+    `${host.replace(/:\d+$/, '')}:${port.toString()}`,
     slot,
     'Autopelago',
     options,
@@ -110,7 +107,7 @@ export async function initializeClient(initializeClientOptions: InitializeClient
   }
 
   return {
-    connectScreenStore,
+    connectScreenState,
     client,
     pkg,
     resolvedItems: resolveItems(slotData),

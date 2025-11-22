@@ -345,8 +345,7 @@ export class GameTabMap {
     effect(() => {
       const canvas = this.pixiCanvas().nativeElement;
       const outerDiv = this.outerDiv().nativeElement;
-      const enableRatAnimations = this.game().connectScreenStore.enableRatAnimations();
-      const enableTileAnimations = this.game().connectScreenStore.enableTileAnimations();
+      const { enableRatAnimations, enableTileAnimations } = this.game().connectScreenState;
       const playerTokenTexture = playerTokenTextureResource.value();
       const landmarkSpritesheet = landmarkSpritesheetResource.value();
       if (!(playerTokenTexture && landmarkSpritesheet)) {

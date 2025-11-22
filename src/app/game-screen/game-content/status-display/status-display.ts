@@ -14,7 +14,7 @@ import { ProgressionItemStatus } from './progression-item-status/progression-ite
   template: `
     <div class="outer">
       <div class="top">
-        <app-player-name-and-navigation />
+        <app-player-name-and-navigation [game]="game()" />
         <div class="auras">
           <app-auras-display />
         </div>
