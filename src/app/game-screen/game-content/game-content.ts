@@ -8,11 +8,8 @@ import {
   input,
   viewChild,
 } from '@angular/core';
-import { takeUntilDestroyed, toObservable } from '@angular/core/rxjs-interop';
 
 import { SplitAreaComponent, SplitComponent } from 'angular-split';
-
-import { mergeMap } from 'rxjs';
 import type { AutopelagoClientAndData } from '../../data/slot-data';
 import { elementSizeSignal } from '../../element-size';
 import { GameStore } from '../../store/autopelago-store';
@@ -35,7 +32,7 @@ import { StatusDisplay } from './status-display/status-display';
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <div #outer class="outer">
-      <as-split #split unit="pixel" direction="horizontal"
+      <as-split unit="pixel" direction="horizontal"
                 gutterDblClickDuration="500" (gutterDblClick)="onGutterDblClick()">
             <as-split-area class="left" [size]="leftSize()" [minSize]="minSize()" [maxSize]="maxSize()">
               <app-status-display [game]="game()" />
@@ -57,7 +54,6 @@ export class GameContent {
   readonly #store = inject(GameScreenStore, { self: true });
   readonly #gameStore = inject(GameStore, { self: true });
   readonly game = input.required<AutopelagoClientAndData>();
-  protected readonly splitRef = viewChild.required<SplitComponent>('split');
   protected readonly outerRef = viewChild.required<ElementRef<HTMLDivElement>>('outer');
 
   readonly #size = elementSizeSignal(this.outerRef);
@@ -97,13 +93,6 @@ export class GameContent {
   });
 
   constructor() {
-    toObservable(this.splitRef).pipe(
-      mergeMap(split => split.dragProgress$),
-      takeUntilDestroyed(),
-    ).subscribe((evt) => {
-      this.#store.updateLeftSize(evt.sizes[0] as number);
-    });
-
     const initEffect = effect(() => {
       this.#gameStore.init(this.game());
       initEffect.destroy();
