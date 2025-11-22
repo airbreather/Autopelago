@@ -1,8 +1,6 @@
 import { ChangeDetectionStrategy, Component, DestroyRef, effect, inject, input, resource, signal } from '@angular/core';
-import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { RouterLink } from '@angular/router';
 import { type ActiveToast, ToastrService } from 'ngx-toastr';
-import { interval } from 'rxjs';
 
 import { toastError } from '../app-error-handler';
 import { initializeClient } from '../archipelago-client';
@@ -94,13 +92,29 @@ export class GameScreen {
         this.#activeToast = null;
       }
     });
-    interval(30000)
-      .pipe(takeUntilDestroyed())
-      .subscribe(() => {
-        if (!(this.game.value() || this.game.isLoading())) {
-          this.game.reload();
-        }
-      });
+    let nextTimeoutDuration = 500;
+    let prevTimeout = NaN;
+    effect(() => {
+      if (!Number.isNaN(prevTimeout)) {
+        clearTimeout(prevTimeout);
+        prevTimeout = NaN;
+        nextTimeoutDuration = 500;
+      }
+
+      if (this.game.value()) {
+        return;
+      }
+
+      if (this.game.error()) {
+        prevTimeout = setTimeout(() => this.game.reload(), nextTimeoutDuration);
+        nextTimeoutDuration = Math.min(nextTimeoutDuration * 1.3, 30000);
+        return;
+      }
+
+      if (!this.game.isLoading()) {
+        this.game.reload();
+      }
+    });
     effect(() => {
       const game = this.game.value();
       if (!game) {
