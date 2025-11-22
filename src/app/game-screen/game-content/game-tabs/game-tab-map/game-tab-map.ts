@@ -27,7 +27,6 @@ import {
   Texture,
   Ticker,
 } from 'pixi.js';
-import Queue from 'yocto-queue';
 
 import {
   type Filler,
@@ -36,7 +35,6 @@ import {
   isFillerRegionYamlKey,
   LANDMARKS,
   type LandmarkYamlKey,
-  type Vec2,
 } from '../../../../data/locations';
 import {
   BAKED_DEFINITIONS_BY_VICTORY_LANDMARK,
@@ -47,6 +45,7 @@ import type { AutopelagoClientAndData } from '../../../../data/slot-data';
 import { resizeEvents } from '../../../../element-size';
 import { GameStore } from '../../../../store/autopelago-store';
 import { strictObjectEntries } from '../../../../util';
+import { createPlayerToken } from './player-token';
 
 const fillerCoordsByRegionLookup = {
   captured_goldfish: getFillerCoordsByRegion('captured_goldfish'),
@@ -86,11 +85,6 @@ function createFillerMarkers(fillerCoordsByRegion: Readonly<Partial<Record<Fille
   return graphicsContainer;
 }
 
-const ROTATION_SCALE = Math.PI / 3200;
-const CYCLE = 1000;
-const HALF_CYCLE = CYCLE / 2;
-const QUARTER_CYCLE = CYCLE / 4;
-
 interface SpriteBoxBase {
   animated: boolean;
   onSprite: Sprite;
@@ -108,37 +102,6 @@ interface AnimatedSpriteBox extends SpriteBoxBase {
 }
 
 type SpriteBox = NotAnimatedSpriteBox | AnimatedSpriteBox;
-
-function createPlayerToken(angleBox: { angle: number; scaleX: 0.25 | -0.25 }, texture: Texture, enableRatAnimations: boolean, destroyRef: DestroyRef) {
-  const playerToken = new Sprite(texture);
-  playerToken.position.set(2, 80);
-  playerToken.scale.set(0.25);
-  playerToken.filters = [new DropShadowFilter({
-    blur: 1,
-    offset: { x: 6, y: 6 },
-    color: 'black',
-  })];
-  playerToken.anchor.set(0.5);
-
-  if (enableRatAnimations) {
-    const playerTokenContext = {
-      playerToken,
-      cycleTime: 0,
-      angleBox,
-    };
-
-    function doRotation(this: typeof playerTokenContext, t: Ticker) {
-      this.cycleTime = (this.cycleTime + t.deltaMS) % CYCLE;
-      this.playerToken.scale.x = angleBox.scaleX;
-      this.playerToken.rotation = this.angleBox.angle + (Math.abs(this.cycleTime - HALF_CYCLE) - QUARTER_CYCLE) * ROTATION_SCALE;
-    }
-
-    Ticker.shared.add(doRotation, playerTokenContext);
-    destroyRef.onDestroy(() => Ticker.shared.remove(doRotation, playerTokenContext));
-  }
-
-  return playerToken;
-}
 
 // Create spritesheet data with frame definitions for each landmark
 const spritesheetData: SpritesheetData & Required<Pick<SpritesheetData, 'animations'>> = {
@@ -294,8 +257,10 @@ export class GameTabMap {
 
   constructor() {
     const destroyRef = inject(DestroyRef);
-    const playerTokenTextureResource = resource({
-      loader: () => Assets.load<Texture>('assets/images/players/pack_rat.webp'),
+    const playerTokenResource = createPlayerToken({
+      store: this.#store,
+      ticker: Ticker.shared,
+      enableRatAnimationsSignal: computed(() => this.game().connectScreenState.enableRatAnimations),
     });
     const landmarkSpritesheetResource = resource({
       loader: async () => {
@@ -305,7 +270,6 @@ export class GameTabMap {
         return spritesheet;
       },
     });
-    const playerToken = signal<Sprite | null>(null);
     const landmarkMarkersContainer = signal<Container | null>(null);
     const landmarkSpriteLookup = signal<Partial<Record<LandmarkYamlKey, SpriteBox>> | null>(null);
     const fillerMarkersContainer = signal<Container | null>(null);
@@ -342,14 +306,13 @@ export class GameTabMap {
 
       fillerMarkers.replaceChild(fillerMarkers.children[0], gfx);
     });
-    const angleBox: { angle: number; scaleX: 0.25 | -0.25 } = { angle: 0, scaleX: 0.25 };
     effect(() => {
       const canvas = this.pixiCanvas().nativeElement;
       const outerDiv = this.outerDiv().nativeElement;
-      const { enableRatAnimations, enableTileAnimations } = this.game().connectScreenState;
-      const playerTokenTexture = playerTokenTextureResource.value();
+      const { enableTileAnimations } = this.game().connectScreenState;
+      const playerToken = playerTokenResource.value();
       const landmarkSpritesheet = landmarkSpritesheetResource.value();
-      if (!(playerTokenTexture && landmarkSpritesheet)) {
+      if (!(playerToken && landmarkSpritesheet)) {
         return;
       }
 
@@ -369,8 +332,6 @@ export class GameTabMap {
         });
         Ticker.shared.stop();
 
-        const currentLocation = this.#store.currentLocation();
-        const { allLocations } = this.#store.defs();
         const fillerMarkers = createFillerMarkers(fillerCoordsByRegionLookup[victoryLocationYamlKey]);
         fillerMarkersContainer.set(fillerMarkers);
         app.stage.addChild(fillerMarkers);
@@ -380,10 +341,7 @@ export class GameTabMap {
         landmarkSpriteLookup.set(landmarkMarkers.landmarkSpriteLookup);
         app.stage.addChild(landmarkMarkers.landmarksContainer);
         Ticker.shared.stop();
-        const playerTokenNotNull = createPlayerToken(angleBox, playerTokenTexture, enableRatAnimations, destroyRef);
-        app.stage.addChild(playerTokenNotNull);
-        playerToken.set(playerTokenNotNull);
-        playerTokenNotNull.position.set(...allLocations[currentLocation].coords);
+        app.stage.addChild(playerToken);
         Ticker.shared.stop();
 
         resizeEvents(outerDiv).pipe(
@@ -403,76 +361,6 @@ export class GameTabMap {
           app.render();
         }
       })();
-    });
-
-    const MOVE_DUR = 200;
-    let prog = 0;
-    const queuedMoves = new Queue<{ from: Vec2; to: Vec2 }>();
-    let animatePlayerMoveCallback: ((t: Ticker) => void) | null = null;
-    effect(() => {
-      const playerTokenNotNull = playerToken();
-      if (!playerTokenNotNull) {
-        return;
-      }
-
-      const moves = this.#store.consumeOutgoingMoves();
-      if (moves.size === 0) {
-        return;
-      }
-
-      const defs = this.#store.defs();
-      for (const [prev, next] of moves) {
-        const prevCoords = defs.allLocations[prev].coords;
-        const nextCoords = defs.allLocations[next].coords;
-        queuedMoves.enqueue({ from: [...prevCoords], to: nextCoords });
-      }
-
-      if (animatePlayerMoveCallback !== null) {
-        return;
-      }
-
-      animatePlayerMoveCallback = (t) => {
-        if (animatePlayerMoveCallback === null) {
-          return;
-        }
-
-        prog += t.deltaMS;
-        while (prog >= MOVE_DUR) {
-          const fullMove = queuedMoves.dequeue();
-          if (queuedMoves.size === 0 && fullMove !== undefined) {
-            playerTokenNotNull.position.set(...defs.allLocations[this.#store.currentLocation()].coords);
-            t.remove(animatePlayerMoveCallback);
-            animatePlayerMoveCallback = null;
-            prog = 0;
-            return;
-          }
-
-          prog -= MOVE_DUR;
-        }
-
-        const nextMove = queuedMoves.peek();
-        if (nextMove === undefined) {
-          playerTokenNotNull.position.set(...defs.allLocations[this.#store.currentLocation()].coords);
-          t.remove(animatePlayerMoveCallback);
-          animatePlayerMoveCallback = null;
-          prog = 0;
-          return;
-        }
-
-        const fraction = prog / MOVE_DUR;
-        const x = nextMove.from[0] + (nextMove.to[0] - nextMove.from[0]) * fraction;
-        const y = nextMove.from[1] + (nextMove.to[1] - nextMove.from[1]) * fraction;
-        playerTokenNotNull.position.set(x, y);
-        angleBox.angle = Math.atan2(nextMove.to[1] - nextMove.from[1], nextMove.to[0] - nextMove.from[0]);
-        if (Math.abs(angleBox.angle) < Math.PI / 2) {
-          angleBox.scaleX = 0.25;
-        }
-        else {
-          angleBox.angle -= Math.PI;
-          angleBox.scaleX = -0.25;
-        }
-      };
-      Ticker.shared.add(animatePlayerMoveCallback);
     });
 
     effect(() => {
