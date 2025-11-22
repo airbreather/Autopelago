@@ -7,70 +7,19 @@ import {
   ElementRef,
   inject,
   input,
-  signal,
   untracked,
   viewChild,
 } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
-import { DropShadowFilter } from 'pixi-filters';
 
-import { Application, Container, Graphics, Ticker } from 'pixi.js';
-
-import {
-  type Filler,
-  fillerRegionCoords,
-  type FillerRegionYamlKey,
-  isFillerRegionYamlKey,
-} from '../../../../data/locations';
-import {
-  BAKED_DEFINITIONS_BY_VICTORY_LANDMARK,
-  VICTORY_LOCATION_CROP_LOOKUP,
-  type VictoryLocationYamlKey,
-} from '../../../../data/resolved-definitions';
+import { Application, Ticker } from 'pixi.js';
+import { VICTORY_LOCATION_CROP_LOOKUP } from '../../../../data/resolved-definitions';
 import type { AutopelagoClientAndData } from '../../../../data/slot-data';
 import { resizeEvents } from '../../../../element-size';
 import { GameStore } from '../../../../store/autopelago-store';
-import { strictObjectEntries } from '../../../../util';
+import { createFillerMarkers } from './filler-markers';
 import { createLandmarkMarkers } from './landmark-markers';
 import { createPlayerToken } from './player-token';
-
-const fillerCoordsByRegionLookup = {
-  captured_goldfish: getFillerCoordsByRegion('captured_goldfish'),
-  secret_cache: getFillerCoordsByRegion('secret_cache'),
-  snakes_on_a_planet: getFillerCoordsByRegion('snakes_on_a_planet'),
-} as const satisfies Record<VictoryLocationYamlKey, Partial<Record<FillerRegionYamlKey, Filler>>>;
-
-function getFillerCoordsByRegion(victoryLocation: VictoryLocationYamlKey) {
-  const fillerCountsByRegion: Partial<Record<FillerRegionYamlKey, number>> = {};
-  for (const r of BAKED_DEFINITIONS_BY_VICTORY_LANDMARK[victoryLocation].allRegions) {
-    if (isFillerRegionYamlKey(r.yamlKey) && 'locs' in r) {
-      fillerCountsByRegion[r.yamlKey] = r.locs.length;
-    }
-  }
-
-  return fillerRegionCoords(fillerCountsByRegion);
-}
-
-function createFillerMarkers(fillerCoordsByRegion: Readonly<Partial<Record<FillerRegionYamlKey, Filler>>>) {
-  const graphicsContainer = new Container({
-    filters: [new DropShadowFilter({
-      blur: 1,
-      offset: { x: 2.4, y: 2.4 },
-      color: 'black',
-    })],
-  });
-
-  const gfx = new Graphics();
-  for (const [_, r] of strictObjectEntries(fillerCoordsByRegion)) {
-    for (const [x, y] of r.coords) {
-      gfx.rect(x - 0.8, y - 0.8, 1.6, 1.6);
-      gfx.fill('yellow');
-    }
-  }
-
-  graphicsContainer.addChild(gfx);
-  return graphicsContainer;
-}
 
 @Component({
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -139,56 +88,38 @@ export class GameTabMap {
   });
 
   constructor() {
+    const app = new Application();
+    app.ticker = new Ticker();
     const destroyRef = inject(DestroyRef);
     const playerTokenResource = createPlayerToken({
       store: this.#store,
-      ticker: Ticker.shared,
+      ticker: app.ticker,
       enableRatAnimationsSignal: computed(() => this.game().connectScreenState.enableRatAnimations),
     });
     const landmarksResource = createLandmarkMarkers({
       store: this.#store,
       enableTileAnimationsSignal: computed(() => this.game().connectScreenState.enableTileAnimations),
     });
-    const fillerMarkersContainer = signal<Container | null>(null);
-    effect(() => {
-      const fillerMarkers = fillerMarkersContainer();
-      if (!fillerMarkers) {
-        return;
-      }
-
-      const victoryLocationYamlKey = this.#store.victoryLocationYamlKey();
-      const checkedLocations = this.#store.checkedLocations();
-      const defs = BAKED_DEFINITIONS_BY_VICTORY_LANDMARK[victoryLocationYamlKey];
-      const coordsByRegion = fillerCoordsByRegionLookup[victoryLocationYamlKey];
-      const gfx = new Graphics();
-      for (const region of defs.allRegions) {
-        if (!('locs' in region)) {
-          continue;
-        }
-
-        if (!(region.yamlKey in coordsByRegion)) {
-          continue;
-        }
-
-        const fillerCoords = coordsByRegion[region.yamlKey];
-        if (!fillerCoords) {
-          continue;
-        }
-
-        for (const [i, [x, y]] of fillerCoords.coords.entries()) {
-          gfx.rect(x - 0.8, y - 0.8, 1.6, 1.6);
-          gfx.fill(checkedLocations.includes(region.locs[i]) ? 'grey' : 'yellow');
-        }
-      }
-
-      fillerMarkers.replaceChild(fillerMarkers.children[0], gfx);
+    const fillerMarkersSignal = createFillerMarkers({
+      store: this.#store,
     });
+
+    effect(() => {
+      if (this.#store.running()) {
+        app.ticker.start();
+      }
+      else {
+        app.ticker.stop();
+      }
+    });
+
     effect(() => {
       const canvas = this.pixiCanvas().nativeElement;
       const outerDiv = this.outerDiv().nativeElement;
       const playerToken = playerTokenResource.value();
       const landmarks = landmarksResource.value();
-      if (!(playerToken && landmarks)) {
+      const fillerMarkers = fillerMarkersSignal();
+      if (!(playerToken && landmarks && fillerMarkers)) {
         return;
       }
 
@@ -197,25 +128,20 @@ export class GameTabMap {
       const reciprocalOriginalWidth = 1 / canvas.width;
       const reciprocalOriginalHeight = 1 / canvas.height;
       void (async () => {
-        const app = new Application();
         await app.init({
           canvas,
           resizeTo: outerDiv,
           backgroundAlpha: 0,
           antialias: false,
-          sharedTicker: true,
           autoStart: false,
         });
-        Ticker.shared.stop();
 
-        const fillerMarkers = createFillerMarkers(fillerCoordsByRegionLookup[victoryLocationYamlKey]);
-        fillerMarkersContainer.set(fillerMarkers);
         app.stage.addChild(fillerMarkers);
-        Ticker.shared.stop();
+        app.ticker.stop();
         app.stage.addChild(landmarks.container);
-        Ticker.shared.stop();
+        app.ticker.stop();
         app.stage.addChild(playerToken);
-        Ticker.shared.stop();
+        app.ticker.stop();
 
         resizeEvents(outerDiv).pipe(
           // no need for a startWith: https://stackoverflow.com/a/60026394/1083771
@@ -227,22 +153,13 @@ export class GameTabMap {
         });
 
         if (untracked(() => this.#store.running())) {
-          Ticker.shared.start();
+          app.ticker.start();
         }
         else {
           app.resize();
           app.render();
         }
       })();
-    });
-
-    effect(() => {
-      if (this.#store.running()) {
-        Ticker.shared.start();
-      }
-      else {
-        Ticker.shared.stop();
-      }
     });
   }
 
