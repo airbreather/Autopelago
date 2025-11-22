@@ -9,9 +9,6 @@ export type EnumVal<T extends object> = T[keyof T];
 export type Mutable<T> = {
   -readonly [P in keyof T]: T[P];
 };
-export function shallowCloneAsMutable<T extends object>(obj: T): Mutable<T> {
-  return { ...obj };
-}
 
 // BEGIN section that was discovered by:
 // https://dev.to/harry0000/a-bit-convenient-typescript-type-definitions-for-objectentries-d6g
@@ -44,6 +41,38 @@ export function strictObjectEntries<T extends object>(obj: T): Entry<T>[] {
 
 // END section that was discovered by:
 // https://dev.to/harry0000/a-bit-convenient-typescript-type-definitions-for-objectentries-d6g
+
+// trick from https://stackoverflow.com/a/76969673/1083771:
+export type TypeAssert<_ extends true> = never;
+
+/**
+ * Extracts the properties P of the given record type T for which T[T[P]] exists and is equal to P.
+ * If there are NO such properties, the type will be an object with no usable properties.
+ * @example
+ * interface Sample1 { foo: 'bar'; bar: 'foo'; baz: 'foo' }
+ * type Sample1Props = SymmetricPropertiesOf<Sample1>; // { foo: 'bar'; bar: 'foo' }
+ * @example
+ * interface Sample2 { foo: 'bar'; bar: 'baz' }
+ * type Sample2Props = SymmetricPropertiesOf<Sample2>; // object that basically allows nothing.
+ */
+export type SymmetricPropertiesOf<T extends object> =
+  Record<string, never> extends _SymmetricPropertiesOf<T>
+    ? Record<'__type_has_no_symmetric_properties', never>
+    : _SymmetricPropertiesOf<T>;
+
+// this takes care of excluding all the properties that aren't symmetric. if it excludes EVERYTHING,
+// though, then it'll be equivalent to {}, which matches too much. e.g., looking at Sample1 in the
+// docs above, trying to use the 'baz' property would give you the same kind of error that you would
+// expect from an object whose type does not have a 'baz' property. since Sample2 in the docs has NO
+// symmetric properties, however, then this type would no longer restrict such usage, which is the
+// exact opposite of anything that we could possibly want this type to help us assert.
+type _SymmetricPropertiesOf<T extends object> = {
+  [K in keyof T as T[K] extends keyof T
+    ? T[T[K]] extends K
+      ? K
+      : never
+    : never]: T[K];
+};
 
 export function stricterObjectFromEntries<T extends object, V>(entries: [k: keyof T, v: V][]): Record<keyof T, V> {
   return Object.fromEntries(entries) as Record<keyof T, V>;

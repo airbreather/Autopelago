@@ -1,26 +1,5 @@
 import type { ParamMap } from '@angular/router';
-
-type ShortQueryParameterName =
-  | 'h'
-  | 'p'
-  | 's'
-  | 'w'
-  | 't'
-  | 'T'
-  | 'A'
-  | 'a'
-  | 'c'
-  | 'z'
-  | 'b'
-  | 'B'
-  | 'u'
-  | 'o'
-  ;
-
-type QueryParamNameBidirectionalMap =
-  & Record<keyof ConnectScreenState, ShortQueryParameterName>
-  & Record<ShortQueryParameterName, keyof ConnectScreenState>
-  ;
+import type { SymmetricPropertiesOf, TypeAssert } from '../util';
 
 const QUERY_PARAM_NAME_MAP = {
   host: 'h',
@@ -51,7 +30,12 @@ const QUERY_PARAM_NAME_MAP = {
   B: 'whenStillBlocked',
   u: 'whenBecomingUnblocked',
   o: 'forOneTimeEvents',
-} as const satisfies QueryParamNameBidirectionalMap;
+} as const;
+
+// noinspection JSUnusedLocalSymbols
+type _AssertAllPropsAreSymmetric = TypeAssert<
+  SymmetricPropertiesOf<typeof QUERY_PARAM_NAME_MAP> extends typeof QUERY_PARAM_NAME_MAP ? true : false
+>;
 
 export type ConnectScreenQueryParams = {
   [K in keyof ConnectScreenState as typeof QUERY_PARAM_NAME_MAP[K]]: ConnectScreenState[K] extends boolean ? 0 | 1 : ConnectScreenState[K];
