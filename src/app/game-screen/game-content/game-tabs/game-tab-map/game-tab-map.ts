@@ -2,18 +2,20 @@ import {
   ChangeDetectionStrategy,
   Component,
   computed,
+  DestroyRef,
   effect,
   ElementRef,
   inject,
   input,
-  signal,
+  untracked,
   viewChild,
 } from '@angular/core';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 
 import { Application, Ticker } from 'pixi.js';
 import { VICTORY_LOCATION_CROP_LOOKUP } from '../../../../data/resolved-definitions';
 import type { AutopelagoClientAndData } from '../../../../data/slot-data';
-import { elementSizeSignal } from '../../../../element-size';
+import { resizeEvents } from '../../../../element-size';
 import { GameStore } from '../../../../store/autopelago-store';
 import { createFillerMarkers } from './filler-markers';
 import { createLandmarkMarkers } from './landmark-markers';
@@ -86,23 +88,12 @@ export class GameTabMap {
   });
 
   constructor() {
-    // everything will run off of this ticker.
-    const ticker = new Ticker();
-    effect(() => {
-      if (this.#store.running()) {
-        ticker.start();
-      }
-      else {
-        ticker.stop();
-      }
-    });
-
-    // these resources (and signal) need to be created in our injection context, and they have their
-    // own asynchronous initialization (though the signal is only pseudo-asynchronous, since it gets
-    // initialized during the first microtask tick after we're done).
+    const app = new Application();
+    app.ticker = new Ticker();
+    const destroyRef = inject(DestroyRef);
     const playerTokenResource = createPlayerToken({
       store: this.#store,
-      ticker,
+      ticker: app.ticker,
       enableRatAnimationsSignal: computed(() => this.game().connectScreenState.enableRatAnimations),
     });
     const landmarksResource = createLandmarkMarkers({
@@ -113,38 +104,18 @@ export class GameTabMap {
       store: this.#store,
     });
 
-    // app.init is async, and nothing can be done with the app until it's initialized, so let's do
-    // just everything up to app.init and then open up the floodgates for everything afterward by
-    // giving them the initialized app.
-    const initializedApp = signal<Application | null>(null);
+    effect(() => {
+      if (this.#store.running()) {
+        app.ticker.start();
+      }
+      else {
+        app.ticker.stop();
+      }
+    });
+
     effect(() => {
       const canvas = this.pixiCanvas().nativeElement;
       const outerDiv = this.outerDiv().nativeElement;
-
-      const victoryLocationYamlKey = this.#store.victoryLocationYamlKey();
-      canvas.height = VICTORY_LOCATION_CROP_LOOKUP[victoryLocationYamlKey];
-      const app = new Application();
-      app.ticker = ticker;
-      void app.init({
-        canvas,
-        resizeTo: outerDiv,
-        backgroundAlpha: 0,
-        antialias: false,
-        autoStart: false,
-      }).then(() => {
-        initializedApp.set(app);
-      });
-    });
-
-    // add stuff to the app stage, but only once it's initialized. for the sake of simplicity, DON'T
-    // observe any signals in this effect that will change after everything has been initialized. I
-    // really don't want to bother removing and recreating stuff for no reason.
-    effect(() => {
-      const app = initializedApp();
-      if (!app) {
-        return;
-      }
-
       const playerToken = playerTokenResource.value();
       const landmarks = landmarksResource.value();
       const fillerMarkers = fillerMarkersSignal();
@@ -152,26 +123,43 @@ export class GameTabMap {
         return;
       }
 
-      app.stage.addChild(fillerMarkers);
-      app.stage.addChild(landmarks.container);
-      app.stage.addChild(playerToken);
-      app.resize();
-      app.render();
-    });
-
-    // whenever the outer div resizes, we also need to resize the app to match.
-    const outerDivSize = elementSizeSignal(this.outerDiv);
-    effect(() => {
-      const app = initializedApp();
-      if (!app) {
-        return;
-      }
-
       const victoryLocationYamlKey = this.#store.victoryLocationYamlKey();
-      const { clientWidth, clientHeight } = outerDivSize();
-      app.stage.scale.x = clientWidth / 300;
-      app.stage.scale.y = clientHeight / VICTORY_LOCATION_CROP_LOOKUP[victoryLocationYamlKey];
-      app.resize();
+      canvas.height = VICTORY_LOCATION_CROP_LOOKUP[victoryLocationYamlKey];
+      const reciprocalOriginalWidth = 1 / canvas.width;
+      const reciprocalOriginalHeight = 1 / canvas.height;
+      void (async () => {
+        await app.init({
+          canvas,
+          resizeTo: outerDiv,
+          backgroundAlpha: 0,
+          antialias: false,
+          autoStart: false,
+        });
+
+        app.stage.addChild(fillerMarkers);
+        app.ticker.stop();
+        app.stage.addChild(landmarks.container);
+        app.ticker.stop();
+        app.stage.addChild(playerToken);
+        app.ticker.stop();
+
+        resizeEvents(outerDiv).pipe(
+          // no need for a startWith: https://stackoverflow.com/a/60026394/1083771
+          takeUntilDestroyed(destroyRef),
+        ).subscribe(({ target }) => {
+          app.stage.scale.x = target.clientWidth * reciprocalOriginalWidth;
+          app.stage.scale.y = target.clientHeight * reciprocalOriginalHeight;
+          app.resize();
+        });
+
+        if (untracked(() => this.#store.running())) {
+          app.ticker.start();
+        }
+        else {
+          app.resize();
+          app.render();
+        }
+      })();
     });
   }
 
