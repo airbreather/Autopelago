@@ -213,9 +213,22 @@ export function withGameState() {
 
         return result;
       }, { equal: arraysEqual });
+      const regionIsLandmarkWithUnsatisfiedRequirement = computed<Readonly<BitArray>>(() => {
+        const isSatisfied = buildRequirementIsSatisfied(_relevantItemCountLookup());
+        const { allRegions } = defs();
+        const regionIsLandmarkWithUnsatisfiedRequirement = new BitArray(allRegions.length);
+        for (let i = 0; i < allRegions.length; i++) {
+          const region = allRegions[i];
+          if ('loc' in region && !isSatisfied(region.requirement)) {
+            regionIsLandmarkWithUnsatisfiedRequirement[i] = 1;
+          }
+        }
+        return regionIsLandmarkWithUnsatisfiedRequirement;
+      });
       const _regionLocks = computed<RegionLocks>(() => {
         const { allRegions, startRegion } = defs();
         const locationIsChecked_ = locationIsChecked();
+        const regionIsLandmarkWithUnsatisfiedRequirement_ = regionIsLandmarkWithUnsatisfiedRequirement();
         const regionIsHardLocked = new BitArray(allRegions.length);
         const regionIsSoftLocked = new BitArray(allRegions.length);
         const regionIsLandmarkAndNotHardLocked = new BitArray(allRegions.length);
@@ -224,7 +237,6 @@ export function withGameState() {
           regionIsHardLocked[i] = 1;
           regionIsSoftLocked[i] = 1;
         }
-        const isSatisfied = buildRequirementIsSatisfied(_relevantItemCountLookup());
         const visited = new BitArray(allRegions.length);
         const q = new Queue<number>();
 
@@ -237,11 +249,11 @@ export function withGameState() {
 
         tryEnqueue(startRegion);
         for (let r = q.dequeue(); r !== undefined; r = q.dequeue()) {
+          if (regionIsLandmarkWithUnsatisfiedRequirement_[r]) {
+            continue;
+          }
           const region = allRegions[r];
           if ('loc' in region) {
-            if (!isSatisfied(region.requirement)) {
-              continue;
-            }
             regionIsLandmarkAndNotHardLocked[r] = 1;
             if (locationIsChecked_[region.loc]) {
               regionIsSoftLocked[r] = 0;
@@ -359,6 +371,7 @@ export function withGameState() {
         resolvedItems,
         victoryLocation,
         _relevantItemCountLookup,
+        regionIsLandmarkWithUnsatisfiedRequirement,
         _regionLocks,
         _clearedOrClearableLandmarks,
         _desirability,

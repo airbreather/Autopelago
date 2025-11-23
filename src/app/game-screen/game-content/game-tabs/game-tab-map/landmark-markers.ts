@@ -24,19 +24,30 @@ export function createLandmarkMarkers({ store, enableTileAnimationsSignal }: Cre
       const spritesheet = new Spritesheet(spritesheetTexture, spritesheetData);
       await spritesheet.parse();
       const victoryLocationYamlKey = store.victoryLocationYamlKey();
+      const containers = {
+        main: new Container({
+          filters: [new DropShadowFilter({
+            blur: 1,
+            offset: { x: 11.2, y: 11.2 },
+            color: 'black',
+          })],
+        }),
+        quest: new Container({
+          filters: [new DropShadowFilter({
+            blur: 0.75,
+            offset: { x: 8.4, y: 8.4 },
+            color: 'black',
+          })],
+        }),
+      } as const;
       const container = new Container({
-        filters: [new DropShadowFilter({
-          blur: 1,
-          offset: { x: 11.2, y: 11.2 },
-          color: 'black',
-        })],
+        children: [containers.main, containers.quest],
       });
 
       // Create sprites for each landmark
       const spriteLookup: Partial<Record<LandmarkYamlKey, SpriteBox>> = {};
-
-      function createSprite(landmarkKey: LandmarkYamlKey, displaying: 'on' | 'off') {
-        const frames = spritesheet.animations[`${landmarkKey}_${displaying}`];
+      function createSprite(landmarkKey: LandmarkYamlKey, displaying: 'on' | 'off', img: 'main' | 'quest') {
+        const frames = spritesheet.animations[`${img === 'main' ? landmarkKey : 'q'}_${displaying}`];
         let sprite: Sprite;
         if (enableTileAnimations) {
           const anim = sprite = new AnimatedSprite(frames);
@@ -47,8 +58,12 @@ export function createLandmarkMarkers({ store, enableTileAnimationsSignal }: Cre
           sprite = new Sprite(frames[0]);
         }
 
-        sprite.position.set(LANDMARKS[landmarkKey].coords[0] - 8, LANDMARKS[landmarkKey].coords[1] - 8);
-        container.addChild(sprite);
+        const [x, y] = LANDMARKS[landmarkKey].coords;
+        sprite.position.set(x - (img === 'main' ? 8 : 6), y - (img === 'main' ? 8 : 21));
+        if (img === 'quest') {
+          sprite.scale = 0.75;
+        }
+        containers[img].addChild(sprite);
         return sprite;
       }
 
@@ -59,8 +74,10 @@ export function createLandmarkMarkers({ store, enableTileAnimationsSignal }: Cre
 
         spriteLookup[region.yamlKey] = {
           animated: enableTileAnimations,
-          onSprite: createSprite(region.yamlKey, 'on'),
-          offSprite: createSprite(region.yamlKey, 'off'),
+          onSprite: createSprite(region.yamlKey, 'on', 'main'),
+          offSprite: createSprite(region.yamlKey, 'off', 'main'),
+          onQSprite: createSprite(region.yamlKey, 'on', 'quest'),
+          offQSprite: createSprite(region.yamlKey, 'off', 'quest'),
         } as SpriteBox;
       }
 
@@ -77,6 +94,7 @@ export function createLandmarkMarkers({ store, enableTileAnimationsSignal }: Cre
     const { spriteLookup } = landmarks;
 
     const checkedLocations = store.checkedLocations();
+    const regionIsLandmarkWithUnsatisfiedRequirement = store.regionIsLandmarkWithUnsatisfiedRequirement();
     const { allRegions } = store.defs();
     for (const [_, landmark] of strictObjectEntries(allRegions)) {
       if (!('loc' in landmark)) {
@@ -89,12 +107,22 @@ export function createLandmarkMarkers({ store, enableTileAnimationsSignal }: Cre
       }
 
       if (checkedLocations.includes(landmark.loc)) {
-        spriteBox.onSprite.visible = false;
-        spriteBox.offSprite.visible = true;
-      }
-      else {
         spriteBox.onSprite.visible = true;
         spriteBox.offSprite.visible = false;
+        spriteBox.onQSprite.visible = false;
+        spriteBox.offQSprite.visible = false;
+      }
+      else {
+        spriteBox.onSprite.visible = false;
+        spriteBox.offSprite.visible = true;
+        if (regionIsLandmarkWithUnsatisfiedRequirement[landmark.key]) {
+          spriteBox.onQSprite.visible = false;
+          spriteBox.offQSprite.visible = true;
+        }
+        else {
+          spriteBox.onQSprite.visible = true;
+          spriteBox.offQSprite.visible = false;
+        }
       }
     }
   });
@@ -106,6 +134,8 @@ interface SpriteBoxBase {
   animated: boolean;
   onSprite: Sprite;
   offSprite: Sprite;
+  onQSprite: Sprite;
+  offQSprite: Sprite;
 }
 
 interface NotAnimatedSpriteBox extends SpriteBoxBase {
@@ -116,6 +146,8 @@ interface AnimatedSpriteBox extends SpriteBoxBase {
   animated: true;
   onSprite: AnimatedSprite;
   offSprite: AnimatedSprite;
+  onQSprite: AnimatedSprite;
+  offQSprite: AnimatedSprite;
 }
 
 export type SpriteBox = NotAnimatedSpriteBox | AnimatedSpriteBox;
@@ -128,7 +160,7 @@ const spritesheetData: SpritesheetData & Required<Pick<SpritesheetData, 'animati
 };
 
 // Generate frame definitions for each landmark
-for (const [landmarkKey, landmark] of Object.entries(LANDMARKS)) {
+for (const [landmarkKey, landmark] of [['q', { sprite_index: 0 }] as const, ...strictObjectEntries(LANDMARKS)]) {
   const offsetY = landmark.sprite_index * 65;
 
   // OnFrame1 (offsetX: 0)
