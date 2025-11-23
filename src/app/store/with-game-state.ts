@@ -237,8 +237,6 @@ export function withGameState() {
 
         tryEnqueue(startRegion);
         for (let r = q.dequeue(); r !== undefined; r = q.dequeue()) {
-          regionIsHardLocked[r] = 0;
-
           const region = allRegions[r];
           if ('loc' in region) {
             if (!isSatisfied(region.requirement)) {
@@ -455,17 +453,19 @@ export function withGameState() {
           return { kind: 'not-requested' };
         }
 
-        const toKeep = userSlot === 0
-          ? alreadyRequested.clear()
-          : alreadyRequested.filter(l => l.userSlot !== userSlot);
-        if (toKeep.size === alreadyRequested.size) {
+        const toDelete = new Set(userSlot === 0
+          ? alreadyRequested
+          : alreadyRequested.filter(l => l.userSlot === userSlot));
+        if (toDelete.size === 0) {
           return { kind: 'only-requested-for-others', otherUserSlots: [...alreadyRequested.map(l => l.userSlot)] };
         }
 
-        patchState(store, { userRequestedLocations: toKeep });
-        return toKeep.size === 0
+        patchState(store, ({ userRequestedLocations }) => ({
+          userRequestedLocations: userRequestedLocations.filter(l => !toDelete.has(l)),
+        }));
+        return toDelete.size === alreadyRequested.size
           ? { kind: 'removed-only' }
-          : { kind: 'removed-partial', otherUserSlots: [...toKeep.map(l => l.userSlot)] };
+          : { kind: 'removed-partial', otherUserSlots: [...alreadyRequested.filter(l => !toDelete.has(l)).map(l => l.userSlot)] };
       }
       function getMessageForRemoveUserRequestedLocationResult(loc: number, requestingSlotNumber: number, result: RemoveUserRequestedLocationResult, probablyPlayerAlias: string, players: PlayersManager) {
         const { allLocations } = store.defs();
