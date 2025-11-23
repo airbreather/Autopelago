@@ -447,7 +447,7 @@ describe('withGameState', () => {
     // getState(store) isn't completely identical to initialGameStateFor: the former gets the values
     // for ALL the state, not just what we explicitly initialize in initialGameStateFor.
     const initialState = getState(store);
-    expect(store.processUserRequestedLocation(1, prawnStars)).toStrictEqual({
+    expect(store.addUserRequestedLocation(1, prawnStars)).toStrictEqual({
       kind: 'newly-added',
     });
     // should NOT be targeting Prawn Stars now, because we can't reach it out the gate.
@@ -463,8 +463,8 @@ describe('withGameState', () => {
       ]),
       prng: prngs.unlucky.prng,
     });
-    const firstResult = store.processUserRequestedLocation(1, prawnStars);
-    const sameUserResult = store.processUserRequestedLocation(1, prawnStars);
+    const firstResult = store.addUserRequestedLocation(1, prawnStars);
+    const sameUserResult = store.addUserRequestedLocation(1, prawnStars);
     expect(firstResult).toStrictEqual<typeof firstResult>({
       kind: 'newly-added',
     });
@@ -477,7 +477,7 @@ describe('withGameState', () => {
     expect(store.userRequestedLocations()).toStrictEqual(List([
       { userSlot: 1, location: prawnStars },
     ]));
-    const differentUserResult = store.processUserRequestedLocation(2, prawnStars);
+    const differentUserResult = store.addUserRequestedLocation(2, prawnStars);
     expect(differentUserResult).toStrictEqual<typeof differentUserResult>({
       kind: 'already-requested',
       userSlot: 1,
