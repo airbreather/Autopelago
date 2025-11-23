@@ -380,7 +380,7 @@ export function withGameState() {
       }
       interface AlreadyRequested {
         kind: 'already-requested';
-        userSlot: number;
+        userSlots: readonly number[];
       }
       interface NewlyAdded {
         kind: 'newly-added';
@@ -391,24 +391,17 @@ export function withGameState() {
           return { kind: 'already-aura-driven' };
         }
 
-        const alreadyRequested = store.userRequestedLocations().find(l => l.location === location);
-        if (alreadyRequested) {
-          if (alreadyRequested.userSlot !== userSlot) {
-            patchState(store, ({ userRequestedLocations }) => ({
-              userRequestedLocations: userRequestedLocations.push({ location, userSlot }),
-            }));
-          }
-
-          return { kind: 'already-requested', userSlot: alreadyRequested.userSlot };
+        const alreadyRequested = store.userRequestedLocations().filter(l => l.location === location);
+        if (alreadyRequested.size > 0 && alreadyRequested.some(l => l.userSlot === userSlot)) {
+          return { kind: 'already-requested', userSlots: [...alreadyRequested.map(l => l.userSlot)] };
         }
 
         patchState(store, ({ userRequestedLocations }) => ({
-          userRequestedLocations: userRequestedLocations.push({
-            location: location,
-            userSlot: userSlot,
-          }),
+          userRequestedLocations: userRequestedLocations.push({ location, userSlot }),
         }));
-        return { kind: 'newly-added' };
+        return alreadyRequested.size > 0
+          ? { kind: 'already-requested', userSlots: [...alreadyRequested.map(l => l.userSlot)] }
+          : { kind: 'newly-added' };
       }
       function getMessageForAddUserRequestedLocationResult(loc: number, requestingSlotNumber: number, result: AddUserRequestedLocationResult, probablyPlayerAlias: string, players: PlayersManager) {
         const { allLocations } = store.defs();
@@ -421,13 +414,13 @@ export function withGameState() {
         }
 
         if (result.kind === 'already-requested') {
-          if (result.userSlot === requestingSlotNumber) {
+          if (result.userSlots.includes(requestingSlotNumber)) {
             return `Hey, ${probablyPlayerAlias}, no worries, I remember ${exactLocName} from when you asked me before.`;
           }
 
-          const firstRequestingUser = result.userSlot === 0
+          const firstRequestingUser = result.userSlots[0] === 0
             ? '[Server]'
-            : players.teams[players.self.team][result.userSlot].alias;
+            : players.teams[players.self.team][result.userSlots[0]].alias;
           return `OK, I'll prioritize ${exactLocName} for you, ${probablyPlayerAlias}. Just so you know, ${firstRequestingUser} already asked me to go there first, but I'll remember that you want me to go there too, in case they change their mind.`;
         }
 
@@ -691,61 +684,45 @@ export function withGameState() {
           return outgoingMoves;
         },
         processMessage(msg: Message, players: PlayersManager) {
+          switch (msg.type) {
+            case 'playerChat':
+              if (msg.player.team !== players.self.team) {
+                return;
+              }
+              // eslint-disable-next-line no-fallthrough
+            case 'serverChat':
+              break;
+
+            default:
+              return;
+          }
+
           const command = parseCommand(msg, players);
           if (command === null) {
             return;
           }
 
-          const { type, requestingPlayer } = command;
-          const respondTo = requestingPlayer?.alias ?? '[Server]';
-          const unauthorizedMatch = /^(?<type>.*)-unauthorized$/i.exec(type);
-          if (unauthorizedMatch !== null) {
-            // nice try
-            const unauthorizedType = unauthorizedMatch.groups?.['type'] ?? 'those';
-            const outgoingMessage = `${respondTo}, only members of my team can send me ${unauthorizedType} commands.`;
-            patchState(store, ({ outgoingMessages }) => ({ outgoingMessages: outgoingMessages.push(outgoingMessage) }));
-            return;
-          }
-
           const defs = store.defs();
-          switch (type) {
+          switch (command.type) {
             case 'help': {
-              if (requestingPlayer === null || requestingPlayer.team === players.self.team) {
-                patchState(store, ({ outgoingMessages }) => ({
-                  outgoingMessages: outgoingMessages.push(
-                    'Commands you can use are:',
-                    `1. ${command.actualTag}go LOCATION_NAME`,
-                    `2. ${command.actualTag}stop LOCATION_NAME`,
-                    `3. ${command.actualTag}list`,
-                    'LOCATION_NAME refers to whatever text you got in your hint, like "Basketball" or "Before Prawn Stars #12".',
-                  ),
-                }));
-              }
-              else {
-                patchState(store, ({ outgoingMessages }) => ({
-                  outgoingMessages: outgoingMessages.push(
-                    'I have no commands that you can use, because you are neither [Server] nor on my team.',
-                  ),
-                }));
-              }
+              patchState(store, ({ outgoingMessages }) => ({
+                outgoingMessages: outgoingMessages.push(
+                  'Commands you can use are:',
+                  `1. ${command.actualTag}go LOCATION_NAME`,
+                  `2. ${command.actualTag}stop LOCATION_NAME`,
+                  `3. ${command.actualTag}list`,
+                  'LOCATION_NAME refers to whatever text you got in your hint, like "Basketball" or "Before Prawn Stars #12".',
+                ),
+              }));
               break;
             }
 
             case 'unrecognized': {
-              if (requestingPlayer === null || requestingPlayer.team === players.self.team) {
-                patchState(store, ({ outgoingMessages }) => ({
-                  outgoingMessages: outgoingMessages.push(
-                    `Say "${command.actualTag}help" (without the quotes) for a list of commands.`,
-                  ),
-                }));
-              }
-              else {
-                patchState(store, ({ outgoingMessages }) => ({
-                  outgoingMessages: outgoingMessages.push(
-                    'I don\'t know what that command was trying to do, but you\'re not on my team, so it wouldn\'t have worked anyway.',
-                  ),
-                }));
-              }
+              patchState(store, ({ outgoingMessages }) => ({
+                outgoingMessages: outgoingMessages.push(
+                  `Say "${command.actualTag}help" (without the quotes) for a list of commands.`,
+                ),
+              }));
               break;
             }
 
@@ -753,12 +730,18 @@ export function withGameState() {
             case 'stop': {
               const { locationName } = command;
               const loc = defs.locationNameLookup.get(locationName) ?? NaN;
-              const requestingSlotNumber = requestingPlayer?.slot ?? 0;
+              let requestingSlotNumber = 0;
+              let respondTo = '[Server]';
+              if (msg.type === 'playerChat') {
+                requestingSlotNumber = msg.player.slot;
+                respondTo = msg.player.alias;
+              }
+
               let outgoingMessage: string;
               if (Number.isNaN(loc)) {
                 outgoingMessage = `Um... excuse me, but... I don't know what a '${locationName}' is...`;
               }
-              else if (type === 'go') {
+              else if (command.type === 'go') {
                 const result = addUserRequestedLocation(requestingSlotNumber, loc);
                 outgoingMessage = getMessageForAddUserRequestedLocationResult(loc, requestingSlotNumber, result, respondTo, players);
               }
@@ -769,6 +752,45 @@ export function withGameState() {
 
               patchState(store, ({ outgoingMessages }) => ({ outgoingMessages: outgoingMessages.push(outgoingMessage) }));
               break;
+            }
+
+            case 'list': {
+              const { regionIsHardLocked } = store._regionLocks();
+              const userRequestedLocations = store.userRequestedLocations();
+              if (userRequestedLocations.size === 0) {
+                patchState(store, ({ outgoingMessages }) => ({
+                  outgoingMessages: outgoingMessages.push(
+                    'I don\'t have anything I\'m trying to get to... oh no, was I supposed to?',
+                  ),
+                }));
+                return;
+              }
+
+              const userRequestedLocationsSet = new Set(userRequestedLocations.map(l => l.location));
+              if (userRequestedLocationsSet.size === 1) {
+                patchState(store, ({ outgoingMessages }) => ({
+                  outgoingMessages: outgoingMessages.push(
+                    `I'm focusing on trying to get to just 1 place: ${locationTag([...userRequestedLocationsSet][0])}`,
+                  ),
+                }));
+                return;
+              }
+
+              const firstMessage = userRequestedLocationsSet.size > 5
+                ? `I have a list of ${userRequestedLocationsSet.size.toString()} places that I'm going to focus on getting to. Here are the first 5:`
+                : `Here are the ${userRequestedLocationsSet.size.toString()} places that I'm going to focus on getting to:`;
+              patchState(store, ({ outgoingMessages }) => ({
+                outgoingMessages: outgoingMessages.push(
+                  firstMessage,
+                  ...[...userRequestedLocationsSet].slice(0, 5).map(l => locationTag(l)),
+                ),
+              }));
+
+              function locationTag(location: number) {
+                const { allLocations } = defs;
+                const loc = allLocations[location];
+                return `'${loc.name}' (${regionIsHardLocked[loc.regionLocationKey[0]] ? 'blocked' : 'unblocked'})`;
+              }
             }
           }
         },
@@ -808,11 +830,6 @@ export function withGameState() {
             return result;
           });
 
-          // these two will be needed for the TODO below.
-          /*
-          let locationAttempts = 0;
-          let checkedAnyLocations = false;
-          */
           let confirmedTarget = false;
 
           // positive energyFactor lets the player make up to 2x as much distance in a single round of

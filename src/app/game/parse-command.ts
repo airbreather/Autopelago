@@ -1,22 +1,7 @@
 import type { Player, PlayersManager } from 'archipelago.js';
-import type { Message } from '../archipelago-client';
+import type { PlayerChatMessage, ServerChatMessage } from '../archipelago-client';
 
-export function parseCommand(msg: Message, players: PlayersManager): Command | null {
-  let requestingPlayer: Player | null = null;
-  switch (msg.type) {
-    case 'playerChat':
-      requestingPlayer = msg.player;
-      // eslint-disable-next-line no-fallthrough
-    case 'serverChat': {
-      if (!msg.text.startsWith('@')) {
-        return null;
-      }
-      break;
-    }
-    default:
-      return null;
-  }
-
+export function parseCommand(msg: PlayerChatMessage | ServerChatMessage, players: PlayersManager): Command | null {
   const text = msg.text.normalize();
   let taggedSlotOrAlias = `@${players.self.alias.normalize()} `;
   if (!text.startsWith(taggedSlotOrAlias)) {
@@ -45,31 +30,26 @@ export function parseCommand(msg: Message, players: PlayersManager): Command | n
     }
   }
 
-  const isAuthorized = requestingPlayer === null || requestingPlayer.team === players.self.team;
-
   // if we got here, then the entire rest of the message after "@{SlotName}" is the command.
   const cmd = text.substring(taggedSlotOrAlias.length);
   const quotesMatcher = /^"*|"*$/g;
   if (/^go /i.exec(cmd) !== null) {
     return {
-      type: isAuthorized ? 'go' : 'go-unauthorized',
-      requestingPlayer,
+      type: 'go',
       locationName: cmd.substring('go '.length).replaceAll(quotesMatcher, ''),
     };
   }
 
   if (/^stop /i.exec(cmd) !== null) {
     return {
-      type: isAuthorized ? 'stop' : 'stop-unauthorized',
-      requestingPlayer,
+      type: 'stop',
       locationName: cmd.substring('stop '.length).replaceAll(quotesMatcher, ''),
     };
   }
 
   if (/^list\b/i.exec(cmd) !== null) {
     return {
-      type: isAuthorized ? 'list' : 'list-unauthorized',
-      requestingPlayer,
+      type: 'list',
     };
   }
 
@@ -77,33 +57,25 @@ export function parseCommand(msg: Message, players: PlayersManager): Command | n
     return {
       type: 'help',
       actualTag: taggedSlotOrAlias,
-      requestingPlayer,
     };
   }
 
   return {
     type: 'unrecognized',
     actualTag: taggedSlotOrAlias,
-    requestingPlayer,
   };
 }
 
-type RestrictedCommandType =
+export type CommandType =
+  | 'unrecognized'
+  | 'help'
   | 'go'
   | 'stop'
   | 'list'
   ;
 
-export type CommandType =
-  | 'unrecognized'
-  | 'help'
-  | RestrictedCommandType
-  | `${RestrictedCommandType}-unauthorized`
-  ;
-
 interface CommonCommand<T extends CommandType> {
   type: T;
-  requestingPlayer: Player | null;
 }
 export interface UnrecognizedCommand extends CommonCommand<'unrecognized'> {
   actualTag: string;
@@ -118,18 +90,13 @@ export interface StopCommand extends CommonCommand<'stop'> {
   locationName: string;
 }
 export type ListCommand = CommonCommand<'list'>;
-export type Unauthorized<T extends CommonCommand<RestrictedCommandType>> =
-  Omit<T, 'type'> & { type: `${T['type']}-unauthorized` };
 
 export type Command =
   | UnrecognizedCommand
   | HelpCommand
   | GoCommand
-  | Unauthorized<GoCommand>
   | StopCommand
-  | Unauthorized<StopCommand>
   | ListCommand
-  | Unauthorized<ListCommand>
   ;
 
 function findPlayerByAlias(players: PlayersManager, alias: string) {
