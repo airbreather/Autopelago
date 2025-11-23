@@ -709,6 +709,46 @@ export function withGameState() {
 
           const defs = store.defs();
           switch (type) {
+            case 'help': {
+              if (requestingPlayer === null || requestingPlayer.team === players.self.team) {
+                patchState(store, ({ outgoingMessages }) => ({
+                  outgoingMessages: outgoingMessages.push(
+                    'Commands you can use are:',
+                    `1. ${command.actualTag}go LOCATION_NAME`,
+                    `2. ${command.actualTag}stop LOCATION_NAME`,
+                    `3. ${command.actualTag}list`,
+                    'LOCATION_NAME refers to whatever text you got in your hint, like "Basketball" or "Before Prawn Stars #12".',
+                  ),
+                }));
+              }
+              else {
+                patchState(store, ({ outgoingMessages }) => ({
+                  outgoingMessages: outgoingMessages.push(
+                    'I have no commands that you can use, because you are neither [Server] nor on my team.',
+                  ),
+                }));
+              }
+              break;
+            }
+
+            case 'unrecognized': {
+              if (requestingPlayer === null || requestingPlayer.team === players.self.team) {
+                patchState(store, ({ outgoingMessages }) => ({
+                  outgoingMessages: outgoingMessages.push(
+                    `Say "${command.actualTag}help" (without the quotes) for a list of commands.`,
+                  ),
+                }));
+              }
+              else {
+                patchState(store, ({ outgoingMessages }) => ({
+                  outgoingMessages: outgoingMessages.push(
+                    'I don\'t know what that command was trying to do, but you\'re not on my team, so it wouldn\'t have worked anyway.',
+                  ),
+                }));
+              }
+              break;
+            }
+
             case 'go':
             case 'stop': {
               const { locationName } = command;
