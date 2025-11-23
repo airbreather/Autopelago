@@ -2,45 +2,53 @@ import type { Player, PlayersManager } from 'archipelago.js';
 import type { Message } from '../archipelago-client';
 
 export function parseCommand(msg: Message, players: PlayersManager): Command | null {
-  const text = msg.nodes.join('').normalize();
+  let requestingPlayer: Player | null = null;
+  switch (msg.type) {
+    case 'playerChat':
+      requestingPlayer = msg.player;
+      // eslint-disable-next-line no-fallthrough
+    case 'serverChat': {
+      if (!msg.text.startsWith('@')) {
+        return null;
+      }
+      break;
+    }
+    default:
+      return null;
+  }
+
+  const text = msg.text.normalize();
   let taggedSlotOrAlias = `@${players.self.alias.normalize()} `;
-  let tagIndex = text.indexOf(taggedSlotOrAlias);
-  if (tagIndex < 0) {
+  if (!text.startsWith(taggedSlotOrAlias)) {
     taggedSlotOrAlias = `@${players.self.name.normalize()} `;
-    tagIndex = text.indexOf(taggedSlotOrAlias);
-    if (tagIndex < 0 && players.self.alias !== players.self.name) {
+    if (!text.startsWith(taggedSlotOrAlias)) {
+      if (players.self.alias === players.self.name) {
+        return null;
+      }
+
       // support "@NewAlias" instead of requiring it to be "@NewAlias (SlotName)", provided that no
       // other player's alias is also "@NewAlias".
       const simpleAliasMatch = /^(?<simpleAlias>.+) \(.*\)$/.exec(players.self.alias.normalize());
-      if (simpleAliasMatch !== null) {
-        const simpleAlias = simpleAliasMatch.groups?.['simpleAlias'] ?? '';
-        if (findPlayerByAlias(players, simpleAlias)?.slot === players.self.slot) {
-          taggedSlotOrAlias = `@${simpleAlias.normalize()} `;
-          tagIndex = text.indexOf(taggedSlotOrAlias);
-        }
+      if (simpleAliasMatch === null) {
+        return null;
+      }
+
+      const simpleAlias = simpleAliasMatch.groups?.['simpleAlias'] ?? '';
+      if (findPlayerByAlias(players, simpleAlias)?.slot !== players.self.slot) {
+        return null;
+      }
+
+      taggedSlotOrAlias = `@${simpleAlias.normalize()} `;
+      if (!text.startsWith(taggedSlotOrAlias)) {
+        return null;
       }
     }
-  }
-
-  // chat message format is "{UserAlias}: {Message}", so it needs to be at least this long.
-  if (tagIndex <= ': '.length) {
-    return null;
-  }
-
-  const probablyPlayerAlias = text.substring(0, tagIndex - ': '.length);
-  const requestingPlayer = findPlayerByAlias(players, probablyPlayerAlias);
-  if (requestingPlayer === null && probablyPlayerAlias !== '[Server]') {
-    // this isn't necessarily an error or a mistaken assumption. it could just be that the
-    // '@${SlotName}' happened partway through their message. don't test every single user's
-    // alias against every single chat message that contains '@${SlotName}', just require it
-    // to be at the start of the message. done.
-    return null;
   }
 
   const isAuthorized = requestingPlayer === null || requestingPlayer.team === players.self.team;
 
   // if we got here, then the entire rest of the message after "@{SlotName}" is the command.
-  const cmd = text.substring(tagIndex + taggedSlotOrAlias.length);
+  const cmd = text.substring(taggedSlotOrAlias.length);
   const quotesMatcher = /^"*|"*$/g;
   if (/^go /i.exec(cmd) !== null) {
     return {

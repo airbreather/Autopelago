@@ -1,6 +1,6 @@
 import { type DestroyRef, signal, type Signal } from '@angular/core';
 import BitArray from '@bitarray/typedarray';
-import { Client, type ConnectionOptions, type MessageNode } from 'archipelago.js';
+import { Client, type ConnectionOptions, type MessageNode, type Player } from 'archipelago.js';
 import { List } from 'immutable';
 import type { ConnectScreenState } from './connect-screen/connect-screen-state';
 import {
@@ -120,24 +120,77 @@ export async function initializeClient(initializeClientOptions: InitializeClient
   };
 }
 
-export interface Message {
+interface BaseMessage {
   ts: Date;
+  type: 'playerChat' | 'serverChat' | 'other';
+  text: string;
   nodes: readonly MessageNode[];
 }
+export interface PlayerChatMessage extends BaseMessage {
+  type: 'playerChat';
+  player: Player;
+}
+export interface ServerChatMessage extends BaseMessage {
+  type: 'serverChat';
+}
+export interface OtherMessage extends BaseMessage {
+  type: 'other';
+}
+export type Message =
+  | PlayerChatMessage
+  | ServerChatMessage
+  | OtherMessage
+  ;
 
 function createReactiveMessageLog(client: Client, destroyRef?: DestroyRef): Signal<List<Readonly<Message>>> {
+  const specificMessagesAlreadyLogged = new Set<readonly MessageNode[]>();
   const messageLog = signal(List<Readonly<Message>>());
-  function onMessage(_text: string, nodes: readonly MessageNode[]) {
-    messageLog.update(messages => messages.push({
-      ts: new Date(),
+  function onMessage(message: Message) {
+    messageLog.update(messages => messages.push(message));
+  }
+  function onPlayerChat(text: string, player: Player | undefined, nodes: readonly MessageNode[]) {
+    const ts = new Date();
+    if (player !== undefined) {
+      onMessage({
+        type: 'playerChat',
+        ts,
+        text,
+        player,
+        nodes,
+      });
+      specificMessagesAlreadyLogged.add(nodes);
+    }
+  }
+  function onServerChat(text: string, nodes: readonly MessageNode[]) {
+    const ts = new Date();
+    onMessage({
+      type: 'serverChat',
+      ts,
+      text,
       nodes,
-    }));
+    });
+    specificMessagesAlreadyLogged.add(nodes);
+  }
+  function onAnyMessage(text: string, nodes: readonly MessageNode[]) {
+    const ts = new Date();
+    if (!specificMessagesAlreadyLogged.delete(nodes)) {
+      onMessage({
+        type: 'other',
+        ts,
+        text,
+        nodes,
+      });
+    }
   }
 
-  client.messages.on('message', onMessage);
+  client.messages.on('chat', onPlayerChat);
+  client.messages.on('serverChat', onServerChat);
+  client.messages.on('message', onAnyMessage);
   if (destroyRef) {
     destroyRef.onDestroy(() => {
-      client.messages.off('message', onMessage);
+      client.messages.off('serverChat', onServerChat);
+      client.messages.off('chat', onPlayerChat);
+      client.messages.off('message', onAnyMessage);
     });
   }
 

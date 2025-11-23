@@ -19,20 +19,20 @@ import type { AutopelagoClientAndData } from '../../../../data/slot-data';
             -->
             @switch (messageNode.type) {
               @case ('entrance') {
-                <span class="entrance-message">{{ messageNode.text }}</span>
+                <span class="entrance-message-part">{{ messageNode.text }}</span>
               }
               @case ('player') {
-                <span class="player-message" [class.own-player-message]="'player' in messageNode ? messageNode.player.name === ownName() : null">{{ messageNode.text }}</span>
+                <span class="player-message-part" [class.own-player-message]="'player' in messageNode ? messageNode.player.name === ownName() : null">{{ messageNode.text }}</span>
               }
               @case ('item') {
-                <span class="item-message"
+                <span class="item-message-part"
                       [class.progression]="'item' in messageNode ? messageNode.item.progression : null"
                       [class.filler]="'item' in messageNode ? messageNode.item.filler : null"
                       [class.useful]="'item' in messageNode ? messageNode.item.useful : null"
                       [class.trap]="'item' in messageNode ? messageNode.item.trap : null">{{ messageNode.text }}</span>
               }
               @case ('location') {
-                <span class="location-message">{{ messageNode.text }}</span>
+                <span class="location-message-part">{{ messageNode.text }}</span>
               }
               @case ('color') {
                 <!--
@@ -42,7 +42,7 @@ import type { AutopelagoClientAndData } from '../../../../data/slot-data';
                 <span [style.color]="'color' in messageNode ? messageNode.color : null">{{ messageNode.text }}</span>
               }
               @default {
-                <span>{{ messageNode.text }}</span>
+                <span [class.server-message]="message.type === 'serverChat'">{{ messageNode.text }}</span>
               }
             }
           }
@@ -74,7 +74,12 @@ import type { AutopelagoClientAndData } from '../../../../data/slot-data';
       white-space: pre;
     }
 
-    .player-message {
+    .server-message {
+      color: #FF6060;
+      font-weight: bold;
+    }
+
+    .player-message-part {
       font-weight: bold;
       color: #FAFAD2;
       &.own-player-message {
@@ -82,15 +87,15 @@ import type { AutopelagoClientAndData } from '../../../../data/slot-data';
       }
     }
 
-    .location-message {
+    .location-message-part {
       color: #00FF7F;
     }
 
-    .entrance-message {
+    .entrance-message-part {
       color: #6495ED;
     }
 
-    .item-message {
+    .item-message-part {
       font-weight: bold;
       &.filler {
         color: rgb(6, 217, 217);
