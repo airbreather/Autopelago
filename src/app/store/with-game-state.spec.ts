@@ -472,7 +472,7 @@ describe('withGameState', () => {
     expect(store.targetLocationReason()).toStrictEqual('user-requested');
     expect(sameUserResult).toStrictEqual<typeof sameUserResult>({
       kind: 'already-requested',
-      userSlot: 1,
+      userSlots: [1],
     });
     expect(store.userRequestedLocations()).toStrictEqual(List([
       { userSlot: 1, location: prawnStars },
@@ -480,7 +480,7 @@ describe('withGameState', () => {
     const differentUserResult = store.addUserRequestedLocation(2, prawnStars);
     expect(differentUserResult).toStrictEqual<typeof differentUserResult>({
       kind: 'already-requested',
-      userSlot: 1,
+      userSlots: [1],
     });
     expect(store.userRequestedLocations()).toStrictEqual(List([
       { userSlot: 1, location: prawnStars },
