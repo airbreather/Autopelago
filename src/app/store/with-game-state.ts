@@ -22,6 +22,7 @@ import {
   type TargetLocationResult,
   targetLocationResultsEqual,
 } from '../game/location-routing';
+import { parseCommand } from '../game/parse-command';
 
 import {
   type TargetLocationEvidence,
@@ -54,18 +55,6 @@ function regionLocksEqual(a: RegionLocks, b: RegionLocks) {
     && bitArraysEqual(a.regionIsHardLocked, b.regionIsHardLocked)
     && bitArraysEqual(a.regionIsLandmarkAndNotHardLocked, b.regionIsLandmarkAndNotHardLocked)
     && bitArraysEqual(a.regionIsLandmarkAndNotSoftLocked, b.regionIsLandmarkAndNotSoftLocked);
-}
-
-function findPlayerByAlias(players: PlayersManager, alias: string) {
-  alias = alias.normalize();
-  for (const t of players.teams) {
-    for (const p of t) {
-      if (p.alias.normalize() === alias) {
-        return p;
-      }
-    }
-  }
-  return null;
 }
 
 interface ModifyRollOptions {
@@ -386,7 +375,7 @@ export function withGameState() {
       };
     }),
     withMethods((store) => {
-      interface AlreadyAuraDrivenResult {
+      interface AlreadyAuraDriven {
         kind: 'already-aura-driven';
       }
       interface AlreadyRequested {
@@ -396,8 +385,8 @@ export function withGameState() {
       interface NewlyAdded {
         kind: 'newly-added';
       }
-      type ProcessUserRequestedLocationResult = AlreadyAuraDrivenResult | AlreadyRequested | NewlyAdded;
-      function processUserRequestedLocation(userSlot: number, location: number): ProcessUserRequestedLocationResult {
+      type AddUserRequestedLocationResult = AlreadyAuraDriven | AlreadyRequested | NewlyAdded;
+      function addUserRequestedLocation(userSlot: number, location: number): AddUserRequestedLocationResult {
         if (store.auraDrivenLocations().includes(location)) {
           return { kind: 'already-aura-driven' };
         }
@@ -421,7 +410,7 @@ export function withGameState() {
         }));
         return { kind: 'newly-added' };
       }
-      function getMessageForProcessUserRequestedLocationResult(loc: number, requestingSlotNumber: number, result: ProcessUserRequestedLocationResult, probablyPlayerAlias: string, players: PlayersManager) {
+      function getMessageForAddUserRequestedLocationResult(loc: number, requestingSlotNumber: number, result: AddUserRequestedLocationResult, probablyPlayerAlias: string, players: PlayersManager) {
         const { allLocations } = store.defs();
         // get the true name of it
         const exactLocName = allLocations[loc].name;
@@ -437,9 +426,9 @@ export function withGameState() {
           }
 
           const firstRequestingUser = result.userSlot === 0
-            ? 'the server'
+            ? '[Server]'
             : players.teams[players.self.team][result.userSlot].alias;
-          return `All right, I'll prioritize ${exactLocName} for you, ${probablyPlayerAlias}. Just so you know, ${firstRequestingUser} already asked me to go there first, but I'll remember that you want me to go there too, in case they change their mind.`;
+          return `OK, I'll prioritize ${exactLocName} for you, ${probablyPlayerAlias}. Just so you know, ${firstRequestingUser} already asked me to go there first, but I'll remember that you want me to go there too, in case they change their mind.`;
         }
 
         if (store._regionLocks().regionIsHardLocked[allLocations[loc].regionLocationKey[0]]) {
@@ -447,13 +436,80 @@ export function withGameState() {
         }
 
         if (store.locationIsChecked()[loc]) {
-          return `All right, ${probablyPlayerAlias}, I'll go back to ${exactLocName}. I've already sent out its item before, but I trust you!`;
+          return `OK, ${probablyPlayerAlias}, I'll go back to ${exactLocName}. I've already sent out its item before, but I trust you!`;
         }
 
-        return `All right, I'll prioritize ${exactLocName} for you, ${probablyPlayerAlias}!`;
+        return `OK, I'll prioritize ${exactLocName} for you, ${probablyPlayerAlias}!`;
+      }
+      interface NotRequested {
+        kind: 'not-requested';
+      }
+      interface OnlyRequestedForOthers {
+        kind: 'only-requested-for-others';
+        otherUserSlots: readonly number[];
+      }
+      interface RemovedPartial {
+        kind: 'removed-partial';
+        otherUserSlots: readonly number[];
+      }
+      interface RemovedOnly {
+        kind: 'removed-only';
+      }
+      type RemoveUserRequestedLocationResult = NotRequested | OnlyRequestedForOthers | RemovedPartial | RemovedOnly;
+      function removeUserRequestedLocation(userSlot: number, location: number): RemoveUserRequestedLocationResult {
+        const alreadyRequested = store.userRequestedLocations().filter(l => l.location === location);
+        if (alreadyRequested.size === 0) {
+          return { kind: 'not-requested' };
+        }
+
+        const toKeep = userSlot === 0
+          ? alreadyRequested.clear()
+          : alreadyRequested.filter(l => l.userSlot !== userSlot);
+        if (toKeep.size === alreadyRequested.size) {
+          return { kind: 'only-requested-for-others', otherUserSlots: [...alreadyRequested.map(l => l.userSlot)] };
+        }
+
+        patchState(store, { userRequestedLocations: toKeep });
+        return toKeep.size === 0
+          ? { kind: 'removed-only' }
+          : { kind: 'removed-partial', otherUserSlots: [...toKeep.map(l => l.userSlot)] };
+      }
+      function getMessageForRemoveUserRequestedLocationResult(loc: number, requestingSlotNumber: number, result: RemoveUserRequestedLocationResult, probablyPlayerAlias: string, players: PlayersManager) {
+        const { allLocations } = store.defs();
+        // get the true name of it
+        const exactLocName = allLocations[loc].name;
+        if (result.kind === 'not-requested') {
+          return `OK, ${probablyPlayerAlias}, I won't prioritize ${exactLocName}, but... I already wasn't, so your command didn't do anything.`;
+        }
+
+        if (result.kind === 'removed-only') {
+          return `OK, ${probablyPlayerAlias}, I won't prioritize ${exactLocName}${requestingSlotNumber === 0 ? '' : ' for you'} anymore.`;
+        }
+
+        if (result.kind === 'removed-partial') {
+          const playersToReport = result.otherUserSlots.length === 1
+            ? result.otherUserSlots[0] === 0
+              ? '[Server]'
+              : players.teams[players.self.team][result.otherUserSlots[0]].alias
+            : result.otherUserSlots.includes(0)
+              ? result.otherUserSlots.length === 2
+                ? '[Server] and 1 other player'
+                : `[Server] and ${(result.otherUserSlots.length - 1).toString()} other players`
+              : result.otherUserSlots.length === 1
+                ? players.teams[players.self.team][result.otherUserSlots[0]].alias
+                : `${result.otherUserSlots.length.toString()} other players`;
+          return `OK, ${probablyPlayerAlias}, I won't prioritize ${exactLocName} for you anymore. Just so you know, ${playersToReport} also wanted me to go there, so it's still on my list.`;
+        }
+
+        const playersToReport = result.otherUserSlots.length === 1
+          ? result.otherUserSlots[0] === 0
+            ? '[Server]'
+            : players.teams[players.self.team][result.otherUserSlots[0]].alias
+          : `${result.otherUserSlots.length.toString()} other players`;
+        return `Hey, ${probablyPlayerAlias}, I can't de-prioritize ${exactLocName} for you, because it wasn't requested by you, only by ${playersToReport}.`;
       }
       return {
-        processUserRequestedLocation,
+        addUserRequestedLocation,
         receiveItems(items: Iterable<number>) {
           const { allItems, allLocations } = store.defs();
           patchState(store, (prev) => {
@@ -635,54 +691,44 @@ export function withGameState() {
           return outgoingMoves;
         },
         processMessage(msg: Message, players: PlayersManager) {
-          const text = msg.nodes.map(n => n.text.normalize()).join('');
-          let taggedSlotOrAlias = `@${players.self.alias.normalize()} `;
-          let tagIndex = text.indexOf(taggedSlotOrAlias);
-          if (tagIndex < 0) {
-            taggedSlotOrAlias = `@${players.self.name.normalize()} `;
-            tagIndex = text.indexOf(taggedSlotOrAlias);
-          }
-
-          // chat message format is "{UserAlias}: {Message}", so it needs to be at least this long.
-          if (tagIndex <= ': '.length) {
+          const command = parseCommand(msg, players);
+          if (command === null) {
             return;
           }
 
-          const probablyPlayerAlias = text.substring(0, tagIndex - ': '.length);
-          const requestingPlayer = findPlayerByAlias(players, probablyPlayerAlias);
-          const requestingSlotNumber = requestingPlayer?.slot ?? 0;
-          if (probablyPlayerAlias !== '[Server]') {
-            if (!requestingPlayer) {
-              // this isn't necessarily an error or a mistaken assumption. it could just be that the
-              // '@${SlotName}' happened partway through their message. don't test every single user's
-              // alias against every single chat message that contains '@${SlotName}', just require it
-              // to be at the start of the message. done.
-              return;
-            }
-
-            if (requestingPlayer.team !== players.self.team) {
-              // nice try
-              const outgoingMessage = `${probablyPlayerAlias}, only members of my team can send me commands.`;
-              patchState(store, ({ outgoingMessages }) => ({ outgoingMessages: outgoingMessages.push(outgoingMessage) }));
-              return;
-            }
+          const { type, requestingPlayer } = command;
+          const respondTo = requestingPlayer?.alias ?? '[Server]';
+          const unauthorizedMatch = /^(?<type>.*)-unauthorized$/i.exec(type);
+          if (unauthorizedMatch !== null) {
+            // nice try
+            const unauthorizedType = unauthorizedMatch.groups?.['type'] ?? 'those';
+            const outgoingMessage = `${respondTo}, only members of my team can send me ${unauthorizedType} commands.`;
+            patchState(store, ({ outgoingMessages }) => ({ outgoingMessages: outgoingMessages.push(outgoingMessage) }));
+            return;
           }
 
-          // if we got here, then the entire rest of the message after "@{SlotName}" is the command.
           const defs = store.defs();
-          const cmd = text.substring(tagIndex + taggedSlotOrAlias.length);
-          if (/^go /i.exec(cmd)) {
-            const quotesMatcher = /^"*|"*$/g;
-            const locName = cmd.substring('go '.length).replaceAll(quotesMatcher, '');
-            const loc = defs.locationNameLookup.get(locName);
-            if (loc) {
-              const result = processUserRequestedLocation(players.self.slot, loc);
-              const outgoingMessage = getMessageForProcessUserRequestedLocationResult(loc, requestingSlotNumber, result, probablyPlayerAlias, players);
+          switch (type) {
+            case 'go':
+            case 'stop': {
+              const { locationName } = command;
+              const loc = defs.locationNameLookup.get(locationName) ?? NaN;
+              const requestingSlotNumber = requestingPlayer?.slot ?? 0;
+              let outgoingMessage: string;
+              if (Number.isNaN(loc)) {
+                outgoingMessage = `Um... excuse me, but... I don't know what a '${locationName}' is...`;
+              }
+              else if (type === 'go') {
+                const result = addUserRequestedLocation(requestingSlotNumber, loc);
+                outgoingMessage = getMessageForAddUserRequestedLocationResult(loc, requestingSlotNumber, result, respondTo, players);
+              }
+              else {
+                const result = removeUserRequestedLocation(requestingSlotNumber, loc);
+                outgoingMessage = getMessageForRemoveUserRequestedLocationResult(loc, requestingSlotNumber, result, respondTo, players);
+              }
+
               patchState(store, ({ outgoingMessages }) => ({ outgoingMessages: outgoingMessages.push(outgoingMessage) }));
-            }
-            else {
-              const outgoingMessage = `Um... excuse me, but... I don't know what a '${locName}' is...`;
-              patchState(store, ({ outgoingMessages }) => ({ outgoingMessages: outgoingMessages.push(outgoingMessage) }));
+              break;
             }
           }
         },
