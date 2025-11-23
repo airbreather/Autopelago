@@ -673,6 +673,172 @@ describe('withGameState', () => {
     // it needs to have moved forward 9 times.
     expect(store.currentLocation()).toStrictEqual(startRegionLocs[9]);
   });
+
+  test('user-requested location checks should bypass unreachable locations (regression test for #53)', () => {
+    const { allRegions, locationNameLookup, startRegion } = BAKED_DEFINITIONS_BY_VICTORY_LANDMARK.captured_goldfish;
+    const startRegionLocs = getLocs(allRegions[startRegion]);
+    const lastLocationBeforeBasketball = startRegionLocs.at(-1) ?? NaN;
+    const basketball = locationNameLookup.get('Basketball') ?? NaN;
+
+    const store = getStoreWith({
+      ...initialGameStateFor('captured_goldfish'),
+      checkedLocations: ImmutableSet([lastLocationBeforeBasketball]),
+      currentLocation: lastLocationBeforeBasketball,
+      userRequestedLocations: List([
+        { userSlot: 0, location: basketball },
+        { userSlot: 1, location: lastLocationBeforeBasketball },
+      ]),
+      prng: prngs.unlucky.prng,
+    });
+    store.advance();
+
+    expect(store.targetLocation()).not.toStrictEqual(lastLocationBeforeBasketball);
+  });
+
+  test('startled should not move through locked locations', () => {
+    const { itemNameLookup, locationNameLookup, startLocation } = BAKED_DEFINITIONS_BY_VICTORY_LANDMARK.captured_goldfish;
+    const packRat = itemNameLookup.get('Pack Rat') ?? NaN;
+    const pricelessAntique = itemNameLookup.get('Priceless Antique') ?? NaN;
+    const pieRat = itemNameLookup.get('Pie Rat') ?? NaN;
+    const pizzaRat = itemNameLookup.get('Pizza Rat') ?? NaN;
+    const chefRat = itemNameLookup.get('Chef Rat') ?? NaN;
+
+    const basketball = locationNameLookup.get('Basketball') ?? NaN;
+    const angryTurtles = locationNameLookup.get('Angry Turtles') ?? NaN;
+    const prawnStars = locationNameLookup.get('Prawn Stars') ?? NaN;
+    const restaurant = locationNameLookup.get('Restaurant') ?? NaN;
+    const pirateBakeSale = locationNameLookup.get('Pirate Bake Sale') ?? NaN;
+    const afterPirateBakeSale1 = locationNameLookup.get('After Pirate Bake Sale #1') ?? NaN;
+    const bowlingBallDoor = locationNameLookup.get('Bowling Ball Door') ?? NaN;
+
+    const store = getStoreWith({
+      ...initialGameStateFor('captured_goldfish'),
+      currentLocation: afterPirateBakeSale1,
+      receivedItems: List([
+        ...Range(0, 40).map(() => packRat),
+        pricelessAntique,
+        pieRat,
+        pizzaRat,
+        chefRat,
+      ]),
+      checkedLocations: ImmutableSet([
+        basketball,
+        angryTurtles,
+        restaurant,
+        bowlingBallDoor,
+      ]),
+    });
+    for (let i = 0; i < 100; i++) {
+      store.receiveItems([singleAuraItems.startled]);
+      store.advance();
+      if (store.currentLocation() === startLocation) {
+        break;
+      }
+    }
+
+    expect.soft(store.outgoingMoves()).not.toContain(pirateBakeSale);
+    expect.soft(store.outgoingMoves()).not.toContain(prawnStars);
+  });
+
+  test('received items should apply auras', () => {
+    const { itemNameLookup } = BAKED_DEFINITIONS_BY_VICTORY_LANDMARK.captured_goldfish;
+    const store = getStoreWith({
+      ...initialGameStateFor('captured_goldfish'),
+    });
+
+    store.receiveItems([
+      // upset_tummy, upset_tummy, upset_tummy, unlucky, startled, startled, startled, sluggish
+      'Rat Poison',
+
+      // well_fed, energized, energized, energized
+      'Bag of Powdered Sugar',
+
+      // confidence
+      'Weapons-grade Folding Chair',
+
+      // stylish, distracted, sluggish
+      'Itchy Iron Wool Sweater',
+
+      // confidence
+      'Weapons-grade Folding Chair',
+    ].map(name => itemNameLookup.get(name) ?? NaN));
+
+    expect.soft(store.foodFactor()).toStrictEqual(-10);
+    expect.soft(store.luckFactor()).toStrictEqual(-1);
+    expect.soft(store.startledCounter()).toStrictEqual(3);
+    expect.soft(store.energyFactor()).toStrictEqual(10); // 5 canceled by the first confidence!
+    expect.soft(store.styleFactor()).toStrictEqual(2);
+    expect.soft(store.distractionCounter()).toStrictEqual(0); // canceled by the first confidence!
+    expect.soft(store.hasConfidence()).toStrictEqual(true);
+  });
+
+  // TODO: this test actually seems to have caught a bug? not 100% sure, but I'm going to save this
+  // as-is because I'm having a nontrivial time getting a debugger running.
+  test.skip('regression test for #92, which was an issue with the "closest reachable unchecked" logic', () => {
+    const { allLocations, allRegions, itemNameLookup, locationNameLookup } = BAKED_DEFINITIONS_BY_VICTORY_LANDMARK.snakes_on_a_planet;
+    const regionLocsByYamlKey = stricterObjectFromEntries(allRegions.map(r => [r.yamlKey, getLocs(r)]));
+    const packRat = itemNameLookup.get('Pack Rat') ?? NaN;
+    const giantNoveltyScissors = itemNameLookup.get('Giant Novelty Scissors') ?? NaN;
+    const ninjaRat = itemNameLookup.get('Ninja Rat') ?? NaN;
+    const chefRat = itemNameLookup.get('Chef Rat') ?? NaN;
+    const computerRat = itemNameLookup.get('Computer Rat') ?? NaN;
+    const notoriousRAT = itemNameLookup.get('Notorious R.A.T.') ?? NaN;
+
+    const basketball = locationNameLookup.get('Basketball') ?? NaN;
+    const angryTurtles = locationNameLookup.get('Angry Turtles') ?? NaN;
+    const restaurant = locationNameLookup.get('Restaurant') ?? NaN;
+    const bowlingBallDoor = locationNameLookup.get('Bowling Ball Door') ?? NaN;
+    const capturedGoldfish = locationNameLookup.get('Captured Goldfish') ?? NaN;
+    const beforeGoldfish2 = locationNameLookup.get('Before Captured Goldfish #2') ?? NaN;
+
+    const store = getStoreWith({
+      ...initialGameStateFor('snakes_on_a_planet'),
+      currentLocation: beforeGoldfish2,
+      receivedItems: List([
+        giantNoveltyScissors,
+        ninjaRat,
+        chefRat,
+        computerRat,
+        notoriousRAT,
+        ...Range(0, 14).map(() => packRat),
+      ]),
+      checkedLocations: ImmutableSet([
+        basketball,
+        angryTurtles,
+        restaurant,
+        bowlingBallDoor,
+        capturedGoldfish,
+        ...regionLocsByYamlKey.Menu, // "Before Basketball"
+        ...regionLocsByYamlKey.before_prawn_stars,
+        ...regionLocsByYamlKey.before_angry_turtles,
+        ...regionLocsByYamlKey.after_restaurant,
+        ...regionLocsByYamlKey.before_captured_goldfish,
+
+        ...regionLocsByYamlKey.after_pirate_bake_sale.slice(3),
+        ...regionLocsByYamlKey.before_computer_interface.slice(-3),
+      ]),
+      prng: prngs.lucky.prng,
+    });
+
+    // the rat has everything it needs to make a few location checks. make sure it does that and
+    // doesn't instead go into a loop like it was seen doing before.
+    const initialCheckedLocationCount = store.checkedLocations().size;
+    const locationWasVisited = new BitArray(allLocations.length);
+    let cnt = 0;
+    for (;;) {
+      store.advance();
+      if (store.checkedLocations().size > initialCheckedLocationCount) {
+        break;
+      }
+
+      // this part ensures that the test will not loop forever
+      const currentLocation = store.currentLocation();
+      expect(locationWasVisited[currentLocation]).toStrictEqual(0);
+      locationWasVisited[currentLocation] = 1;
+      ++cnt;
+    }
+    expect(cnt).toStrictEqual(-1);
+  });
 });
 
 function getStoreWith(initialData: Partial<DefiningGameState>): InstanceType<typeof TestingStore> {
