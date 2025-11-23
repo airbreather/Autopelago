@@ -772,9 +772,7 @@ describe('withGameState', () => {
     expect.soft(store.hasConfidence()).toStrictEqual(true);
   });
 
-  // TODO: this test actually seems to have caught a bug? not 100% sure, but I'm going to save this
-  // as-is because I'm having a nontrivial time getting a debugger running.
-  test.skip('regression test for #92, which was an issue with the "closest reachable unchecked" logic', () => {
+  test('regression test for #92, which was an issue with the "closest reachable unchecked" logic', () => {
     const { allLocations, allRegions, itemNameLookup, locationNameLookup } = BAKED_DEFINITIONS_BY_VICTORY_LANDMARK.snakes_on_a_planet;
     const regionLocsByYamlKey = stricterObjectFromEntries(allRegions.map(r => [r.yamlKey, getLocs(r)]));
     const packRat = itemNameLookup.get('Pack Rat') ?? NaN;
@@ -789,7 +787,7 @@ describe('withGameState', () => {
     const restaurant = locationNameLookup.get('Restaurant') ?? NaN;
     const bowlingBallDoor = locationNameLookup.get('Bowling Ball Door') ?? NaN;
     const capturedGoldfish = locationNameLookup.get('Captured Goldfish') ?? NaN;
-    const beforeGoldfish2 = locationNameLookup.get('Before Captured Goldfish #2') ?? NaN;
+    const beforeGoldfish2 = locationNameLookup.get('Before Goldfish #2') ?? NaN;
 
     const store = getStoreWith({
       ...initialGameStateFor('snakes_on_a_planet'),
@@ -824,7 +822,6 @@ describe('withGameState', () => {
     // doesn't instead go into a loop like it was seen doing before.
     const initialCheckedLocationCount = store.checkedLocations().size;
     const locationWasVisited = new BitArray(allLocations.length);
-    let cnt = 0;
     for (;;) {
       store.advance();
       if (store.checkedLocations().size > initialCheckedLocationCount) {
@@ -835,9 +832,7 @@ describe('withGameState', () => {
       const currentLocation = store.currentLocation();
       expect(locationWasVisited[currentLocation]).toStrictEqual(0);
       locationWasVisited[currentLocation] = 1;
-      ++cnt;
     }
-    expect(cnt).toStrictEqual(-1);
   });
 });
 
