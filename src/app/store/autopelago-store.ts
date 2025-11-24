@@ -207,7 +207,7 @@ export const GameStore = signalStore(
           return;
         }
 
-        const { sendChatMessages, whenBecomingBlocked, whenStillBlocked, whenBecomingUnblocked } = game.connectScreenState;
+        const { sendChatMessages, whenBecomingBlocked, whenStillBlocked, whenStillBlockedIntervalMinutes, whenBecomingUnblocked } = game.connectScreenState;
         if (!sendChatMessages) {
           return;
         }
@@ -239,7 +239,7 @@ export const GameStore = signalStore(
               outgoingMessages: outgoingMessages.push(forRemindBK(Math.random())),
             }));
           }
-        }, 15 * 60 * 1000);
+        }, (whenStillBlockedIntervalMinutes >= 15 ? whenStillBlockedIntervalMinutes : 15) * 60000);
       });
     },
   }),

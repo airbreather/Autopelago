@@ -8,6 +8,24 @@ import {
   queryParamsFromConnectScreenState,
 } from './connect-screen-state';
 
+function trySetStringProp<TKey extends string | number | symbol>(source: Partial<Record<TKey, unknown>>, key: TKey, target: Partial<Record<TKey, string>>) {
+  if (key in source && typeof source[key] === 'string') {
+    target[key] = source[key];
+  }
+}
+
+function trySetNumberProp<TKey extends string | number | symbol>(source: Partial<Record<TKey, unknown>>, key: TKey, target: Partial<Record<TKey, number>>) {
+  if (key in source && typeof source[key] === 'number') {
+    target[key] = source[key];
+  }
+}
+
+function trySetBooleanProp<TKey extends string | number | symbol>(source: Partial<Record<TKey, unknown>>, key: TKey, target: Partial<Record<TKey, boolean>>) {
+  if (key in source && typeof source[key] === 'boolean') {
+    target[key] = source[key];
+  }
+}
+
 // Local storage key
 const STORAGE_KEY = 'autopelago-connect-screen-state';
 
@@ -64,7 +82,7 @@ const STORAGE_KEY = 'autopelago-connect-screen-state';
                [field]="form.sendChatMessages"/>
         <label for="sendChatMessages">Send chat messages...</label>
       </div>
-      <div class="inputs" [style.padding-left]="'20px'">
+      <div class="inputs indent-chat-message-details">
         <input id="whenTargetChanges"
                type="checkbox"
                [field]="form.whenTargetChanges"/>
@@ -79,6 +97,15 @@ const STORAGE_KEY = 'autopelago-connect-screen-state';
                type="checkbox"
                [field]="form.whenStillBlocked"/>
         <label for="whenStillBlocked">when STILL blocked</label>
+
+        <div class="indent-report-interval">
+          <label for="whenStillBlockedIntervalMinutes">every </label>
+          <input id="whenStillBlockedIntervalMinutes"
+                 class="short-number"
+                 type="number"
+                 [field]="form.whenStillBlockedIntervalMinutes"/>
+          <label for="whenStillBlockedIntervalMinutes"> minutes</label>
+        </div>
 
         <input id="whenBecomingUnblocked"
                type="checkbox"
@@ -117,6 +144,19 @@ const STORAGE_KEY = 'autopelago-connect-screen-state';
         justify-self: start;
       }
     }
+
+    .indent-chat-message-details {
+      padding-left: 20px;
+    }
+
+    .indent-report-interval {
+      grid-column: span 2;
+      padding-left: 40px;
+    }
+
+    .short-number {
+      width: calc(4ch + 60px);
+    }
   `,
 })
 export class ConnectScreen {
@@ -140,6 +180,8 @@ export class ConnectScreen {
     disabled(schemaPath.whenTargetChanges, ({ valueOf }) => !valueOf(schemaPath.sendChatMessages));
     disabled(schemaPath.whenBecomingBlocked, ({ valueOf }) => !valueOf(schemaPath.sendChatMessages));
     disabled(schemaPath.whenStillBlocked, ({ valueOf }) => !valueOf(schemaPath.sendChatMessages) || !valueOf(schemaPath.whenBecomingBlocked));
+    disabled(schemaPath.whenStillBlockedIntervalMinutes, ({ valueOf }) => !valueOf(schemaPath.sendChatMessages) || !valueOf(schemaPath.whenBecomingBlocked) || !valueOf(schemaPath.whenStillBlocked));
+    min(schemaPath.whenStillBlockedIntervalMinutes, 15);
     disabled(schemaPath.whenBecomingUnblocked, ({ valueOf }) => !valueOf(schemaPath.sendChatMessages));
     disabled(schemaPath.forOneTimeEvents, ({ valueOf }) => !valueOf(schemaPath.sendChatMessages));
     /* eslint-enable @typescript-eslint/unbound-method */
@@ -148,17 +190,38 @@ export class ConnectScreen {
   constructor() {
     const saved = localStorage.getItem(STORAGE_KEY);
     if (saved) {
-      let parsed: ConnectScreenState | null = null;
+      let parsed: unknown = null;
       try {
-        parsed = JSON.parse(saved) as unknown as ConnectScreenState;
+        parsed = JSON.parse(saved) as unknown;
       }
       catch {
         console.warn('Failed to parse saved connect screen state:', saved);
       }
 
-      if (parsed) {
-        this.model.set(parsed);
+      if (typeof parsed !== 'object' || parsed === null) {
+        return;
       }
+
+      const model: Partial<ConnectScreenState> = { };
+      trySetStringProp(parsed, 'slot', model);
+      trySetStringProp(parsed, 'host', model);
+      trySetNumberProp(parsed, 'port', model);
+      trySetStringProp(parsed, 'password', model);
+      trySetNumberProp(parsed, 'minTimeSeconds', model);
+      trySetNumberProp(parsed, 'maxTimeSeconds', model);
+      trySetBooleanProp(parsed, 'enableTileAnimations', model);
+      trySetBooleanProp(parsed, 'enableRatAnimations', model);
+      trySetBooleanProp(parsed, 'sendChatMessages', model);
+      trySetBooleanProp(parsed, 'whenTargetChanges', model);
+      trySetBooleanProp(parsed, 'whenBecomingBlocked', model);
+      trySetBooleanProp(parsed, 'whenStillBlocked', model);
+      trySetNumberProp(parsed, 'whenStillBlockedIntervalMinutes', model);
+      trySetBooleanProp(parsed, 'whenBecomingUnblocked', model);
+      trySetBooleanProp(parsed, 'forOneTimeEvents', model);
+      this.model.set({
+        ...CONNECT_SCREEN_STATE_DEFAULTS,
+        ...model,
+      });
     }
 
     effect(() => {

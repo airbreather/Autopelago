@@ -14,6 +14,7 @@ const QUERY_PARAM_NAME_MAP = {
   whenTargetChanges: 'z',
   whenBecomingBlocked: 'b',
   whenStillBlocked: 'B',
+  whenStillBlockedIntervalMinutes: 'i',
   whenBecomingUnblocked: 'u',
   forOneTimeEvents: 'o',
   h: 'host',
@@ -28,6 +29,7 @@ const QUERY_PARAM_NAME_MAP = {
   z: 'whenTargetChanges',
   b: 'whenBecomingBlocked',
   B: 'whenStillBlocked',
+  i: 'whenStillBlockedIntervalMinutes',
   u: 'whenBecomingUnblocked',
   o: 'forOneTimeEvents',
 } as const;
@@ -54,6 +56,7 @@ export interface ConnectScreenState {
   whenTargetChanges: boolean;
   whenBecomingBlocked: boolean;
   whenStillBlocked: boolean;
+  whenStillBlockedIntervalMinutes: number;
   whenBecomingUnblocked: boolean;
   forOneTimeEvents: boolean;
 }
@@ -71,6 +74,7 @@ export const CONNECT_SCREEN_STATE_DEFAULTS: ConnectScreenState = {
   whenTargetChanges: true,
   whenBecomingBlocked: true,
   whenStillBlocked: false,
+  whenStillBlockedIntervalMinutes: 15,
   whenBecomingUnblocked: true,
   forOneTimeEvents: true,
 } as const;
@@ -89,6 +93,7 @@ export function queryParamsFromConnectScreenState(s: Readonly<ConnectScreenState
     [QUERY_PARAM_NAME_MAP.whenTargetChanges]: s.whenTargetChanges ? 1 : 0,
     [QUERY_PARAM_NAME_MAP.whenBecomingBlocked]: s.whenBecomingBlocked ? 1 : 0,
     [QUERY_PARAM_NAME_MAP.whenStillBlocked]: s.whenStillBlocked ? 1 : 0,
+    [QUERY_PARAM_NAME_MAP.whenStillBlockedIntervalMinutes]: s.whenStillBlockedIntervalMinutes,
     [QUERY_PARAM_NAME_MAP.whenBecomingUnblocked]: s.whenBecomingUnblocked ? 1 : 0,
     [QUERY_PARAM_NAME_MAP.forOneTimeEvents]: s.forOneTimeEvents ? 1 : 0,
   };
@@ -115,6 +120,7 @@ export function connectScreenStateFromQueryParams(qp: ParamMap): ConnectScreenSt
     whenTargetChanges: readBoolean(qp, 'whenTargetChanges'),
     whenBecomingBlocked: readBoolean(qp, 'whenBecomingBlocked'),
     whenStillBlocked: readBoolean(qp, 'whenStillBlocked'),
+    whenStillBlockedIntervalMinutes: Number(qp.get(QUERY_PARAM_NAME_MAP.whenStillBlockedIntervalMinutes)) || CONNECT_SCREEN_STATE_DEFAULTS.whenStillBlockedIntervalMinutes,
     whenBecomingUnblocked: readBoolean(qp, 'whenBecomingUnblocked'),
     forOneTimeEvents: readBoolean(qp, 'forOneTimeEvents'),
   };
