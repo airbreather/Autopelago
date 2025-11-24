@@ -1033,6 +1033,20 @@ export function withGameState() {
             patchState(store, { auraDrivenLocations: uncheckedAuraDrivenLocations });
           }
         });
+        const reportGoMode = effect(() => {
+          if (!(store.currentLocation() >= 0)) {
+            return;
+          }
+          if (store.targetLocationReason() !== 'go-mode') {
+            return;
+          }
+          const message = store.sampleMessage().forEnterGoMode(Math.random());
+          if (message === null) {
+            return;
+          }
+          patchState(store, ({ outgoingMessages }) => ({ outgoingMessages: outgoingMessages.push(message) }));
+          reportGoMode.destroy();
+        });
       },
     }),
   );
