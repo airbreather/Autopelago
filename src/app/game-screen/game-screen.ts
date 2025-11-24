@@ -94,6 +94,7 @@ export class GameScreen {
         this.#activeToast = null;
       }
       this.#toast.clear();
+      this.game.destroy();
       if (!Number.isNaN(prevTimeout)) {
         clearTimeout(prevTimeout);
         prevTimeout = NaN;
