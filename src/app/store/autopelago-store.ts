@@ -10,6 +10,7 @@ import {
 } from '../data/resolved-definitions';
 import type { AutopelagoClientAndData } from '../data/slot-data';
 import { targetLocationEvidenceFromJSONSerializable } from '../game/target-location-evidence';
+import { toWeighted } from '../weighted-sampler';
 import { withCleverTimer } from './with-clever-timer';
 import { withGameState } from './with-game-state';
 
@@ -30,10 +31,16 @@ export const GameStore = signalStore(
       patchState(store, {
         ...storedData,
         game,
-        locationIsProgression,
-        locationIsTrap,
         lactoseIntolerant: slotData.lactose_intolerant,
         victoryLocationYamlKey,
+        locationIsProgression,
+        locationIsTrap,
+        messagesForChangedTarget: toWeighted(slotData.msg_changed_target),
+        messagesForEnterGoMode: toWeighted(slotData.msg_enter_go_mode),
+        messagesForEnterBK: toWeighted(slotData.msg_enter_bk),
+        messagesForRemindBK: toWeighted(slotData.msg_remind_bk),
+        messagesForExitBK: toWeighted(slotData.msg_exit_bk),
+        messagesForCompletedGoal: toWeighted(slotData.msg_completed_goal),
         auraDrivenLocations: List(storedData.auraDrivenLocations),
         userRequestedLocations: List(storedData.userRequestedLocations),
         receivedItems: List<number>(),

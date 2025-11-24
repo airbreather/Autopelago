@@ -30,6 +30,7 @@ import {
   targetLocationEvidenceToJSONSerializable,
 } from '../game/target-location-evidence';
 import { type EnumVal, type Mutable } from '../util';
+import { createWeightedSampler } from '../weighted-sampler';
 
 const importMeta = import.meta as (ImportMeta & { env?: Partial<Record<string, unknown>> });
 const IS_VITEST = ('env' in importMeta) && ('VITEST' in importMeta.env);
@@ -124,6 +125,12 @@ const initialState: DefiningGameState = {
   enabledTraps: new Set(),
   locationIsProgression: new BitArray(0),
   locationIsTrap: new BitArray(0),
+  messagesForChangedTarget: [],
+  messagesForEnterGoMode: [],
+  messagesForEnterBK: [],
+  messagesForRemindBK: [],
+  messagesForExitBK: [],
+  messagesForCompletedGoal: [],
   foodFactor: NaN,
   luckFactor: NaN,
   energyFactor: NaN,
@@ -361,6 +368,14 @@ export function withGameState() {
         })),
         previousTargetLocationEvidence: targetLocationEvidenceToJSONSerializable(store.previousTargetLocationEvidence()),
       }));
+      const sampleMessage = computed(() => ({
+        forChangedTarget: createWeightedSampler(store.messagesForChangedTarget()),
+        forEnterGoMode: createWeightedSampler(store.messagesForEnterGoMode()),
+        forEnterBK: createWeightedSampler(store.messagesForEnterBK()),
+        forRemindBK: createWeightedSampler(store.messagesForRemindBK()),
+        forExitBK: createWeightedSampler(store.messagesForExitBK()),
+        forCompletedGoal: createWeightedSampler(store.messagesForCompletedGoal()),
+      }));
 
       return {
         defs,
@@ -383,6 +398,7 @@ export function withGameState() {
         targetLocationChosenBecauseConspiratorial,
         targetLocationRoute,
         asStoredData,
+        sampleMessage,
       };
     }),
     withMethods((store) => {

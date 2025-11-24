@@ -4,6 +4,7 @@ import rand from 'pure-rand';
 
 import type { AutopelagoBuff, AutopelagoTrap, VictoryLocationYamlKey } from '../data/resolved-definitions';
 import type { UserRequestedLocation } from '../data/slot-data';
+import type { Weighted } from '../weighted-sampler';
 import type { TargetLocationEvidence } from './target-location-evidence';
 
 export interface DefiningGameState {
@@ -14,6 +15,12 @@ export interface DefiningGameState {
   readonly enabledTraps: ReadonlySet<AutopelagoTrap>;
   readonly locationIsProgression: Readonly<BitArray>;
   readonly locationIsTrap: Readonly<BitArray>;
+  readonly messagesForChangedTarget: readonly Weighted<string>[];
+  readonly messagesForEnterGoMode: readonly Weighted<string>[];
+  readonly messagesForEnterBK: readonly Weighted<string>[];
+  readonly messagesForRemindBK: readonly Weighted<string>[];
+  readonly messagesForExitBK: readonly Weighted<string>[];
+  readonly messagesForCompletedGoal: readonly Weighted<string>[];
 
   // other values that get persisted on the server:
   readonly foodFactor: number;
