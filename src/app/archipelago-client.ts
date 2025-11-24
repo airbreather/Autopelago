@@ -9,12 +9,35 @@ import {
   BAKED_DEFINITIONS_FULL,
   VICTORY_LOCATION_NAME_LOOKUP,
 } from './data/resolved-definitions';
-import type { AutopelagoClientAndData, AutopelagoSlotData, AutopelagoStoredData } from './data/slot-data';
+import type {
+  AutopelagoClientAndData,
+  AutopelagoSlotData,
+  AutopelagoStoredData,
+  UserRequestedLocation,
+} from './data/slot-data';
+import { trySetArrayProp, trySetBooleanProp, trySetNumberProp } from './hardened-state-propagation';
 
 export interface InitializeClientOptions {
   connectScreenState: ConnectScreenState;
   destroyRef: DestroyRef;
 }
+
+const defaultStoredData = {
+  foodFactor: 0,
+  luckFactor: 0,
+  energyFactor: 0,
+  styleFactor: 0,
+  distractionCounter: 0,
+  startledCounter: 0,
+  hasConfidence: false,
+  mercyFactor: 0,
+  sluggishCarryover: false,
+  processedReceivedItemCount: 0,
+  currentLocation: 0,
+  previousTargetLocationEvidence: null,
+  auraDrivenLocations: Array<number>(0),
+  userRequestedLocations: Array<UserRequestedLocation>(0),
+} as const;
 
 export async function initializeClient(initializeClientOptions: InitializeClientOptions): Promise<AutopelagoClientAndData> {
   const { connectScreenState, destroyRef } = initializeClientOptions;
@@ -54,32 +77,48 @@ export async function initializeClient(initializeClientOptions: InitializeClient
   const defs = BAKED_DEFINITIONS_BY_VICTORY_LANDMARK[victoryLocationYamlKey];
   const player = client.players.self;
   const storedDataKey = `autopelago_${player.team.toString()}_${player.slot.toString()}`;
-  let storedData: AutopelagoStoredData | null;
+  let retrievedStoredData: unknown;
   try {
-    storedData = await client.storage.fetch(storedDataKey);
+    retrievedStoredData = await client.storage.fetch(storedDataKey);
   }
   catch (err: unknown) {
     console.error('error fetching stored data', err);
-    storedData = null;
+    retrievedStoredData = null;
   }
 
-  if (storedData === null) {
-    storedData = {
-      foodFactor: 0,
-      luckFactor: 0,
-      energyFactor: 0,
-      styleFactor: 0,
-      distractionCounter: 0,
-      startledCounter: 0,
-      hasConfidence: false,
-      mercyFactor: 0,
-      sluggishCarryover: false,
-      processedReceivedItemCount: 0,
-      currentLocation: defs.startLocation,
-      previousTargetLocationEvidence: null,
-      auraDrivenLocations: [],
-      userRequestedLocations: [],
-    };
+  const validatedStoredDataParts: Partial<AutopelagoStoredData> = { };
+  if (typeof retrievedStoredData === 'object' && retrievedStoredData !== null) {
+    trySetNumberProp(retrievedStoredData, 'foodFactor', validatedStoredDataParts, n => !Number.isNaN(n));
+    trySetNumberProp(retrievedStoredData, 'luckFactor', validatedStoredDataParts, n => !Number.isNaN(n));
+    trySetNumberProp(retrievedStoredData, 'energyFactor', validatedStoredDataParts, n => !Number.isNaN(n));
+    trySetNumberProp(retrievedStoredData, 'styleFactor', validatedStoredDataParts, n => n >= 0);
+    trySetNumberProp(retrievedStoredData, 'distractionCounter', validatedStoredDataParts, n => n >= 0 && n <= 3);
+    trySetNumberProp(retrievedStoredData, 'startledCounter', validatedStoredDataParts, n => n >= 0 && n <= 3);
+    trySetBooleanProp(retrievedStoredData, 'hasConfidence', validatedStoredDataParts);
+    trySetNumberProp(retrievedStoredData, 'mercyFactor', validatedStoredDataParts, n => n >= 0);
+    trySetBooleanProp(retrievedStoredData, 'sluggishCarryover', validatedStoredDataParts);
+    trySetNumberProp(retrievedStoredData, 'processedReceivedItemCount', validatedStoredDataParts, n => n >= 0);
+    trySetNumberProp(retrievedStoredData, 'currentLocation', validatedStoredDataParts, n => n >= 0 && n < defs.allLocations.length);
+    trySetArrayProp(retrievedStoredData, 'auraDrivenLocations', validatedStoredDataParts, n => typeof n === 'number' && n >= 0 && n < defs.allLocations.length);
+    trySetArrayProp(retrievedStoredData, 'userRequestedLocations', validatedStoredDataParts, n =>
+      typeof n === 'object'
+      && n !== null
+      && 'location' in n
+      && 'userSlot' in n
+      && typeof n.location === 'number'
+      && typeof n.userSlot === 'number'
+      && n.location >= 0 && n.location < defs.allLocations.length
+      && n.userSlot >= 0 && n.userSlot < client.players.teams[client.players.self.team].length,
+    );
+  }
+
+  const storedData: AutopelagoStoredData = {
+    ...defaultStoredData,
+    currentLocation: defs.startLocation,
+    ...validatedStoredDataParts,
+  };
+
+  if (retrievedStoredData === null) {
     await client.storage
       .prepare(storedDataKey, storedData)
       .replace(storedData)

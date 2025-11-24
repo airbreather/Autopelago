@@ -2,29 +2,12 @@ import { ChangeDetectionStrategy, Component, effect, inject, signal } from '@ang
 
 import { disabled, Field, form, max, min, required } from '@angular/forms/signals';
 import { Router } from '@angular/router';
+import { trySetBooleanProp, trySetNumberProp, trySetStringProp } from '../hardened-state-propagation';
 import {
   CONNECT_SCREEN_STATE_DEFAULTS,
   type ConnectScreenState,
   queryParamsFromConnectScreenState,
 } from './connect-screen-state';
-
-function trySetStringProp<TKey extends string | number | symbol>(source: Partial<Record<TKey, unknown>>, key: TKey, target: Partial<Record<TKey, string>>) {
-  if (key in source && typeof source[key] === 'string') {
-    target[key] = source[key];
-  }
-}
-
-function trySetNumberProp<TKey extends string | number | symbol>(source: Partial<Record<TKey, unknown>>, key: TKey, target: Partial<Record<TKey, number>>) {
-  if (key in source && typeof source[key] === 'number') {
-    target[key] = source[key];
-  }
-}
-
-function trySetBooleanProp<TKey extends string | number | symbol>(source: Partial<Record<TKey, unknown>>, key: TKey, target: Partial<Record<TKey, boolean>>) {
-  if (key in source && typeof source[key] === 'boolean') {
-    target[key] = source[key];
-  }
-}
 
 // Local storage key
 const STORAGE_KEY = 'autopelago-connect-screen-state';
