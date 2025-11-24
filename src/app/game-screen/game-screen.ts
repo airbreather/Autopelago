@@ -86,34 +86,36 @@ export class GameScreen {
   });
 
   constructor() {
+    let nextTimeoutDuration = 500;
+    let prevTimeout = NaN;
     this.#destroyRef.onDestroy(() => {
       if (this.#activeToast !== null) {
         this.#toast.remove(this.#activeToast.toastId);
         this.#activeToast = null;
       }
-    });
-    let nextTimeoutDuration = 500;
-    let prevTimeout = NaN;
-    effect(() => {
+      this.#toast.clear();
       if (!Number.isNaN(prevTimeout)) {
         clearTimeout(prevTimeout);
         prevTimeout = NaN;
         nextTimeoutDuration = 500;
       }
+    });
+    effect(() => {
+      if (this.game.isLoading()) {
+        return;
+      }
 
       if (this.game.value()) {
+        if (!Number.isNaN(prevTimeout)) {
+          clearTimeout(prevTimeout);
+          prevTimeout = NaN;
+          nextTimeoutDuration = 500;
+        }
         return;
       }
 
-      if (this.game.error()) {
-        prevTimeout = setTimeout(() => this.game.reload(), nextTimeoutDuration);
-        nextTimeoutDuration = Math.min(nextTimeoutDuration * 1.3, 30000);
-        return;
-      }
-
-      if (!this.game.isLoading()) {
-        this.game.reload();
-      }
+      prevTimeout = setTimeout(() => this.game.reload(), nextTimeoutDuration);
+      nextTimeoutDuration = Math.min(nextTimeoutDuration * 1.2, 30000);
     });
     effect(() => {
       const game = this.game.value();
