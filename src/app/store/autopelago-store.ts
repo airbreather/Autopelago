@@ -104,10 +104,23 @@ export const GameStore = signalStore(
           return;
         }
 
-        if (store.checkedLocations().has(store.victoryLocation())) {
-          game.client.goal();
-          goalEffect.destroy();
+        const sampleMessage = store.sampleMessage().forEnterGoMode;
+        if (sampleMessage === null) {
+          return;
         }
+
+        if (!store.checkedLocations().has(store.victoryLocation())) {
+          return;
+        }
+
+        game.client.goal();
+        const { sendChatMessages, forOneTimeEvents } = game.connectScreenState;
+        if (sendChatMessages && forOneTimeEvents) {
+          const message = sampleMessage(Math.random());
+          patchState(store, ({ outgoingMessages }) => ({ outgoingMessages: outgoingMessages.push(message) }));
+        }
+
+        goalEffect.destroy();
       });
 
       effect(() => {
