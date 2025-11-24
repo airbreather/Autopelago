@@ -580,6 +580,17 @@ export function withGameState() {
                     if (include[loc]) {
                       include[loc] = 0;
                       a.push(loc);
+                      patchState(store, ({ outgoingMessages }) => {
+                        const message = store.sampleMessage().forChangedTarget(Math.random());
+                        if (message === null) {
+                          return {};
+                        }
+
+                        const locationName = allLocations[loc].name;
+                        return {
+                          outgoingMessages: outgoingMessages.push(message.replaceAll('{LOCATION}', locationName)),
+                        };
+                      });
                       break;
                     }
 
