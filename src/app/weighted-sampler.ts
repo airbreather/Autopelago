@@ -7,7 +7,7 @@ export function toWeighted<T>(msg: (readonly [T, number])[]): readonly Weighted<
   return msg.map(([item, weight]) => ({ item, weight }));
 }
 
-export function createWeightedSampler<T>(weightedItems: Iterable<Weighted<T>>): (this: void, roll: number) => (T | null) {
+export function createWeightedSampler<T>(weightedItems: Iterable<Weighted<T>>): ((this: void, roll: number) => T) | null {
   const items: T[] = [];
   const weights: number[] = [];
   let sum = 0;
@@ -21,7 +21,7 @@ export function createWeightedSampler<T>(weightedItems: Iterable<Weighted<T>>): 
     items.push(item);
   }
   if (items.length === 0) {
-    return () => null;
+    return null;
   }
 
   let prev = 0;
@@ -33,7 +33,7 @@ export function createWeightedSampler<T>(weightedItems: Iterable<Weighted<T>>): 
 
   return (n: number) => {
     if (!(n >= 0 && n < 1)) {
-      return null;
+      throw new Error(`Invalid roll value: ${n.toString()}`);
     }
 
     let lo = 0;

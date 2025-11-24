@@ -138,6 +138,109 @@ export const GameStore = signalStore(
           };
         });
       });
+      effect(() => {
+        const game = store.game();
+        if (game === null) {
+          return;
+        }
+
+        const { allLocations } = store.defs();
+        const sampleMessage = store.sampleMessage().forChangedTarget;
+        if (sampleMessage === null) {
+          return;
+        }
+
+        patchState(store, ({ auraDrivenLocations, processedAuraDrivenLocationCount, outgoingMessages }) => {
+          if (processedAuraDrivenLocationCount >= auraDrivenLocations.size) {
+            return { };
+          }
+
+          const { sendChatMessages, whenTargetChanges } = game.connectScreenState;
+          if (!(sendChatMessages && whenTargetChanges)) {
+            return {
+              processedAuraDrivenLocationCount: auraDrivenLocations.size,
+            };
+          }
+
+          return {
+            processedAuraDrivenLocationCount: auraDrivenLocations.size,
+            outgoingMessages: outgoingMessages.withMutations((messages) => {
+              for (const loc of auraDrivenLocations.skip(processedAuraDrivenLocationCount)) {
+                messages.push(sampleMessage(loc).replaceAll('{LOCATION}', allLocations[loc].name));
+              }
+            }),
+          };
+        });
+      });
+      const reportGoMode = effect(() => {
+        const game = store.game();
+        if (game === null) {
+          return;
+        }
+
+        const { sendChatMessages, forOneTimeEvents } = game.connectScreenState;
+        if (!(sendChatMessages && forOneTimeEvents)) {
+          return;
+        }
+
+        if (store.targetLocationReason() !== 'go-mode') {
+          return;
+        }
+
+        const sampleMessage = store.sampleMessage().forEnterGoMode;
+        if (sampleMessage === null) {
+          return;
+        }
+        const message = sampleMessage(Math.random());
+        patchState(store, ({ outgoingMessages }) => ({ outgoingMessages: outgoingMessages.push(message) }));
+        reportGoMode.destroy();
+      });
+      let prevInterval: number | null = null;
+      effect(() => {
+        const game = store.game();
+        if (game === null) {
+          return;
+        }
+
+        const { forEnterBK, forRemindBK, forExitBK } = store.sampleMessage();
+        if (forEnterBK === null || forRemindBK === null || forExitBK === null) {
+          return;
+        }
+
+        const { sendChatMessages, whenBecomingBlocked, whenStillBlocked, whenBecomingUnblocked } = game.connectScreenState;
+        if (!sendChatMessages) {
+          return;
+        }
+
+        if (store.targetLocationReason() !== 'nowhere-useful-to-move') {
+          if (prevInterval !== null) {
+            clearInterval(prevInterval);
+            prevInterval = null;
+            if (whenBecomingUnblocked) {
+              patchState(store, ({ outgoingMessages }) => ({
+                outgoingMessages: outgoingMessages.push(forExitBK(Math.random())),
+              }));
+            }
+          }
+
+          return;
+        }
+
+        if (whenBecomingBlocked) {
+          patchState(store, ({ outgoingMessages }) => ({
+            outgoingMessages: outgoingMessages.push(forEnterBK(Math.random())),
+          }));
+        }
+
+        // not sure why it wouldn't be null here, but it would really suck if I didn't check.
+        prevInterval ??= setInterval(() => {
+          if (whenStillBlocked) {
+            patchState(store, ({ outgoingMessages }) => ({
+              outgoingMessages: outgoingMessages.push(forRemindBK(Math.random())),
+            }));
+          }
+        }, 15 * 60 * 1000);
+      });
     },
   }),
 );

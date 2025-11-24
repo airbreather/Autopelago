@@ -7,9 +7,10 @@ function valsForWeights(weights: readonly number[]) {
 
 function getSamples(vals: ReturnType<typeof valsForWeights>, rolls: readonly number[]) {
   const sampler = createWeightedSampler(vals);
+  expect(sampler).not.toBeNull();
   const result = Array<number>(rolls.length);
   for (const [i, roll] of rolls.entries()) {
-    result[i] = sampler(roll) ?? NaN;
+    result[i] = sampler?.(roll) ?? NaN;
   }
   return result.sort();
 }

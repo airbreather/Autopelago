@@ -65,7 +65,6 @@ export async function initializeClient(initializeClientOptions: InitializeClient
 
   if (storedData === null) {
     storedData = {
-      workDone: NaN,
       foodFactor: 0,
       luckFactor: 0,
       energyFactor: 0,

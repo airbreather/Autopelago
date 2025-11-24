@@ -875,7 +875,6 @@ function initialGameStateFor(victoryLocationYamlKey: VictoryLocationYamlKey): Pa
     sluggishCarryover: false,
     processedReceivedItemCount: 0,
     currentLocation: defs.startLocation,
-    workDone: 0,
   };
 }
 

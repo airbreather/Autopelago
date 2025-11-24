@@ -142,8 +142,8 @@ const initialState: DefiningGameState = {
   sluggishCarryover: false,
   processedReceivedItemCount: NaN,
   currentLocation: -1,
-  workDone: NaN,
   auraDrivenLocations: List<number>(),
+  processedAuraDrivenLocationCount: 0,
   userRequestedLocations: List<Readonly<UserRequestedLocation>>(),
   previousTargetLocationEvidence: {
     isStartled: false,
@@ -360,8 +360,8 @@ export function withGameState() {
         sluggishCarryover: store.sluggishCarryover(),
         processedReceivedItemCount: store.processedReceivedItemCount(),
         currentLocation: store.currentLocation(),
-        workDone: store.workDone(),
         auraDrivenLocations: store.auraDrivenLocations().toJS(),
+        processedAuraDrivenLocationCount: store.processedAuraDrivenLocationCount(),
         userRequestedLocations: store.userRequestedLocations().toJS().map(l => ({
           location: l.location,
           userSlot: l.userSlot,
@@ -580,17 +580,6 @@ export function withGameState() {
                     if (include[loc]) {
                       include[loc] = 0;
                       a.push(loc);
-                      patchState(store, ({ outgoingMessages }) => {
-                        const message = store.sampleMessage().forChangedTarget(Math.random());
-                        if (message === null) {
-                          return {};
-                        }
-
-                        const locationName = allLocations[loc].name;
-                        return {
-                          outgoingMessages: outgoingMessages.push(message.replaceAll('{LOCATION}', locationName)),
-                        };
-                      });
                       break;
                     }
 
@@ -1032,20 +1021,6 @@ export function withGameState() {
           if (uncheckedAuraDrivenLocations.size !== auraDrivenLocations.size) {
             patchState(store, { auraDrivenLocations: uncheckedAuraDrivenLocations });
           }
-        });
-        const reportGoMode = effect(() => {
-          if (!(store.currentLocation() >= 0)) {
-            return;
-          }
-          if (store.targetLocationReason() !== 'go-mode') {
-            return;
-          }
-          const message = store.sampleMessage().forEnterGoMode(Math.random());
-          if (message === null) {
-            return;
-          }
-          patchState(store, ({ outgoingMessages }) => ({ outgoingMessages: outgoingMessages.push(message) }));
-          reportGoMode.destroy();
         });
       },
     }),
