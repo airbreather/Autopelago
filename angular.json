@@ -70,10 +70,6 @@
               "node_modules/normalize.css/normalize.css",
               "src/styles.scss"
             ],
-            "externalDependencies": [
-              "pixi.js",
-              "pixi-filters"
-            ],
             "index": {
               "input": "src/index.html",
               "preloadInitial": false
@@ -93,6 +89,7 @@
                   "maximumError": "8kB"
                 }
               ],
+              "namedChunks": true,
               "outputHashing": "all",
               "optimization": {
                 "styles": {
