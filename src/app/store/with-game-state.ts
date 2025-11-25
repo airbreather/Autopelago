@@ -563,15 +563,12 @@ export function withGameState() {
             result.auraDrivenLocations = result.auraDrivenLocations.withMutations((a) => {
               result.receivedItems = prev.receivedItems.withMutations((r) => {
                 const locs = allLocations;
-                const validProgressionItems = new BitArray(prev.locationIsProgression);
-                const validTrapItems = new BitArray(prev.locationIsTrap);
-                for (const loc of [...prev.checkedLocations, ...prev.auraDrivenLocations]) {
-                  validProgressionItems[loc] = 0;
-                  validTrapItems[loc] = 0;
-                }
-                function addLocation(include: BitArray) {
+                const checkedLocations = store.checkedLocations();
+                let auraDrivenLocationsSet: Set<number> | null = null;
+                let visitedProgression: BitArray | null = null;
+                let visitedTrap: BitArray | null = null;
+                function addLocation(include: Readonly<BitArray>, visited: BitArray) {
                   const { regionIsHardLocked } = store._regionLocks();
-                  const visited = new BitArray(include.length);
                   const q = new Queue<number>();
 
                   function tryEnqueue(loc: number) {
@@ -588,9 +585,9 @@ export function withGameState() {
 
                   tryEnqueue(prev.currentLocation);
                   for (let loc = q.dequeue(); loc !== undefined; loc = q.dequeue()) {
-                    if (include[loc]) {
-                      include[loc] = 0;
+                    if (include[loc] && !checkedLocations.has(loc) && !(auraDrivenLocationsSet ??= new Set(a)).has(loc)) {
                       a.push(loc);
+                      auraDrivenLocationsSet.add(loc);
                       break;
                     }
 
@@ -678,7 +675,7 @@ export function withGameState() {
                         break;
 
                       case 'smart':
-                        addLocation(validProgressionItems);
+                        addLocation(prev.locationIsProgression, visitedProgression ??= new BitArray(locs.length));
                         break;
 
                       case 'conspiratorial':
@@ -686,7 +683,7 @@ export function withGameState() {
                           subtractConfidence = true;
                         }
                         else {
-                          addLocation(validTrapItems);
+                          addLocation(prev.locationIsTrap, visitedTrap ??= new BitArray(locs.length));
                         }
                         break;
 
