@@ -90,7 +90,7 @@ import { GameStore } from '../../../../store/autopelago-store';
       background-color: #333333;
       border: 1px solid #666666;
       border-radius: 4px;
-      overflow: hidden;
+      overflow-y: hidden;
       margin-left: 5px;
       margin-right: 5px;
     }

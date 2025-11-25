@@ -32,7 +32,7 @@ import { StatusDisplay } from './status-display/status-display';
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <div #outer class="outer">
-      <as-split unit="pixel" direction="horizontal"
+      <as-split unit="pixel" direction="horizontal" (dragEnd)="onSplitDragEnd($event.sizes[0])"
                 gutterDblClickDuration="500" (gutterDblClick)="onGutterDblClick()">
             <as-split-area class="left" [size]="leftSize()" [minSize]="minSize()" [maxSize]="maxSize()">
               <app-status-display [game]="game()" />
@@ -100,6 +100,12 @@ export class GameContent {
     effect(() => {
       this.#sendUpdates();
     });
+  }
+
+  onSplitDragEnd(leftSize: number | '*') {
+    if (leftSize !== '*') {
+      this.#store.updateLeftSize(leftSize);
+    }
   }
 
   onGutterDblClick() {
