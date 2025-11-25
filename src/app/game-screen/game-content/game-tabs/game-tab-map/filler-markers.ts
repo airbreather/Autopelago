@@ -12,7 +12,8 @@ import {
   type VictoryLocationYamlKey,
 } from '../../../../data/resolved-definitions';
 import type { GameStore } from '../../../../store/autopelago-store';
-import { strictObjectEntries } from '../../../../util';
+
+import { strictObjectEntries } from '../../../../utils/types';
 
 export interface CreateFillerMarkersOptions {
   store: InstanceType<typeof GameStore>;

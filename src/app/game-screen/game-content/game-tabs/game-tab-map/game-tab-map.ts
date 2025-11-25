@@ -15,8 +15,8 @@ import {
 import { Application, Ticker } from 'pixi.js';
 import { VICTORY_LOCATION_CROP_LOOKUP } from '../../../../data/resolved-definitions';
 import type { AutopelagoClientAndData } from '../../../../data/slot-data';
-import { elementSizeSignal } from '../../../../element-size';
 import { GameStore } from '../../../../store/autopelago-store';
+import { elementSizeSignal } from '../../../../utils/element-size';
 import { createFillerMarkers } from './filler-markers';
 import { createLandmarkMarkers } from './landmark-markers';
 import { createPlayerToken } from './player-token';

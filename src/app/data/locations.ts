@@ -1,4 +1,4 @@
-import { stricterObjectFromEntries, strictObjectEntries } from '../util';
+import { stricterObjectFromEntries, strictObjectEntries } from '../utils/types';
 
 import * as baked from './baked.json';
 

@@ -4,7 +4,7 @@ import rand from 'pure-rand';
 
 import type { AutopelagoBuff, AutopelagoTrap, VictoryLocationYamlKey } from '../data/resolved-definitions';
 import type { UserRequestedLocation } from '../data/slot-data';
-import type { Weighted } from '../weighted-sampler';
+import type { Weighted } from '../utils/weighted-sampler';
 import type { TargetLocationEvidence } from './target-location-evidence';
 
 export interface DefiningGameState {

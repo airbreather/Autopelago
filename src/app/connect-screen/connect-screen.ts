@@ -2,7 +2,7 @@ import { ChangeDetectionStrategy, Component, effect, inject, signal } from '@ang
 
 import { disabled, Field, form, max, min, required } from '@angular/forms/signals';
 import { Router } from '@angular/router';
-import { trySetBooleanProp, trySetNumberProp, trySetStringProp } from '../hardened-state-propagation';
+import { trySetBooleanProp, trySetNumberProp, trySetStringProp } from '../utils/hardened-state-propagation';
 import {
   CONNECT_SCREEN_STATE_DEFAULTS,
   type ConnectScreenState,

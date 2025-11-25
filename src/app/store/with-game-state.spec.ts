@@ -16,7 +16,7 @@ import {
   type VictoryLocationYamlKey,
 } from '../data/resolved-definitions';
 import type { DefiningGameState } from '../game/defining-state';
-import { type Mutable, stricterObjectFromEntries, strictObjectEntries } from '../util';
+import { type Mutable, stricterObjectFromEntries, strictObjectEntries } from '../utils/types';
 import { withGameState } from './with-game-state';
 
 const singleAuraItems = stricterObjectFromEntries(

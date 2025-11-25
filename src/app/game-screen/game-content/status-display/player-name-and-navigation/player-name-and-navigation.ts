@@ -13,7 +13,7 @@ import { RouterLink } from '@angular/router';
 import type { Player } from 'archipelago.js';
 import type { AutopelagoClientAndData } from '../../../../data/slot-data';
 
-import { resizeText } from '../../../../resize-text';
+import { resizeText } from '../../../../utils/resize-text';
 
 @Component({
   selector: 'app-player-name-and-navigation',

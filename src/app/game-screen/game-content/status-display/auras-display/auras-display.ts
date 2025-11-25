@@ -1,7 +1,7 @@
 import { ChangeDetectionStrategy, Component, computed, ElementRef, inject, signal, viewChild } from '@angular/core';
 
-import { resizeText } from '../../../../resize-text';
 import { GameStore } from '../../../../store/autopelago-store';
+import { resizeText } from '../../../../utils/resize-text';
 
 @Component({
   selector: 'app-auras-display',

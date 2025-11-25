@@ -8,7 +8,7 @@ import {
   BAKED_DEFINITIONS_FULL,
 } from '../data/resolved-definitions';
 import type { UserRequestedLocation } from '../data/slot-data';
-import type { EnumVal } from '../util';
+import type { EnumVal } from '../utils/types';
 
 export function buildRequirementIsSatisfied(relevantItemCount: readonly number[]): (req: AutopelagoRequirement) => boolean {
   const allItems = BAKED_DEFINITIONS_FULL.allItems;

@@ -5,7 +5,7 @@ import { List } from 'immutable';
 import type { Message } from '../archipelago-client';
 import type { ConnectScreenState } from '../connect-screen/connect-screen-state';
 import type { TargetLocationEvidence } from '../game/target-location-evidence';
-import type { ToJSONSerializable } from '../util';
+import type { ToJSONSerializable } from '../utils/types';
 import type {
   AutopelagoAura,
   AutopelagoBuff,

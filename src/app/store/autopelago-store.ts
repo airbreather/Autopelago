@@ -10,7 +10,7 @@ import {
 } from '../data/resolved-definitions';
 import type { AutopelagoClientAndData } from '../data/slot-data';
 import { targetLocationEvidenceFromJSONSerializable } from '../game/target-location-evidence';
-import { toWeighted } from '../weighted-sampler';
+import { toWeighted } from '../utils/weighted-sampler';
 import { withCleverTimer } from './with-clever-timer';
 import { withGameState } from './with-game-state';
 

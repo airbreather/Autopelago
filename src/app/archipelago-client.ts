@@ -15,7 +15,7 @@ import type {
   AutopelagoStoredData,
   UserRequestedLocation,
 } from './data/slot-data';
-import { trySetArrayProp, trySetBooleanProp, trySetNumberProp } from './hardened-state-propagation';
+import { trySetArrayProp, trySetBooleanProp, trySetNumberProp } from './utils/hardened-state-propagation';
 
 export interface InitializeClientOptions {
   connectScreenState: ConnectScreenState;

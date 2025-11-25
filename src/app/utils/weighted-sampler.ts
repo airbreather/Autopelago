@@ -1,4 +1,4 @@
-import { binarySearch } from './util';
+import { binarySearch } from './binary-search';
 
 export interface Weighted<T> {
   weight: number;

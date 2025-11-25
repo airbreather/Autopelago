@@ -29,8 +29,8 @@ import {
   targetLocationEvidenceEquals,
   targetLocationEvidenceToJSONSerializable,
 } from '../game/target-location-evidence';
-import { type EnumVal, type Mutable } from '../util';
-import { createWeightedSampler } from '../weighted-sampler';
+import type { EnumVal, Mutable } from '../utils/types';
+import { createWeightedSampler } from '../utils/weighted-sampler';
 
 const importMeta = import.meta as (ImportMeta & { env?: Partial<Record<string, unknown>> });
 const IS_VITEST = ('env' in importMeta) && ('VITEST' in importMeta.env);

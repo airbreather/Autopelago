@@ -11,9 +11,9 @@ import {
 
 import { SplitAreaComponent, SplitComponent } from 'angular-split';
 import type { AutopelagoClientAndData } from '../../data/slot-data';
-import { elementSizeSignal } from '../../element-size';
 import { GameStore } from '../../store/autopelago-store';
 import { GameScreenStore } from '../../store/game-screen-store';
+import { elementSizeSignal } from '../../utils/element-size';
 import { GameTabs } from './game-tabs/game-tabs';
 import { StatusDisplay } from './status-display/status-display';
 

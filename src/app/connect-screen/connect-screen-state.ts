@@ -1,5 +1,5 @@
 import type { ParamMap } from '@angular/router';
-import type { SymmetricPropertiesOf, TypeAssert } from '../util';
+import type { SymmetricPropertiesOf, TypeAssert } from '../utils/types';
 
 const QUERY_PARAM_NAME_MAP = {
   host: 'h',

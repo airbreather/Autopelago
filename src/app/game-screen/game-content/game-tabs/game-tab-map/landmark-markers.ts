@@ -4,7 +4,7 @@ import { AnimatedSprite, Assets, Container, Sprite, Spritesheet, type Spriteshee
 import { LANDMARKS, type LandmarkYamlKey } from '../../../../data/locations';
 import { BAKED_DEFINITIONS_BY_VICTORY_LANDMARK } from '../../../../data/resolved-definitions';
 import type { GameStore } from '../../../../store/autopelago-store';
-import { strictObjectEntries } from '../../../../util';
+import { strictObjectEntries } from '../../../../utils/types';
 
 export interface CreateLandmarkMarkersOptions {
   store: InstanceType<typeof GameStore>;

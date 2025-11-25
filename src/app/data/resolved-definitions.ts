@@ -1,9 +1,12 @@
 import BitArray from '@bitarray/typedarray';
 import { itemClassifications } from 'archipelago.js';
 import Queue from 'yocto-queue';
-import { MapByCaseInsensitiveString, type ReadonlyMapByCaseInsensitiveString } from '../map-by-case-insensitive-string';
+import {
+  MapByCaseInsensitiveString,
+  type ReadonlyMapByCaseInsensitiveString,
+} from '../utils/map-by-case-insensitive-string';
 
-import { stricterIsArray, strictObjectEntries } from '../util';
+import { stricterIsArray, strictObjectEntries } from '../utils/types';
 
 import * as baked from './baked.json';
 import {

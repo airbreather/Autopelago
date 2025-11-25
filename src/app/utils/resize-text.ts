@@ -1,5 +1,5 @@
 import { type CreateEffectOptions, effect, ElementRef, type Signal } from '@angular/core';
-import { binarySearch } from './util';
+import { binarySearch } from './binary-search';
 
 export interface ResizeTextOptions {
   outer: Signal<ElementRef<HTMLElement>>;

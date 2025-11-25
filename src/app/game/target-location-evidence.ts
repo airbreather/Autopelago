@@ -1,6 +1,6 @@
 import { List } from 'immutable';
 import type { UserRequestedLocation } from '../data/slot-data';
-import type { ToJSONSerializable } from '../util';
+import type { ToJSONSerializable } from '../utils/types';
 
 interface Startled {
   isStartled: true;
