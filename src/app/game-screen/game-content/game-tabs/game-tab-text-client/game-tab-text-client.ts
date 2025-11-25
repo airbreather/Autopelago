@@ -9,45 +9,47 @@ import type { AutopelagoClientAndData } from '../../../../data/slot-data';
   template: `
     <div class="outer">
       <div class="filler"></div>
-      @for (message of game().messageLog(); track $index) {
-        <p class="message">
-          [<time [dateTime]="message.ts.toISOString()">{{ dateFormatter.format(message.ts) }}</time>]
-          @for (messageNode of message.nodes; track $index) {
-            <!--
-              Follow Yacht Dice:
-              https://github.com/spinerak/YachtDiceAP/blob/936dde8034a88b653b71a2d653467203ea781d41/index.html#L4517-L4591
-            -->
-            @switch (messageNode.type) {
-              @case ('entrance') {
-                <span class="entrance-message-part">{{ messageNode.text }}</span>
-              }
-              @case ('player') {
-                <span class="player-message-part" [class.own-player-message]="'player' in messageNode ? messageNode.player.name === ownName() : null">{{ messageNode.text }}</span>
-              }
-              @case ('item') {
-                <span class="item-message-part"
-                      [class.progression]="'item' in messageNode ? messageNode.item.progression : null"
-                      [class.filler]="'item' in messageNode ? messageNode.item.filler : null"
-                      [class.useful]="'item' in messageNode ? messageNode.item.useful : null"
-                      [class.trap]="'item' in messageNode ? messageNode.item.trap : null">{{ messageNode.text }}</span>
-              }
-              @case ('location') {
-                <span class="location-message-part">{{ messageNode.text }}</span>
-              }
-              @case ('color') {
-                <!--
-                  not really correct, but technically the only color nodes the server returns is "green" or "red"
-                  so it's fine enough for an example.
-                -->
-                <span [style.color]="'color' in messageNode ? messageNode.color : null">{{ messageNode.text }}</span>
-              }
-              @default {
-                <span [class.server-message]="message.type === 'serverChat'">{{ messageNode.text }}</span>
+      <div class="messages">
+        @for (message of game().messageLog().reverse(); track $index) {
+          <p class="message">
+            [<time [dateTime]="message.ts.toISOString()">{{ dateFormatter.format(message.ts) }}</time>]
+            @for (messageNode of message.nodes; track $index) {
+              <!--
+                Follow Yacht Dice:
+                https://github.com/spinerak/YachtDiceAP/blob/936dde8034a88b653b71a2d653467203ea781d41/index.html#L4517-L4591
+              -->
+              @switch (messageNode.type) {
+                @case ('entrance') {
+                  <span class="entrance-message-part">{{ messageNode.text }}</span>
+                }
+                @case ('player') {
+                  <span class="player-message-part" [class.own-player-message]="'player' in messageNode ? messageNode.player.name === ownName() : null">{{ messageNode.text }}</span>
+                }
+                @case ('item') {
+                  <span class="item-message-part"
+                        [class.progression]="'item' in messageNode ? messageNode.item.progression : null"
+                        [class.filler]="'item' in messageNode ? messageNode.item.filler : null"
+                        [class.useful]="'item' in messageNode ? messageNode.item.useful : null"
+                        [class.trap]="'item' in messageNode ? messageNode.item.trap : null">{{ messageNode.text }}</span>
+                }
+                @case ('location') {
+                  <span class="location-message-part">{{ messageNode.text }}</span>
+                }
+                @case ('color') {
+                  <!--
+                    not really correct, but technically the only color nodes the server returns is "green" or "red"
+                    so it's fine enough for an example.
+                  -->
+                  <span [style.color]="'color' in messageNode ? messageNode.color : null">{{ messageNode.text }}</span>
+                }
+                @default {
+                  <span [class.server-message]="message.type === 'serverChat'">{{ messageNode.text }}</span>
+                }
               }
             }
-          }
-        </p>
-      }
+          </p>
+        }
+      </div>
 
       <form class="message-send-form" (submit)="onSend($event)">
         <input #txt class="message-send-box" type="text" [value]="messageToSend()" (input)="messageToSend.set(txt.value)" />
@@ -60,7 +62,15 @@ import type { AutopelagoClientAndData } from '../../../../data/slot-data';
       display: flex;
       flex-direction: column;
       height: 100%;
+      width: 100%;
       --font-family: sans-serif;
+    }
+
+    .messages {
+      display: flex;
+      flex-direction: column-reverse;
+      overflow-y: auto;
+      width: 100%;
     }
 
     .filler {
@@ -71,7 +81,7 @@ import type { AutopelagoClientAndData } from '../../../../data/slot-data';
       flex: 0;
       margin-block-start: 0;
       margin-block-end: 0;
-      white-space: pre;
+      white-space: preserve wrap;
     }
 
     .server-message {
