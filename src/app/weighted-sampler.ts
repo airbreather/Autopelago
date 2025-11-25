@@ -1,3 +1,5 @@
+import { binarySearch } from './util';
+
 export interface Weighted<T> {
   weight: number;
   item: T;
@@ -36,17 +38,6 @@ export function createWeightedSampler<T>(weightedItems: Iterable<Weighted<T>>): 
       throw new Error(`Invalid roll value: ${n.toString()}`);
     }
 
-    let lo = 0;
-    let hi = weights.length - 1;
-    while (lo <= hi) {
-      const mid = (hi + lo) >>> 1;
-      if (weights[mid] <= n) {
-        lo = mid + 1;
-      }
-      else {
-        hi = mid - 1;
-      }
-    }
-    return items[lo];
+    return items[binarySearch(weights, n)];
   };
 }

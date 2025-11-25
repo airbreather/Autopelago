@@ -38,6 +38,12 @@ import { resizeText } from '../../../../resize-text';
 
     .player-name {
       font-size: 50px;
+      white-space: nowrap;
+    }
+
+    .return-button {
+      font-size: 30px;
+      white-space: nowrap;
     }
   `,
 })
@@ -55,8 +61,8 @@ export class PlayerNameAndNavigation {
   readonly returnButtonElement = viewChild.required<ElementRef<HTMLElement>>('returnButton');
 
   constructor() {
-    resizeText({ outer: this.outerElement, inner: this.playerNameElement, max: 50 });
-    resizeText({ outer: this.outerElement, inner: this.returnButtonElement, max: 30 });
+    resizeText({ outer: this.outerElement, inner: this.playerNameElement, text: this.playerName, max: 50 });
+    resizeText({ outer: this.outerElement, inner: this.returnButtonElement, text: computed(() => 'Back to Main Menu'), max: 30 });
 
     effect((onCleanup) => {
       const { client } = this.game();

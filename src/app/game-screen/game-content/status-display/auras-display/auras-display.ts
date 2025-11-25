@@ -9,7 +9,7 @@ import { GameStore } from '../../../../store/autopelago-store';
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <details #outer class="outer" open>
-      <summary #ratCountElement class="rat-count">RATS: {{ ratCount() }}</summary>
+      <summary #ratCountElement class="rat-count">{{ ratCountText() }}</summary>
       <div class="bulk-auras">
         <span class="bar-label">Food</span>
         <div class="bar-track">
@@ -176,6 +176,7 @@ export class AurasDisplay {
   readonly ratCountElement = viewChild.required<ElementRef<HTMLElement>>('ratCountElement');
 
   readonly ratCount = this.#gameStore.ratCount;
+  readonly ratCountText = computed(() => `RATS: ${this.ratCount().toString()}`);
 
   readonly food = this.#gameStore.foodFactor;
   readonly energy = this.#gameStore.energyFactor;
@@ -204,6 +205,7 @@ export class AurasDisplay {
   });
 
   constructor() {
-    resizeText({ outer: this.outerElement, inner: this.ratCountElement, max: 30 });
+    const ratCountTextWithMarker = computed(() => `▼${this.ratCountText()}`);
+    resizeText({ outer: this.outerElement, inner: this.ratCountElement, text: ratCountTextWithMarker, max: 30 });
   }
 }

@@ -1,16 +1,30 @@
 import { type CreateEffectOptions, effect, ElementRef, type Signal } from '@angular/core';
+import { binarySearch } from './util';
 
 export interface ResizeTextOptions {
   outer: Signal<ElementRef<HTMLElement>>;
   inner: Signal<ElementRef<HTMLElement>>;
+  text: Signal<string>;
   max: number;
   createEffectOptions?: CreateEffectOptions;
 }
 
-export function resizeText({ outer, inner, max, createEffectOptions }: ResizeTextOptions) {
+export function resizeText({ outer, inner, text, max, createEffectOptions }: ResizeTextOptions) {
   effect((onCleanup) => {
     const outerElement = outer().nativeElement;
     const innerElement = inner().nativeElement;
+    const { paddingLeft, paddingRight } = getComputedStyle(innerElement);
+    const canvas = new OffscreenCanvas(9999, 9999);
+    const ctx = canvas.getContext('2d');
+    if (!ctx) {
+      return;
+    }
+    const sizes = Array<number>((max * 2) + 1).fill(parseInt(paddingLeft) + parseInt(paddingRight) + 5);
+    const t = text();
+    for (let i = 0; i < sizes.length; i++) {
+      ctx.font = `${(i / 2).toString()}px PublicPixel`;
+      sizes[i] += ctx.measureText(t).width;
+    }
     let prevTimeout: number | null = null;
     const obs = new ResizeObserver(() => {
       if (prevTimeout !== null) {
@@ -18,7 +32,8 @@ export function resizeText({ outer, inner, max, createEffectOptions }: ResizeTex
       }
 
       prevTimeout = setTimeout(() => {
-        fitTextToContainer(innerElement, outerElement, max);
+        const i = binarySearch(sizes, outerElement.clientWidth);
+        innerElement.style.fontSize = `${(i / 2).toString()}px`;
       }, 0);
     });
     obs.observe(outerElement);
@@ -26,23 +41,4 @@ export function resizeText({ outer, inner, max, createEffectOptions }: ResizeTex
       obs.unobserve(outerElement);
     });
   }, createEffectOptions);
-}
-
-function fitTextToContainer(inner: HTMLElement, outer: HTMLElement, max: number) {
-  let fontSize = window.getComputedStyle(inner).fontSize;
-
-  while (inner.scrollWidth <= outer.clientWidth) {
-    const fontSizeNum = Math.min(max, Number(/^\d+/.exec(fontSize)) + 5);
-    if (fontSizeNum >= max) {
-      break;
-    }
-
-    fontSize = fontSize.replace(/^\d+/, fontSizeNum.toString());
-    inner.style.fontSize = fontSize;
-  }
-
-  while (inner.scrollWidth > outer.clientWidth) {
-    fontSize = fontSize.replace(/^\d+/, s => (Number(s) - 1).toString());
-    inner.style.fontSize = fontSize;
-  }
 }
