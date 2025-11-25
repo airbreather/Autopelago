@@ -2,11 +2,13 @@ import {
   ChangeDetectionStrategy,
   Component,
   computed,
+  DestroyRef,
   effect,
   ElementRef,
   inject,
   input,
-  signal, untracked,
+  signal,
+  untracked,
   viewChild,
 } from '@angular/core';
 
@@ -87,6 +89,9 @@ export class GameTabMap {
 
   constructor() {
     const app = new Application();
+    inject(DestroyRef).onDestroy(() => {
+      app.destroy();
+    });
     app.ticker = new Ticker();
     effect(() => {
       if (this.#store.running()) {
