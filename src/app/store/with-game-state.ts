@@ -36,10 +36,17 @@ const importMeta = import.meta as (ImportMeta & { env?: Partial<Record<string, u
 const IS_VITEST = ('env' in importMeta) && ('VITEST' in importMeta.env);
 
 function arraysEqual(a: readonly number[], b: readonly number[]) {
+  if (a === b) {
+    return true;
+  }
+
   return a.length === b.length && a.every((v, i) => v === b[i]);
 }
 
 function bitArraysEqual(a: Readonly<BitArray>, b: Readonly<BitArray>) {
+  if (a === b) {
+    return true;
+  }
   if (a.length !== b.length) {
     return false;
   }
@@ -52,6 +59,10 @@ function bitArraysEqual(a: Readonly<BitArray>, b: Readonly<BitArray>) {
 }
 
 function regionLocksEqual(a: RegionLocks, b: RegionLocks) {
+  if (a === b) {
+    return true;
+  }
+
   return bitArraysEqual(a.regionIsSoftLocked, b.regionIsSoftLocked)
     && bitArraysEqual(a.regionIsHardLocked, b.regionIsHardLocked)
     && bitArraysEqual(a.regionIsLandmarkAndNotHardLocked, b.regionIsLandmarkAndNotHardLocked)
