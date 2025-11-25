@@ -159,8 +159,9 @@ export class ConnectScreen {
 
     required(schemaPath.minTimeSeconds);
     required(schemaPath.maxTimeSeconds);
-    max(schemaPath.minTimeSeconds, ({ valueOf }) => Math.max(0.1, valueOf(schemaPath.maxTimeSeconds)));
-    min(schemaPath.maxTimeSeconds, ({ valueOf }) => Math.max(0.1, valueOf(schemaPath.minTimeSeconds)));
+    min(schemaPath.minTimeSeconds, 0.01);
+    max(schemaPath.minTimeSeconds, ({ valueOf }) => Math.max(0.01, valueOf(schemaPath.maxTimeSeconds)));
+    min(schemaPath.maxTimeSeconds, ({ valueOf }) => Math.max(0.01, valueOf(schemaPath.minTimeSeconds)));
 
     disabled(schemaPath.whenTargetChanges, ({ valueOf }) => !valueOf(schemaPath.sendChatMessages));
     disabled(schemaPath.whenBecomingBlocked, ({ valueOf }) => !valueOf(schemaPath.sendChatMessages));
