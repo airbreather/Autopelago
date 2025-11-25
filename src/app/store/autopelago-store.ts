@@ -179,7 +179,7 @@ export const GameStore = signalStore(
             processedAuraDrivenLocationCount: auraDrivenLocations.size,
             outgoingMessages: outgoingMessages.withMutations((messages) => {
               for (const loc of auraDrivenLocations.skip(processedAuraDrivenLocationCount)) {
-                messages.push(sampleMessage(loc).replaceAll('{LOCATION}', allLocations[loc].name));
+                messages.push(sampleMessage(Math.random()).replaceAll('{LOCATION}', allLocations[loc].name));
               }
             }),
           };
