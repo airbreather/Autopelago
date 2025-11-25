@@ -1,4 +1,4 @@
-import { computed, effect, untracked } from '@angular/core';
+import { computed, effect } from '@angular/core';
 import BitArray from '@bitarray/typedarray';
 import { patchState, signalStoreFeature, withComputed, withHooks, withMethods, withState } from '@ngrx/signals';
 import { itemClassifications, PlayersManager } from 'archipelago.js';
@@ -17,7 +17,6 @@ import {
   buildRequirementIsSatisfied,
   Desirability,
   determineDesirability,
-  determineRoute,
   determineTargetLocation,
   type TargetLocationResult,
   targetLocationResultsEqual,
@@ -341,23 +340,14 @@ export function withGameState() {
       const targetLocationReason = computed(() => {
         return _targetLocationDetail().reason;
       });
+      const targetLocationRoute = computed(() => {
+        return _targetLocationDetail().path;
+      });
       const targetLocationChosenBecauseSmart = computed(() => {
         return targetLocationReason() === 'aura-driven' && store.locationIsProgression()[targetLocation()];
       });
       const targetLocationChosenBecauseConspiratorial = computed(() => {
         return targetLocationReason() === 'aura-driven' && store.locationIsTrap()[targetLocation()];
-      });
-      const targetLocationRoute = computed(() => {
-        return determineRoute({
-          // when ONLY the current location changes, that's just because the player is traversing
-          // the route that we calculated. this is expensive enough that it's preferable to have our
-          // callers have to look for where their current location is along the route each time.
-          currentLocation: untracked(() => store.currentLocation()),
-          targetLocation: targetLocation(),
-          defs: defs(),
-          regionIsHardLocked: isStartled() ? _regionLocks().regionIsSoftLocked : _regionLocks().regionIsHardLocked,
-          regionIsSoftLocked: _regionLocks().regionIsSoftLocked,
-        });
       });
       const asStoredData = computed<AutopelagoStoredData>(() => ({
         foodFactor: store.foodFactor(),

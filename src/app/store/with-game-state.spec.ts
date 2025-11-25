@@ -834,6 +834,55 @@ describe('withGameState', () => {
       locationWasVisited[currentLocation] = 1;
     }
   });
+
+  // this is a regression test for an issue that appeared before the first release of this rewrite:
+  // there's a discrepancy between the code that finds the best target location and the code that
+  // finds the route to such location.
+  test.each(['top', 'bottom'] as const)('edge case test for routing beyond unchecked landmarks (%s route)', (side) => {
+    const { itemNameLookup, locationNameLookup } = BAKED_DEFINITIONS_BY_VICTORY_LANDMARK.captured_goldfish;
+    const packRat = itemNameLookup.get('Pack Rat') ?? NaN;
+    const pricelessAntique = itemNameLookup.get('Priceless Antique') ?? NaN;
+    const pizzaRat = itemNameLookup.get('Pizza Rat') ?? NaN;
+    const pieRat = itemNameLookup.get('Pie Rat') ?? NaN;
+    const chefRat = itemNameLookup.get('Chef Rat') ?? NaN;
+
+    const basketball = locationNameLookup.get('Basketball') ?? NaN;
+    const prawnStars = locationNameLookup.get('Prawn Stars') ?? NaN;
+    const angryTurtles = locationNameLookup.get('Angry Turtles') ?? NaN;
+    const pirateBakeSale = locationNameLookup.get('Pirate Bake Sale') ?? NaN;
+    const restaurant = locationNameLookup.get('Restaurant') ?? NaN;
+    const bowlingBallDoor = locationNameLookup.get('Bowling Ball Door') ?? NaN;
+
+    const checkedLocations = side === 'top'
+      ? [basketball, prawnStars, pirateBakeSale]
+      : [basketball, angryTurtles, restaurant];
+
+    const store = getStoreWith({
+      ...initialGameStateFor('captured_goldfish'),
+      currentLocation: basketball,
+      receivedItems: List([
+        ...Range(0, 40).map(() => packRat),
+        pricelessAntique,
+        pizzaRat,
+        pieRat,
+        chefRat,
+      ]),
+      checkedLocations: ImmutableSet(checkedLocations),
+      userRequestedLocations: List([
+        { userSlot: 0, location: bowlingBallDoor },
+      ]),
+    });
+
+    for (let i = 0; i < 10; i++) {
+      patchState(unprotected(store), { prng: prngs.lucky.prng });
+      store.advance();
+      if (store.locationIsChecked()[bowlingBallDoor]) {
+        break;
+      }
+    }
+
+    expect(store.checkedLocations()).toContain(bowlingBallDoor);
+  });
 });
 
 function getStoreWith(initialData: Partial<DefiningGameState>): InstanceType<typeof TestingStore> {

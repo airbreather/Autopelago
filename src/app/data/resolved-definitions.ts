@@ -145,7 +145,7 @@ export interface AutopelagoDefinitions {
 
   allLocations: readonly Readonly<AutopelagoLocation>[];
   allRegions: readonly Readonly<AutopelagoRegion>[];
-  landmarkRegionCount: number;
+  regionForLandmarkLocation: readonly number[];
   startRegion: number;
   startLocation: number;
   locationNameLookup: ReadonlyMapByCaseInsensitiveString<number, 'en'>;
@@ -362,8 +362,6 @@ function resolveMainDefinitions(
     allRegions.push(landmarkRegion);
   }
 
-  const landmarkRegionCount = allRegions.length;
-
   // Process fillers
   const locationCountByFillerRegion: Partial<Record<FillerRegionYamlKey, number>> = {};
   for (const [fillerKey, filler] of strictObjectEntries(yamlFile.regions.fillers)) {
@@ -544,10 +542,12 @@ function resolveMainDefinitions(
   }
 
   // Apply the three connection rules
+  const regionForLandmarkLocation = Array<number>(allLocations.length).fill(NaN);
   for (const region of allRegions) {
     if ('loc' in region) {
       // Landmark region - single location
       const locationIndex = region.loc;
+      regionForLandmarkLocation[region.loc] = region.key;
       const locationConns = locationConnections.get(locationIndex);
       if (!locationConns) {
         continue;
@@ -684,7 +684,7 @@ function resolveMainDefinitions(
     itemsWithNonzeroRatCounts,
     allLocations,
     allRegions,
-    landmarkRegionCount,
+    regionForLandmarkLocation,
     startRegion: startRegionIndex,
     startLocation: startLocationIndex,
     itemNameLookup,
@@ -825,10 +825,10 @@ function withVictoryLocation(defs: AutopelagoDefinitions, location: VictoryLocat
     }
   }
 
-  let landmarkRegionCount = 0;
+  const newRegionForLandmarkLocation = Array<number>(allLocations.length).fill(NaN);
   for (const newRegion of allRegions) {
     if ('loc' in newRegion) {
-      ++landmarkRegionCount;
+      newRegionForLandmarkLocation[newRegion.loc] = newRegion.key;
     }
   }
 
@@ -836,7 +836,7 @@ function withVictoryLocation(defs: AutopelagoDefinitions, location: VictoryLocat
     ...defs,
     allLocations,
     allRegions,
-    landmarkRegionCount,
+    regionForLandmarkLocation: newRegionForLandmarkLocation,
     startRegion: newStartRegion,
     startLocation: newStartLocation,
     locationNameLookup,

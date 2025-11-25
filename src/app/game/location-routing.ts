@@ -145,6 +145,7 @@ export function determineDesirability(options: Readonly<DetermineDesirabilityOpt
 export interface TargetLocationResult {
   readonly location: number;
   readonly reason: TargetLocationReason;
+  readonly path: readonly number[];
 }
 
 export interface DetermineTargetLocationOptions {
@@ -154,108 +155,49 @@ export interface DetermineTargetLocationOptions {
 }
 
 export function determineTargetLocation(options: Readonly<DetermineTargetLocationOptions>): TargetLocationResult {
-  const { currentLocation, defs: { allLocations, allRegions }, desirability } = options;
+  const { currentLocation, defs: { allLocations, regionForLandmarkLocation }, desirability } = options;
   let bestLocation = currentLocation;
   let resultDesirability = -1;
-  const visited = new BitArray(allLocations.length);
+  const prev = allLocations.map(() => ({ l: NaN, d: Infinity }));
+  prev[currentLocation].d = 0;
   const q = new Queue<number>();
-
-  function tryEnqueue(loc: number) {
-    if (!visited[loc]) {
-      q.enqueue(loc);
-      visited[loc] = 1;
-    }
-  }
-
-  tryEnqueue(currentLocation);
+  q.enqueue(currentLocation);
   for (let loc = q.dequeue(); loc !== undefined; loc = q.dequeue()) {
-    const d = desirability[loc];
-    if (d > resultDesirability) {
+    const des = desirability[loc];
+    if (des > resultDesirability) {
       bestLocation = loc;
-      resultDesirability = d;
+      resultDesirability = des;
     }
 
+    const d = prev[loc].d + 1;
     for (const [nxt] of allLocations[loc].connected.all) {
-      if (desirability[nxt] > Desirability.AVOID) {
-        tryEnqueue(nxt);
+      if (prev[nxt].d > d && desirability[nxt] > Desirability.AVOID) {
+        prev[nxt].d = d;
+        prev[nxt].l = loc;
+        q.enqueue(nxt);
       }
     }
   }
 
-  if (resultDesirability > Desirability.UNCHECKED && resultDesirability < Desirability.STARTLED) {
+  const path: number[] = [];
+  for (let loc = bestLocation; !Number.isNaN(loc); loc = prev[loc].l) {
     // anything "weird" considers locations past soft-locked landmarks. for now, route calculation
     // assumes that you can walk through the entire path without checking landmarks in between, so
     // for now we need to actually target the closest unchecked landmark along the path, if any.
-    const prev = allRegions.map(() => ({ r: NaN, d: Infinity }));
-    const currentRegion = allLocations[currentLocation].regionLocationKey[0];
-    prev[currentRegion].d = 0;
-    q.enqueue(currentRegion);
-    for (let r = q.dequeue(); r !== undefined; r = q.dequeue()) {
-      const d = prev[r].d + 1;
-      for (const [r2] of allRegions[r].connected.all) {
-        if (prev[r2].d > d && !('loc' in allRegions[r2] && desirability[allRegions[r2].loc] === Desirability.AVOID)) {
-          prev[r2].d = d;
-          prev[r2].r = r;
-          q.enqueue(r2);
-        }
-      }
+    if (bestLocation !== loc && !Number.isNaN(regionForLandmarkLocation[loc]) && desirability[loc] === Desirability.UNCHECKED) {
+      path.length = 0;
+      bestLocation = loc;
     }
-
-    for (let r = allLocations[bestLocation].regionLocationKey[0]; !Number.isNaN(r); r = prev[r].r) {
-      const region = allRegions[r];
-      if ('loc' in region) {
-        if (desirability[region.loc] === Desirability.UNCHECKED) {
-          bestLocation = region.loc;
-        }
-      }
-    }
+    path.push(loc);
   }
 
   return {
     location: bestLocation,
     reason: desirabilityMap[resultDesirability],
+    path: path.reverse(),
   };
 }
 
 export function targetLocationResultsEqual(a: TargetLocationResult, b: TargetLocationResult): boolean {
   return a.location === b.location && a.reason === b.reason;
-}
-
-export interface DetermineRouteOptions {
-  currentLocation: number;
-  targetLocation: number;
-  defs: Readonly<AutopelagoDefinitions>;
-  regionIsHardLocked: Readonly<BitArray>;
-  regionIsSoftLocked: Readonly<BitArray>;
-}
-
-export function determineRoute(options: Readonly<DetermineRouteOptions>): number[] {
-  const { currentLocation, targetLocation, defs: { allLocations }, regionIsSoftLocked, regionIsHardLocked } = options;
-  const prev = allLocations.map(() => ({ l: NaN, d: Infinity }));
-  prev[currentLocation].d = 0;
-  const q = new Queue<number>();
-  q.enqueue(currentLocation);
-  for (let l = q.dequeue(); l !== undefined; l = q.dequeue()) {
-    if (l === targetLocation) {
-      break;
-    }
-
-    const d = prev[l].d + 1;
-    for (const [l2] of allLocations[l].connected.all) {
-      if (prev[l2].d > d && !regionIsHardLocked[allLocations[l2].regionLocationKey[0]]) {
-        prev[l2].d = d;
-        prev[l2].l = l;
-        if (!regionIsSoftLocked[allLocations[l2].regionLocationKey[0]]) {
-          q.enqueue(l2);
-        }
-      }
-    }
-  }
-
-  const result: number[] = [];
-  for (let l = targetLocation; !Number.isNaN(l); l = prev[l].l) {
-    result.push(l);
-  }
-
-  return result.reverse();
 }
