@@ -17,17 +17,9 @@ import { GameTabTextClient } from './game-tab-text-client/game-tab-text-client';
   template: `
     <div class="outer">
       <div class="top">
-        @switch (currentTab()) {
-          @case ('map') {
-            <app-game-tab-map [game]="game()" />
-          }
-          @case ('arcade') {
-            <app-game-tab-arcade />
-          }
-          @case ('text-client') {
-            <app-game-tab-text-client [game]="game()" />
-          }
-        }
+        <app-game-tab-map [class.current-tab]="currentTab() === 'map'" [hidden]="currentTab() !== 'map'" [game]="game()" />
+        <app-game-tab-arcade [class.current-tab]="currentTab() === 'arcade'" [hidden]="currentTab() !== 'arcade'" />
+        <app-game-tab-text-client [class.current-tab]="currentTab() === 'text-client'" [hidden]="currentTab() !== 'text-client'" [game]="game()" />
       </div>
       <div class="bottom">
         <button class="tab tab-map rat-toggle-button" [class.toggled-on]="currentTab() === 'map'" (click)="clickTab('map')">
@@ -52,7 +44,12 @@ import { GameTabTextClient } from './game-tab-text-client/game-tab-text-client';
 
       .top {
         flex: 1;
-        overflow: auto;
+        overflow-y: hidden;
+        > .current-tab {
+          display: block;
+          height: 100%;
+          overflow-y: auto;
+        }
       }
 
       .bottom {
