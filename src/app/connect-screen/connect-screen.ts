@@ -42,10 +42,12 @@ const STORAGE_KEY = 'autopelago-connect-screen-state';
           <label for="minTimeSeconds">Minimum:</label>
           <input id="minTimeSeconds"
                  type="number"
+                 step="any"
                  [field]="form.minTimeSeconds"/>
           <label for="maxTimeSeconds">Maximum:</label>
           <input id="maxTimeSeconds"
                  type="number"
+                 step="any"
                  [field]="form.maxTimeSeconds"/>
         </fieldset>
       </div>
