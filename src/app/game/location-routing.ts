@@ -30,16 +30,6 @@ export function buildRequirementIsSatisfied(relevantItemCount: readonly number[]
   return isSatisfied;
 }
 
-type VisitResult = 'allow' | 'stop-this-path' | 'stop-all-paths';
-export interface VisitReachableRegionsFromClosestToFarthestOptions {
-  visit(r: number): VisitResult;
-  defs: Readonly<AutopelagoDefinitions>;
-  relevantItemCount: readonly number[];
-  isStartled: boolean;
-  landmarkIsChecked: Readonly<BitArray>;
-  startRegion?: number;
-}
-
 export interface DetermineDesirabilityOptions {
   defs: Readonly<AutopelagoDefinitions>;
   victoryLocation: number;
@@ -51,7 +41,6 @@ export interface DetermineDesirabilityOptions {
 }
 
 export type TargetLocationReason =
-  'game-not-started'
   | 'nowhere-useful-to-move'
   | 'closest-reachable-unchecked'
   | 'user-requested'
@@ -70,7 +59,7 @@ export const Desirability = {
 } as const;
 
 const desirabilityMap: TargetLocationReason[] = [
-  'game-not-started',
+  'nowhere-useful-to-move', // value is irrelevant, just need to fill the slot
   'nowhere-useful-to-move',
   'closest-reachable-unchecked',
   'user-requested',

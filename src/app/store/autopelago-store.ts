@@ -225,34 +225,33 @@ export const GameStore = signalStore(
           return;
         }
 
-        if (store.targetLocationReason() !== 'nowhere-useful-to-move') {
-          if (prevInterval !== null) {
-            clearInterval(prevInterval);
-            prevInterval = null;
-            if (whenBecomingUnblocked) {
+        const targetLocationReason = store.targetLocationReason();
+        if (targetLocationReason === 'nowhere-useful-to-move' || targetLocationReason === 'startled') {
+          if (prevInterval === null) {
+            if (whenBecomingBlocked) {
               patchState(store, ({ outgoingMessages }) => ({
-                outgoingMessages: outgoingMessages.push(forExitBK(Math.random())),
+                outgoingMessages: outgoingMessages.push(forEnterBK(Math.random())),
               }));
             }
+
+            prevInterval = setInterval(() => {
+              if (whenStillBlocked) {
+                patchState(store, ({ outgoingMessages }) => ({
+                  outgoingMessages: outgoingMessages.push(forRemindBK(Math.random())),
+                }));
+              }
+            }, (whenStillBlockedIntervalMinutes >= 15 ? whenStillBlockedIntervalMinutes : 15) * 60000);
           }
-
-          return;
         }
-
-        if (whenBecomingBlocked) {
-          patchState(store, ({ outgoingMessages }) => ({
-            outgoingMessages: outgoingMessages.push(forEnterBK(Math.random())),
-          }));
-        }
-
-        // not sure why it wouldn't be null here, but it would really suck if I didn't check.
-        prevInterval ??= setInterval(() => {
-          if (whenStillBlocked) {
+        else if (prevInterval !== null) {
+          clearInterval(prevInterval);
+          prevInterval = null;
+          if (whenBecomingUnblocked && targetLocationReason !== 'user-requested') {
             patchState(store, ({ outgoingMessages }) => ({
-              outgoingMessages: outgoingMessages.push(forRemindBK(Math.random())),
+              outgoingMessages: outgoingMessages.push(forExitBK(Math.random())),
             }));
           }
-        }, (whenStillBlockedIntervalMinutes >= 15 ? whenStillBlockedIntervalMinutes : 15) * 60000);
+        }
       });
     },
   }),
