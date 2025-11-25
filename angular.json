@@ -71,8 +71,7 @@
               "src/styles.scss"
             ],
             "index": {
-              "input": "src/index.html",
-              "preloadInitial": false
+              "input": "src/index.html"
             }
           },
           "configurations": {
@@ -91,11 +90,6 @@
               ],
               "namedChunks": true,
               "outputHashing": "all",
-              "optimization": {
-                "styles": {
-                  "inlineCritical": false
-                }
-              },
               "sourceMap": true,
               "serviceWorker": "ngsw-config.json"
             },
