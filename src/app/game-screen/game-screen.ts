@@ -24,9 +24,7 @@ import { GameContent } from './game-content/game-content';
     <div #outer class="outer">
       @let loadedGame = game.value();
       @if (loadedGame) {
-        @defer {
-          <app-game-content [game]="loadedGame" />
-        }
+        <app-game-content [game]="loadedGame" />
       }
       @else {
         <div class="disconnected">
