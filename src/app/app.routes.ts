@@ -2,6 +2,7 @@ import type { ResolveFn, Routes } from '@angular/router';
 
 import { ConnectScreen } from './connect-screen/connect-screen';
 import { type ConnectScreenState, connectScreenStateFromQueryParams } from './connect-screen/connect-screen-state';
+import { GameScreen } from './game-screen/game-screen';
 
 const resolveConnectScreenState = ((route) => {
   return connectScreenStateFromQueryParams(route.queryParamMap);
@@ -11,7 +12,7 @@ export const routes: Routes = [
   { path: '', component: ConnectScreen },
   {
     path: 'game',
-    loadComponent: () => import('./game-screen/game-screen').then(m => m.GameScreen),
+    component: GameScreen,
     resolve: { connectScreenState: resolveConnectScreenState },
   },
 ];
