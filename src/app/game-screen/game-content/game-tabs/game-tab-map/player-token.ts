@@ -13,6 +13,7 @@ const HALF_CYCLE = CYCLE / 2;
 const QUARTER_CYCLE = CYCLE / 4;
 
 export interface CreatePlayerTokenOptions {
+  ticker: Ticker;
   game: Signal<AutopelagoClientAndData | null>;
   defs: Signal<AutopelagoDefinitions>;
   currentLocation: Signal<number>;
@@ -54,8 +55,8 @@ export function createPlayerToken(options: CreatePlayerTokenOptions) {
           this.playerToken.rotation = this.neutralAngle + (Math.abs(this.cycleTime - HALF_CYCLE) - QUARTER_CYCLE) * ROTATION_SCALE;
         }
 
-        Ticker.shared.add(doRotation, playerTokenContext);
-        destroyRef.onDestroy(() => Ticker.shared.remove(doRotation, playerTokenContext));
+        options.ticker.add(doRotation, playerTokenContext);
+        destroyRef.onDestroy(() => options.ticker.remove(doRotation, playerTokenContext));
       }
 
       return playerToken;
@@ -149,7 +150,7 @@ export function createPlayerToken(options: CreatePlayerTokenOptions) {
         playerTokenContext.scaleX = -0.25;
       }
     };
-    Ticker.shared.add(animatePlayerMoveCallback);
+    options.ticker.add(animatePlayerMoveCallback);
   });
   return playerTokenResource.asReadonly();
 }

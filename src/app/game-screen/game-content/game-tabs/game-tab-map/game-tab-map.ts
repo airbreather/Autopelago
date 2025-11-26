@@ -86,7 +86,7 @@ export class GameTabMap {
     inject(DestroyRef).onDestroy(() => {
       app.destroy();
     });
-    app.ticker = Ticker.shared;
+    app.ticker = new Ticker();
     effect(() => {
       if (this.#store.running()) {
         app.ticker.start();
@@ -103,7 +103,7 @@ export class GameTabMap {
       playerTokenResource,
       landmarksResource,
       fillerMarkersSignal,
-    } = createLivePixiObjects(this.#store);
+    } = createLivePixiObjects(this.#store, app.ticker);
 
     // app.init is async, and nothing can be done with the app until it's initialized, so let's do
     // just everything up to app.init and then open up the floodgates for everything afterward by
