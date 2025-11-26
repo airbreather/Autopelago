@@ -1,4 +1,3 @@
-import { Ticker } from 'pixi.js';
 import { GameStore } from '../../../../store/autopelago-store';
 import { createFillerMarkers } from './filler-markers';
 import { createLandmarkMarkers } from './landmark-markers';
@@ -6,7 +5,6 @@ import { createPlayerToken } from './player-token';
 
 export function createLivePixiObjects(store: InstanceType<typeof GameStore>) {
   const playerTokenResource = createPlayerToken({
-    ticker: Ticker.shared,
     game: store.game,
     defs: store.defs,
     currentLocation: store.currentLocation,
