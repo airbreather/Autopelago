@@ -977,6 +977,10 @@ export function withGameState() {
                 }
                 result.outgoingCheckedLocations = prev.outgoingCheckedLocations.push(result.currentLocation);
                 result.checkedLocations = prev.checkedLocations.add(result.currentLocation);
+                if (!('outgoingAnimatableActions' in result)) {
+                  result.outgoingAnimatableActions = prev.outgoingAnimatableActions;
+                }
+                result.outgoingAnimatableActions = result.outgoingAnimatableActions.push({ type: 'check-location', location: result.currentLocation });
                 result.mercyFactor = 0;
                 bumpMercyModifierForNextTime = false;
               }

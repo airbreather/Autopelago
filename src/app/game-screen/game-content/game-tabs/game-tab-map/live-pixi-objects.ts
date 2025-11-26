@@ -2,11 +2,18 @@ import { effect, untracked } from '@angular/core';
 import { Sprite, type Ticker } from 'pixi.js';
 import Queue from 'yocto-queue';
 import type { Vec2 } from '../../../../data/locations';
+import { type AutopelagoDefinitions } from '../../../../data/resolved-definitions';
+import type { AnimatableAction } from '../../../../game/defining-state';
 import { GameStore } from '../../../../store/autopelago-store';
-import { createFillerMarkers } from './filler-markers';
-import { createLandmarkMarkers } from './landmark-markers';
+import { createFillerMarkers, type FillerMarkers } from './filler-markers';
+import { createLandmarkMarkers, type LandmarkMarkers } from './landmark-markers';
 import { createPlayerToken, SCALE, type WiggleOptimizationBox } from './player-token';
 
+interface ResolvedAction {
+  run(fraction: number, defs: AutopelagoDefinitions, playerToken: Sprite, landmarkMarkers: LandmarkMarkers, fillerMarkers: FillerMarkers): void;
+}
+
+const NO_ACTION = { run: () => { /* empty */ } } as const;
 export function createLivePixiObjects(store: InstanceType<typeof GameStore>, ticker: Ticker) {
   const wiggleOptimizationBox: WiggleOptimizationBox = {
     neutralAngle: 0,
@@ -14,12 +21,22 @@ export function createLivePixiObjects(store: InstanceType<typeof GameStore>, tic
     _playerToken: new Sprite(), // will be overridden
     _cycleTime: 0, // will be overridden
   };
+  function updateWiggleOptimizationBox(from: Vec2, to: Vec2) {
+    wiggleOptimizationBox.neutralAngle = Math.atan2(to[1] - from[1], to[0] - from[0]);
+    if (Math.abs(wiggleOptimizationBox.neutralAngle) < Math.PI / 2) {
+      wiggleOptimizationBox.scaleX = SCALE;
+    }
+    else {
+      wiggleOptimizationBox.neutralAngle -= Math.PI;
+      wiggleOptimizationBox.scaleX = -SCALE;
+    }
+  }
+
   const playerTokenResource = createPlayerToken({
     ticker,
     wiggleOptimizationBox,
     game: store.game,
     defs: store.defs,
-    currentLocation: store.currentLocation,
     consumeOutgoingAnimatableActions: store.consumeOutgoingAnimatableActions,
   });
   const landmarksResource = createLandmarkMarkers({
@@ -28,33 +45,116 @@ export function createLivePixiObjects(store: InstanceType<typeof GameStore>, tic
     defs: store.defs,
     victoryLocationYamlKey: store.victoryLocationYamlKey,
     regionIsLandmarkWithUnsatisfiedRequirement: store.regionIsLandmarkWithUnsatisfiedRequirement,
-    checkedLocations: store.checkedLocations,
   });
   const fillerMarkersSignal = createFillerMarkers({
     victoryLocationYamlKey: store.victoryLocationYamlKey,
-    checkedLocations: store.checkedLocations,
   });
 
-  let everSetInitialPosition = false;
+  function resolveAction(defs: AutopelagoDefinitions, action: AnimatableAction): ResolvedAction {
+    if (action.type === 'move') {
+      const fromCoords = defs.allLocations[action.fromLocation].coords;
+      const toCoords = defs.allLocations[action.toLocation].coords;
+      const dx = toCoords[0] - fromCoords[0];
+      const dy = toCoords[1] - fromCoords[1];
+      return {
+        run: (fraction: number, _defs: AutopelagoDefinitions, playerToken: Sprite) => {
+          const x = fromCoords[0] + dx * fraction;
+          const y = fromCoords[1] + dy * fraction;
+          playerToken.position.set(x, y);
+          updateWiggleOptimizationBox(fromCoords, toCoords);
+        },
+      };
+    }
+
+    // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
+    if (action.type === 'check-location') {
+      if (Number.isNaN(defs.regionForLandmarkLocation[action.location])) {
+        return {
+          run: (_fraction: number, _defs: AutopelagoDefinitions, _playerToken: Sprite, _landmarkMarkers: LandmarkMarkers, fillerMarkers: FillerMarkers) => {
+            fillerMarkers.markChecked(action.location);
+          },
+        };
+      }
+      else {
+        const region = defs.allRegions[defs.regionForLandmarkLocation[action.location]];
+        // just satisfy the compiler. we know it'll be here.
+        if (!('loc' in region)) {
+          return NO_ACTION;
+        }
+        let ran = false;
+        return {
+          run: (_fraction: number, _defs: AutopelagoDefinitions, _playerToken: Sprite, landmarkMarkers: LandmarkMarkers) => {
+            if (ran) {
+              return;
+            }
+            const spriteLookup = landmarkMarkers.spriteLookup;
+            if (region.yamlKey in spriteLookup) {
+              const box = spriteLookup[region.yamlKey];
+              if (box) {
+                box.offSprite.visible = false;
+                box.onSprite.visible = true;
+                box.onQSprite.visible = false;
+                box.offQSprite.visible = false;
+              }
+            }
+
+            ran = true;
+          },
+        };
+      }
+    }
+
+    return NO_ACTION;
+  }
+
+  let finishedFirstRound = false;
   let moveDuration = 100;
 
   let prog = 0;
-  const queuedMoves = new Queue<{ from: Vec2; to: Vec2 }>();
+  const queuedActions = new Queue<ResolvedAction>();
   let animatePlayerMoveCallback: ((t: Ticker) => void) | null = null;
   effect(() => {
-    const playerToken = playerTokenResource.value();
     const game = store.game();
-    if (!playerToken || !game) {
+    const playerToken = playerTokenResource.value();
+    const landmarkMarkers = landmarksResource.value();
+    if (!(game && playerToken && landmarkMarkers)) {
       return;
     }
 
+    const fillerMarkers = fillerMarkersSignal();
     const defs = store.defs();
     const actions = store.consumeOutgoingAnimatableActions();
     if (actions.size === 0) {
-      if (!everSetInitialPosition) {
-        const { allLocations } = defs;
-        playerToken.position.set(...untracked(() => allLocations[store.currentLocation()].coords));
-        everSetInitialPosition = true;
+      if (!finishedFirstRound) {
+        untracked(() => {
+          const currentCoords = defs.allLocations[store.currentLocation()].coords;
+          const targetCoords = defs.allLocations[store.targetLocation()].coords;
+          playerToken.position.set(...currentCoords);
+          updateWiggleOptimizationBox(currentCoords, targetCoords);
+          const fillersToMark: number[] = [];
+          for (const location of store.checkedLocations()) {
+            if (Number.isNaN(defs.regionForLandmarkLocation[location])) {
+              fillersToMark.push(location);
+            }
+            else {
+              const region = defs.allRegions[defs.regionForLandmarkLocation[location]];
+              // just satisfy the compiler. we know it'll be here.
+              if ('loc' in region) {
+                const spriteBox = landmarkMarkers.spriteLookup[region.yamlKey];
+                if (spriteBox) {
+                  spriteBox.offSprite.visible = false;
+                  spriteBox.onSprite.visible = true;
+                  spriteBox.onQSprite.visible = false;
+                  spriteBox.offQSprite.visible = false;
+                }
+              }
+            }
+          }
+
+          fillerMarkers.markChecked(...fillersToMark);
+        });
+
+        finishedFirstRound = true;
         moveDuration = 200 * Math.min(1, (game.connectScreenState.minTimeSeconds + game.connectScreenState.maxTimeSeconds) / 2);
       }
 
@@ -62,13 +162,7 @@ export function createLivePixiObjects(store: InstanceType<typeof GameStore>, tic
     }
 
     for (const action of actions) {
-      if (action.type !== 'move') {
-        continue;
-      }
-
-      const prevCoords = defs.allLocations[action.fromLocation].coords;
-      const nextCoords = defs.allLocations[action.toLocation].coords;
-      queuedMoves.enqueue({ from: [...prevCoords], to: nextCoords });
+      queuedActions.enqueue(resolveAction(defs, action));
     }
 
     if (animatePlayerMoveCallback !== null) {
@@ -81,50 +175,41 @@ export function createLivePixiObjects(store: InstanceType<typeof GameStore>, tic
       }
 
       prog += t.deltaMS;
-      if (queuedMoves.size > 6) {
+      if (queuedActions.size > 6) {
         // there are too many moves. we really need to catch up. for every 6 moves over our magic
         // number of 6, increase the animation speed by a factor of 20%.
-        t.speed = Math.pow(1.2, queuedMoves.size / 6);
+        t.speed = Math.pow(1.2, queuedActions.size / 6);
       }
       else if (t.speed !== 1) {
         t.speed = 1;
       }
 
       while (prog >= moveDuration) {
-        const fullMove = queuedMoves.dequeue();
-        if (queuedMoves.size === 0 && fullMove !== undefined) {
-          playerToken.position.set(...defs.allLocations[store.currentLocation()].coords);
-          t.remove(animatePlayerMoveCallback);
-          animatePlayerMoveCallback = null;
-          prog = 0;
-          t.speed = 1;
-          return;
+        const fullMove = queuedActions.dequeue();
+        if (fullMove === undefined) {
+          break;
         }
 
+        fullMove.run(1, defs, playerToken, landmarkMarkers, fillerMarkers);
         prog -= moveDuration;
       }
 
-      const nextMove = queuedMoves.peek();
+      const nextMove = queuedActions.peek();
       if (nextMove === undefined) {
-        playerToken.position.set(...defs.allLocations[store.currentLocation()].coords);
+        const fromCoords = defs.allLocations[store.currentLocation()].coords;
+        const toCoords = defs.allLocations[store.targetLocation()].coords;
+        playerToken.position.set(...fromCoords);
+        if (store.currentLocation() !== store.targetLocation()) {
+          updateWiggleOptimizationBox(fromCoords, toCoords);
+        }
         t.remove(animatePlayerMoveCallback);
         animatePlayerMoveCallback = null;
         prog = 0;
+        t.speed = 1;
         return;
       }
 
-      const fraction = prog / moveDuration;
-      const x = nextMove.from[0] + (nextMove.to[0] - nextMove.from[0]) * fraction;
-      const y = nextMove.from[1] + (nextMove.to[1] - nextMove.from[1]) * fraction;
-      playerToken.position.set(x, y);
-      wiggleOptimizationBox.neutralAngle = Math.atan2(nextMove.to[1] - nextMove.from[1], nextMove.to[0] - nextMove.from[0]);
-      if (Math.abs(wiggleOptimizationBox.neutralAngle) < Math.PI / 2) {
-        wiggleOptimizationBox.scaleX = 0.25;
-      }
-      else {
-        wiggleOptimizationBox.neutralAngle -= Math.PI;
-        wiggleOptimizationBox.scaleX = -0.25;
-      }
+      nextMove.run(prog / moveDuration, defs, playerToken, landmarkMarkers, fillerMarkers);
     };
     ticker.add(animatePlayerMoveCallback);
   });

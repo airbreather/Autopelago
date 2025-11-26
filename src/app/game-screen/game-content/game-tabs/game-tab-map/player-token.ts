@@ -28,7 +28,6 @@ export interface CreatePlayerTokenOptions {
   wiggleOptimizationBox: WiggleOptimizationBox;
   game: Signal<AutopelagoClientAndData | null>;
   defs: Signal<AutopelagoDefinitions>;
-  currentLocation: Signal<number>;
   consumeOutgoingAnimatableActions(): List<AnimatableAction>;
 }
 

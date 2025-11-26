@@ -28,6 +28,7 @@ export const GameStore = signalStore(
       const victoryLocationYamlKey = VICTORY_LOCATION_NAME_LOOKUP[slotData.victory_location_name];
 
       const locationNameLookup = BAKED_DEFINITIONS_BY_VICTORY_LANDMARK[victoryLocationYamlKey].locationNameLookup;
+      const checkedLocations = client.room.checkedLocations.map(l => locationNameLookup.get(pkg.reverseLocationTable[l]) ?? -1);
       patchState(store, {
         ...storedData,
         game,
@@ -44,8 +45,9 @@ export const GameStore = signalStore(
         auraDrivenLocations: List(storedData.auraDrivenLocations),
         userRequestedLocations: List(storedData.userRequestedLocations),
         receivedItems: List<number>(),
-        checkedLocations: ImmutableSet(client.room.checkedLocations.map(l => locationNameLookup.get(pkg.reverseLocationTable[l]) ?? -1)),
+        checkedLocations: ImmutableSet(checkedLocations),
         previousTargetLocationEvidence: targetLocationEvidenceFromJSONSerializable(storedData.previousTargetLocationEvidence),
+        outgoingAnimatableActions: List(),
       });
       const itemsJustReceived: number[] = [];
       for (const item of client.items.received) {
@@ -69,9 +71,24 @@ export const GameStore = signalStore(
       });
 
       client.room.on('locationsChecked', (locations) => {
-        patchState(store, ({ checkedLocations }) => ({
-          checkedLocations: checkedLocations.union(locations.map(l => locationNameLookup.get(pkg.reverseLocationTable[l]) ?? -1)),
-        }));
+        patchState(store, ({ checkedLocations, outgoingAnimatableActions }) => {
+          checkedLocations = checkedLocations.withMutations((c) => {
+            outgoingAnimatableActions = outgoingAnimatableActions.withMutations((a) => {
+              for (const serverLocationId of locations) {
+                const location = locationNameLookup.get(pkg.reverseLocationTable[serverLocationId]) ?? -1;
+                const sizeBefore = c.size;
+                c.add(location);
+                if (c.size > sizeBefore) {
+                  a.push({ type: 'check-location', location });
+                }
+              }
+            });
+          });
+          return {
+            checkedLocations,
+            outgoingAnimatableActions,
+          };
+        });
       });
 
       store.registerCallback(store.advance);

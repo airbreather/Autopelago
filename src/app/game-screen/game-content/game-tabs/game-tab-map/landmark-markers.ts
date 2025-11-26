@@ -1,6 +1,5 @@
-import { DestroyRef, effect, inject, resource, type Signal } from '@angular/core';
+import { DestroyRef, effect, inject, type Resource, resource, type Signal } from '@angular/core';
 import type BitArray from '@bitarray/typedarray';
-import type { Set as ImmutableSet } from 'immutable';
 import { DropShadowFilter } from 'pixi-filters';
 import { AnimatedSprite, Assets, Container, Sprite, Spritesheet, type SpritesheetData, Texture, Ticker } from 'pixi.js';
 import { LANDMARKS, type LandmarkYamlKey } from '../../../../data/locations';
@@ -18,10 +17,14 @@ export interface CreateLandmarkMarkersOptions {
   defs: Signal<AutopelagoDefinitions>;
   victoryLocationYamlKey: Signal<VictoryLocationYamlKey>;
   regionIsLandmarkWithUnsatisfiedRequirement: Signal<Readonly<BitArray>>;
-  checkedLocations: Signal<ImmutableSet<number>>;
 }
 
-export function createLandmarkMarkers(options: CreateLandmarkMarkersOptions) {
+export interface LandmarkMarkers {
+  container: Container;
+  spriteLookup: Partial<Record<LandmarkYamlKey, SpriteBox>>;
+}
+
+export function createLandmarkMarkers(options: CreateLandmarkMarkersOptions): Resource<LandmarkMarkers | null> {
   const destroyRef = inject(DestroyRef);
   function updateAnimatedSprite(this: AnimatedSprite, t: Ticker) {
     this.update(t);
@@ -89,13 +92,17 @@ export function createLandmarkMarkers(options: CreateLandmarkMarkersOptions) {
           continue;
         }
 
-        spriteLookup[region.yamlKey] = {
+        const spriteBox = spriteLookup[region.yamlKey] = {
           animated: connectScreenState.enableTileAnimations,
           onSprite: createSprite(region.yamlKey, 'on', 'main'),
           offSprite: createSprite(region.yamlKey, 'off', 'main'),
           onQSprite: createSprite(region.yamlKey, 'on', 'quest'),
           offQSprite: createSprite(region.yamlKey, 'off', 'quest'),
         } as SpriteBox;
+        spriteBox.onSprite.visible = false;
+        spriteBox.offSprite.visible = true;
+        spriteBox.onQSprite.visible = false;
+        spriteBox.offQSprite.visible = true;
       }
 
       return { container, spriteLookup };
@@ -110,8 +117,6 @@ export function createLandmarkMarkers(options: CreateLandmarkMarkersOptions) {
 
     const { spriteLookup } = landmarks;
 
-    const checkedLocations = options.checkedLocations();
-    const regionIsLandmarkWithUnsatisfiedRequirement = options.regionIsLandmarkWithUnsatisfiedRequirement();
     const { allRegions } = options.defs();
     for (const [_, landmark] of strictObjectEntries(allRegions)) {
       if (!('loc' in landmark)) {
@@ -123,23 +128,18 @@ export function createLandmarkMarkers(options: CreateLandmarkMarkersOptions) {
         continue;
       }
 
-      if (checkedLocations.includes(landmark.loc)) {
-        spriteBox.onSprite.visible = true;
-        spriteBox.offSprite.visible = false;
+      if (!(spriteBox.onQSprite.visible || spriteBox.offQSprite.visible)) {
+        return;
+      }
+
+      const regionIsLandmarkWithUnsatisfiedRequirement = options.regionIsLandmarkWithUnsatisfiedRequirement();
+      if (regionIsLandmarkWithUnsatisfiedRequirement[landmark.key]) {
         spriteBox.onQSprite.visible = false;
-        spriteBox.offQSprite.visible = false;
+        spriteBox.offQSprite.visible = true;
       }
       else {
-        spriteBox.onSprite.visible = false;
-        spriteBox.offSprite.visible = true;
-        if (regionIsLandmarkWithUnsatisfiedRequirement[landmark.key]) {
-          spriteBox.onQSprite.visible = false;
-          spriteBox.offQSprite.visible = true;
-        }
-        else {
-          spriteBox.onQSprite.visible = true;
-          spriteBox.offQSprite.visible = false;
-        }
+        spriteBox.onQSprite.visible = true;
+        spriteBox.offQSprite.visible = false;
       }
     }
   });

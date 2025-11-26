@@ -84,6 +84,7 @@ export class GameTabMap {
   constructor() {
     const app = new Application();
     inject(DestroyRef).onDestroy(() => {
+      app.ticker.stop();
       app.destroy();
     });
     app.ticker = new Ticker();
@@ -136,12 +137,12 @@ export class GameTabMap {
 
       const playerToken = playerTokenResource.value();
       const landmarks = landmarksResource.value();
-      const fillerMarkers = fillerMarkersSignal();
-      if (!(playerToken && landmarks && fillerMarkers)) {
+      if (!(playerToken && landmarks)) {
         return;
       }
 
-      app.stage.addChild(fillerMarkers);
+      const fillerMarkers = fillerMarkersSignal();
+      app.stage.addChild(fillerMarkers.container);
       app.stage.addChild(landmarks.container);
       app.stage.addChild(playerToken);
       app.resize();
