@@ -9,10 +9,11 @@ import {
   BAKED_DEFINITIONS_BY_VICTORY_LANDMARK,
   type VictoryLocationYamlKey,
 } from '../../../../data/resolved-definitions';
+import type { AutopelagoClientAndData } from '../../../../data/slot-data';
 import { strictObjectEntries } from '../../../../utils/types';
 
 export interface CreateLandmarkMarkersOptions {
-  enableTileAnimations: Signal<boolean | null>;
+  game: Signal<AutopelagoClientAndData | null>;
   defs: Signal<AutopelagoDefinitions>;
   victoryLocationYamlKey: Signal<VictoryLocationYamlKey>;
   regionIsLandmarkWithUnsatisfiedRequirement: Signal<Readonly<BitArray>>;
@@ -22,12 +23,13 @@ export interface CreateLandmarkMarkersOptions {
 export function createLandmarkMarkers(options: CreateLandmarkMarkersOptions) {
   const landmarksResource = resource({
     defaultValue: null,
-    params: () => options.enableTileAnimations(),
-    loader: async ({ params: enableTileAnimations }) => {
-      if (enableTileAnimations === null) {
+    params: () => options.game()?.connectScreenState ?? null,
+    loader: async ({ params: connectScreenState }) => {
+      if (connectScreenState === null) {
         return null;
       }
 
+      const { enableTileAnimations } = connectScreenState;
       const spritesheetTexture = await Assets.load<Texture>('assets/images/locations.webp');
       const spritesheet = new Spritesheet(spritesheetTexture, spritesheetData);
       await spritesheet.parse();
@@ -81,7 +83,7 @@ export function createLandmarkMarkers(options: CreateLandmarkMarkersOptions) {
         }
 
         spriteLookup[region.yamlKey] = {
-          animated: enableTileAnimations,
+          animated: connectScreenState.enableTileAnimations,
           onSprite: createSprite(region.yamlKey, 'on', 'main'),
           offSprite: createSprite(region.yamlKey, 'off', 'main'),
           onQSprite: createSprite(region.yamlKey, 'on', 'quest'),

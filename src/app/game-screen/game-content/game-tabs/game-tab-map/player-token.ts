@@ -14,8 +14,6 @@ const QUARTER_CYCLE = CYCLE / 4;
 
 export interface CreatePlayerTokenOptions {
   ticker: Ticker;
-  averageTimeSeconds: Signal<number>;
-  enableRatAnimations: Signal<boolean | null>;
   game: Signal<AutopelagoClientAndData | null>;
   defs: Signal<AutopelagoDefinitions>;
   currentLocation: Signal<number>;
@@ -33,9 +31,9 @@ export function createPlayerToken(options: CreatePlayerTokenOptions) {
   const destroyRef = inject(DestroyRef);
   const playerTokenResource = resource({
     defaultValue: null,
-    params: () => ({ enableRatAnimations: options.enableRatAnimations() }),
-    loader: async ({ params }) => {
-      if (params.enableRatAnimations === null) {
+    params: () => ({ game: options.game() }),
+    loader: async ({ params: { game } }) => {
+      if (game === null) {
         return null;
       }
 
@@ -50,7 +48,7 @@ export function createPlayerToken(options: CreatePlayerTokenOptions) {
       })];
       playerToken.anchor.set(0.5);
 
-      if (params.enableRatAnimations) {
+      if (game.connectScreenState.enableRatAnimations) {
         function doRotation(this: typeof playerTokenContext, t: Ticker) {
           this.cycleTime = (this.cycleTime + t.deltaMS) % CYCLE;
           this.playerToken.scale.x = this.scaleX;

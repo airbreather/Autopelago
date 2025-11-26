@@ -6,7 +6,6 @@ import {
   effect,
   ElementRef,
   inject,
-  input,
   signal,
   untracked,
   viewChild,
@@ -14,12 +13,9 @@ import {
 
 import { Application, Ticker } from 'pixi.js';
 import { VICTORY_LOCATION_CROP_LOOKUP } from '../../../../data/resolved-definitions';
-import type { AutopelagoClientAndData } from '../../../../data/slot-data';
 import { GameStore } from '../../../../store/autopelago-store';
 import { elementSizeSignal } from '../../../../utils/element-size';
-import { createFillerMarkers } from './filler-markers';
-import { createLandmarkMarkers } from './landmark-markers';
-import { createPlayerToken } from './player-token';
+import { createLivePixiObjects } from './live-pixi-objects';
 
 @Component({
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -69,8 +65,6 @@ export class GameTabMap {
   readonly #store = inject(GameStore);
   protected readonly running = this.#store.running;
 
-  readonly game = input.required<AutopelagoClientAndData>();
-
   protected readonly pixiCanvas = viewChild.required<ElementRef<HTMLCanvasElement>>('pixiCanvas');
   protected readonly outerDiv = viewChild.required<ElementRef<HTMLDivElement>>('outer');
 
@@ -105,36 +99,11 @@ export class GameTabMap {
     // these resources (and signal) need to be created in our injection context, and they have their
     // own asynchronous initialization (though the signal is only pseudo-asynchronous, since it gets
     // initialized during the first microtask tick after we're done).
-    const averageTimeSeconds = computed(() => {
-      const { minTimeSeconds, maxTimeSeconds } = this.game().connectScreenState;
-      return (minTimeSeconds + maxTimeSeconds) / 2;
-    });
-    const enableTileAnimations = computed(() => {
-      return this.game().connectScreenState.enableTileAnimations;
-    });
-    const enableRatAnimations = computed(() => {
-      return this.game().connectScreenState.enableRatAnimations;
-    });
-    const playerTokenResource = createPlayerToken({
-      ticker: app.ticker,
-      averageTimeSeconds,
-      enableRatAnimations,
-      game: this.#store.game,
-      defs: this.#store.defs,
-      currentLocation: this.#store.currentLocation,
-      consumeOutgoingMoves: this.#store.consumeOutgoingMoves,
-    });
-    const landmarksResource = createLandmarkMarkers({
-      enableTileAnimations,
-      defs: this.#store.defs,
-      victoryLocationYamlKey: this.#store.victoryLocationYamlKey,
-      regionIsLandmarkWithUnsatisfiedRequirement: this.#store.regionIsLandmarkWithUnsatisfiedRequirement,
-      checkedLocations: this.#store.checkedLocations,
-    });
-    const fillerMarkersSignal = createFillerMarkers({
-      victoryLocationYamlKey: this.#store.victoryLocationYamlKey,
-      checkedLocations: this.#store.checkedLocations,
-    });
+    const {
+      playerTokenResource,
+      landmarksResource,
+      fillerMarkersSignal,
+    } = createLivePixiObjects(this.#store);
 
     // app.init is async, and nothing can be done with the app until it's initialized, so let's do
     // just everything up to app.init and then open up the floodgates for everything afterward by

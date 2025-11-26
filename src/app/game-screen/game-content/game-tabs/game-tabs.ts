@@ -17,7 +17,7 @@ import { GameTabTextClient } from './game-tab-text-client/game-tab-text-client';
   template: `
     <div class="outer">
       <div class="top">
-        <app-game-tab-map [class.current-tab]="currentTab() === 'map'" [hidden]="currentTab() !== 'map'" [game]="game()" />
+        <app-game-tab-map [class.current-tab]="currentTab() === 'map'" [hidden]="currentTab() !== 'map'" />
         <app-game-tab-arcade [class.current-tab]="currentTab() === 'arcade'" [hidden]="currentTab() !== 'arcade'" />
         <app-game-tab-text-client [class.current-tab]="currentTab() === 'text-client'" [hidden]="currentTab() !== 'text-client'" [game]="game()" />
       </div>
