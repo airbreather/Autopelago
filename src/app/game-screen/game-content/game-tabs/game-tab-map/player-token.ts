@@ -12,8 +12,16 @@ const CYCLE = 1000;
 const HALF_CYCLE = CYCLE / 2;
 const QUARTER_CYCLE = CYCLE / 4;
 
+export interface WiggleOptimizationBox {
+  neutralAngle: number;
+  scaleX: number;
+  _cycleTime: number;
+  _playerToken: Sprite;
+}
+
 export interface CreatePlayerTokenOptions {
   ticker: Ticker;
+  wiggleOptimizationBox: WiggleOptimizationBox;
   game: Signal<AutopelagoClientAndData | null>;
   defs: Signal<AutopelagoDefinitions>;
   currentLocation: Signal<number>;
@@ -22,12 +30,7 @@ export interface CreatePlayerTokenOptions {
 
 const SCALE = 0.25;
 export function createPlayerToken(options: CreatePlayerTokenOptions) {
-  const playerTokenContext = {
-    playerToken: new Sprite(), // just to help the compiler
-    cycleTime: 0,
-    neutralAngle: 0,
-    scaleX: SCALE,
-  };
+  const { wiggleOptimizationBox } = options;
   const destroyRef = inject(DestroyRef);
   const playerTokenResource = resource({
     defaultValue: null,
@@ -38,7 +41,7 @@ export function createPlayerToken(options: CreatePlayerTokenOptions) {
       }
 
       const texture = await Assets.load<Texture>('assets/images/players/pack_rat.webp');
-      const playerToken = playerTokenContext.playerToken = new Sprite(texture);
+      const playerToken = wiggleOptimizationBox._playerToken = new Sprite(texture);
       playerToken.position.set(2, 80);
       playerToken.scale.set(SCALE);
       playerToken.filters = [new DropShadowFilter({
@@ -49,14 +52,14 @@ export function createPlayerToken(options: CreatePlayerTokenOptions) {
       playerToken.anchor.set(0.5);
 
       if (game.connectScreenState.enableRatAnimations) {
-        function doRotation(this: typeof playerTokenContext, t: Ticker) {
-          this.cycleTime = (this.cycleTime + t.deltaMS) % CYCLE;
-          this.playerToken.scale.x = this.scaleX;
-          this.playerToken.rotation = this.neutralAngle + (Math.abs(this.cycleTime - HALF_CYCLE) - QUARTER_CYCLE) * ROTATION_SCALE;
+        function doRotation(this: WiggleOptimizationBox, t: Ticker) {
+          this._cycleTime = (this._cycleTime + t.deltaMS) % CYCLE;
+          this._playerToken.scale.x = this.scaleX;
+          this._playerToken.rotation = this.neutralAngle + (Math.abs(this._cycleTime - HALF_CYCLE) - QUARTER_CYCLE) * ROTATION_SCALE;
         }
 
-        options.ticker.add(doRotation, playerTokenContext);
-        destroyRef.onDestroy(() => options.ticker.remove(doRotation, playerTokenContext));
+        options.ticker.add(doRotation, wiggleOptimizationBox);
+        destroyRef.onDestroy(() => options.ticker.remove(doRotation, wiggleOptimizationBox));
       }
 
       return playerToken;
@@ -141,13 +144,13 @@ export function createPlayerToken(options: CreatePlayerTokenOptions) {
       const x = nextMove.from[0] + (nextMove.to[0] - nextMove.from[0]) * fraction;
       const y = nextMove.from[1] + (nextMove.to[1] - nextMove.from[1]) * fraction;
       playerToken.position.set(x, y);
-      playerTokenContext.neutralAngle = Math.atan2(nextMove.to[1] - nextMove.from[1], nextMove.to[0] - nextMove.from[0]);
-      if (Math.abs(playerTokenContext.neutralAngle) < Math.PI / 2) {
-        playerTokenContext.scaleX = 0.25;
+      wiggleOptimizationBox.neutralAngle = Math.atan2(nextMove.to[1] - nextMove.from[1], nextMove.to[0] - nextMove.from[0]);
+      if (Math.abs(wiggleOptimizationBox.neutralAngle) < Math.PI / 2) {
+        wiggleOptimizationBox.scaleX = 0.25;
       }
       else {
-        playerTokenContext.neutralAngle -= Math.PI;
-        playerTokenContext.scaleX = -0.25;
+        wiggleOptimizationBox.neutralAngle -= Math.PI;
+        wiggleOptimizationBox.scaleX = -0.25;
       }
     };
     options.ticker.add(animatePlayerMoveCallback);
