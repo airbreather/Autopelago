@@ -1,4 +1,14 @@
-import { ChangeDetectionStrategy, Component, DestroyRef, effect, inject, input, resource, signal } from '@angular/core';
+import {
+  ChangeDetectionStrategy,
+  Component,
+  computed,
+  DestroyRef,
+  effect,
+  inject,
+  input,
+  resource,
+  signal,
+} from '@angular/core';
 import { RouterLink } from '@angular/router';
 import { type ActiveToast, ToastrService } from 'ngx-toastr';
 
@@ -22,8 +32,7 @@ import { GameContent } from './game-content/game-content';
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <div #outer class="outer">
-      @let loadedGame = game.value();
-      @if (loadedGame) {
+      @if (gameOrNullIfLoading(); as loadedGame) {
         <app-game-content [game]="loadedGame" />
       }
       @else {
@@ -81,6 +90,14 @@ export class GameScreen {
         return undefined;
       }
     },
+  });
+
+  protected readonly gameOrNullIfLoading = computed(() => {
+    if (this.game.isLoading()) {
+      return null;
+    }
+
+    return this.game.value() ?? null;
   });
 
   constructor() {
