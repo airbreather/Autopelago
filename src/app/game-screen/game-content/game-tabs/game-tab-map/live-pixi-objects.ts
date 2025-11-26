@@ -1,4 +1,4 @@
-import { effect, untracked } from '@angular/core';
+import { computed, effect, untracked } from '@angular/core';
 import { Sprite, type Ticker } from 'pixi.js';
 import Queue from 'yocto-queue';
 import type { Vec2 } from '../../../../data/locations';
@@ -44,7 +44,7 @@ export function createLivePixiObjects(store: InstanceType<typeof GameStore>, tic
     game: store.game,
     defs: store.defs,
     victoryLocationYamlKey: store.victoryLocationYamlKey,
-    regionIsLandmarkWithUnsatisfiedRequirement: store.regionIsLandmarkWithUnsatisfiedRequirement,
+    regionIsHardLocked: computed(() => store.regionLocks().regionIsHardLocked),
   });
   const fillerMarkersSignal = createFillerMarkers({
     victoryLocationYamlKey: store.victoryLocationYamlKey,

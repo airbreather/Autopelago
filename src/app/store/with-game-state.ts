@@ -230,7 +230,7 @@ export function withGameState() {
 
         return result;
       }, { equal: arraysEqual });
-      const regionIsLandmarkWithUnsatisfiedRequirement = computed<Readonly<BitArray>>(() => {
+      const _regionIsLandmarkWithUnsatisfiedRequirement = computed<Readonly<BitArray>>(() => {
         const isSatisfied = buildRequirementIsSatisfied(_relevantItemCountLookup());
         const { allRegions } = defs();
         const regionIsLandmarkWithUnsatisfiedRequirement = new BitArray(allRegions.length);
@@ -242,10 +242,10 @@ export function withGameState() {
         }
         return regionIsLandmarkWithUnsatisfiedRequirement;
       });
-      const _regionLocks = computed<RegionLocks>(() => {
+      const regionLocks = computed<RegionLocks>(() => {
         const { allRegions, startRegion } = defs();
         const locationIsChecked_ = locationIsChecked();
-        const regionIsLandmarkWithUnsatisfiedRequirement_ = regionIsLandmarkWithUnsatisfiedRequirement();
+        const regionIsLandmarkWithUnsatisfiedRequirement_ = _regionIsLandmarkWithUnsatisfiedRequirement();
         const regionIsHardLocked = new BitArray(allRegions.length);
         const regionIsSoftLocked = new BitArray(allRegions.length);
         const regionIsLandmarkAndNotHardLocked = new BitArray(allRegions.length);
@@ -293,7 +293,7 @@ export function withGameState() {
         };
       }, { equal: regionLocksEqual });
       const _clearedOrClearableLandmarks = computed<readonly number[]>(() => {
-        const { regionIsLandmarkAndNotHardLocked } = _regionLocks();
+        const { regionIsLandmarkAndNotHardLocked } = regionLocks();
         const result: number[] = [];
         for (let i = 0; i < regionIsLandmarkAndNotHardLocked.length; i++) {
           if (regionIsLandmarkAndNotHardLocked[i]) {
@@ -387,8 +387,8 @@ export function withGameState() {
         resolvedItems,
         victoryLocation,
         _relevantItemCountLookup,
-        regionIsLandmarkWithUnsatisfiedRequirement,
-        _regionLocks,
+        _regionIsLandmarkWithUnsatisfiedRequirement,
+        regionLocks,
         _clearedOrClearableLandmarks,
         _desirability,
         targetLocationEvidence,
@@ -452,7 +452,7 @@ export function withGameState() {
           return `OK, I'll prioritize ${exactLocName} for you, ${probablyPlayerAlias}. Just so you know, ${firstRequestingUser} already asked me to go there first, but I'll remember that you want me to go there too, in case they change their mind.`;
         }
 
-        if (store._regionLocks().regionIsHardLocked[allLocations[loc].regionLocationKey[0]]) {
+        if (store.regionLocks().regionIsHardLocked[allLocations[loc].regionLocationKey[0]]) {
           return `I'll keep it in mind that ${exactLocName} is important to you, ${probablyPlayerAlias}. I can't get there just yet, though, so please be patient with me...`;
         }
 
@@ -558,7 +558,7 @@ export function withGameState() {
                 let visitedProgression: BitArray | null = null;
                 let visitedTrap: BitArray | null = null;
                 function addLocation(include: Readonly<BitArray>, visited: BitArray) {
-                  const { regionIsHardLocked } = store._regionLocks();
+                  const { regionIsHardLocked } = store.regionLocks();
                   const q = new Queue<number>();
 
                   function tryEnqueue(loc: number) {
@@ -782,7 +782,7 @@ export function withGameState() {
             }
 
             case 'list': {
-              const { regionIsHardLocked } = store._regionLocks();
+              const { regionIsHardLocked } = store.regionLocks();
               const userRequestedLocations = store.userRequestedLocations();
               if (userRequestedLocations.size === 0) {
                 patchState(store, ({ outgoingMessages }) => ({

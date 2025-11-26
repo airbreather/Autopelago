@@ -16,7 +16,7 @@ export interface CreateLandmarkMarkersOptions {
   game: Signal<AutopelagoClientAndData | null>;
   defs: Signal<AutopelagoDefinitions>;
   victoryLocationYamlKey: Signal<VictoryLocationYamlKey>;
-  regionIsLandmarkWithUnsatisfiedRequirement: Signal<Readonly<BitArray>>;
+  regionIsHardLocked: Signal<Readonly<BitArray>>;
 }
 
 export interface LandmarkMarkers {
@@ -118,6 +118,7 @@ export function createLandmarkMarkers(options: CreateLandmarkMarkersOptions): Re
     const { spriteLookup } = landmarks;
 
     const { allRegions } = options.defs();
+    const regionIsHardLocked = options.regionIsHardLocked();
     for (const [_, landmark] of strictObjectEntries(allRegions)) {
       if (!('loc' in landmark)) {
         continue;
@@ -132,8 +133,7 @@ export function createLandmarkMarkers(options: CreateLandmarkMarkersOptions): Re
         return;
       }
 
-      const regionIsLandmarkWithUnsatisfiedRequirement = options.regionIsLandmarkWithUnsatisfiedRequirement();
-      if (regionIsLandmarkWithUnsatisfiedRequirement[landmark.key]) {
+      if (regionIsHardLocked[landmark.key]) {
         spriteBox.onQSprite.visible = false;
         spriteBox.offQSprite.visible = true;
       }
