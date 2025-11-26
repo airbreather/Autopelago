@@ -253,7 +253,7 @@ export const GameStore = signalStore(
         }
 
         const targetLocationReason = store.targetLocationReason();
-        if (targetLocationReason === 'nowhere-useful-to-move' || targetLocationReason === 'startled') {
+        if (targetLocationReason === 'nowhere-useful-to-move' || (prevInterval !== null && targetLocationReason === 'startled')) {
           if (prevInterval === null) {
             if (whenBecomingBlocked) {
               patchState(store, ({ outgoingMessages }) => ({
