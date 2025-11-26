@@ -74,13 +74,17 @@ export const GameStore = signalStore(
         patchState(store, ({ checkedLocations, outgoingAnimatableActions }) => {
           checkedLocations = checkedLocations.withMutations((c) => {
             outgoingAnimatableActions = outgoingAnimatableActions.withMutations((a) => {
+              const newlyCheckedLocations: number[] = [];
               for (const serverLocationId of locations) {
                 const location = locationNameLookup.get(pkg.reverseLocationTable[serverLocationId]) ?? -1;
                 const sizeBefore = c.size;
                 c.add(location);
                 if (c.size > sizeBefore) {
-                  a.push({ type: 'check-location', location });
+                  newlyCheckedLocations.push(location);
                 }
+              }
+              if (newlyCheckedLocations.length > 0) {
+                a.push({ type: 'check-locations', locations: newlyCheckedLocations });
               }
             });
           });

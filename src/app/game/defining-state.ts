@@ -13,14 +13,14 @@ export interface MovementAction {
   toLocation: number;
 }
 
-export interface CheckLocationAction {
-  type: 'check-location';
-  location: number;
+export interface CheckLocationsAction {
+  type: 'check-locations';
+  locations: readonly number[];
 }
 
 export type AnimatableAction =
   | MovementAction
-  | CheckLocationAction
+  | CheckLocationsAction
   ;
 
 export interface DefiningGameState {

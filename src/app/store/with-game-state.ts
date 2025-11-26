@@ -6,11 +6,7 @@ import { List, Set as ImmutableSet } from 'immutable';
 import rand from 'pure-rand';
 import Queue from 'yocto-queue';
 import type { Message } from '../archipelago-client';
-import {
-  type AutopelagoAura,
-  type AutopelagoItem,
-  BAKED_DEFINITIONS_BY_VICTORY_LANDMARK,
-} from '../data/resolved-definitions';
+import { type AutopelagoAura, BAKED_DEFINITIONS_BY_VICTORY_LANDMARK } from '../data/resolved-definitions';
 import type { AutopelagoStoredData, UserRequestedLocation } from '../data/slot-data';
 import type { AnimatableAction, DefiningGameState } from '../game/defining-state';
 import {
@@ -28,44 +24,18 @@ import {
   targetLocationEvidenceEquals,
   targetLocationEvidenceToJSONSerializable,
 } from '../game/target-location-evidence';
+import { arraysEqual, bitArraysEqual } from '../utils/equal-helpers';
 import type { EnumVal, Mutable } from '../utils/types';
 import { createWeightedSampler } from '../utils/weighted-sampler';
-
-const importMeta = import.meta as (ImportMeta & { env?: Partial<Record<string, unknown>> });
-const IS_VITEST = ('env' in importMeta) && ('VITEST' in importMeta.env);
-
-function arraysEqual(a: readonly number[], b: readonly number[]) {
-  if (a === b) {
-    return true;
-  }
-
-  return a.length === b.length && a.every((v, i) => v === b[i]);
-}
-
-function bitArraysEqual(a: Readonly<BitArray>, b: Readonly<BitArray>) {
-  if (a === b) {
-    return true;
-  }
-  if (a.length !== b.length) {
-    return false;
-  }
-  for (let i = 0; i < a.length; i++) {
-    if (a[i] !== b[i]) {
-      return false;
-    }
-  }
-  return true;
-}
 
 function regionLocksEqual(a: RegionLocks, b: RegionLocks) {
   if (a === b) {
     return true;
   }
 
-  return bitArraysEqual(a.regionIsSoftLocked, b.regionIsSoftLocked)
-    && bitArraysEqual(a.regionIsHardLocked, b.regionIsHardLocked)
-    && bitArraysEqual(a.regionIsLandmarkAndNotHardLocked, b.regionIsLandmarkAndNotHardLocked)
-    && bitArraysEqual(a.regionIsLandmarkAndNotSoftLocked, b.regionIsLandmarkAndNotSoftLocked);
+  return bitArraysEqual(a.regionIsHardLocked, b.regionIsHardLocked)
+    && bitArraysEqual(a.regionIsLandmarkWithRequirementSatisfied, b.regionIsLandmarkWithRequirementSatisfied)
+    && bitArraysEqual(a.regionIsLandmarkWithRequirementUnsatisfied, b.regionIsLandmarkWithRequirementUnsatisfied);
 }
 
 interface ModifyRollOptions {
@@ -118,14 +88,8 @@ function getPermanentRollModifier(ratCount: number) {
 
 interface RegionLocks {
   readonly regionIsHardLocked: Readonly<BitArray>;
-  readonly regionIsSoftLocked: Readonly<BitArray>;
-  readonly regionIsLandmarkAndNotHardLocked: Readonly<BitArray>;
-  readonly regionIsLandmarkAndNotSoftLocked: Readonly<BitArray>;
-}
-
-export interface ResolvedItem extends AutopelagoItem {
-  lactoseAwareName: string;
-  enabledAurasGranted: readonly AutopelagoAura[];
+  readonly regionIsLandmarkWithRequirementSatisfied: Readonly<BitArray>;
+  readonly regionIsLandmarkWithRequirementUnsatisfied: Readonly<BitArray>;
 }
 
 const initialState: DefiningGameState = {
@@ -175,6 +139,7 @@ export function withGameState() {
     withComputed((store) => {
       const defs = computed(() => BAKED_DEFINITIONS_BY_VICTORY_LANDMARK[store.victoryLocationYamlKey()]);
       const isStartled = computed(() => store.startledCounter() > 0);
+      const enabledAuras = computed<ReadonlySet<AutopelagoAura>>(() => new Set([...store.enabledBuffs(), ...store.enabledTraps()]));
       const locationIsChecked = computed<Readonly<BitArray>>(() => {
         const { allLocations } = defs();
         const locationIsChecked = new BitArray(allLocations.length);
@@ -199,16 +164,6 @@ export function withGameState() {
         }
         return ratCount;
       });
-      const resolvedItems = computed<readonly ResolvedItem[]>(() => {
-        const { allItems } = defs();
-        const lactoseIntolerant = store.lactoseIntolerant();
-        const enabledAuras = new Set([...store.enabledBuffs(), ...store.enabledTraps()]);
-        return allItems.map(item => ({
-          ...item,
-          lactoseAwareName: lactoseIntolerant ? item.lactoseIntolerantName : item.lactoseName,
-          enabledAurasGranted: item.aurasGranted.filter(a => enabledAuras.has(a)),
-        }));
-      });
       const victoryLocation = computed(() => {
         const { victoryLocationsByYamlKey } = defs();
         const victoryLocationYamlKey = store.victoryLocationYamlKey();
@@ -230,29 +185,23 @@ export function withGameState() {
 
         return result;
       }, { equal: arraysEqual });
-      const _regionIsLandmarkWithUnsatisfiedRequirement = computed<Readonly<BitArray>>(() => {
-        const isSatisfied = buildRequirementIsSatisfied(_relevantItemCountLookup());
-        const { allRegions } = defs();
-        const regionIsLandmarkWithUnsatisfiedRequirement = new BitArray(allRegions.length);
-        for (let i = 0; i < allRegions.length; i++) {
-          const region = allRegions[i];
-          if ('loc' in region && !isSatisfied(region.requirement)) {
-            regionIsLandmarkWithUnsatisfiedRequirement[i] = 1;
-          }
-        }
-        return regionIsLandmarkWithUnsatisfiedRequirement;
-      });
       const regionLocks = computed<RegionLocks>(() => {
         const { allRegions, startRegion } = defs();
-        const locationIsChecked_ = locationIsChecked();
-        const regionIsLandmarkWithUnsatisfiedRequirement_ = _regionIsLandmarkWithUnsatisfiedRequirement();
+        const isSatisfied = buildRequirementIsSatisfied(_relevantItemCountLookup());
         const regionIsHardLocked = new BitArray(allRegions.length);
-        const regionIsSoftLocked = new BitArray(allRegions.length);
-        const regionIsLandmarkAndNotHardLocked = new BitArray(allRegions.length);
-        const regionIsLandmarkAndNotSoftLocked = new BitArray(allRegions.length);
+        const regionIsLandmarkWithRequirementSatisfied = new BitArray(allRegions.length);
+        const regionIsLandmarkWithRequirementUnsatisfied = new BitArray(allRegions.length);
         for (let i = 0; i < allRegions.length; i++) {
           regionIsHardLocked[i] = 1;
-          regionIsSoftLocked[i] = 1;
+          const region = allRegions[i];
+          if ('requirement' in region) {
+            if (isSatisfied(region.requirement)) {
+              regionIsLandmarkWithRequirementSatisfied[i] = 1;
+            }
+            else {
+              regionIsLandmarkWithRequirementUnsatisfied[i] = 1;
+            }
+          }
         }
         const visited = new BitArray(allRegions.length);
         const q = new Queue<number>();
@@ -266,37 +215,26 @@ export function withGameState() {
 
         tryEnqueue(startRegion);
         for (let r = q.dequeue(); r !== undefined; r = q.dequeue()) {
-          if (regionIsLandmarkWithUnsatisfiedRequirement_[r]) {
+          if (regionIsLandmarkWithRequirementUnsatisfied[r]) {
             continue;
           }
-          const region = allRegions[r];
-          if ('loc' in region) {
-            regionIsLandmarkAndNotHardLocked[r] = 1;
-            if (locationIsChecked_[region.loc]) {
-              regionIsSoftLocked[r] = 0;
-              regionIsLandmarkAndNotSoftLocked[r] = 1;
-            }
-          }
-          else {
-            regionIsSoftLocked[r] = 0;
-          }
           regionIsHardLocked[r] = 0;
+          const region = allRegions[r];
           for (const [r] of region.connected.all) {
             tryEnqueue(r);
           }
         }
         return {
-          get regionIsHardLocked() { return regionIsHardLocked; },
-          get regionIsSoftLocked() { return regionIsSoftLocked; },
-          get regionIsLandmarkAndNotHardLocked() { return regionIsLandmarkAndNotHardLocked; },
-          get regionIsLandmarkAndNotSoftLocked() { return regionIsLandmarkAndNotSoftLocked; },
+          regionIsHardLocked,
+          regionIsLandmarkWithRequirementSatisfied,
+          regionIsLandmarkWithRequirementUnsatisfied,
         };
       }, { equal: regionLocksEqual });
       const _clearedOrClearableLandmarks = computed<readonly number[]>(() => {
-        const { regionIsLandmarkAndNotHardLocked } = regionLocks();
+        const { regionIsHardLocked, regionIsLandmarkWithRequirementSatisfied } = regionLocks();
         const result: number[] = [];
-        for (let i = 0; i < regionIsLandmarkAndNotHardLocked.length; i++) {
-          if (regionIsLandmarkAndNotHardLocked[i]) {
+        for (let i = 0; i < regionIsLandmarkWithRequirementSatisfied.length; i++) {
+          if (regionIsLandmarkWithRequirementSatisfied[i] && !regionIsHardLocked[i]) {
             result.push(i);
           }
         }
@@ -381,13 +319,12 @@ export function withGameState() {
       return {
         defs,
         isStartled,
+        enabledAuras,
         locationIsChecked,
         receivedItemCountLookup,
         ratCount,
-        resolvedItems,
         victoryLocation,
         _relevantItemCountLookup,
-        _regionIsLandmarkWithUnsatisfiedRequirement,
         regionLocks,
         _clearedOrClearableLandmarks,
         _desirability,
@@ -535,6 +472,7 @@ export function withGameState() {
         addUserRequestedLocation,
         receiveItems(items: Iterable<number>) {
           const { allItems, allLocations } = store.defs();
+          const enabledAuras = store.enabledAuras();
           patchState(store, (prev) => {
             const result = {
               foodFactor: prev.foodFactor,
@@ -597,6 +535,9 @@ export function withGameState() {
                   let subtractConfidence = false;
                   let addConfidence = false;
                   for (const aura of itemFull.aurasGranted) {
+                    if (!enabledAuras.has(aura)) {
+                      continue;
+                    }
                     switch (aura) {
                       case 'well_fed':
                         result.foodFactor += 5;
@@ -942,11 +883,6 @@ export function withGameState() {
 
                 let roll = 0;
                 let success = lucky;
-                if (success) {
-                  if (!IS_VITEST) {
-                    console.log('lucky!');
-                  }
-                }
                 if (!success) {
                   let d20: number;
                   [d20, result.prng] = rand.uniformIntDistribution(1, 20, prev.prng);
@@ -959,9 +895,6 @@ export function withGameState() {
                     multi: multi++,
                   });
                   success = roll >= allLocations[result.currentLocation].abilityCheckDC;
-                  if (!IS_VITEST) {
-                    console.log(roll, '=', d20, roll >= d20 ? '+' : '-', Math.abs(roll - d20), success ? '>=' : '<', allLocations[result.currentLocation].abilityCheckDC);
-                  }
                   if (isFirstCheck && !success) {
                     bumpMercyModifierForNextTime = true;
                   }
@@ -972,15 +905,15 @@ export function withGameState() {
                 if (!success) {
                   return result;
                 }
-                if (!IS_VITEST) {
-                  console.log('success at', allLocations[result.currentLocation].name);
-                }
                 result.outgoingCheckedLocations = prev.outgoingCheckedLocations.push(result.currentLocation);
                 result.checkedLocations = prev.checkedLocations.add(result.currentLocation);
                 if (!('outgoingAnimatableActions' in result)) {
                   result.outgoingAnimatableActions = prev.outgoingAnimatableActions;
                 }
-                result.outgoingAnimatableActions = result.outgoingAnimatableActions.push({ type: 'check-location', location: result.currentLocation });
+                // only push exactly one at a time, even if we will be checking multiple locations
+                // during this advance() call. the action type allows for multiple because that's
+                // what happens when the server dumps a bunch on us.
+                result.outgoingAnimatableActions = result.outgoingAnimatableActions.push({ type: 'check-locations', locations: [result.currentLocation] });
                 result.mercyFactor = 0;
                 bumpMercyModifierForNextTime = false;
               }

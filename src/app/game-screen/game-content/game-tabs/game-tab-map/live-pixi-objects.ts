@@ -1,10 +1,11 @@
 import { computed, effect, untracked } from '@angular/core';
 import { Sprite, type Ticker } from 'pixi.js';
 import Queue from 'yocto-queue';
-import type { Vec2 } from '../../../../data/locations';
+import type { LandmarkYamlKey, Vec2 } from '../../../../data/locations';
 import { type AutopelagoDefinitions } from '../../../../data/resolved-definitions';
 import type { AnimatableAction } from '../../../../game/defining-state';
 import { GameStore } from '../../../../store/autopelago-store';
+import { bitArraysEqual } from '../../../../utils/equal-helpers';
 import { createFillerMarkers, type FillerMarkers } from './filler-markers';
 import { createLandmarkMarkers, type LandmarkMarkers } from './landmark-markers';
 import { createPlayerToken, SCALE, type WiggleOptimizationBox } from './player-token';
@@ -44,7 +45,7 @@ export function createLivePixiObjects(store: InstanceType<typeof GameStore>, tic
     game: store.game,
     defs: store.defs,
     victoryLocationYamlKey: store.victoryLocationYamlKey,
-    regionIsHardLocked: computed(() => store.regionLocks().regionIsHardLocked),
+    regionIsLandmarkWithRequirementSatisfied: computed(() => store.regionLocks().regionIsLandmarkWithRequirementSatisfied, { equal: bitArraysEqual }),
   });
   const fillerMarkersSignal = createFillerMarkers({
     victoryLocationYamlKey: store.victoryLocationYamlKey,
@@ -67,29 +68,32 @@ export function createLivePixiObjects(store: InstanceType<typeof GameStore>, tic
     }
 
     // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
-    if (action.type === 'check-location') {
-      if (Number.isNaN(defs.regionForLandmarkLocation[action.location])) {
-        return {
-          run: (_fraction: number, _defs: AutopelagoDefinitions, _playerToken: Sprite, _landmarkMarkers: LandmarkMarkers, fillerMarkers: FillerMarkers) => {
-            fillerMarkers.markChecked(action.location);
-          },
-        };
-      }
-      else {
-        const region = defs.allRegions[defs.regionForLandmarkLocation[action.location]];
-        // just satisfy the compiler. we know it'll be here.
-        if (!('loc' in region)) {
-          return NO_ACTION;
+    if (action.type === 'check-locations') {
+      const fillerLocations: number[] = [];
+      const landmarkLocations: LandmarkYamlKey[] = [];
+      for (const location of action.locations) {
+        if (Number.isNaN(defs.regionForLandmarkLocation[location])) {
+          fillerLocations.push(location);
         }
-        let ran = false;
-        return {
-          run: (_fraction: number, _defs: AutopelagoDefinitions, _playerToken: Sprite, landmarkMarkers: LandmarkMarkers) => {
-            if (ran) {
-              return;
-            }
-            const spriteLookup = landmarkMarkers.spriteLookup;
-            if (region.yamlKey in spriteLookup) {
-              const box = spriteLookup[region.yamlKey];
+        else {
+          const region = defs.allRegions[defs.regionForLandmarkLocation[location]];
+          // just satisfy the compiler. we know it'll be here.
+          if (!('loc' in region)) {
+            return NO_ACTION;
+          }
+          landmarkLocations.push(region.yamlKey);
+        }
+      }
+      return {
+        run: (fraction: number, _defs: AutopelagoDefinitions, _playerToken: Sprite, landmarkMarkers: LandmarkMarkers, fillerMarkers: FillerMarkers) => {
+          if (fraction !== 1) {
+            return;
+          }
+          fillerMarkers.markChecked(...fillerLocations);
+          const spriteLookup = landmarkMarkers.spriteLookup;
+          for (const yamlKey of landmarkLocations) {
+            if (yamlKey in spriteLookup) {
+              const box = spriteLookup[yamlKey];
               if (box) {
                 box.offSprite.visible = false;
                 box.onSprite.visible = true;
@@ -97,11 +101,9 @@ export function createLivePixiObjects(store: InstanceType<typeof GameStore>, tic
                 box.offQSprite.visible = false;
               }
             }
-
-            ran = true;
-          },
-        };
-      }
+          }
+        },
+      };
     }
 
     return NO_ACTION;
@@ -177,8 +179,8 @@ export function createLivePixiObjects(store: InstanceType<typeof GameStore>, tic
       prog += t.deltaMS;
       if (queuedActions.size > 6) {
         // there are too many moves. we really need to catch up. for every 6 moves over our magic
-        // number of 6, increase the animation speed by a factor of 20%.
-        t.speed = Math.pow(1.2, queuedActions.size / 6);
+        // number of 6, increase the animation speed by a factor of 20%. up to 5x, though.
+        t.speed = Math.min(5, Math.pow(1.2, queuedActions.size / 6));
       }
       else if (t.speed !== 1) {
         t.speed = 1;
