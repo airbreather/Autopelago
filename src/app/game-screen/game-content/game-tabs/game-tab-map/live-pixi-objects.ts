@@ -2,12 +2,12 @@ import { Sprite, type Ticker } from 'pixi.js';
 import { GameStore } from '../../../../store/autopelago-store';
 import { createFillerMarkers } from './filler-markers';
 import { createLandmarkMarkers } from './landmark-markers';
-import { createPlayerToken, type WiggleOptimizationBox } from './player-token';
+import { createPlayerToken, SCALE, type WiggleOptimizationBox } from './player-token';
 
 export function createLivePixiObjects(store: InstanceType<typeof GameStore>, ticker: Ticker) {
   const wiggleOptimizationBox: WiggleOptimizationBox = {
     neutralAngle: 0,
-    scaleX: 0,
+    scaleX: SCALE,
     _playerToken: new Sprite(), // will be overridden
     _cycleTime: 0, // will be overridden
   };

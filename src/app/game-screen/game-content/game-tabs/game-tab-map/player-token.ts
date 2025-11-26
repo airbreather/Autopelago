@@ -28,7 +28,7 @@ export interface CreatePlayerTokenOptions {
   consumeOutgoingMoves(): List<readonly [number, number]>;
 }
 
-const SCALE = 0.25;
+export const SCALE = 0.25;
 export function createPlayerToken(options: CreatePlayerTokenOptions) {
   const { wiggleOptimizationBox } = options;
   const destroyRef = inject(DestroyRef);
