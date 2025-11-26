@@ -3,12 +3,7 @@ import BitArray from '@bitarray/typedarray';
 import { Client, type ConnectionOptions, type MessageNode, type Player } from 'archipelago.js';
 import { List } from 'immutable';
 import type { ConnectScreenState } from './connect-screen/connect-screen-state';
-import {
-  type AutopelagoAura,
-  BAKED_DEFINITIONS_BY_VICTORY_LANDMARK,
-  BAKED_DEFINITIONS_FULL,
-  VICTORY_LOCATION_NAME_LOOKUP,
-} from './data/resolved-definitions';
+import { BAKED_DEFINITIONS_BY_VICTORY_LANDMARK, VICTORY_LOCATION_NAME_LOOKUP } from './data/resolved-definitions';
 import type {
   AutopelagoClientAndData,
   AutopelagoSlotData,
@@ -148,7 +143,6 @@ export async function initializeClient(initializeClientOptions: InitializeClient
     connectScreenState,
     client,
     pkg,
-    resolvedItems: resolveItems(slotData),
     messageLog,
     slotData,
     locationIsProgression,
@@ -233,13 +227,4 @@ function createReactiveMessageLog(client: Client, destroyRef?: DestroyRef): Sign
   }
 
   return messageLog.asReadonly();
-}
-
-function resolveItems(slotData: AutopelagoSlotData) {
-  const enabledAuras = new Set<AutopelagoAura>([...slotData.enabled_buffs, ...slotData.enabled_traps]);
-  return BAKED_DEFINITIONS_FULL.allItems.map(item => ({
-    ...item,
-    lactoseAwareName: slotData.lactose_intolerant ? item.lactoseIntolerantName : item.lactoseName,
-    enabledAurasGranted: item.aurasGranted.filter(a => enabledAuras.has(a)),
-  }));
 }

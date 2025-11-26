@@ -117,7 +117,6 @@ const initialState: DefiningGameState = {
   processedReceivedItemCount: NaN,
   currentLocation: -1,
   auraDrivenLocations: List<number>(),
-  processedAuraDrivenLocationCount: 0,
   userRequestedLocations: List<Readonly<UserRequestedLocation>>(),
   previousTargetLocationEvidence: {
     isStartled: false,
@@ -131,6 +130,7 @@ const initialState: DefiningGameState = {
   outgoingCheckedLocations: List<number>(),
   outgoingAnimatableActions: List<AnimatableAction>(),
   outgoingMessages: List<string>(),
+  outgoingAuraDrivenLocations: List<number>(),
 };
 
 export function withGameState() {
@@ -300,7 +300,6 @@ export function withGameState() {
         processedReceivedItemCount: store.processedReceivedItemCount(),
         currentLocation: store.currentLocation(),
         auraDrivenLocations: store.auraDrivenLocations().toJS(),
-        processedAuraDrivenLocationCount: store.processedAuraDrivenLocationCount(),
         userRequestedLocations: store.userRequestedLocations().toJS().map(l => ({
           location: l.location,
           userSlot: l.userSlot,
@@ -487,156 +486,160 @@ export function withGameState() {
               processedReceivedItemCount: prev.processedReceivedItemCount,
               auraDrivenLocations: prev.auraDrivenLocations,
               userRequestedLocations: prev.userRequestedLocations,
+              outgoingAuraDrivenLocations: prev.outgoingAuraDrivenLocations,
             } satisfies Partial<DefiningGameState>;
-            result.auraDrivenLocations = result.auraDrivenLocations.withMutations((a) => {
-              result.receivedItems = prev.receivedItems.withMutations((r) => {
-                const locs = allLocations;
-                const checkedLocations = store.checkedLocations();
-                let auraDrivenLocationsSet: Set<number> | null = null;
-                let visitedProgression: BitArray | null = null;
-                let visitedTrap: BitArray | null = null;
-                function addLocation(include: Readonly<BitArray>, visited: BitArray) {
-                  const { regionIsHardLocked } = store.regionLocks();
-                  const q = new Queue<number>();
+            result.outgoingAuraDrivenLocations = result.outgoingAuraDrivenLocations.withMutations((oa) => {
+              result.auraDrivenLocations = result.auraDrivenLocations.withMutations((a) => {
+                result.receivedItems = prev.receivedItems.withMutations((r) => {
+                  const locs = allLocations;
+                  const checkedLocations = store.checkedLocations();
+                  let auraDrivenLocationsSet: Set<number> | null = null;
+                  let visitedProgression: BitArray | null = null;
+                  let visitedTrap: BitArray | null = null;
+                  function addLocation(include: Readonly<BitArray>, visited: BitArray) {
+                    const { regionIsHardLocked } = store.regionLocks();
+                    const q = new Queue<number>();
 
-                  function tryEnqueue(loc: number) {
-                    if (visited[loc]) {
-                      return;
+                    function tryEnqueue(loc: number) {
+                      if (visited[loc]) {
+                        return;
+                      }
+
+                      if (!regionIsHardLocked[locs[loc].regionLocationKey[0]]) {
+                        q.enqueue(loc);
+                      }
+
+                      visited[loc] = 1;
                     }
 
-                    if (!regionIsHardLocked[locs[loc].regionLocationKey[0]]) {
-                      q.enqueue(loc);
-                    }
+                    tryEnqueue(prev.currentLocation);
+                    for (let loc = q.dequeue(); loc !== undefined; loc = q.dequeue()) {
+                      if (include[loc] && !checkedLocations.has(loc) && !(auraDrivenLocationsSet ??= new Set(a)).has(loc)) {
+                        a.push(loc);
+                        oa.push(loc);
+                        auraDrivenLocationsSet.add(loc);
+                        break;
+                      }
 
-                    visited[loc] = 1;
+                      for (const [c] of locs[loc].connected.all) {
+                        tryEnqueue(c);
+                      }
+                    }
                   }
 
-                  tryEnqueue(prev.currentLocation);
-                  for (let loc = q.dequeue(); loc !== undefined; loc = q.dequeue()) {
-                    if (include[loc] && !checkedLocations.has(loc) && !(auraDrivenLocationsSet ??= new Set(a)).has(loc)) {
-                      a.push(loc);
-                      auraDrivenLocationsSet.add(loc);
-                      break;
-                    }
-
-                    for (const [c] of locs[loc].connected.all) {
-                      tryEnqueue(c);
-                    }
-                  }
-                }
-
-                for (const item of items) {
-                  const itemFull = allItems[item];
-                  r.push(item);
-                  if (r.size <= result.processedReceivedItemCount) {
-                    continue;
-                  }
-
-                  let subtractConfidence = false;
-                  let addConfidence = false;
-                  for (const aura of itemFull.aurasGranted) {
-                    if (!enabledAuras.has(aura)) {
+                  for (const item of items) {
+                    const itemFull = allItems[item];
+                    r.push(item);
+                    if (r.size <= result.processedReceivedItemCount) {
                       continue;
                     }
-                    switch (aura) {
-                      case 'well_fed':
-                        result.foodFactor += 5;
-                        break;
 
-                      case 'upset_tummy':
-                        if (result.hasConfidence) {
-                          subtractConfidence = true;
-                        }
-                        else {
-                          result.foodFactor -= 5;
-                        }
+                    let subtractConfidence = false;
+                    let addConfidence = false;
+                    for (const aura of itemFull.aurasGranted) {
+                      if (!enabledAuras.has(aura)) {
+                        continue;
+                      }
+                      switch (aura) {
+                        case 'well_fed':
+                          result.foodFactor += 5;
+                          break;
 
-                        break;
+                        case 'upset_tummy':
+                          if (result.hasConfidence) {
+                            subtractConfidence = true;
+                          }
+                          else {
+                            result.foodFactor -= 5;
+                          }
 
-                      case 'lucky':
-                        ++result.luckFactor;
-                        break;
+                          break;
 
-                      case 'unlucky':
-                        if (result.hasConfidence) {
-                          subtractConfidence = true;
-                        }
-                        else {
-                          --result.luckFactor;
-                        }
+                        case 'lucky':
+                          ++result.luckFactor;
+                          break;
 
-                        break;
+                        case 'unlucky':
+                          if (result.hasConfidence) {
+                            subtractConfidence = true;
+                          }
+                          else {
+                            --result.luckFactor;
+                          }
 
-                      case 'energized':
-                        result.energyFactor += 5;
-                        break;
+                          break;
 
-                      case 'sluggish':
-                        if (result.hasConfidence) {
-                          subtractConfidence = true;
-                        }
-                        else {
-                          result.energyFactor -= 5;
-                        }
+                        case 'energized':
+                          result.energyFactor += 5;
+                          break;
 
-                        break;
+                        case 'sluggish':
+                          if (result.hasConfidence) {
+                            subtractConfidence = true;
+                          }
+                          else {
+                            result.energyFactor -= 5;
+                          }
 
-                      case 'distracted':
-                        if (result.hasConfidence) {
-                          subtractConfidence = true;
-                        }
-                        else {
-                          ++result.distractionCounter;
-                        }
+                          break;
 
-                        break;
+                        case 'distracted':
+                          if (result.hasConfidence) {
+                            subtractConfidence = true;
+                          }
+                          else {
+                            ++result.distractionCounter;
+                          }
 
-                      case 'stylish':
-                        result.styleFactor += 2;
-                        break;
+                          break;
 
-                      case 'startled':
-                        if (result.hasConfidence) {
-                          subtractConfidence = true;
-                        }
-                        else {
-                          ++result.startledCounter;
-                        }
+                        case 'stylish':
+                          result.styleFactor += 2;
+                          break;
 
-                        break;
+                        case 'startled':
+                          if (result.hasConfidence) {
+                            subtractConfidence = true;
+                          }
+                          else {
+                            ++result.startledCounter;
+                          }
 
-                      case 'smart':
-                        addLocation(prev.locationIsProgression, visitedProgression ??= new BitArray(locs.length));
-                        break;
+                          break;
 
-                      case 'conspiratorial':
-                        if (result.hasConfidence) {
-                          subtractConfidence = true;
-                        }
-                        else {
-                          addLocation(prev.locationIsTrap, visitedTrap ??= new BitArray(locs.length));
-                        }
-                        break;
+                        case 'smart':
+                          addLocation(prev.locationIsProgression, visitedProgression ??= new BitArray(locs.length));
+                          break;
 
-                      case 'confident':
-                        addConfidence = true;
-                        break;
+                        case 'conspiratorial':
+                          if (result.hasConfidence) {
+                            subtractConfidence = true;
+                          }
+                          else {
+                            addLocation(prev.locationIsTrap, visitedTrap ??= new BitArray(locs.length));
+                          }
+                          break;
+
+                        case 'confident':
+                          addConfidence = true;
+                          break;
+                      }
+                    }
+
+                    if (subtractConfidence) {
+                      result.hasConfidence = false;
+                    }
+
+                    if (addConfidence) {
+                      result.hasConfidence = true;
                     }
                   }
 
-                  if (subtractConfidence) {
-                    result.hasConfidence = false;
-                  }
-
-                  if (addConfidence) {
-                    result.hasConfidence = true;
-                  }
-                }
-
-                // Startled is extremely punishing. after a big release, it can be very annoying to just
-                // sit there and wait for too many turns in a row. same concept applies to Distracted.
-                result.startledCounter = Math.min(result.startledCounter, 3);
-                result.distractionCounter = Math.min(result.distractionCounter, 3);
+                  // Startled is extremely punishing. after a big release, it can be very annoying to just
+                  // sit there and wait for too many turns in a row. same concept applies to Distracted.
+                  result.startledCounter = Math.min(result.startledCounter, 3);
+                  result.distractionCounter = Math.min(result.distractionCounter, 3);
+                });
               });
             });
 

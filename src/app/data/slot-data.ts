@@ -6,26 +6,14 @@ import type { Message } from '../archipelago-client';
 import type { ConnectScreenState } from '../connect-screen/connect-screen-state';
 import type { TargetLocationEvidence } from '../game/target-location-evidence';
 import type { ToJSONSerializable } from '../utils/types';
-import type {
-  AutopelagoAura,
-  AutopelagoBuff,
-  AutopelagoItem,
-  AutopelagoTrap,
-  VictoryLocationName,
-} from './resolved-definitions';
+import type { AutopelagoBuff, AutopelagoTrap, VictoryLocationName } from './resolved-definitions';
 
 export type AutopelagoUserCustomizableMessage = [string, number];
-
-export interface ResolvedAutopelagoItem extends AutopelagoItem {
-  lactoseAwareName: string;
-  enabledAurasGranted: readonly AutopelagoAura[];
-}
 
 export interface AutopelagoClientAndData {
   connectScreenState: ConnectScreenState;
   client: Client;
   pkg: PackageMetadata;
-  resolvedItems: readonly ResolvedAutopelagoItem[];
   locationIsProgression: Readonly<BitArray>;
   locationIsTrap: Readonly<BitArray>;
   messageLog: Signal<List<Message>>;

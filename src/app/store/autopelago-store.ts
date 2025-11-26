@@ -36,6 +36,8 @@ export const GameStore = signalStore(
         victoryLocationYamlKey,
         locationIsProgression,
         locationIsTrap,
+        enabledBuffs: new Set(slotData.enabled_buffs),
+        enabledTraps: new Set(slotData.enabled_traps),
         messagesForChangedTarget: toWeighted(slotData.msg_changed_target),
         messagesForEnterGoMode: toWeighted(slotData.msg_enter_go_mode),
         messagesForEnterBK: toWeighted(slotData.msg_enter_bk),
@@ -184,22 +186,26 @@ export const GameStore = signalStore(
           return;
         }
 
-        patchState(store, ({ auraDrivenLocations, processedAuraDrivenLocationCount, outgoingMessages }) => {
-          if (processedAuraDrivenLocationCount >= auraDrivenLocations.size) {
+        if (store.outgoingAuraDrivenLocations().size === 0) {
+          return;
+        }
+
+        patchState(store, ({ outgoingAuraDrivenLocations, outgoingMessages }) => {
+          if (outgoingAuraDrivenLocations.size === 0) {
             return { };
           }
 
           const { sendChatMessages, whenTargetChanges } = game.connectScreenState;
           if (!(sendChatMessages && whenTargetChanges)) {
             return {
-              processedAuraDrivenLocationCount: auraDrivenLocations.size,
+              outgoingAuraDrivenLocations: outgoingAuraDrivenLocations.clear(),
             };
           }
 
           return {
-            processedAuraDrivenLocationCount: auraDrivenLocations.size,
+            outgoingAuraDrivenLocations: outgoingAuraDrivenLocations.clear(),
             outgoingMessages: outgoingMessages.withMutations((messages) => {
-              for (const loc of auraDrivenLocations.skip(processedAuraDrivenLocationCount)) {
+              for (const loc of outgoingAuraDrivenLocations) {
                 messages.push(sampleMessage(Math.random()).replaceAll('{LOCATION}', allLocations[loc].name));
               }
             }),

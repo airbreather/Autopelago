@@ -51,7 +51,6 @@ export interface DefiningGameState {
   readonly processedReceivedItemCount: number;
   readonly currentLocation: number;
   readonly auraDrivenLocations: List<number>;
-  readonly processedAuraDrivenLocationCount: number;
   readonly userRequestedLocations: List<UserRequestedLocation>;
   readonly previousTargetLocationEvidence: TargetLocationEvidence;
 
@@ -67,4 +66,5 @@ export interface DefiningGameState {
   outgoingCheckedLocations: List<number>;
   outgoingAnimatableActions: List<AnimatableAction>;
   outgoingMessages: List<string>;
+  outgoingAuraDrivenLocations: List<number>;
 }
