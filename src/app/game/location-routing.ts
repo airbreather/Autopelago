@@ -46,10 +46,12 @@ export type TargetLocationReason =
   | 'user-requested'
   | 'aura-driven'
   | 'go-mode'
+  | 'game-over'
   | 'startled';
 
 export const Desirability = {
-  STARTLED: 6,
+  STARTLED: 7,
+  GAME_OVER: 6,
   GO_MODE: 5,
   AURA_DRIVEN: 4,
   USER_REQUESTED: 3,
@@ -65,6 +67,7 @@ const desirabilityMap: TargetLocationReason[] = [
   'user-requested',
   'aura-driven',
   'go-mode',
+  'game-over',
   'startled',
 ];
 
@@ -90,8 +93,15 @@ export function determineDesirability(options: Readonly<DetermineDesirabilityOpt
   const result = Array<EnumVal<typeof Desirability>>(allLocations.length);
 
   // lowest precedence: checked/unchecked
+  let allLocationsMightBeChecked: 1 | 0 = 1;
   for (let i = 0; i < result.length; i++) {
     result[i] = locationIsChecked[i] ? Desirability.CHECKED : Desirability.UNCHECKED;
+    allLocationsMightBeChecked &&= locationIsChecked[i];
+  }
+
+  if (allLocationsMightBeChecked) {
+    result[victoryLocation] = Desirability.GAME_OVER;
+    return result;
   }
 
   // next precedence: user requested

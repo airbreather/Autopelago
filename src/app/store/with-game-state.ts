@@ -863,7 +863,7 @@ export function withGameState() {
           // (only) movement. in the past, this was uncapped, which basically meant that the player
           // would often teleport great distances, which was against the spirit of the whole thing.
           let energyBank = remainingActions;
-          while (remainingActions > 0 && store.checkedLocations().size < allLocations.length) {
+          while (remainingActions > 0 && (store.targetLocationReason() !== 'game-over' || store.currentLocation() !== store.targetLocation())) {
             patchState(store, (prev) => {
               const result = {} as Mutable<Partial<typeof prev>>;
 

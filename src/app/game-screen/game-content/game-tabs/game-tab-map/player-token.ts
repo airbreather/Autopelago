@@ -60,14 +60,15 @@ export function createPlayerToken({ store, ticker, enableRatAnimationsSignal }: 
   });
 
   let everSetInitialPosition = false;
+  let moveDuration = 100;
 
-  const MOVE_DUR = 200;
   let prog = 0;
   const queuedMoves = new Queue<{ from: Vec2; to: Vec2 }>();
   let animatePlayerMoveCallback: ((t: Ticker) => void) | null = null;
   effect(() => {
     const playerToken = playerTokenResource.value();
-    if (!playerToken) {
+    const game = store.game();
+    if (!playerToken || !game) {
       return;
     }
 
@@ -78,6 +79,7 @@ export function createPlayerToken({ store, ticker, enableRatAnimationsSignal }: 
         const { allLocations } = defs;
         playerToken.position.set(...untracked(() => allLocations[store.currentLocation()].coords));
         everSetInitialPosition = true;
+        moveDuration = 200 * Math.min(1, (game.connectScreenState.minTimeSeconds + game.connectScreenState.maxTimeSeconds) / 2);
       }
 
       return;
@@ -99,17 +101,27 @@ export function createPlayerToken({ store, ticker, enableRatAnimationsSignal }: 
       }
 
       prog += t.deltaMS;
-      while (prog >= MOVE_DUR) {
+      if (queuedMoves.size > 6) {
+        // there are too many moves. we really need to catch up. for every 6 moves over our magic
+        // number of 6, increase the animation speed by a factor of 20%.
+        t.speed = Math.pow(1.2, queuedMoves.size / 6);
+      }
+      else if (t.speed !== 1) {
+        t.speed = 1;
+      }
+
+      while (prog >= moveDuration) {
         const fullMove = queuedMoves.dequeue();
         if (queuedMoves.size === 0 && fullMove !== undefined) {
           playerToken.position.set(...defs.allLocations[store.currentLocation()].coords);
           t.remove(animatePlayerMoveCallback);
           animatePlayerMoveCallback = null;
           prog = 0;
+          t.speed = 1;
           return;
         }
 
-        prog -= MOVE_DUR;
+        prog -= moveDuration;
       }
 
       const nextMove = queuedMoves.peek();
@@ -121,7 +133,7 @@ export function createPlayerToken({ store, ticker, enableRatAnimationsSignal }: 
         return;
       }
 
-      const fraction = prog / MOVE_DUR;
+      const fraction = prog / moveDuration;
       const x = nextMove.from[0] + (nextMove.to[0] - nextMove.from[0]) * fraction;
       const y = nextMove.from[1] + (nextMove.to[1] - nextMove.from[1]) * fraction;
       playerToken.position.set(x, y);

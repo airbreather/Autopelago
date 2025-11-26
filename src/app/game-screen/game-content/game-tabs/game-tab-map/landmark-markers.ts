@@ -50,7 +50,7 @@ export function createLandmarkMarkers({ store, enableTileAnimationsSignal }: Cre
         const frames = spritesheet.animations[`${img === 'main' ? landmarkKey : 'q'}_${displaying}`];
         let sprite: Sprite;
         if (enableTileAnimations) {
-          const anim = sprite = new AnimatedSprite(frames);
+          const anim = sprite = new AnimatedSprite(frames, true);
           anim.animationSpeed = 1 / (500 * Ticker.targetFPMS);
           anim.play();
         }

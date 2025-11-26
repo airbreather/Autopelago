@@ -92,7 +92,7 @@ export class GameTabMap {
     inject(DestroyRef).onDestroy(() => {
       app.destroy();
     });
-    app.ticker = new Ticker();
+    app.ticker = Ticker.shared;
     effect(() => {
       if (this.#store.running()) {
         app.ticker.start();
