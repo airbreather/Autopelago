@@ -105,17 +105,35 @@ export class GameTabMap {
     // these resources (and signal) need to be created in our injection context, and they have their
     // own asynchronous initialization (though the signal is only pseudo-asynchronous, since it gets
     // initialized during the first microtask tick after we're done).
+    const averageTimeSeconds = computed(() => {
+      const { minTimeSeconds, maxTimeSeconds } = this.game().connectScreenState;
+      return (minTimeSeconds + maxTimeSeconds) / 2;
+    });
+    const enableTileAnimations = computed(() => {
+      return this.game().connectScreenState.enableTileAnimations;
+    });
+    const enableRatAnimations = computed(() => {
+      return this.game().connectScreenState.enableRatAnimations;
+    });
     const playerTokenResource = createPlayerToken({
-      store: this.#store,
       ticker: app.ticker,
-      enableRatAnimationsSignal: computed(() => this.game().connectScreenState.enableRatAnimations),
+      averageTimeSeconds,
+      enableRatAnimations,
+      game: this.#store.game,
+      defs: this.#store.defs,
+      currentLocation: this.#store.currentLocation,
+      consumeOutgoingMoves: this.#store.consumeOutgoingMoves,
     });
     const landmarksResource = createLandmarkMarkers({
-      store: this.#store,
-      enableTileAnimationsSignal: computed(() => this.game().connectScreenState.enableTileAnimations),
+      enableTileAnimations,
+      defs: this.#store.defs,
+      victoryLocationYamlKey: this.#store.victoryLocationYamlKey,
+      regionIsLandmarkWithUnsatisfiedRequirement: this.#store.regionIsLandmarkWithUnsatisfiedRequirement,
+      checkedLocations: this.#store.checkedLocations,
     });
     const fillerMarkersSignal = createFillerMarkers({
-      store: this.#store,
+      victoryLocationYamlKey: this.#store.victoryLocationYamlKey,
+      checkedLocations: this.#store.checkedLocations,
     });
 
     // app.init is async, and nothing can be done with the app until it's initialized, so let's do

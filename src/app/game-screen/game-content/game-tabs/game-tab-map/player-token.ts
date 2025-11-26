@@ -1,9 +1,11 @@
 import { DestroyRef, effect, inject, resource, type Signal, untracked } from '@angular/core';
+import { List } from 'immutable';
 import { DropShadowFilter } from 'pixi-filters';
 import { Assets, Sprite, Texture, Ticker } from 'pixi.js';
 import Queue from 'yocto-queue';
 import type { Vec2 } from '../../../../data/locations';
-import type { GameStore } from '../../../../store/autopelago-store';
+import type { AutopelagoDefinitions } from '../../../../data/resolved-definitions';
+import type { AutopelagoClientAndData } from '../../../../data/slot-data';
 
 const ROTATION_SCALE = Math.PI / 3200;
 const CYCLE = 1000;
@@ -11,13 +13,17 @@ const HALF_CYCLE = CYCLE / 2;
 const QUARTER_CYCLE = CYCLE / 4;
 
 export interface CreatePlayerTokenOptions {
-  store: InstanceType<typeof GameStore>;
   ticker: Ticker;
-  enableRatAnimationsSignal: Signal<boolean | null>;
+  averageTimeSeconds: Signal<number>;
+  enableRatAnimations: Signal<boolean | null>;
+  game: Signal<AutopelagoClientAndData | null>;
+  defs: Signal<AutopelagoDefinitions>;
+  currentLocation: Signal<number>;
+  consumeOutgoingMoves(): List<readonly [number, number]>;
 }
 
 const SCALE = 0.25;
-export function createPlayerToken({ store, ticker, enableRatAnimationsSignal }: CreatePlayerTokenOptions) {
+export function createPlayerToken(options: CreatePlayerTokenOptions) {
   const playerTokenContext = {
     playerToken: new Sprite(), // just to help the compiler
     cycleTime: 0,
@@ -27,9 +33,9 @@ export function createPlayerToken({ store, ticker, enableRatAnimationsSignal }: 
   const destroyRef = inject(DestroyRef);
   const playerTokenResource = resource({
     defaultValue: null,
-    params: () => enableRatAnimationsSignal(),
-    loader: async ({ params: enableRatAnimations }) => {
-      if (enableRatAnimations === null) {
+    params: () => ({ enableRatAnimations: options.enableRatAnimations() }),
+    loader: async ({ params }) => {
+      if (params.enableRatAnimations === null) {
         return null;
       }
 
@@ -44,15 +50,15 @@ export function createPlayerToken({ store, ticker, enableRatAnimationsSignal }: 
       })];
       playerToken.anchor.set(0.5);
 
-      if (enableRatAnimations) {
+      if (params.enableRatAnimations) {
         function doRotation(this: typeof playerTokenContext, t: Ticker) {
           this.cycleTime = (this.cycleTime + t.deltaMS) % CYCLE;
           this.playerToken.scale.x = this.scaleX;
           this.playerToken.rotation = this.neutralAngle + (Math.abs(this.cycleTime - HALF_CYCLE) - QUARTER_CYCLE) * ROTATION_SCALE;
         }
 
-        ticker.add(doRotation, playerTokenContext);
-        destroyRef.onDestroy(() => ticker.remove(doRotation, playerTokenContext));
+        options.ticker.add(doRotation, playerTokenContext);
+        destroyRef.onDestroy(() => options.ticker.remove(doRotation, playerTokenContext));
       }
 
       return playerToken;
@@ -67,17 +73,17 @@ export function createPlayerToken({ store, ticker, enableRatAnimationsSignal }: 
   let animatePlayerMoveCallback: ((t: Ticker) => void) | null = null;
   effect(() => {
     const playerToken = playerTokenResource.value();
-    const game = store.game();
+    const game = options.game();
     if (!playerToken || !game) {
       return;
     }
 
-    const defs = store.defs();
-    const moves = store.consumeOutgoingMoves();
+    const defs = options.defs();
+    const moves = options.consumeOutgoingMoves();
     if (moves.size === 0) {
       if (!everSetInitialPosition) {
         const { allLocations } = defs;
-        playerToken.position.set(...untracked(() => allLocations[store.currentLocation()].coords));
+        playerToken.position.set(...untracked(() => allLocations[options.currentLocation()].coords));
         everSetInitialPosition = true;
         moveDuration = 200 * Math.min(1, (game.connectScreenState.minTimeSeconds + game.connectScreenState.maxTimeSeconds) / 2);
       }
@@ -113,7 +119,7 @@ export function createPlayerToken({ store, ticker, enableRatAnimationsSignal }: 
       while (prog >= moveDuration) {
         const fullMove = queuedMoves.dequeue();
         if (queuedMoves.size === 0 && fullMove !== undefined) {
-          playerToken.position.set(...defs.allLocations[store.currentLocation()].coords);
+          playerToken.position.set(...defs.allLocations[options.currentLocation()].coords);
           t.remove(animatePlayerMoveCallback);
           animatePlayerMoveCallback = null;
           prog = 0;
@@ -126,7 +132,7 @@ export function createPlayerToken({ store, ticker, enableRatAnimationsSignal }: 
 
       const nextMove = queuedMoves.peek();
       if (nextMove === undefined) {
-        playerToken.position.set(...defs.allLocations[store.currentLocation()].coords);
+        playerToken.position.set(...defs.allLocations[options.currentLocation()].coords);
         t.remove(animatePlayerMoveCallback);
         animatePlayerMoveCallback = null;
         prog = 0;
@@ -146,7 +152,7 @@ export function createPlayerToken({ store, ticker, enableRatAnimationsSignal }: 
         playerTokenContext.scaleX = -0.25;
       }
     };
-    ticker.add(animatePlayerMoveCallback);
+    options.ticker.add(animatePlayerMoveCallback);
   });
   return playerTokenResource.asReadonly();
 }

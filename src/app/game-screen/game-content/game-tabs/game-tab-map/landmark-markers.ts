@@ -1,20 +1,28 @@
 import { effect, resource, type Signal } from '@angular/core';
+import type BitArray from '@bitarray/typedarray';
+import type { Set as ImmutableSet } from 'immutable';
 import { DropShadowFilter } from 'pixi-filters';
 import { AnimatedSprite, Assets, Container, Sprite, Spritesheet, type SpritesheetData, Texture, Ticker } from 'pixi.js';
 import { LANDMARKS, type LandmarkYamlKey } from '../../../../data/locations';
-import { BAKED_DEFINITIONS_BY_VICTORY_LANDMARK } from '../../../../data/resolved-definitions';
-import type { GameStore } from '../../../../store/autopelago-store';
+import {
+  type AutopelagoDefinitions,
+  BAKED_DEFINITIONS_BY_VICTORY_LANDMARK,
+  type VictoryLocationYamlKey,
+} from '../../../../data/resolved-definitions';
 import { strictObjectEntries } from '../../../../utils/types';
 
 export interface CreateLandmarkMarkersOptions {
-  store: InstanceType<typeof GameStore>;
-  enableTileAnimationsSignal: Signal<boolean | null>;
+  enableTileAnimations: Signal<boolean | null>;
+  defs: Signal<AutopelagoDefinitions>;
+  victoryLocationYamlKey: Signal<VictoryLocationYamlKey>;
+  regionIsLandmarkWithUnsatisfiedRequirement: Signal<Readonly<BitArray>>;
+  checkedLocations: Signal<ImmutableSet<number>>;
 }
 
-export function createLandmarkMarkers({ store, enableTileAnimationsSignal }: CreateLandmarkMarkersOptions) {
+export function createLandmarkMarkers(options: CreateLandmarkMarkersOptions) {
   const landmarksResource = resource({
     defaultValue: null,
-    params: () => enableTileAnimationsSignal(),
+    params: () => options.enableTileAnimations(),
     loader: async ({ params: enableTileAnimations }) => {
       if (enableTileAnimations === null) {
         return null;
@@ -23,7 +31,7 @@ export function createLandmarkMarkers({ store, enableTileAnimationsSignal }: Cre
       const spritesheetTexture = await Assets.load<Texture>('assets/images/locations.webp');
       const spritesheet = new Spritesheet(spritesheetTexture, spritesheetData);
       await spritesheet.parse();
-      const victoryLocationYamlKey = store.victoryLocationYamlKey();
+      const victoryLocationYamlKey = options.victoryLocationYamlKey();
       const containers = {
         main: new Container({
           filters: [new DropShadowFilter({
@@ -93,9 +101,9 @@ export function createLandmarkMarkers({ store, enableTileAnimationsSignal }: Cre
 
     const { spriteLookup } = landmarks;
 
-    const checkedLocations = store.checkedLocations();
-    const regionIsLandmarkWithUnsatisfiedRequirement = store.regionIsLandmarkWithUnsatisfiedRequirement();
-    const { allRegions } = store.defs();
+    const checkedLocations = options.checkedLocations();
+    const regionIsLandmarkWithUnsatisfiedRequirement = options.regionIsLandmarkWithUnsatisfiedRequirement();
+    const { allRegions } = options.defs();
     for (const [_, landmark] of strictObjectEntries(allRegions)) {
       if (!('loc' in landmark)) {
         continue;

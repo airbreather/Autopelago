@@ -1,4 +1,4 @@
-import { effect, signal } from '@angular/core';
+import { effect, type Signal, signal } from '@angular/core';
 import { DropShadowFilter } from 'pixi-filters';
 import { Container, Graphics } from 'pixi.js';
 import {
@@ -11,18 +11,19 @@ import {
   BAKED_DEFINITIONS_BY_VICTORY_LANDMARK,
   type VictoryLocationYamlKey,
 } from '../../../../data/resolved-definitions';
-import type { GameStore } from '../../../../store/autopelago-store';
+import type { Set as ImmutableSet } from 'immutable';
 
 import { strictObjectEntries } from '../../../../utils/types';
 
 export interface CreateFillerMarkersOptions {
-  store: InstanceType<typeof GameStore>;
+  victoryLocationYamlKey: Signal<VictoryLocationYamlKey>;
+  checkedLocations: Signal<ImmutableSet<number>>;
 }
 
-export function createFillerMarkers({ store }: CreateFillerMarkersOptions) {
+export function createFillerMarkers(options: CreateFillerMarkersOptions) {
   const fillerMarkersSignal = signal<Container | null>(null);
   effect(() => {
-    const victoryLocationYamlKey = store.victoryLocationYamlKey();
+    const victoryLocationYamlKey = options.victoryLocationYamlKey();
     const fillerMarkers = new Container({
       filters: [new DropShadowFilter({
         blur: 1,
@@ -49,8 +50,8 @@ export function createFillerMarkers({ store }: CreateFillerMarkersOptions) {
       return;
     }
 
-    const victoryLocationYamlKey = store.victoryLocationYamlKey();
-    const checkedLocations = store.checkedLocations();
+    const victoryLocationYamlKey = options.victoryLocationYamlKey();
+    const checkedLocations = options.checkedLocations();
     const defs = BAKED_DEFINITIONS_BY_VICTORY_LANDMARK[victoryLocationYamlKey];
     const coordsByRegion = fillerCoordsByRegionLookup[victoryLocationYamlKey];
     const gfx = new Graphics();
