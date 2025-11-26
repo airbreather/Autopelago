@@ -23,6 +23,7 @@ export function createLivePixiObjects(store: InstanceType<typeof GameStore>, tic
     consumeOutgoingMoves: store.consumeOutgoingMoves,
   });
   const landmarksResource = createLandmarkMarkers({
+    ticker,
     game: store.game,
     defs: store.defs,
     victoryLocationYamlKey: store.victoryLocationYamlKey,

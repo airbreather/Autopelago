@@ -1,4 +1,4 @@
-import { effect, resource, type Signal } from '@angular/core';
+import { DestroyRef, effect, inject, resource, type Signal } from '@angular/core';
 import type BitArray from '@bitarray/typedarray';
 import type { Set as ImmutableSet } from 'immutable';
 import { DropShadowFilter } from 'pixi-filters';
@@ -13,6 +13,7 @@ import type { AutopelagoClientAndData } from '../../../../data/slot-data';
 import { strictObjectEntries } from '../../../../utils/types';
 
 export interface CreateLandmarkMarkersOptions {
+  ticker: Ticker;
   game: Signal<AutopelagoClientAndData | null>;
   defs: Signal<AutopelagoDefinitions>;
   victoryLocationYamlKey: Signal<VictoryLocationYamlKey>;
@@ -21,6 +22,10 @@ export interface CreateLandmarkMarkersOptions {
 }
 
 export function createLandmarkMarkers(options: CreateLandmarkMarkersOptions) {
+  const destroyRef = inject(DestroyRef);
+  function updateAnimatedSprite(this: AnimatedSprite, t: Ticker) {
+    this.update(t);
+  }
   const landmarksResource = resource({
     defaultValue: null,
     params: () => options.game()?.connectScreenState ?? null,
@@ -60,8 +65,10 @@ export function createLandmarkMarkers(options: CreateLandmarkMarkersOptions) {
         const frames = spritesheet.animations[`${img === 'main' ? landmarkKey : 'q'}_${displaying}`];
         let sprite: Sprite;
         if (enableTileAnimations) {
-          const anim = sprite = new AnimatedSprite(frames, true);
+          const anim = sprite = new AnimatedSprite(frames, false);
           anim.animationSpeed = 1 / (500 * Ticker.targetFPMS);
+          options.ticker.add(updateAnimatedSprite, anim);
+          destroyRef.onDestroy(() => options.ticker.remove(updateAnimatedSprite, anim));
           anim.play();
         }
         else {
