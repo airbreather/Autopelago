@@ -736,8 +736,14 @@ describe('withGameState', () => {
       }
     }
 
-    expect.soft(store.outgoingMoves()).not.toContain(pirateBakeSale);
-    expect.soft(store.outgoingMoves()).not.toContain(prawnStars);
+    for (const action of store.consumeOutgoingAnimatableActions()) {
+      if (action.type !== 'move') {
+        continue;
+      }
+
+      expect.soft(action.toLocation).not.toStrictEqual(pirateBakeSale);
+      expect.soft(action.toLocation).not.toStrictEqual(prawnStars);
+    }
   });
 
   test('received items should apply auras', () => {

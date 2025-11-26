@@ -4,6 +4,7 @@ import { DropShadowFilter } from 'pixi-filters';
 import { Assets, Sprite, Texture, Ticker } from 'pixi.js';
 import type { AutopelagoDefinitions } from '../../../../data/resolved-definitions';
 import type { AutopelagoClientAndData } from '../../../../data/slot-data';
+import type { AnimatableAction } from '../../../../game/defining-state';
 
 export interface WiggleOptimizationBox {
   neutralAngle: number;
@@ -28,7 +29,7 @@ export interface CreatePlayerTokenOptions {
   game: Signal<AutopelagoClientAndData | null>;
   defs: Signal<AutopelagoDefinitions>;
   currentLocation: Signal<number>;
-  consumeOutgoingMoves(): List<readonly [number, number]>;
+  consumeOutgoingAnimatableActions(): List<AnimatableAction>;
 }
 
 export const SCALE = 0.25;

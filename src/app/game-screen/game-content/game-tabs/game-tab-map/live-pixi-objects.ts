@@ -20,7 +20,7 @@ export function createLivePixiObjects(store: InstanceType<typeof GameStore>, tic
     game: store.game,
     defs: store.defs,
     currentLocation: store.currentLocation,
-    consumeOutgoingMoves: store.consumeOutgoingMoves,
+    consumeOutgoingAnimatableActions: store.consumeOutgoingAnimatableActions,
   });
   const landmarksResource = createLandmarkMarkers({
     ticker,
@@ -49,8 +49,8 @@ export function createLivePixiObjects(store: InstanceType<typeof GameStore>, tic
     }
 
     const defs = store.defs();
-    const moves = store.consumeOutgoingMoves();
-    if (moves.size === 0) {
+    const actions = store.consumeOutgoingAnimatableActions();
+    if (actions.size === 0) {
       if (!everSetInitialPosition) {
         const { allLocations } = defs;
         playerToken.position.set(...untracked(() => allLocations[store.currentLocation()].coords));
@@ -61,9 +61,13 @@ export function createLivePixiObjects(store: InstanceType<typeof GameStore>, tic
       return;
     }
 
-    for (const [prev, next] of moves) {
-      const prevCoords = defs.allLocations[prev].coords;
-      const nextCoords = defs.allLocations[next].coords;
+    for (const action of actions) {
+      if (action.type !== 'move') {
+        continue;
+      }
+
+      const prevCoords = defs.allLocations[action.fromLocation].coords;
+      const nextCoords = defs.allLocations[action.toLocation].coords;
       queuedMoves.enqueue({ from: [...prevCoords], to: nextCoords });
     }
 

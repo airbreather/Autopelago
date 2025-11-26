@@ -12,7 +12,7 @@ import {
   BAKED_DEFINITIONS_BY_VICTORY_LANDMARK,
 } from '../data/resolved-definitions';
 import type { AutopelagoStoredData, UserRequestedLocation } from '../data/slot-data';
-import type { DefiningGameState } from '../game/defining-state';
+import type { AnimatableAction, DefiningGameState } from '../game/defining-state';
 import {
   buildRequirementIsSatisfied,
   Desirability,
@@ -165,7 +165,7 @@ const initialState: DefiningGameState = {
   checkedLocations: ImmutableSet<number>(),
   prng: rand.xoroshiro128plus(42),
   outgoingCheckedLocations: List<number>(),
-  outgoingMoves: List<readonly [number, number]>(),
+  outgoingAnimatableActions: List<AnimatableAction>(),
   outgoingMessages: List<string>(),
 };
 
@@ -703,12 +703,12 @@ export function withGameState() {
             return result;
           });
         },
-        consumeOutgoingMoves() {
-          const outgoingMoves = store.outgoingMoves();
-          if (outgoingMoves.size > 0) {
-            patchState(store, { outgoingMoves: outgoingMoves.clear() });
+        consumeOutgoingAnimatableActions() {
+          const outgoingAnimatableActions = store.outgoingAnimatableActions();
+          if (outgoingAnimatableActions.size > 0) {
+            patchState(store, { outgoingAnimatableActions: outgoingAnimatableActions.clear() });
           }
-          return outgoingMoves;
+          return outgoingAnimatableActions;
         },
         processMessage(msg: Message, players: PlayersManager) {
           switch (msg.type) {
@@ -909,11 +909,15 @@ export function withGameState() {
                   }
                 }
                 for (let i = 0; i < 3 && result.currentLocation !== targetLocation; i++) {
-                  if (!('outgoingMoves' in result)) {
-                    result.outgoingMoves = prev.outgoingMoves;
+                  if (!('outgoingAnimatableActions' in result)) {
+                    result.outgoingAnimatableActions = prev.outgoingAnimatableActions;
                   }
 
-                  result.outgoingMoves = result.outgoingMoves.push([result.currentLocation, result.currentLocation = route[++j]]);
+                  result.outgoingAnimatableActions = result.outgoingAnimatableActions.push({
+                    type: 'move',
+                    fromLocation: result.currentLocation,
+                    toLocation: result.currentLocation = route[++j],
+                  });
                   moved = true;
                 }
               }

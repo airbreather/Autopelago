@@ -7,6 +7,22 @@ import type { UserRequestedLocation } from '../data/slot-data';
 import type { Weighted } from '../utils/weighted-sampler';
 import type { TargetLocationEvidence } from './target-location-evidence';
 
+export interface MovementAction {
+  type: 'move';
+  fromLocation: number;
+  toLocation: number;
+}
+
+export interface CheckLocationAction {
+  type: 'check-location';
+  location: number;
+}
+
+export type AnimatableAction =
+  | MovementAction
+  | CheckLocationAction
+  ;
+
 export interface DefiningGameState {
   // values that don't change throughout the entire run:
   readonly lactoseIntolerant: boolean;
@@ -49,6 +65,6 @@ export interface DefiningGameState {
 
   // other values used to indicate autonomous actions that haven't been observed yet:
   outgoingCheckedLocations: List<number>;
-  outgoingMoves: List<readonly [number, number]>;
+  outgoingAnimatableActions: List<AnimatableAction>;
   outgoingMessages: List<string>;
 }

@@ -130,7 +130,7 @@ export function determineDesirability(options: Readonly<DetermineDesirabilityOpt
   tryEnqueue(startRegion);
   for (let region = q.dequeue(); region !== undefined; region = q.dequeue()) {
     if ('loc' in region) {
-      if (!isSatisfied(region.requirement)) {
+      if (!isSatisfied(region.requirement) || (isStartled && !locationIsChecked[region.loc])) {
         result[region.loc] = Desirability.AVOID;
         continue;
       }
