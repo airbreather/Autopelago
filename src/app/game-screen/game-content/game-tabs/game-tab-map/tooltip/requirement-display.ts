@@ -16,6 +16,8 @@ import { GameStore } from '../../../../../store/autopelago-store';
       @else if ('item' in r) {
         <span>{{itemNames()[r.item]}}</span>
       }
+      @else if ('goal' in r) {
+      }
       @else {
         @switch (r.minRequired) {
           @case (1) {

@@ -132,16 +132,18 @@ export const GameStore = signalStore(
           return;
         }
 
-        if (!store.checkedLocations().has(store.victoryLocation())) {
+        if (!store.hasCompletedGoal()) {
           return;
         }
 
         game.client.goal();
         const { sendChatMessages, forOneTimeEvents } = game.connectScreenState;
-        if (sendChatMessages && forOneTimeEvents) {
-          const message = sampleMessage(Math.random());
-          patchState(store, ({ outgoingMessages }) => ({ outgoingMessages: outgoingMessages.push(message) }));
-        }
+        patchState(store, ({ outgoingAnimatableActions, outgoingMessages }) => ({
+          outgoingAnimatableActions: outgoingAnimatableActions.push({ type: 'completed-goal' }),
+          outgoingMessages: sendChatMessages && forOneTimeEvents
+            ? outgoingMessages.push(sampleMessage(Math.random()))
+            : outgoingMessages,
+        }));
 
         goalEffect.destroy();
       });
@@ -211,6 +213,21 @@ export const GameStore = signalStore(
             }),
           };
         });
+      });
+      const moveToMoon = effect(() => {
+        if (!store.onMoon()) {
+          return;
+        }
+
+        const victoryLocation = store.victoryLocation();
+        patchState(store, ({ outgoingAnimatableActions }) => ({
+          outgoingAnimatableActions: outgoingAnimatableActions.push({
+            type: 'move',
+            fromLocation: victoryLocation,
+            toLocation: NaN,
+          }),
+        }));
+        moveToMoon.destroy();
       });
       const reportGoMode = effect(() => {
         const game = store.game();

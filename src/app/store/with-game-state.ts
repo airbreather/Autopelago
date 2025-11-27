@@ -148,6 +148,7 @@ export function withGameState() {
         }
         return locationIsChecked;
       });
+      const hasCompletedGoal = computed(() => locationIsChecked()[victoryLocation()]);
       const receivedItemCountLookup = computed<readonly number[]>(() => {
         const { allItems } = defs();
         const result = Array<number>(allItems.length).fill(0);
@@ -287,6 +288,9 @@ export function withGameState() {
       const targetLocationChosenBecauseConspiratorial = computed(() => {
         return targetLocationReason() === 'aura-driven' && store.locationIsTrap()[targetLocation()];
       });
+      const onMoon = computed(() => {
+        return store.victoryLocationYamlKey() === 'snakes_on_a_planet' && hasCompletedGoal() && targetLocationReason() === 'game-over' && store.currentLocation() === targetLocation();
+      });
       const asStoredData = computed<AutopelagoStoredData>(() => ({
         foodFactor: store.foodFactor(),
         luckFactor: store.luckFactor(),
@@ -320,6 +324,7 @@ export function withGameState() {
         isStartled,
         enabledAuras,
         locationIsChecked,
+        hasCompletedGoal,
         receivedItemCountLookup,
         ratCount,
         victoryLocation,
@@ -334,6 +339,7 @@ export function withGameState() {
         targetLocationChosenBecauseSmart,
         targetLocationChosenBecauseConspiratorial,
         targetLocationRoute,
+        onMoon,
         asStoredData,
         sampleMessage,
       };

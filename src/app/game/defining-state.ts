@@ -18,9 +18,14 @@ export interface CheckLocationsAction {
   locations: readonly number[];
 }
 
+export interface CompletedGoalAction {
+  type: 'completed-goal';
+}
+
 export type AnimatableAction =
   | MovementAction
   | CheckLocationsAction
+  | CompletedGoalAction
   ;
 
 export interface DefiningGameState {

@@ -1,8 +1,8 @@
 import { computed, effect, untracked } from '@angular/core';
 import { Sprite, type Ticker } from 'pixi.js';
 import Queue from 'yocto-queue';
-import type { LandmarkYamlKey, Vec2 } from '../../../../data/locations';
-import { type AutopelagoDefinitions } from '../../../../data/resolved-definitions';
+import { type LandmarkYamlKey, MOON_COMMA_THE_COORDS, type Vec2 } from '../../../../data/locations';
+import { type AutopelagoDefinitions, type VictoryLocationYamlKey } from '../../../../data/resolved-definitions';
 import type { AnimatableAction } from '../../../../game/defining-state';
 import { GameStore } from '../../../../store/autopelago-store';
 import { bitArraysEqual } from '../../../../utils/equal-helpers';
@@ -51,10 +51,8 @@ export function createLivePixiObjects(store: InstanceType<typeof GameStore>, tic
     victoryLocationYamlKey: store.victoryLocationYamlKey,
   });
 
-  function resolveAction(defs: AutopelagoDefinitions, action: AnimatableAction): ResolvedAction {
-    if (action.type === 'move') {
-      const fromCoords = defs.allLocations[action.fromLocation].coords;
-      const toCoords = defs.allLocations[action.toLocation].coords;
+  function resolveAction(defs: AutopelagoDefinitions, victoryLocationYamlKey: VictoryLocationYamlKey, action: AnimatableAction): ResolvedAction {
+    function resolveMove(fromCoords: Vec2, toCoords: Vec2) {
       const dx = toCoords[0] - fromCoords[0];
       const dy = toCoords[1] - fromCoords[1];
       return {
@@ -67,7 +65,18 @@ export function createLivePixiObjects(store: InstanceType<typeof GameStore>, tic
       };
     }
 
-    // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
+    if (action.type === 'move') {
+      const fromCoords = defs.allLocations[action.fromLocation].coords;
+      let toCoords: Vec2;
+      if (Number.isNaN(action.toLocation)) {
+        toCoords = MOON_COMMA_THE_COORDS;
+      }
+      else {
+        toCoords = defs.allLocations[action.toLocation].coords;
+      }
+      return resolveMove(fromCoords, toCoords);
+    }
+
     if (action.type === 'check-locations') {
       const fillerLocations: number[] = [];
       const landmarkLocations: LandmarkYamlKey[] = [];
@@ -106,6 +115,18 @@ export function createLivePixiObjects(store: InstanceType<typeof GameStore>, tic
       };
     }
 
+    // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
+    if (action.type === 'completed-goal') {
+      return {
+        run: (fraction: number, _defs: AutopelagoDefinitions, _playerToken: Sprite, landmarkMarkers: LandmarkMarkers) => {
+          const { spriteLookup } = landmarkMarkers;
+          if ('moon_comma_the' in spriteLookup) {
+            spriteLookup.moon_comma_the.onSprite.visible = fraction === 1;
+          }
+        },
+      };
+    }
+
     return NO_ACTION;
   }
 
@@ -123,14 +144,23 @@ export function createLivePixiObjects(store: InstanceType<typeof GameStore>, tic
       return;
     }
 
+    const victoryLocationYamlKey = store.victoryLocationYamlKey();
     const fillerMarkers = fillerMarkersSignal();
     const defs = store.defs();
     const actions = store.consumeOutgoingAnimatableActions();
     if (actions.size === 0) {
       if (!finishedFirstRound) {
         untracked(() => {
-          const currentCoords = defs.allLocations[store.currentLocation()].coords;
-          const targetCoords = defs.allLocations[store.targetLocation()].coords;
+          let currentCoords: Vec2;
+          let targetCoords: Vec2;
+          if (store.onMoon()) {
+            currentCoords = MOON_COMMA_THE_COORDS;
+            targetCoords = MOON_COMMA_THE_COORDS;
+          }
+          else {
+            currentCoords = defs.allLocations[store.currentLocation()].coords;
+            targetCoords = defs.allLocations[store.targetLocation()].coords;
+          }
           playerToken.position.set(...currentCoords);
           updateWiggleOptimizationBox(currentCoords, targetCoords);
           const fillersToMark: number[] = [];
@@ -164,7 +194,7 @@ export function createLivePixiObjects(store: InstanceType<typeof GameStore>, tic
     }
 
     for (const action of actions) {
-      queuedActions.enqueue(resolveAction(defs, action));
+      queuedActions.enqueue(resolveAction(defs, victoryLocationYamlKey, action));
     }
 
     if (animatePlayerMoveCallback !== null) {
