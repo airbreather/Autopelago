@@ -34,12 +34,11 @@ const TOOLTIP_DELAY = 300;
   ],
   template: `
     <div #outer class="outer" [style.--ap-throttled-scale]="throttledScaleForInvisibleElementsOnly()">
-      <!--suppress AngularNgOptimizedImage, HtmlUnknownTarget -->
+      <!--suppress AngularNgOptimizedImage -->
       <img alt="map" [src]="mapUrl()"/>
       <canvas #pixiCanvas class="pixi-canvas" width="300" height="450">
       </canvas>
       @for (lm of allLandmarks(); track $index) {
-        <!--suppress CssUnknownProperty -->
         <div #hoverBox class="hover-box" [tabindex]="$index + 999" cdkOverlayOrigin
              [style.--ap-left-base.px]="lm[1][0]" [style.--ap-top-base.px]="lm[1][1]"
              (focus)="onFocusTooltip(lm[0], hoverBox)" (mouseenter)="onFocusTooltip(lm[0], hoverBox)"

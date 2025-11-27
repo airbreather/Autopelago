@@ -1,0 +1,23 @@
+{
+  "$schema": "https://json.schemastore.org/web-types",
+  "name": "Autopelago Types",
+  "version": "0.0.0",
+  "contributions": {
+    "css": {
+      "properties": [
+        {
+          "name": "--ap-throttled-scale",
+          "description": "how many px units for each unscaled map unit. this value is throttled, so only use it for invisible elements like the tooltip hit test divs"
+        },
+        {
+          "name": "--ap-left-base",
+          "description": "x-component of the center of a landmark marker, relative to the unscaled map"
+        },
+        {
+          "name": "--ap-top-base",
+          "description": "y-component of the center of a landmark marker, relative to the unscaled map"
+        }
+      ]
+    }
+  }
+}

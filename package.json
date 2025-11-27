@@ -2,6 +2,7 @@
   "name": "autopelago",
   "version": "0.0.0",
   "builders": "./builders.json",
+  "web-types": "./web-types.json",
   "browserslist": [
     "baseline widely available on 2025-10-20"
   ],
