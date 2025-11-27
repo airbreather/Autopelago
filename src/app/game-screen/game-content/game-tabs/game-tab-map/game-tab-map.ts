@@ -35,7 +35,7 @@ const TOOLTIP_DELAY = 300;
     Tooltip,
   ],
   template: `
-    <div #outer class="outer" [style.--ap-throttled-scale]="throttledScaleForInvisibleElementsOnly()">
+    <div #outer class="outer">
       <img class="map-img" alt="map" [ngSrc]="mapUrl()" width="300" height="450" priority />
       <canvas #pixiCanvas class="pixi-canvas" width="300" height="450">
       </canvas>
@@ -97,17 +97,16 @@ const TOOLTIP_DELAY = 300;
     .hover-box {
       position: absolute;
       pointer-events: initial;
-      width: calc(16px * var(--ap-throttled-scale, 1));
-      height: calc(16px * var(--ap-throttled-scale, 1));
-      left: calc((var(--ap-left-base, 8px) - 8px) * var(--ap-throttled-scale, 1));
-      top: calc((var(--ap-top-base, 8px) - 8px) * var(--ap-throttled-scale, 1));
+      width: calc(16px * var(--ap-scale, 1));
+      height: calc(16px * var(--ap-scale, 1));
+      left: calc((var(--ap-left-base, 8px) - 8px) * var(--ap-scale, 1));
+      top: calc((var(--ap-top-base, 8px) - 8px) * var(--ap-scale, 1));
     }
   `,
 })
 export class GameTabMap {
   readonly #store = inject(GameStore);
   protected readonly running = this.#store.running;
-  protected readonly throttledScaleForInvisibleElementsOnly = signal(1);
 
   readonly allLandmarks = computed(() => {
     const { allLocations, allRegions, startRegion } = this.#store.defs();
@@ -229,9 +228,6 @@ export class GameTabMap {
 
     // whenever the outer div resizes, we also need to resize the app to match.
     const outerDivSize = elementSizeSignal(this.outerDiv);
-    // throttle this signal update, though, since it triggers a full re-render.
-    let setThrottledScaleTimeout: number | null = null;
-    let setThrottledScaleValue = NaN;
     effect(() => {
       if (!appIsInitialized()) {
         return;
@@ -242,19 +238,8 @@ export class GameTabMap {
       const scale = clientHeight / VICTORY_LOCATION_CROP_LOOKUP[victoryLocationYamlKey];
       app.stage.scale = scale;
       app.resize();
-
-      // if there's a tooltip active, then turn it off.
-      const tooltipTarget = untracked(() => this.#tooltipTarget());
-      if (tooltipTarget !== null) {
-        tooltipTarget[1].blur();
-        this.#tooltipTarget.set(null);
-      }
-      setThrottledScaleValue = scale;
-      setThrottledScaleTimeout ??= setTimeout(() => {
-        this.throttledScaleForInvisibleElementsOnly.set(setThrottledScaleValue);
-        setThrottledScaleValue = NaN;
-        setThrottledScaleTimeout = null;
-      }, 200);
+      this.#tooltipTarget.set(null);
+      this.outerDiv().nativeElement.style.setProperty('--ap-scale', scale.toString());
     });
   }
 
