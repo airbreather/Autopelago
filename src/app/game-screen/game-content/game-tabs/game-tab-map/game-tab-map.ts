@@ -154,8 +154,19 @@ export class GameTabMap {
   constructor() {
     const app = new Application();
     inject(DestroyRef).onDestroy(() => {
-      app.ticker.stop();
-      app.destroy();
+      app.destroy(
+        {
+          removeView: true,
+          releaseGlobalResources: true,
+        },
+        {
+          children: true,
+          style: true,
+          context: true,
+          // these are cached, which PixiJS warns about if we go out and in again:
+          textureSource: false,
+          texture: false,
+        });
       appIsInitialized.set(false);
     });
     app.ticker = new Ticker();

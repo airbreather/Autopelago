@@ -5,7 +5,7 @@ import type { LandmarkYamlKey, Vec2 } from '../../../../data/locations';
 import type { AutopelagoDefinitions } from '../../../../data/resolved-definitions';
 import type { AnimatableAction } from '../../../../game/defining-state';
 import { GameStore } from '../../../../store/autopelago-store';
-import { bitArraysEqual } from '../../../../utils/equal-helpers';
+import { arraysEqual, bitArraysEqual } from '../../../../utils/equal-helpers';
 import { createFillerMarkers, type FillerMarkers } from './filler-markers';
 import { createLandmarkMarkers, type LandmarkMarkers } from './landmark-markers';
 import { createPlayerToken, SCALE, type WiggleOptimizationBox } from './player-token';
@@ -149,7 +149,14 @@ export function createLivePixiObjects(store: InstanceType<typeof GameStore>, tic
           const currentCoords = defs.allLocations[store.currentLocation()].coords;
           const targetCoords = defs.allLocations[store.targetLocation()].coords;
           playerToken.position.set(...currentCoords);
-          updateWiggleOptimizationBox(currentCoords, targetCoords);
+          let fromCoords = currentCoords;
+          if (arraysEqual(currentCoords, targetCoords)) {
+            const possiblePrev = defs.allLocations[store.currentLocation()].connected.backward.at(0);
+            if (possiblePrev !== undefined) {
+              fromCoords = defs.allLocations[possiblePrev].coords;
+            }
+          }
+          updateWiggleOptimizationBox(fromCoords, targetCoords);
           const fillersToMark: number[] = [];
           for (const location of store.checkedLocations()) {
             if (Number.isNaN(defs.regionForLandmarkLocation[location])) {

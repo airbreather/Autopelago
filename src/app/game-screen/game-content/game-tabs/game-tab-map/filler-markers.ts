@@ -40,6 +40,7 @@ export function createFillerMarkers(options: CreateFillerMarkersOptions): Signal
         }
       }
       fillerMarkers.replaceChild(prevGfx, gfx);
+      prevGfx.destroy();
       prevGfx = gfx;
     }
     redraw();

@@ -183,11 +183,6 @@ export type MoonSpriteBox =
   | SpriteBox_<false>
   ;
 
-export type SpriteBox =
-  | LandmarkSpriteBox
-  | MoonSpriteBox
-  ;
-
 // Create spritesheet data with frame definitions for each landmark
 const spritesheetData: SpritesheetData & Required<Pick<SpritesheetData, 'animations'>> = {
   frames: {},
