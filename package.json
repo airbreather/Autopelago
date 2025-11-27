@@ -17,7 +17,7 @@
     "prebuild": "$npm_execpath run bake-data",
     "prewatch": "$npm_execpath run bake-data",
     "pretest": "$npm_execpath run bake-data",
-    "start": "ng serve",
+    "start": "ng serve --no-hmr",
     "build": "ng build",
     "watch": "ng build --watch --configuration development",
     "lint": "ng lint",

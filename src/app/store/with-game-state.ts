@@ -173,7 +173,7 @@ export function withGameState() {
         }
         return victoryLocation;
       });
-      const _relevantItemCountLookup = computed<readonly number[]>(() => {
+      const requirementRelevantItemCountLookup = computed<readonly number[]>(() => {
         const { allItems } = defs();
         const result = Array<number>(allItems.length).fill(0);
         for (const i of store.receivedItems()) {
@@ -187,7 +187,7 @@ export function withGameState() {
       }, { equal: arraysEqual });
       const regionLocks = computed<RegionLocks>(() => {
         const { allRegions, startRegion } = defs();
-        const isSatisfied = buildRequirementIsSatisfied(_relevantItemCountLookup());
+        const isSatisfied = buildRequirementIsSatisfied(requirementRelevantItemCountLookup());
         const regionIsHardLocked = new BitArray(allRegions.length);
         const regionIsLandmarkWithRequirementSatisfied = new BitArray(allRegions.length);
         const regionIsLandmarkWithRequirementUnsatisfied = new BitArray(allRegions.length);
@@ -244,7 +244,7 @@ export function withGameState() {
         determineDesirability({
           defs: defs(),
           victoryLocation: victoryLocation(),
-          relevantItemCount: _relevantItemCountLookup(),
+          relevantItemCount: requirementRelevantItemCountLookup(),
           locationIsChecked: locationIsChecked(),
           isStartled: isStartled(),
           userRequestedLocations: store.userRequestedLocations(),
@@ -323,7 +323,7 @@ export function withGameState() {
         receivedItemCountLookup,
         ratCount,
         victoryLocation,
-        _relevantItemCountLookup,
+        requirementRelevantItemCountLookup,
         regionLocks,
         _clearedOrClearableLandmarks,
         _desirability,

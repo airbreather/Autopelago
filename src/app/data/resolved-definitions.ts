@@ -20,12 +20,13 @@ import {
 } from './locations';
 
 export type AutopelagoBuff =
-  'well_fed'
+  | 'well_fed'
   | 'lucky'
   | 'energized'
   | 'stylish'
   | 'smart'
-  | 'confident';
+  | 'confident'
+  ;
 
 export type AutopelagoTrap =
   | 'upset_tummy'
@@ -33,9 +34,13 @@ export type AutopelagoTrap =
   | 'sluggish'
   | 'distracted'
   | 'startled'
-  | 'conspiratorial';
+  | 'conspiratorial'
+  ;
 
-export type AutopelagoAura = AutopelagoBuff | AutopelagoTrap;
+export type AutopelagoAura =
+  | AutopelagoBuff
+  | AutopelagoTrap
+  ;
 
 export interface AutopelagoItem {
   key: number;
@@ -107,14 +112,18 @@ export interface AutopelagoCompositeRequirement {
   children: readonly AutopelagoRequirement[];
 }
 
-export type AutopelagoRequirement = AutopelagoRatCountRequirement
+export type AutopelagoRequirement =
+  | AutopelagoRatCountRequirement
   | AutopelagoItemRequirement
   | AutopelagoCompositeRequirement;
 
 export type VictoryLocationYamlKey =
   Extract<LandmarkYamlKey, 'captured_goldfish' | 'secret_cache' | 'snakes_on_a_planet'>;
 export type VictoryLocationName =
-  'Captured Goldfish' | 'Secret Cache' | 'Snakes on a Planet';
+  | 'Captured Goldfish'
+  | 'Secret Cache'
+  | 'Snakes on a Planet'
+  ;
 export const VICTORY_LOCATION_NAME_LOOKUP = {
   'captured_goldfish': 'Captured Goldfish',
   'secret_cache': 'Secret Cache',
@@ -153,7 +162,11 @@ export interface AutopelagoDefinitions {
 
 type YamlRequirement =
   typeof baked.regions.landmarks[keyof typeof baked.regions.landmarks]['requires'];
-type YamlBulkItemLevels = 'useful_nonprogression' | 'trap' | 'filler';
+type YamlBulkItemLevels =
+  | 'useful_nonprogression'
+  | 'trap'
+  | 'filler'
+  ;
 type GameSpecificBulkItemCategory =
   Extract<typeof baked.items[YamlBulkItemLevels][number], Readonly<Record<'game_specific', unknown>>>['game_specific'];
 type YamlBulkItemLookups =

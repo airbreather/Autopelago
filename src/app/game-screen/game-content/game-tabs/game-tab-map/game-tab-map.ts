@@ -15,7 +15,7 @@ import BitArray from '@bitarray/typedarray';
 
 import { Application, Ticker } from 'pixi.js';
 import Queue from 'yocto-queue';
-import { type LandmarkYamlKey, type Vec2 } from '../../../../data/locations';
+import { type Vec2 } from '../../../../data/locations';
 import { VICTORY_LOCATION_CROP_LOOKUP } from '../../../../data/resolved-definitions';
 import { GameStore } from '../../../../store/autopelago-store';
 import { elementSizeSignal } from '../../../../utils/element-size';
@@ -60,7 +60,7 @@ const TOOLTIP_DELAY = 300;
       [cdkConnectedOverlayOpen]="tooltipTarget() !== null"
       [cdkConnectedOverlayUsePopover]="'inline'"
       (detach)="detachTooltip()">
-      <app-tooltip [landmark]="tooltipTarget()![0]">
+      <app-tooltip [landmarkKey]="tooltipTarget()![0]">
       </app-tooltip>
     </ng-template>
   `,
@@ -105,7 +105,7 @@ export class GameTabMap {
 
   readonly allLandmarks = computed(() => {
     const { allLocations, allRegions, startRegion } = this.#store.defs();
-    const result: [LandmarkYamlKey, Vec2][] = [];
+    const result: [number, Vec2][] = [];
     const visited = new BitArray(allRegions.length);
     const q = new Queue<number>();
     function tryEnqueue(r: number) {
@@ -118,7 +118,7 @@ export class GameTabMap {
     for (let r = q.dequeue(); r !== undefined; r = q.dequeue()) {
       const region = allRegions[r];
       if ('loc' in region) {
-        result.push([region.yamlKey, allLocations[region.loc].coords]);
+        result.push([r, allLocations[region.loc].coords]);
       }
       for (const [nxt] of region.connected.all) {
         tryEnqueue(nxt);
@@ -127,7 +127,7 @@ export class GameTabMap {
     return result;
   });
 
-  readonly #tooltipTarget = signal<[LandmarkYamlKey, HTMLDivElement] | null>(null);
+  readonly #tooltipTarget = signal<[number, HTMLDivElement] | null>(null);
   readonly tooltipTarget = this.#tooltipTarget.asReadonly();
 
   protected readonly pixiCanvas = viewChild.required<ElementRef<HTMLCanvasElement>>('pixiCanvas');
@@ -254,11 +254,11 @@ export class GameTabMap {
 
   #prevFocusTimeout = NaN;
   #prevBlurTimeout = NaN;
-  onFocusTooltip(landmarkYamlKey: LandmarkYamlKey, element: HTMLDivElement) {
+  onFocusTooltip(landmark: number, element: HTMLDivElement) {
     if (!Number.isNaN(this.#prevBlurTimeout)) {
       clearTimeout(this.#prevBlurTimeout);
       this.#prevBlurTimeout = NaN;
-      this.#tooltipTarget.set([landmarkYamlKey, element]);
+      this.#tooltipTarget.set([landmark, element]);
       return;
     }
 
@@ -267,7 +267,7 @@ export class GameTabMap {
       this.#prevFocusTimeout = NaN;
     }
     this.#prevFocusTimeout = setTimeout(() => {
-      this.#tooltipTarget.set([landmarkYamlKey, element]);
+      this.#tooltipTarget.set([landmark, element]);
       this.#prevFocusTimeout = NaN;
     }, TOOLTIP_DELAY);
   }
