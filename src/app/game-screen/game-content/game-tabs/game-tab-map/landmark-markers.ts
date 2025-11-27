@@ -119,14 +119,6 @@ export function createLandmarkMarkers(options: CreateLandmarkMarkersOptions): Re
         }
       }
 
-      if (victoryLocationYamlKey === 'snakes_on_a_planet') {
-        const spriteBox = spriteLookup.moon_comma_the = {
-          animated: connectScreenState.enableTileAnimations,
-          onSprite: createSprite('moon_comma_the', 'on', 'main'),
-        } as MoonSpriteBox;
-        spriteBox.onSprite.visible = false;
-      }
-
       return { container, spriteLookup };
     },
   });

@@ -1,8 +1,8 @@
 import { computed, effect, untracked } from '@angular/core';
 import { Sprite, type Ticker } from 'pixi.js';
 import Queue from 'yocto-queue';
-import { type LandmarkYamlKey, type Vec2 } from '../../../../data/locations';
-import { type AutopelagoDefinitions, type VictoryLocationYamlKey } from '../../../../data/resolved-definitions';
+import type { LandmarkYamlKey, Vec2 } from '../../../../data/locations';
+import type { AutopelagoDefinitions } from '../../../../data/resolved-definitions';
 import type { AnimatableAction } from '../../../../game/defining-state';
 import { GameStore } from '../../../../store/autopelago-store';
 import { bitArraysEqual } from '../../../../utils/equal-helpers';
@@ -51,8 +51,10 @@ export function createLivePixiObjects(store: InstanceType<typeof GameStore>, tic
     victoryLocationYamlKey: store.victoryLocationYamlKey,
   });
 
-  function resolveAction(defs: AutopelagoDefinitions, victoryLocationYamlKey: VictoryLocationYamlKey, action: AnimatableAction): ResolvedAction {
-    function resolveMove(fromCoords: Vec2, toCoords: Vec2) {
+  function resolveAction(defs: AutopelagoDefinitions, action: AnimatableAction): ResolvedAction {
+    if (action.type === 'move') {
+      const fromCoords = defs.allLocations[action.fromLocation].coords;
+      const toCoords = defs.allLocations[action.toLocation].coords;
       const dx = toCoords[0] - fromCoords[0];
       const dy = toCoords[1] - fromCoords[1];
       return {
@@ -63,12 +65,6 @@ export function createLivePixiObjects(store: InstanceType<typeof GameStore>, tic
           updateWiggleOptimizationBox(fromCoords, toCoords);
         },
       };
-    }
-
-    if (action.type === 'move') {
-      const fromCoords = defs.allLocations[action.fromLocation].coords;
-      const toCoords = defs.allLocations[action.toLocation].coords;
-      return resolveMove(fromCoords, toCoords);
     }
 
     if (action.type === 'check-locations') {
@@ -115,9 +111,13 @@ export function createLivePixiObjects(store: InstanceType<typeof GameStore>, tic
     if (action.type === 'completed-goal') {
       return {
         run: (fraction: number, _defs: AutopelagoDefinitions, _playerToken: Sprite, landmarkMarkers: LandmarkMarkers) => {
+          if (fraction !== 1) {
+            return;
+          }
+
           const { spriteLookup } = landmarkMarkers;
           if ('moon_comma_the' in spriteLookup) {
-            spriteLookup.moon_comma_the.onSprite.visible = fraction === 1;
+            spriteLookup.moon_comma_the.onSprite.visible = true;
           }
         },
       };
@@ -140,7 +140,6 @@ export function createLivePixiObjects(store: InstanceType<typeof GameStore>, tic
       return;
     }
 
-    const victoryLocationYamlKey = store.victoryLocationYamlKey();
     const fillerMarkers = fillerMarkersSignal();
     const defs = store.defs();
     const actions = store.consumeOutgoingAnimatableActions();
@@ -184,7 +183,7 @@ export function createLivePixiObjects(store: InstanceType<typeof GameStore>, tic
     }
 
     for (const action of actions) {
-      queuedActions.enqueue(resolveAction(defs, victoryLocationYamlKey, action));
+      queuedActions.enqueue(resolveAction(defs, action));
     }
 
     if (animatePlayerMoveCallback !== null) {

@@ -8,8 +8,8 @@ import { GameStore } from '../../../../../store/autopelago-store';
   imports: [],
   template: `
     <div class="outer">
-      <span class="satisfied-marker" [hidden]="'fullClear' in requirement()">{{isSatisfied() ? '✓' : '✕'}}</span>
       @let r = requirement();
+      <span class="satisfied-marker" [hidden]="'fullClear' in r">{{isSatisfied() ? '✓' : '✕'}}</span>
       @if ('ratCount' in r) {
         <span>{{r.ratCount}} rats</span>
       }
