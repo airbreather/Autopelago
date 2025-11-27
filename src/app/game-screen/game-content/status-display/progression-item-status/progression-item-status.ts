@@ -20,7 +20,8 @@ const TOOLTIP_DELAY = 400;
     <div #outer class="outer">
       @for (item of items(); track item.name) {
         <div #thisContainer class="item-container" [class.collected]="item.collected()" cdkOverlayOrigin
-             [tabindex]="$index + 500" (click)="onClickItem(item, thisContainer)" (keyup.enter)="onClickItem(item, thisContainer)"
+             [tabindex]="$index + 500" (click)="onClickItem(item, thisContainer)"
+             (keyup.enter)="onClickItem(item, thisContainer)" (keyup.space)="onClickItem(item, thisContainer)"
              (focus)="onFocusTooltip($index, thisContainer)" (mouseenter)="onFocusTooltip($index, thisContainer)"
              (blur)="onBlurTooltip()" (mouseleave)="onBlurTooltip()">
           <!--suppress AngularNgOptimizedImage -->
