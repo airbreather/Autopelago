@@ -1,16 +1,25 @@
-import { ChangeDetectionStrategy, Component, computed, inject, type Signal } from '@angular/core';
+import { CdkConnectedOverlay, CdkOverlayOrigin } from '@angular/cdk/overlay';
+import { ChangeDetectionStrategy, Component, computed, inject, signal, type Signal } from '@angular/core';
 import { PROGRESSION_ITEMS_BY_VICTORY_LOCATION } from '../../../../data/items';
 import { BAKED_DEFINITIONS_FULL } from '../../../../data/resolved-definitions';
 
 import { GameStore } from '../../../../store/autopelago-store';
 
+const TOOLTIP_DELAY = 400;
+
 @Component({
   selector: 'app-progression-item-status',
   changeDetection: ChangeDetectionStrategy.OnPush,
+  imports: [
+    CdkConnectedOverlay,
+    CdkOverlayOrigin,
+  ],
   template: `
-    <div class="outer">
+    <div #outer class="outer">
       @for (item of items(); track item.name) {
-        <div class="item-container" [class.collected]="item.collected()">
+        <div #thisContainer class="item-container" [class.collected]="item.collected()" cdkOverlayOrigin
+             (focus)="onFocusTooltip($index, thisContainer)" (mouseenter)="onFocusTooltip($index, thisContainer)"
+             (blur)="onBlurTooltip()" (mouseleave)="onBlurTooltip()">
           <!--suppress AngularNgOptimizedImage -->
           <img class="item"
                src="/assets/images/items.webp"
@@ -19,8 +28,21 @@ import { GameStore } from '../../../../store/autopelago-store';
         </div>
       }
     </div>
+    <ng-template
+      cdkConnectedOverlay
+      [cdkConnectedOverlayOrigin]="tooltipTarget()?.[1] ?? outer"
+      [cdkConnectedOverlayOpen]="tooltipTarget() !== null"
+      [cdkConnectedOverlayUsePopover]="'inline'"
+      (detach)="detachTooltip()">
+      @let item = items()[tooltipTarget()![0]];
+      <div class="box tooltip">
+        <h1 class="header">{{item.name}}</h1>
+        <div class="flavor-text" [hidden]="!item.flavorText">“{{item.flavorText}}”</div>
+      </div>
+    </ng-template>
   `,
   styles: `
+    @use '../../../../../theme.scss';
     .outer {
       display: flex;
       flex-wrap: wrap;
@@ -43,11 +65,37 @@ import { GameStore } from '../../../../store/autopelago-store';
       width: 64px;
       height: 64px;
     }
+
+    .box {
+      padding: 4px;
+      border: 2px solid black;
+    }
+
+    .tooltip {
+      display: grid;
+      grid-template-columns: max-content;
+      grid-auto-rows: auto;
+      gap: 10px;
+      background-color: theme.$region-color;
+
+      .header {
+        margin: 0;
+        font-size: 14pt;
+        white-space: nowrap;
+      }
+
+      .flavor-text {
+        font-size: 8pt;
+        max-width: 430px;
+      }
+    }
   `,
 })
 export class ProgressionItemStatus {
   readonly #gameStore = inject(GameStore);
-  readonly items: Signal<readonly ItemModel[]>;
+  protected readonly items: Signal<readonly ItemModel[]>;
+  readonly #tooltipTarget = signal<[number, HTMLElement] | null>(null);
+  protected readonly tooltipTarget = this.#tooltipTarget.asReadonly();
 
   constructor() {
     this.items = computed(() => {
@@ -60,6 +108,7 @@ export class ProgressionItemStatus {
           name: lactoseIntolerant
             ? BAKED_DEFINITIONS_FULL.allItems[item].lactoseIntolerantName
             : BAKED_DEFINITIONS_FULL.allItems[item].lactoseName,
+          flavorText: BAKED_DEFINITIONS_FULL.allItems[item].flavorText,
           collected,
           offsetX: computed(() => collected() ? 0 : 65),
           offsetY: index * 65,
@@ -67,10 +116,63 @@ export class ProgressionItemStatus {
       });
     });
   }
+
+  #prevFocusTimeout = NaN;
+  #prevBlurTimeout = NaN;
+  onFocusTooltip(item: number, element: HTMLDivElement) {
+    if (!Number.isNaN(this.#prevBlurTimeout)) {
+      clearTimeout(this.#prevBlurTimeout);
+      this.#prevBlurTimeout = NaN;
+      this.#tooltipTarget.set([item, element]);
+      return;
+    }
+
+    if (!Number.isNaN(this.#prevFocusTimeout)) {
+      clearTimeout(this.#prevFocusTimeout);
+      this.#prevFocusTimeout = NaN;
+    }
+    this.#prevFocusTimeout = setTimeout(() => {
+      this.#tooltipTarget.set([item, element]);
+      this.#prevFocusTimeout = NaN;
+    }, TOOLTIP_DELAY);
+  }
+
+  onBlurTooltip() {
+    if (!Number.isNaN(this.#prevFocusTimeout)) {
+      clearTimeout(this.#prevFocusTimeout);
+      this.#prevFocusTimeout = NaN;
+      this.#tooltipTarget.set(null);
+      return;
+    }
+
+    if (!Number.isNaN(this.#prevBlurTimeout)) {
+      clearTimeout(this.#prevBlurTimeout);
+      this.#prevBlurTimeout = NaN;
+    }
+    this.#prevBlurTimeout = setTimeout(() => {
+      this.#tooltipTarget.set(null);
+      this.#prevBlurTimeout = NaN;
+    }, TOOLTIP_DELAY);
+  }
+
+  protected detachTooltip() {
+    if (!Number.isNaN(this.#prevFocusTimeout)) {
+      clearTimeout(this.#prevFocusTimeout);
+      this.#prevFocusTimeout = NaN;
+    }
+
+    if (!Number.isNaN(this.#prevBlurTimeout)) {
+      clearTimeout(this.#prevBlurTimeout);
+      this.#prevBlurTimeout = NaN;
+    }
+
+    this.#tooltipTarget.set(null);
+  }
 }
 
 interface ItemModel {
   name: string;
+  flavorText: string | null;
   collected: Signal<boolean>;
   offsetX: Signal<number>;
   offsetY: number;

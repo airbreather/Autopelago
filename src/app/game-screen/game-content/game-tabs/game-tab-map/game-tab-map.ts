@@ -23,7 +23,7 @@ import { elementSizeSignal } from '../../../../utils/element-size';
 import { createLivePixiObjects } from './live-pixi-objects';
 import { Tooltip } from './tooltip/tooltip';
 
-const TOOLTIP_DELAY = 300;
+const TOOLTIP_DELAY = 400;
 
 @Component({
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -61,8 +61,8 @@ const TOOLTIP_DELAY = 300;
       [cdkConnectedOverlayOpen]="tooltipTarget() !== null"
       [cdkConnectedOverlayUsePopover]="'inline'"
       (detach)="detachTooltip()">
-      <app-tooltip [landmarkKey]="tooltipTarget()![0]">
-      </app-tooltip>
+      <app-landmark-tooltip [landmarkKey]="tooltipTarget()![0]">
+      </app-landmark-tooltip>
     </ng-template>
   `,
   styles: `

@@ -5,7 +5,7 @@ import { GameStore } from '../../../../../store/autopelago-store';
 import { RequirementDisplay } from './requirement-display';
 
 @Component({
-  selector: 'app-tooltip',
+  selector: 'app-landmark-tooltip',
   imports: [
     RequirementDisplay,
     NgOptimizedImage,
