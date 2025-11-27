@@ -1,9 +1,11 @@
-import { CdkConnectedOverlay, CdkOverlayOrigin } from '@angular/cdk/overlay';
-import { ChangeDetectionStrategy, Component, computed, inject, signal, type Signal } from '@angular/core';
+import { Dialog } from '@angular/cdk/dialog';
+import { CdkConnectedOverlay, CdkOverlayOrigin, createFlexibleConnectedPositionStrategy } from '@angular/cdk/overlay';
+import { ChangeDetectionStrategy, Component, computed, inject, Injector, signal, type Signal } from '@angular/core';
 import { PROGRESSION_ITEMS_BY_VICTORY_LOCATION } from '../../../../data/items';
 import { BAKED_DEFINITIONS_FULL } from '../../../../data/resolved-definitions';
 
 import { GameStore } from '../../../../store/autopelago-store';
+import { RequestHint } from './request-hint';
 
 const TOOLTIP_DELAY = 400;
 
@@ -18,6 +20,7 @@ const TOOLTIP_DELAY = 400;
     <div #outer class="outer">
       @for (item of items(); track item.name) {
         <div #thisContainer class="item-container" [class.collected]="item.collected()" cdkOverlayOrigin
+             [tabindex]="$index + 500" (click)="onClickItem(item, thisContainer)" (keyup.enter)="onClickItem(item, thisContainer)"
              (focus)="onFocusTooltip($index, thisContainer)" (mouseenter)="onFocusTooltip($index, thisContainer)"
              (blur)="onBlurTooltip()" (mouseleave)="onBlurTooltip()">
           <!--suppress AngularNgOptimizedImage -->
@@ -92,6 +95,8 @@ const TOOLTIP_DELAY = 400;
   `,
 })
 export class ProgressionItemStatus {
+  readonly #injector = inject(Injector);
+  readonly #dialog = inject(Dialog);
   readonly #gameStore = inject(GameStore);
   protected readonly items: Signal<readonly ItemModel[]>;
   readonly #tooltipTarget = signal<[number, HTMLElement] | null>(null);
@@ -167,6 +172,30 @@ export class ProgressionItemStatus {
     }
 
     this.#tooltipTarget.set(null);
+  }
+
+  protected onClickItem(item: ItemModel, clicked: HTMLElement) {
+    const game = this.#gameStore.game();
+    if (!game) {
+      return;
+    }
+
+    const dialogConfig = {
+      data: { itemName: item.name },
+      positionStrategy: createFlexibleConnectedPositionStrategy(this.#injector, clicked)
+        .withPositions([{
+          originX: 'start',
+          originY: 'bottom',
+          overlayX: 'start',
+          overlayY: 'top',
+        }]),
+    } as const;
+    this.#dialog.open<boolean>(RequestHint, dialogConfig).closed
+      .subscribe((confirm) => {
+        if (confirm) {
+          void game.client.messages.say(`!hint ${item.name}`);
+        }
+      });
   }
 }
 
