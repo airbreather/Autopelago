@@ -38,10 +38,12 @@ const TOOLTIP_DELAY = 300;
       <img alt="map" [src]="mapUrl()" />
       <canvas #pixiCanvas class="pixi-canvas" width="300" height="450">
       </canvas>
-      @for (coords of allLandmarks(); track $index) {
-        <div #hoverBox class="hover-box" [style]="style(coords[1])"
-             cdkOverlayOrigin [tabindex]="$index + 999"
-             (focus)="onFocusTooltip(coords[0], hoverBox)" (mouseenter)="onFocusTooltip(coords[0], hoverBox)"
+      @let scl = scale();
+      @for (lm of allLandmarks(); track $index) {
+        <div #hoverBox class="hover-box" [tabindex]="$index + 999" cdkOverlayOrigin
+             [style.width.px]="scl.x * 16" [style.height.px]="scl.y * 16"
+             [style.left.px]="(lm[1][0] - 8) * scl.x" [style.top.px]="(lm[1][1] - 8) * scl.y"
+             (focus)="onFocusTooltip(lm[0], hoverBox)" (mouseenter)="onFocusTooltip(lm[0], hoverBox)"
              (blur)="onBlurTooltip()" (mouseleave)="onBlurTooltip()">
         </div>
       }
@@ -97,7 +99,7 @@ const TOOLTIP_DELAY = 300;
 export class GameTabMap {
   readonly #store = inject(GameStore);
   protected readonly running = this.#store.running;
-  readonly #scale = signal({ x: 1, y: 1 });
+  protected readonly scale = signal({ x: 1, y: 1 });
 
   readonly allLandmarks = computed(() => {
     const { allLocations, allRegions, startRegion } = this.#store.defs();
@@ -219,6 +221,8 @@ export class GameTabMap {
 
     // whenever the outer div resizes, we also need to resize the app to match.
     const outerDivSize = elementSizeSignal(this.outerDiv);
+    // debounce this signal update, though, since it triggers a full re-render.
+    let prevTimeout: number | null = null;
     effect(() => {
       if (!appIsInitialized()) {
         return;
@@ -229,18 +233,21 @@ export class GameTabMap {
       app.stage.scale.x = clientWidth / 300;
       app.stage.scale.y = clientHeight / VICTORY_LOCATION_CROP_LOOKUP[victoryLocationYamlKey];
       app.resize();
-      this.#scale.set({ x: app.stage.scale.x, y: app.stage.scale.y });
-    });
-  }
 
-  protected style([x, y]: Vec2) {
-    const scale = this.#scale();
-    return {
-      left: `${((x - 8) * scale.x).toString()}px`,
-      top: `${((y - 8) * scale.y).toString()}px`,
-      width: `${(16 * scale.x).toString()}px`,
-      height: `${(16 * scale.y).toString()}px`,
-    };
+      // if there's a tooltip active, then turn it off.
+      const tooltipTarget = untracked(() => this.#tooltipTarget());
+      if (tooltipTarget !== null) {
+        tooltipTarget[1].blur();
+        this.#tooltipTarget.set(null);
+      }
+      if (prevTimeout !== null) {
+        clearTimeout(prevTimeout);
+      }
+      prevTimeout = setTimeout(() => {
+        this.scale.set({ x: app.stage.scale.x, y: app.stage.scale.y });
+        prevTimeout = null;
+      }, 100);
+    });
   }
 
   #prevFocusTimeout = NaN;
