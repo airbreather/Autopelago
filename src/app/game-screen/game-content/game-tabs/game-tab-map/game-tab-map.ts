@@ -1,3 +1,4 @@
+import { CdkConnectedOverlay, CdkOverlayOrigin } from '@angular/cdk/overlay';
 import {
   ChangeDetectionStrategy,
   Component,
@@ -10,22 +11,40 @@ import {
   untracked,
   viewChild,
 } from '@angular/core';
+import BitArray from '@bitarray/typedarray';
 
 import { Application, Ticker } from 'pixi.js';
+import Queue from 'yocto-queue';
+import { type LandmarkYamlKey, type Vec2 } from '../../../../data/locations';
 import { VICTORY_LOCATION_CROP_LOOKUP } from '../../../../data/resolved-definitions';
 import { GameStore } from '../../../../store/autopelago-store';
 import { elementSizeSignal } from '../../../../utils/element-size';
 import { createLivePixiObjects } from './live-pixi-objects';
+import { Tooltip } from './tooltip/tooltip';
+
+const TOOLTIP_DELAY = 300;
 
 @Component({
   changeDetection: ChangeDetectionStrategy.OnPush,
   selector: 'app-game-tab-map',
+  imports: [
+    CdkConnectedOverlay,
+    CdkOverlayOrigin,
+    Tooltip,
+  ],
   template: `
     <div #outer class="outer">
       <!--suppress AngularNgOptimizedImage, HtmlUnknownTarget -->
       <img alt="map" [src]="mapUrl()" />
       <canvas #pixiCanvas class="pixi-canvas" width="300" height="450">
       </canvas>
+      @for (coords of allLandmarks(); track $index) {
+        <div #hoverBox class="hover-box" [style]="style(coords[1])"
+             cdkOverlayOrigin [tabindex]="$index + 999"
+             (focus)="onFocusTooltip(coords[0], hoverBox)" (mouseenter)="onFocusTooltip(coords[0], hoverBox)"
+             (blur)="onBlurTooltip()" (mouseleave)="onBlurTooltip()">
+        </div>
+      }
       <div #pauseButtonContainer class="pause-button-container"
            [style.margin-top]="'-' + pauseButtonContainer.clientHeight + 'px'">
         <button class="rat-toggle-button"
@@ -35,6 +54,14 @@ import { createLivePixiObjects } from './live-pixi-objects';
         </button>
       </div>
     </div>
+    <ng-template
+      cdkConnectedOverlay
+      [cdkConnectedOverlayOrigin]="tooltipTarget()?.[1] ?? outer"
+      [cdkConnectedOverlayOpen]="tooltipTarget() !== null"
+      (detach)="detachTooltip()">
+      <app-tooltip [landmark]="tooltipTarget()![0]">
+      </app-tooltip>
+    </ng-template>
   `,
   styles: `
     .outer {
@@ -59,11 +86,46 @@ import { createLivePixiObjects } from './live-pixi-objects';
       width: 100%;
       height: 100%;
     }
+
+    .hover-box {
+      position: absolute;
+      pointer-events: initial;
+      user-select: auto;
+      user-focus: initial;
+    }
   `,
 })
 export class GameTabMap {
   readonly #store = inject(GameStore);
   protected readonly running = this.#store.running;
+  readonly #scale = signal({ x: 1, y: 1 });
+
+  readonly allLandmarks = computed(() => {
+    const { allLocations, allRegions, startRegion } = this.#store.defs();
+    const result: [LandmarkYamlKey, Vec2][] = [];
+    const visited = new BitArray(allRegions.length);
+    const q = new Queue<number>();
+    function tryEnqueue(r: number) {
+      if (!visited[r]) {
+        visited[r] = 1;
+        q.enqueue(r);
+      }
+    }
+    q.enqueue(startRegion);
+    for (let r = q.dequeue(); r !== undefined; r = q.dequeue()) {
+      const region = allRegions[r];
+      if ('loc' in region) {
+        result.push([region.yamlKey, allLocations[region.loc].coords]);
+      }
+      for (const [nxt] of region.connected.all) {
+        tryEnqueue(nxt);
+      }
+    }
+    return result;
+  });
+
+  readonly #tooltipTarget = signal<[LandmarkYamlKey, HTMLDivElement] | null>(null);
+  readonly tooltipTarget = this.#tooltipTarget.asReadonly();
 
   protected readonly pixiCanvas = viewChild.required<ElementRef<HTMLCanvasElement>>('pixiCanvas');
   protected readonly outerDiv = viewChild.required<ElementRef<HTMLDivElement>>('outer');
@@ -167,10 +229,73 @@ export class GameTabMap {
       app.stage.scale.x = clientWidth / 300;
       app.stage.scale.y = clientHeight / VICTORY_LOCATION_CROP_LOOKUP[victoryLocationYamlKey];
       app.resize();
+      this.#scale.set({ x: app.stage.scale.x, y: app.stage.scale.y });
     });
+  }
+
+  protected style([x, y]: Vec2) {
+    const scale = this.#scale();
+    return {
+      left: `${((x - 8) * scale.x).toString()}px`,
+      top: `${((y - 8) * scale.y).toString()}px`,
+      width: `${(16 * scale.x).toString()}px`,
+      height: `${(16 * scale.y).toString()}px`,
+    };
+  }
+
+  #prevFocusTimeout = NaN;
+  #prevBlurTimeout = NaN;
+  onFocusTooltip(landmarkYamlKey: LandmarkYamlKey, element: HTMLDivElement) {
+    if (!Number.isNaN(this.#prevBlurTimeout)) {
+      clearTimeout(this.#prevBlurTimeout);
+      this.#prevBlurTimeout = NaN;
+      this.#tooltipTarget.set([landmarkYamlKey, element]);
+      return;
+    }
+
+    if (!Number.isNaN(this.#prevFocusTimeout)) {
+      clearTimeout(this.#prevFocusTimeout);
+      this.#prevFocusTimeout = NaN;
+    }
+    this.#prevFocusTimeout = setTimeout(() => {
+      this.#tooltipTarget.set([landmarkYamlKey, element]);
+      this.#prevFocusTimeout = NaN;
+    }, TOOLTIP_DELAY);
+  }
+
+  onBlurTooltip() {
+    if (!Number.isNaN(this.#prevFocusTimeout)) {
+      clearTimeout(this.#prevFocusTimeout);
+      this.#prevFocusTimeout = NaN;
+      this.#tooltipTarget.set(null);
+      return;
+    }
+
+    if (!Number.isNaN(this.#prevBlurTimeout)) {
+      clearTimeout(this.#prevBlurTimeout);
+      this.#prevBlurTimeout = NaN;
+    }
+    this.#prevBlurTimeout = setTimeout(() => {
+      this.#tooltipTarget.set(null);
+      this.#prevBlurTimeout = NaN;
+    }, TOOLTIP_DELAY);
   }
 
   togglePause() {
     this.#store.togglePause();
+  }
+
+  detachTooltip() {
+    if (!Number.isNaN(this.#prevFocusTimeout)) {
+      clearTimeout(this.#prevFocusTimeout);
+      this.#prevFocusTimeout = NaN;
+    }
+
+    if (!Number.isNaN(this.#prevBlurTimeout)) {
+      clearTimeout(this.#prevBlurTimeout);
+      this.#prevBlurTimeout = NaN;
+    }
+
+    this.#tooltipTarget.set(null);
   }
 }
