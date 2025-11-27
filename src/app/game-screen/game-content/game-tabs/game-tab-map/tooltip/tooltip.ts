@@ -25,14 +25,14 @@ import { RequirementDisplay } from './requirement-display';
     </div>
   `,
   styles: `
-    @import '../../../../../../theme.scss';
+    @use '../../../../../../theme.scss';
     .outer {
       display: grid;
       grid-template-columns: min-content;
       grid-auto-rows: auto;
       gap: 5px;
       padding: 4px;
-      background-color: $region-color;
+      background-color: theme.$region-color;
     }
 
     .box {
