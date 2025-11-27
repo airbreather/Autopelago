@@ -1,4 +1,5 @@
 import { CdkConnectedOverlay, CdkOverlayOrigin } from '@angular/cdk/overlay';
+import { NgOptimizedImage } from '@angular/common';
 import {
   ChangeDetectionStrategy,
   Component,
@@ -30,12 +31,12 @@ const TOOLTIP_DELAY = 300;
   imports: [
     CdkConnectedOverlay,
     CdkOverlayOrigin,
+    NgOptimizedImage,
     Tooltip,
   ],
   template: `
     <div #outer class="outer" [style.--ap-throttled-scale]="throttledScaleForInvisibleElementsOnly()">
-      <!--suppress AngularNgOptimizedImage -->
-      <img alt="map" [src]="mapUrl()"/>
+      <img class="map-img" alt="map" [ngSrc]="mapUrl()" width="300" height="450"/>
       <canvas #pixiCanvas class="pixi-canvas" width="300" height="450">
       </canvas>
       @for (lm of allLandmarks(); track $index) {
@@ -69,6 +70,11 @@ const TOOLTIP_DELAY = 300;
       position: relative;
       pointer-events: none;
       user-select: none;
+    }
+
+    .map-img {
+      width: 100%;
+      height: 100%;
     }
 
     .pause-button-container {
@@ -142,7 +148,7 @@ export class GameTabMap {
       case 'snakes_on_a_planet':
         return 'assets/images/map.svg';
       default:
-        return null;
+        return '';
     }
   });
 
