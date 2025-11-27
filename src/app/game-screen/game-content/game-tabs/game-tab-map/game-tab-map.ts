@@ -33,16 +33,15 @@ const TOOLTIP_DELAY = 300;
     Tooltip,
   ],
   template: `
-    <div #outer class="outer">
+    <div #outer class="outer" [style.--ap-throttled-scale]="throttledScaleForInvisibleElementsOnly()">
       <!--suppress AngularNgOptimizedImage, HtmlUnknownTarget -->
-      <img alt="map" [src]="mapUrl()" />
+      <img alt="map" [src]="mapUrl()"/>
       <canvas #pixiCanvas class="pixi-canvas" width="300" height="450">
       </canvas>
-      @let scl = scale();
       @for (lm of allLandmarks(); track $index) {
+        <!--suppress CssUnknownProperty -->
         <div #hoverBox class="hover-box" [tabindex]="$index + 999" cdkOverlayOrigin
-             [style.width.px]="scl.x * 16" [style.height.px]="scl.y * 16"
-             [style.left.px]="(lm[1][0] - 8) * scl.x" [style.top.px]="(lm[1][1] - 8) * scl.y"
+             [style.--ap-left-base.px]="lm[1][0]" [style.--ap-top-base.px]="lm[1][1]"
              (focus)="onFocusTooltip(lm[0], hoverBox)" (mouseenter)="onFocusTooltip(lm[0], hoverBox)"
              (blur)="onBlurTooltip()" (mouseleave)="onBlurTooltip()">
         </div>
@@ -93,13 +92,17 @@ const TOOLTIP_DELAY = 300;
     .hover-box {
       position: absolute;
       pointer-events: initial;
+      width: calc(16px * var(--ap-throttled-scale, 1));
+      height: calc(16px * var(--ap-throttled-scale, 1));
+      left: calc((var(--ap-left-base, 8px) - 8px) * var(--ap-throttled-scale, 1));
+      top: calc((var(--ap-top-base, 8px) - 8px) * var(--ap-throttled-scale, 1));
     }
   `,
 })
 export class GameTabMap {
   readonly #store = inject(GameStore);
   protected readonly running = this.#store.running;
-  protected readonly scale = signal({ x: 1, y: 1 });
+  protected readonly throttledScaleForInvisibleElementsOnly = signal(1);
 
   readonly allLandmarks = computed(() => {
     const { allLocations, allRegions, startRegion } = this.#store.defs();
@@ -221,17 +224,18 @@ export class GameTabMap {
 
     // whenever the outer div resizes, we also need to resize the app to match.
     const outerDivSize = elementSizeSignal(this.outerDiv);
-    // debounce this signal update, though, since it triggers a full re-render.
-    let prevTimeout: number | null = null;
+    // throttle this signal update, though, since it triggers a full re-render.
+    let setThrottledScaleTimeout: number | null = null;
+    let setThrottledScaleValue = NaN;
     effect(() => {
       if (!appIsInitialized()) {
         return;
       }
 
       const victoryLocationYamlKey = this.#store.victoryLocationYamlKey();
-      const { clientWidth, clientHeight } = outerDivSize();
-      app.stage.scale.x = clientWidth / 300;
-      app.stage.scale.y = clientHeight / VICTORY_LOCATION_CROP_LOOKUP[victoryLocationYamlKey];
+      const { clientHeight } = outerDivSize();
+      const scale = clientHeight / VICTORY_LOCATION_CROP_LOOKUP[victoryLocationYamlKey];
+      app.stage.scale = scale;
       app.resize();
 
       // if there's a tooltip active, then turn it off.
@@ -240,13 +244,12 @@ export class GameTabMap {
         tooltipTarget[1].blur();
         this.#tooltipTarget.set(null);
       }
-      if (prevTimeout !== null) {
-        clearTimeout(prevTimeout);
-      }
-      prevTimeout = setTimeout(() => {
-        this.scale.set({ x: app.stage.scale.x, y: app.stage.scale.y });
-        prevTimeout = null;
-      }, 100);
+      setThrottledScaleValue = scale;
+      setThrottledScaleTimeout ??= setTimeout(() => {
+        this.throttledScaleForInvisibleElementsOnly.set(setThrottledScaleValue);
+        setThrottledScaleValue = NaN;
+        setThrottledScaleTimeout = null;
+      }, 200);
     });
   }
 
