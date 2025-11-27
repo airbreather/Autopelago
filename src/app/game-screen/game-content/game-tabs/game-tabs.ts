@@ -1,3 +1,4 @@
+import { CdkScrollable } from '@angular/cdk/overlay';
 import { ChangeDetectionStrategy, Component, inject, input } from '@angular/core';
 import type { AutopelagoClientAndData } from '../../../data/slot-data';
 
@@ -9,6 +10,7 @@ import { GameTabTextClient } from './game-tab-text-client/game-tab-text-client';
 @Component({
   selector: 'app-game-tabs',
   imports: [
+    CdkScrollable,
     GameTabMap,
     GameTabArcade,
     GameTabTextClient,
@@ -17,9 +19,9 @@ import { GameTabTextClient } from './game-tab-text-client/game-tab-text-client';
   template: `
     <div class="outer">
       <div class="top">
-        <app-game-tab-map [class.current-tab]="currentTab() === 'map'" [hidden]="currentTab() !== 'map'" />
-        <app-game-tab-arcade [class.current-tab]="currentTab() === 'arcade'" [hidden]="currentTab() !== 'arcade'" />
-        <app-game-tab-text-client [class.current-tab]="currentTab() === 'text-client'" [hidden]="currentTab() !== 'text-client'" [game]="game()" />
+        <app-game-tab-map [class.current-tab]="currentTab() === 'map'" [hidden]="currentTab() !== 'map'" cdk-scrollable />
+        <app-game-tab-arcade [class.current-tab]="currentTab() === 'arcade'" [hidden]="currentTab() !== 'arcade'" cdk-scrollable />
+        <app-game-tab-text-client [class.current-tab]="currentTab() === 'text-client'" [hidden]="currentTab() !== 'text-client'" [game]="game()" cdk-scrollable />
       </div>
       <div class="bottom">
         <button class="tab tab-map rat-toggle-button" [class.toggled-on]="currentTab() === 'map'" (click)="clickTab('map')">

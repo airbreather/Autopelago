@@ -58,6 +58,7 @@ const TOOLTIP_DELAY = 300;
       cdkConnectedOverlay
       [cdkConnectedOverlayOrigin]="tooltipTarget()?.[1] ?? outer"
       [cdkConnectedOverlayOpen]="tooltipTarget() !== null"
+      [cdkConnectedOverlayUsePopover]="'inline'"
       (detach)="detachTooltip()">
       <app-tooltip [landmark]="tooltipTarget()![0]">
       </app-tooltip>
@@ -90,8 +91,6 @@ const TOOLTIP_DELAY = 300;
     .hover-box {
       position: absolute;
       pointer-events: initial;
-      user-select: auto;
-      user-focus: initial;
     }
   `,
 })
@@ -148,6 +147,7 @@ export class GameTabMap {
     inject(DestroyRef).onDestroy(() => {
       app.ticker.stop();
       app.destroy();
+      appIsInitialized.set(false);
     });
     app.ticker = new Ticker();
     effect(() => {
