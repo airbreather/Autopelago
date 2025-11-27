@@ -11,6 +11,7 @@ import { GameStore } from '../../../../store/autopelago-store';
     <div class="outer">
       @for (item of items(); track item.name) {
         <div class="item-container" [class.collected]="item.collected()">
+          <!--suppress AngularNgOptimizedImage -->
           <img class="item"
                src="/assets/images/items.webp"
                [alt]="item.name"

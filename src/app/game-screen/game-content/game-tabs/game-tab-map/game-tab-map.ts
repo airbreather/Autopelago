@@ -36,7 +36,7 @@ const TOOLTIP_DELAY = 300;
   ],
   template: `
     <div #outer class="outer" [style.--ap-throttled-scale]="throttledScaleForInvisibleElementsOnly()">
-      <img class="map-img" alt="map" [ngSrc]="mapUrl()" width="300" height="450"/>
+      <img class="map-img" alt="map" [ngSrc]="mapUrl()" width="300" height="450" priority />
       <canvas #pixiCanvas class="pixi-canvas" width="300" height="450">
       </canvas>
       @for (lm of allLandmarks(); track $index) {
