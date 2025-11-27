@@ -8,7 +8,7 @@ import { GameStore } from '../../../../../store/autopelago-store';
   imports: [],
   template: `
     <div class="outer">
-      <span class="satisfied-marker">{{isSatisfied() ? '✓' : '✕'}}</span>
+      <span class="satisfied-marker" [hidden]="'fullClear' in requirement()">{{isSatisfied() ? '✓' : '✕'}}</span>
       @let r = requirement();
       @if ('ratCount' in r) {
         <span>{{r.ratCount}} rats</span>
@@ -16,7 +16,7 @@ import { GameStore } from '../../../../../store/autopelago-store';
       @else if ('item' in r) {
         <span>{{itemNames()[r.item]}}</span>
       }
-      @else if ('goal' in r) {
+      @else if ('fullClear' in r) {
       }
       @else {
         @switch (r.minRequired) {
@@ -61,7 +61,7 @@ export class RequirementDisplay {
   });
 
   readonly isSatisfied = computed(() => {
-    const isSatisfied = buildRequirementIsSatisfied(this.#store.requirementRelevantItemCountLookup());
+    const isSatisfied = buildRequirementIsSatisfied(this.#store.requirementRelevantItemCountLookup(), this.#store.allLocationsAreChecked());
     return isSatisfied(this.requirement());
   });
 }

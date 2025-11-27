@@ -112,10 +112,16 @@ export interface AutopelagoCompositeRequirement {
   children: readonly AutopelagoRequirement[];
 }
 
+export interface AutopelagoFullClearRequirement {
+  fullClear: true;
+}
+
 export type AutopelagoRequirement =
   | AutopelagoRatCountRequirement
   | AutopelagoItemRequirement
-  | AutopelagoCompositeRequirement;
+  | AutopelagoCompositeRequirement
+  | AutopelagoFullClearRequirement
+  ;
 
 export type VictoryLocationYamlKey =
   Extract<LandmarkYamlKey, 'captured_goldfish' | 'secret_cache' | 'snakes_on_a_planet'>;
@@ -158,6 +164,7 @@ export interface AutopelagoDefinitions {
   startRegion: number;
   startLocation: number;
   locationNameLookup: ReadonlyMapByCaseInsensitiveString<number, 'en'>;
+  moonCommaThe: { region: number; location: number } | null;
 }
 
 type YamlRequirement =
@@ -175,23 +182,22 @@ type YamlBulkItemLookups =
 type YamlBulkItemOrGameSpecificItemGroup = YamlBulkItemLookups[number];
 type YamlBulkItem = Exclude<YamlBulkItemOrGameSpecificItemGroup, Readonly<Record<'game_specific', unknown>>>;
 
+function toConnected(forward: readonly number[], backward: readonly number[]): Connected {
+  return {
+    forward,
+    backward,
+    all: [
+      ...forward.map(x => [x, 'forward'] as const),
+      ...backward.map(x => [x, 'backward'] as const),
+    ],
+  };
+}
+
 function resolveMainDefinitions(
   yamlFile: typeof baked,
 ): AutopelagoDefinitions {
   const allItems: AutopelagoItem[] = [];
   const progressionItemsByYamlKey = new Map<string, number>();
-
-  function toConnected(forward: readonly number[], backward: readonly number[]): Connected {
-    return {
-      forward,
-      backward,
-      all: [
-        ...forward.map(x => [x, 'forward'] as const),
-        ...backward.map(x => [x, 'backward'] as const),
-      ],
-    };
-  }
-
   function getItemNames(name: string | readonly [string, string]): readonly [string, string] {
     return typeof name === 'string'
       ? [name, name]
@@ -702,6 +708,7 @@ function resolveMainDefinitions(
     startLocation: startLocationIndex,
     itemNameLookup,
     locationNameLookup,
+    moonCommaThe: null,
   };
 }
 
@@ -830,11 +837,15 @@ function withVictoryLocation(defs: AutopelagoDefinitions, location: VictoryLocat
     locationNameLookup.set(location.name, locationIndex);
   }
 
+  let victoryLocation = NaN;
   const newVictoryLocationsByYamlKey = new Map<VictoryLocationYamlKey, number>();
   for (const [locationKey, locationIndex] of defs.victoryLocationsByYamlKey.entries()) {
     const newLocationIndex = oldToNewLocationMap.get(locationIndex);
     if (newLocationIndex !== undefined) {
       newVictoryLocationsByYamlKey.set(locationKey, newLocationIndex);
+      if (locationKey === location) {
+        victoryLocation = newLocationIndex;
+      }
     }
   }
 
@@ -843,6 +854,49 @@ function withVictoryLocation(defs: AutopelagoDefinitions, location: VictoryLocat
     if ('loc' in newRegion) {
       newRegionForLandmarkLocation[newRegion.loc] = newRegion.key;
     }
+  }
+
+  let moonCommaThe = defs.moonCommaThe;
+  if (location === 'snakes_on_a_planet') {
+    const regionIndex = allRegions.length;
+    const locationIndex = allLocations.length;
+
+    // Create the location for this landmark
+    allLocations.push({
+      key: locationIndex,
+      regionLocationKey: [regionIndex, 0], // Landmarks have only one location at index 0
+      coords: LANDMARKS.moon_comma_the.coords,
+      name: 'Moon, The',
+      flavorText: 'I hope there\'s enough of it to go around...',
+      abilityCheckDC: Number.NEGATIVE_INFINITY,
+      connected: toConnected([], [victoryLocation]),
+      unrandomizedProgressionItemYamlKey: null,
+    });
+
+    // Create the landmark region
+    const landmarkRegion: AutopelagoLandmarkRegion = {
+      key: regionIndex,
+      yamlKey: 'moon_comma_the',
+      abilityCheckDC: Number.NEGATIVE_INFINITY,
+      connected: toConnected([], [newRegionForLandmarkLocation[victoryLocation]]),
+      loc: locationIndex,
+      requirement: { fullClear: true },
+    };
+
+    allRegions.push(landmarkRegion);
+
+    allRegions[newRegionForLandmarkLocation[victoryLocation]].connected = toConnected(
+      [...allRegions[newRegionForLandmarkLocation[victoryLocation]].connected.forward, regionIndex],
+      allRegions[newRegionForLandmarkLocation[victoryLocation]].connected.backward,
+    );
+
+    allLocations[victoryLocation].connected = toConnected(
+      [...allLocations[victoryLocation].connected.forward, locationIndex],
+      allLocations[victoryLocation].connected.backward,
+    );
+
+    moonCommaThe = { region: regionIndex, location: locationIndex };
+    newRegionForLandmarkLocation.push(regionIndex);
   }
 
   return {
@@ -854,5 +908,6 @@ function withVictoryLocation(defs: AutopelagoDefinitions, location: VictoryLocat
     startLocation: newStartLocation,
     locationNameLookup,
     victoryLocationsByYamlKey: newVictoryLocationsByYamlKey,
+    moonCommaThe,
   };
 }

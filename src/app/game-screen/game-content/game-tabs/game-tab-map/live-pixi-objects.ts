@@ -1,7 +1,7 @@
 import { computed, effect, untracked } from '@angular/core';
 import { Sprite, type Ticker } from 'pixi.js';
 import Queue from 'yocto-queue';
-import { type LandmarkYamlKey, MOON_COMMA_THE_COORDS, type Vec2 } from '../../../../data/locations';
+import { type LandmarkYamlKey, type Vec2 } from '../../../../data/locations';
 import { type AutopelagoDefinitions, type VictoryLocationYamlKey } from '../../../../data/resolved-definitions';
 import type { AnimatableAction } from '../../../../game/defining-state';
 import { GameStore } from '../../../../store/autopelago-store';
@@ -67,13 +67,7 @@ export function createLivePixiObjects(store: InstanceType<typeof GameStore>, tic
 
     if (action.type === 'move') {
       const fromCoords = defs.allLocations[action.fromLocation].coords;
-      let toCoords: Vec2;
-      if (Number.isNaN(action.toLocation)) {
-        toCoords = MOON_COMMA_THE_COORDS;
-      }
-      else {
-        toCoords = defs.allLocations[action.toLocation].coords;
-      }
+      const toCoords = defs.allLocations[action.toLocation].coords;
       return resolveMove(fromCoords, toCoords);
     }
 
@@ -104,10 +98,12 @@ export function createLivePixiObjects(store: InstanceType<typeof GameStore>, tic
             if (yamlKey in spriteLookup) {
               const box = spriteLookup[yamlKey];
               if (box) {
-                box.offSprite.visible = false;
                 box.onSprite.visible = true;
-                box.onQSprite.visible = false;
-                box.offQSprite.visible = false;
+                if ('offSprite' in box) {
+                  box.offSprite.visible = false;
+                  box.onQSprite.visible = false;
+                  box.offQSprite.visible = false;
+                }
               }
             }
           }
@@ -151,16 +147,8 @@ export function createLivePixiObjects(store: InstanceType<typeof GameStore>, tic
     if (actions.size === 0) {
       if (!finishedFirstRound) {
         untracked(() => {
-          let currentCoords: Vec2;
-          let targetCoords: Vec2;
-          if (store.onMoon()) {
-            currentCoords = MOON_COMMA_THE_COORDS;
-            targetCoords = MOON_COMMA_THE_COORDS;
-          }
-          else {
-            currentCoords = defs.allLocations[store.currentLocation()].coords;
-            targetCoords = defs.allLocations[store.targetLocation()].coords;
-          }
+          const currentCoords = defs.allLocations[store.currentLocation()].coords;
+          const targetCoords = defs.allLocations[store.targetLocation()].coords;
           playerToken.position.set(...currentCoords);
           updateWiggleOptimizationBox(currentCoords, targetCoords);
           const fillersToMark: number[] = [];
@@ -174,10 +162,12 @@ export function createLivePixiObjects(store: InstanceType<typeof GameStore>, tic
               if ('loc' in region) {
                 const spriteBox = landmarkMarkers.spriteLookup[region.yamlKey];
                 if (spriteBox) {
-                  spriteBox.offSprite.visible = false;
                   spriteBox.onSprite.visible = true;
-                  spriteBox.onQSprite.visible = false;
-                  spriteBox.offQSprite.visible = false;
+                  if ('offSprite' in spriteBox) {
+                    spriteBox.offSprite.visible = false;
+                    spriteBox.onQSprite.visible = false;
+                    spriteBox.offQSprite.visible = false;
+                  }
                 }
               }
             }

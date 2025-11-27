@@ -14,8 +14,7 @@ interface PreparedFiller {
   targetPointsPrj: readonly number[];
 }
 
-export type LandmarkYamlKey = keyof typeof baked.regions.landmarks;
-export const MOON_COMMA_THE_COORDS = [284, 319] as const;
+export type LandmarkYamlKey = keyof typeof baked.regions.landmarks | 'moon_comma_the';
 export const LANDMARKS = {
   basketball: { sprite_index: 1, coords: [59, 77] },
   prawn_stars: { sprite_index: 2, coords: [103, 34] },
@@ -49,11 +48,11 @@ export const LANDMARKS = {
   minotaur_labyrinth: { sprite_index: 30, coords: [194, 399] },
   asteroid_with_pants: { sprite_index: 31, coords: [232, 406] },
   snakes_on_a_planet: { sprite_index: 32, coords: [243, 354] },
-  moon_comma_the: { sprite_index: 33, coords: MOON_COMMA_THE_COORDS },
-} as const satisfies Readonly<Record<LandmarkYamlKey | 'moon_comma_the', Landmark>>;
+  moon_comma_the: { sprite_index: 33, coords: [284, 319] },
+} as const satisfies Readonly<Record<LandmarkYamlKey, Landmark>>;
 
 export function isLandmarkYamlKey(yamlKey: string): yamlKey is LandmarkYamlKey {
-  return yamlKey in LANDMARKS && yamlKey !== 'moon_comma_the';
+  return yamlKey in LANDMARKS;
 }
 
 export interface Filler {

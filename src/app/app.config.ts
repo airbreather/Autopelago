@@ -1,3 +1,4 @@
+import { IMAGE_CONFIG } from '@angular/common';
 import { provideHttpClient } from '@angular/common/http';
 import {
   type ApplicationConfig,
@@ -37,5 +38,11 @@ export const appConfig: ApplicationConfig = {
         enabled: !isDevMode(),
         registrationStrategy: 'registerWhenStable:30000',
       }),
+    {
+      provide: IMAGE_CONFIG,
+      useValue: {
+        disableImageSizeWarning: true,
+      },
+    },
   ],
 };

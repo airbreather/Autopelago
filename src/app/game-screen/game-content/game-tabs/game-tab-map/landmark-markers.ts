@@ -2,7 +2,7 @@ import { DestroyRef, effect, inject, type Resource, resource, type Signal } from
 import type BitArray from '@bitarray/typedarray';
 import { DropShadowFilter } from 'pixi-filters';
 import { AnimatedSprite, Assets, Container, Sprite, Spritesheet, type SpritesheetData, Texture, Ticker } from 'pixi.js';
-import { isLandmarkYamlKey, LANDMARKS, type LandmarkYamlKey, MOON_COMMA_THE_COORDS } from '../../../../data/locations';
+import { isLandmarkYamlKey, LANDMARKS, type LandmarkYamlKey } from '../../../../data/locations';
 import {
   type AutopelagoDefinitions,
   BAKED_DEFINITIONS_BY_VICTORY_LANDMARK,
@@ -20,7 +20,7 @@ export interface CreateLandmarkMarkersOptions {
 }
 
 type FullSpriteLookupType = {
-  [T in LandmarkYamlKey | 'moon_comma_the']: T extends LandmarkYamlKey ? LandmarkSpriteBox : MoonSpriteBox;
+  [T in LandmarkYamlKey]: T extends 'moon_comma_the' ? MoonSpriteBox : LandmarkSpriteBox;
 };
 
 export interface LandmarkMarkers {
@@ -82,7 +82,7 @@ export function createLandmarkMarkers(options: CreateLandmarkMarkersOptions): Re
           sprite = new Sprite(frames[0]);
         }
 
-        const [x, y] = isLandmarkYamlKey(landmarkKey) ? LANDMARKS[landmarkKey].coords : MOON_COMMA_THE_COORDS;
+        const [x, y] = LANDMARKS[landmarkKey].coords;
         sprite.position.set(x - (img === 'main' ? 8 : 6), y - (img === 'main' ? 8 : 21));
         if (img === 'quest') {
           sprite.scale = 0.75;
@@ -97,17 +97,26 @@ export function createLandmarkMarkers(options: CreateLandmarkMarkersOptions): Re
           continue;
         }
 
-        const spriteBox = spriteLookup[yamlKey] = {
-          animated: connectScreenState.enableTileAnimations,
-          onSprite: createSprite(yamlKey, 'on', 'main'),
-          offSprite: createSprite(yamlKey, 'off', 'main'),
-          onQSprite: createSprite(yamlKey, 'on', 'quest'),
-          offQSprite: createSprite(yamlKey, 'off', 'quest'),
-        } as LandmarkSpriteBox;
-        spriteBox.onSprite.visible = false;
-        spriteBox.offSprite.visible = true;
-        spriteBox.onQSprite.visible = false;
-        spriteBox.offQSprite.visible = true;
+        if (yamlKey === 'moon_comma_the') {
+          const spriteBox = spriteLookup[yamlKey] = {
+            animated: connectScreenState.enableTileAnimations,
+            onSprite: createSprite(yamlKey, 'on', 'main'),
+          } as MoonSpriteBox;
+          spriteBox.onSprite.visible = false;
+        }
+        else {
+          const spriteBox = spriteLookup[yamlKey] = {
+            animated: connectScreenState.enableTileAnimations,
+            onSprite: createSprite(yamlKey, 'on', 'main'),
+            offSprite: createSprite(yamlKey, 'off', 'main'),
+            onQSprite: createSprite(yamlKey, 'on', 'quest'),
+            offQSprite: createSprite(yamlKey, 'off', 'quest'),
+          } as LandmarkSpriteBox;
+          spriteBox.onSprite.visible = false;
+          spriteBox.offSprite.visible = true;
+          spriteBox.onQSprite.visible = false;
+          spriteBox.offQSprite.visible = true;
+        }
       }
 
       if (victoryLocationYamlKey === 'snakes_on_a_planet') {
@@ -132,12 +141,13 @@ export function createLandmarkMarkers(options: CreateLandmarkMarkersOptions): Re
 
     const { allRegions } = options.defs();
     const regionIsLandmarkWithRequirementSatisfied = options.regionIsLandmarkWithRequirementSatisfied();
-    for (const [_, landmark] of strictObjectEntries(allRegions)) {
-      if (!('loc' in landmark)) {
+    for (const landmark of allRegions) {
+      const yamlKey = landmark.yamlKey;
+      if (!isLandmarkYamlKey(yamlKey) || yamlKey === 'moon_comma_the') {
         continue;
       }
 
-      const spriteBox = spriteLookup[landmark.yamlKey];
+      const spriteBox = spriteLookup[yamlKey];
       if (!spriteBox) {
         continue;
       }

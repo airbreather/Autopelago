@@ -29,6 +29,10 @@ export const GameStore = signalStore(
 
       const locationNameLookup = BAKED_DEFINITIONS_BY_VICTORY_LANDMARK[victoryLocationYamlKey].locationNameLookup;
       const checkedLocations = client.room.checkedLocations.map(l => locationNameLookup.get(pkg.reverseLocationTable[l]) ?? -1);
+      const defs = BAKED_DEFINITIONS_BY_VICTORY_LANDMARK[victoryLocationYamlKey];
+      if (defs.moonCommaThe !== null && checkedLocations.length >= (defs.allLocations.length - 1)) {
+        checkedLocations.push(defs.moonCommaThe.location);
+      }
       patchState(store, {
         ...storedData,
         game,
@@ -112,9 +116,9 @@ export const GameStore = signalStore(
           return;
         }
 
-        const outgoingCheckedLocations = store.outgoingCheckedLocations();
+        const defs = store.defs();
+        const outgoingCheckedLocations = store.outgoingCheckedLocations().filter(l => l !== defs.moonCommaThe?.location);
         if (outgoingCheckedLocations.size > 0) {
-          const defs = store.defs();
           const locationNameLookup = game.pkg.locationTable;
           game.client.check(...outgoingCheckedLocations.map(l => locationNameLookup[defs.allLocations[l].name]));
           patchState(store, { outgoingCheckedLocations: outgoingCheckedLocations.clear() });
@@ -213,21 +217,6 @@ export const GameStore = signalStore(
             }),
           };
         });
-      });
-      const moveToMoon = effect(() => {
-        if (!store.onMoon()) {
-          return;
-        }
-
-        const victoryLocation = store.victoryLocation();
-        patchState(store, ({ outgoingAnimatableActions }) => ({
-          outgoingAnimatableActions: outgoingAnimatableActions.push({
-            type: 'move',
-            fromLocation: victoryLocation,
-            toLocation: NaN,
-          }),
-        }));
-        moveToMoon.destroy();
       });
       const reportGoMode = effect(() => {
         const game = store.game();

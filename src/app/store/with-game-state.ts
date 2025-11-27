@@ -148,7 +148,8 @@ export function withGameState() {
         }
         return locationIsChecked;
       });
-      const hasCompletedGoal = computed(() => locationIsChecked()[victoryLocation()]);
+      const hasCompletedGoal = computed(() => !!locationIsChecked()[victoryLocation()]);
+      const allLocationsAreChecked = computed(() => hasCompletedGoal() && store.checkedLocations().size === defs().allLocations.length);
       const receivedItemCountLookup = computed<readonly number[]>(() => {
         const { allItems } = defs();
         const result = Array<number>(allItems.length).fill(0);
@@ -188,7 +189,7 @@ export function withGameState() {
       }, { equal: arraysEqual });
       const regionLocks = computed<RegionLocks>(() => {
         const { allRegions, startRegion } = defs();
-        const isSatisfied = buildRequirementIsSatisfied(requirementRelevantItemCountLookup());
+        const isSatisfied = buildRequirementIsSatisfied(requirementRelevantItemCountLookup(), allLocationsAreChecked());
         const regionIsHardLocked = new BitArray(allRegions.length);
         const regionIsLandmarkWithRequirementSatisfied = new BitArray(allRegions.length);
         const regionIsLandmarkWithRequirementUnsatisfied = new BitArray(allRegions.length);
@@ -288,9 +289,6 @@ export function withGameState() {
       const targetLocationChosenBecauseConspiratorial = computed(() => {
         return targetLocationReason() === 'aura-driven' && store.locationIsTrap()[targetLocation()];
       });
-      const onMoon = computed(() => {
-        return store.victoryLocationYamlKey() === 'snakes_on_a_planet' && hasCompletedGoal() && targetLocationReason() === 'game-over' && store.currentLocation() === targetLocation();
-      });
       const asStoredData = computed<AutopelagoStoredData>(() => ({
         foodFactor: store.foodFactor(),
         luckFactor: store.luckFactor(),
@@ -325,6 +323,7 @@ export function withGameState() {
         enabledAuras,
         locationIsChecked,
         hasCompletedGoal,
+        allLocationsAreChecked,
         receivedItemCountLookup,
         ratCount,
         victoryLocation,
@@ -339,7 +338,6 @@ export function withGameState() {
         targetLocationChosenBecauseSmart,
         targetLocationChosenBecauseConspiratorial,
         targetLocationRoute,
-        onMoon,
         asStoredData,
         sampleMessage,
       };
@@ -776,7 +774,7 @@ export function withGameState() {
           let multi = 0;
           let isFirstCheck = true;
           let bumpMercyModifierForNextTime = false;
-          const { allLocations } = store.defs();
+          const { allLocations, moonCommaThe } = store.defs();
           patchState(store, (prev) => {
             const result = {} as Mutable<Partial<typeof prev>>;
 
@@ -872,30 +870,35 @@ export function withGameState() {
                 }
               }
 
-              if (!moved && prev.startledCounter === 0 && !(store.locationIsChecked()[result.currentLocation])) {
+              if (result.currentLocation === moonCommaThe?.location || (!moved && prev.startledCounter === 0 && !store.locationIsChecked()[result.currentLocation])) {
                 let unlucky = false;
                 let lucky = false;
                 let stylish = false;
-                if (prev.luckFactor < 0) {
-                  unlucky = true;
-                  result.luckFactor = prev.luckFactor + 1;
+                let success: boolean;
+                if (result.currentLocation === moonCommaThe?.location) {
+                  success = true;
                 }
-                else if (prev.luckFactor > 0) {
-                  lucky = true;
-                  result.luckFactor = prev.luckFactor - 1;
-                }
+                else {
+                  if (prev.luckFactor < 0) {
+                    unlucky = true;
+                    result.luckFactor = prev.luckFactor + 1;
+                  }
+                  else if (prev.luckFactor > 0) {
+                    lucky = true;
+                    result.luckFactor = prev.luckFactor - 1;
+                  }
 
-                if (prev.styleFactor > 0 && !lucky) {
-                  result.styleFactor = prev.styleFactor - 1;
-                  stylish = true;
-                }
+                  if (prev.styleFactor > 0 && !lucky) {
+                    result.styleFactor = prev.styleFactor - 1;
+                    stylish = true;
+                  }
 
-                let roll = 0;
-                let success = lucky;
+                  success = lucky;
+                }
                 if (!success) {
                   let d20: number;
                   [d20, result.prng] = rand.uniformIntDistribution(1, 20, prev.prng);
-                  roll = modifyRoll({
+                  const roll = modifyRoll({
                     d20,
                     ratCount: store.ratCount(),
                     mercy: prev.mercyFactor,

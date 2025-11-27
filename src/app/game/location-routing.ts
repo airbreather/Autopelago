@@ -10,7 +10,7 @@ import {
 import type { UserRequestedLocation } from '../data/slot-data';
 import type { EnumVal } from '../utils/types';
 
-export function buildRequirementIsSatisfied(relevantItemCount: readonly number[]): (req: AutopelagoRequirement) => boolean {
+export function buildRequirementIsSatisfied(relevantItemCount: readonly number[], allLocationsAreChecked: boolean): (req: AutopelagoRequirement) => boolean {
   const allItems = BAKED_DEFINITIONS_FULL.allItems;
   const ratCount = relevantItemCount.reduce((acc, val, i) => acc + (val * allItems[i].ratCount), 0);
 
@@ -21,6 +21,10 @@ export function buildRequirementIsSatisfied(relevantItemCount: readonly number[]
 
     if ('ratCount' in req) {
       return ratCount >= req.ratCount;
+    }
+
+    if ('fullClear' in req) {
+      return allLocationsAreChecked;
     }
 
     const minRequired = req.minRequired === 'all' ? req.children.length : req.minRequired;
@@ -78,6 +82,7 @@ export function determineDesirability(options: Readonly<DetermineDesirabilityOpt
       startRegion,
       allLocations,
       allRegions,
+      moonCommaThe,
     },
     victoryLocation,
     relevantItemCount,
@@ -86,7 +91,7 @@ export function determineDesirability(options: Readonly<DetermineDesirabilityOpt
     userRequestedLocations,
     auraDrivenLocations,
   } = options;
-  const isSatisfied = buildRequirementIsSatisfied(relevantItemCount);
+  const isSatisfied = buildRequirementIsSatisfied(relevantItemCount, !!(moonCommaThe !== null && locationIsChecked[moonCommaThe.location]));
 
   // be VERY careful about the ordering of how we fill this array. earlier blocks get overwritten by
   // later blocks that should take precedence.
@@ -96,11 +101,13 @@ export function determineDesirability(options: Readonly<DetermineDesirabilityOpt
   let allLocationsMightBeChecked: 1 | 0 = 1;
   for (let i = 0; i < result.length; i++) {
     result[i] = locationIsChecked[i] ? Desirability.CHECKED : Desirability.UNCHECKED;
-    allLocationsMightBeChecked &&= locationIsChecked[i];
+    if (i !== moonCommaThe?.location) {
+      allLocationsMightBeChecked &&= locationIsChecked[i];
+    }
   }
 
   if (allLocationsMightBeChecked) {
-    result[victoryLocation] = Desirability.GAME_OVER;
+    result[moonCommaThe?.location ?? victoryLocation] = Desirability.GAME_OVER;
     return result;
   }
 
