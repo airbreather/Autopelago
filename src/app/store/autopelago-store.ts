@@ -219,6 +219,11 @@ export const GameStore = signalStore(
         });
       });
       const reportGoMode = effect(() => {
+        if (store.hasCompletedGoal()) {
+          reportGoMode.destroy();
+          return;
+        }
+
         const game = store.game();
         if (game === null) {
           return;
