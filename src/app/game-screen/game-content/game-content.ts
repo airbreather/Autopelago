@@ -1,4 +1,3 @@
-import { Dialog } from '@angular/cdk/dialog';
 import {
   ChangeDetectionStrategy,
   Component,
@@ -17,7 +16,6 @@ import { GameScreenStore } from '../../store/game-screen-store';
 import { elementSizeSignal } from '../../utils/element-size';
 import { GameTabs } from './game-tabs/game-tabs';
 import { StatusDisplay } from './status-display/status-display';
-import { UWin } from './u-win/u-win';
 
 @Component({
   selector: 'app-game-content',
@@ -95,25 +93,13 @@ export class GameContent {
   });
 
   constructor() {
-    const dialog = inject(Dialog);
+    this.#store.setScreenSizeSignal(this.#size);
     const initEffect = effect(() => {
       this.#gameStore.init(this.game());
       initEffect.destroy();
     });
     effect(() => {
       this.#sendUpdates();
-    });
-    const uwin = effect(() => {
-      if (!this.#gameStore.allLocationsAreChecked()) {
-        return;
-      }
-
-      if (this.#gameStore.victoryLocationYamlKey() === 'snakes_on_a_planet' && this.#gameStore.currentLocation() !== this.#gameStore.defs().moonCommaThe?.location) {
-        return;
-      }
-
-      dialog.open(UWin, { data: this.#size });
-      uwin.destroy();
     });
   }
 

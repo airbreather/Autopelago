@@ -22,10 +22,15 @@ export interface CompletedGoalAction {
   type: 'completed-goal';
 }
 
+export interface UWinAction {
+  type: 'u-win';
+}
+
 export type AnimatableAction =
   | MovementAction
   | CheckLocationsAction
   | CompletedGoalAction
+  | UWinAction
   ;
 
 export interface DefiningGameState {

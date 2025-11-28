@@ -1,3 +1,4 @@
+import { Dialog } from '@angular/cdk/dialog';
 import { computed, DestroyRef, effect, inject, signal, untracked } from '@angular/core';
 import { Sprite, type Ticker } from 'pixi.js';
 import Queue from 'yocto-queue';
@@ -5,17 +6,22 @@ import type { LandmarkYamlKey, Vec2 } from '../../../../data/locations';
 import type { AutopelagoDefinitions } from '../../../../data/resolved-definitions';
 import type { AnimatableAction } from '../../../../game/defining-state';
 import { GameStore } from '../../../../store/autopelago-store';
+import { GameScreenStore } from '../../../../store/game-screen-store';
 import { arraysEqual, bitArraysEqual } from '../../../../utils/equal-helpers';
 import { createFillerMarkers, type FillerMarkers } from './filler-markers';
 import { createLandmarkMarkers, type LandmarkMarkers } from './landmark-markers';
 import { createPlayerToken, SCALE, type WiggleOptimizationBox } from './player-token';
+import { UWin } from './u-win';
 
 interface ResolvedAction {
   run(fraction: number, defs: AutopelagoDefinitions, playerToken: Sprite, landmarkMarkers: LandmarkMarkers, fillerMarkers: FillerMarkers): void;
 }
 
 const NO_ACTION = { run: () => { /* empty */ } } as const;
-export function createLivePixiObjects(store: InstanceType<typeof GameStore>, ticker: Ticker) {
+export function createLivePixiObjects(ticker: Ticker) {
+  const store = inject(GameStore);
+  const mapSizeSignal = inject(GameScreenStore).screenSizeSignal;
+  const dialog = inject(Dialog);
   const destroyRef = inject(DestroyRef);
   const wiggleOptimizationBox: WiggleOptimizationBox = {
     neutralAngle: 0,
@@ -111,7 +117,6 @@ export function createLivePixiObjects(store: InstanceType<typeof GameStore>, tic
       };
     }
 
-    // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
     if (action.type === 'completed-goal') {
       return {
         run: (fraction: number, _defs: unknown, _playerToken: unknown, landmarkMarkers: LandmarkMarkers) => {
@@ -122,6 +127,17 @@ export function createLivePixiObjects(store: InstanceType<typeof GameStore>, tic
           const { spriteLookup } = landmarkMarkers;
           if ('moon_comma_the' in spriteLookup) {
             spriteLookup.moon_comma_the.onSprite.visible = true;
+          }
+        },
+      };
+    }
+
+    // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
+    if (action.type === 'u-win') {
+      return {
+        run: (fraction: number) => {
+          if (fraction === 1) {
+            dialog.open(UWin, { data: mapSizeSignal });
           }
         },
       };

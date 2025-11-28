@@ -1,7 +1,7 @@
 import { DIALOG_DATA, DialogRef } from '@angular/cdk/dialog';
 import { NgOptimizedImage } from '@angular/common';
 import { Component, inject, type Signal } from '@angular/core';
-import { type ElementSize } from '../../../utils/element-size';
+import { type ElementSize } from '../../../../utils/element-size';
 
 @Component({
   selector: 'app-u-win',
@@ -17,7 +17,8 @@ import { type ElementSize } from '../../../utils/element-size';
     </div>
   `,
   styles: `
-    @use '../../../../theme';
+    @use '../../../../../theme';
+
     .outer {
       display: flex;
       flex-direction: column;
@@ -26,6 +27,7 @@ import { type ElementSize } from '../../../utils/element-size';
       align-items: center;
       justify-content: center;
     }
+
     .uwin-and-flag {
       font-size: 40pt;
       pointer-events: none;

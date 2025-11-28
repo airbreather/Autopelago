@@ -131,7 +131,7 @@ export const GameStore = signalStore(
           return;
         }
 
-        const sampleMessage = store.sampleMessage().forEnterGoMode;
+        const sampleMessage = store.sampleMessage().forCompletedGoal;
         if (sampleMessage === null) {
           return;
         }
@@ -290,6 +290,21 @@ export const GameStore = signalStore(
             }));
           }
         }
+      });
+      const uwin = effect(() => {
+        if (!store.allLocationsAreChecked()) {
+          return;
+        }
+
+        if (store.victoryLocationYamlKey() === 'snakes_on_a_planet' && store.currentLocation() !== store.defs().moonCommaThe?.location) {
+          return;
+        }
+
+        patchState(store, ({ outgoingAnimatableActions }) => ({
+          outgoingAnimatableActions: outgoingAnimatableActions.push({ type: 'u-win' }),
+        }));
+
+        uwin.destroy();
       });
     },
   }),

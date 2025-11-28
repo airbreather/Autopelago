@@ -150,7 +150,7 @@ export class GameTabMap {
     return result;
   });
 
-  // all tooltips here should use the same context, so that the user can quickly switch between them
+  // all tooltips here should use the same context so that the user can quickly switch between them
   // without having to sit through the whole delay.
   protected readonly tooltipContext = createEmptyTooltipContext();
   readonly #tooltipOrigin = signal<CurrentTooltipOriginProps | null>(null);
@@ -225,7 +225,7 @@ export class GameTabMap {
       playerTokenResource,
       landmarksResource,
       fillerMarkersSignal,
-    } = createLivePixiObjects(this.#store, app.ticker);
+    } = createLivePixiObjects(app.ticker);
 
     // app.init is async, and nothing can be done with the app until it's initialized, so let's do
     // just everything up to app.init and then open up the floodgates for everything afterward by
