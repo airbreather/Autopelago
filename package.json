@@ -21,7 +21,11 @@
     "build": "ng build",
     "watch": "ng build --watch --configuration development",
     "lint": "ng lint",
-    "test": "ng test"
+    "test": "ng test",
+
+    "stamp-version": "jq -R -s 'split(\"\n\") | { \"version\": .[0], \"commit\": .[1], \"timestamp\": .[2] }' <(echo $GITHUB_REF_NAME) <(echo $GITHUB_SHA) <(date --utc --rfc-3339=seconds) >src/version-info.json",
+    "prerelease": "$npm_execpath run stamp-version",
+    "release": "$npm_execpath run build"
   },
   "prettier": {
     "overrides": [

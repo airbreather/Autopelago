@@ -2,7 +2,7 @@ import { ChangeDetectionStrategy, Component, inject } from '@angular/core';
 import { Title } from '@angular/platform-browser';
 import { RouterOutlet } from '@angular/router';
 
-import version from '../version.json';
+import versionInfo from '../version-info.json';
 
 @Component({
   selector: 'app-root',
@@ -16,6 +16,6 @@ import version from '../version.json';
 // eslint-disable-next-line @typescript-eslint/no-extraneous-class
 export class App {
   constructor() {
-    inject(Title).setTitle(`Autopelago ${version} | A Game So Easy, It Plays Itself!`);
+    inject(Title).setTitle(`Autopelago ${versionInfo.version} | A Game So Easy, It Plays Itself!`);
   }
 }

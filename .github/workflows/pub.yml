@@ -26,7 +26,7 @@ jobs:
         run: bun run test
 
       - name: Build
-        run: bun run build --base-href 'https://autopelago.app/'
+        run: bun run release --base-href 'https://autopelago.app/'
 
       - name: Configure GitHub Pages
         uses: actions/configure-pages@v5

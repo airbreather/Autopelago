@@ -3,17 +3,21 @@ import { ChangeDetectionStrategy, Component, inject, input } from '@angular/core
 import type { AutopelagoClientAndData } from '../../../data/slot-data';
 
 import { GameScreenStore, type GameTab } from '../../../store/game-screen-store';
+import { GameTabAppBuildInfo } from './game-tab-app-build-info/game-tab-app-build-info';
 import { GameTabArcade } from './game-tab-arcade/game-tab-arcade';
 import { GameTabMap } from './game-tab-map/game-tab-map';
 import { GameTabChat } from './game-tab-chat/game-tab-chat';
+
+import versionInfo from '../../../../version-info.json';
 
 @Component({
   selector: 'app-game-tabs',
   imports: [
     CdkScrollable,
-    GameTabMap,
+    GameTabAppBuildInfo,
     GameTabArcade,
     GameTabChat,
+    GameTabMap,
   ],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
@@ -22,6 +26,7 @@ import { GameTabChat } from './game-tab-chat/game-tab-chat';
         <app-game-tab-map [class.current-tab]="currentTab() === 'map'" [hidden]="currentTab() !== 'map'" cdk-scrollable />
         <app-game-tab-arcade [class.current-tab]="currentTab() === 'arcade'" [hidden]="currentTab() !== 'arcade'" cdk-scrollable />
         <app-game-tab-chat [class.current-tab]="currentTab() === 'chat'" [hidden]="currentTab() !== 'chat'" [game]="game()" cdk-scrollable />
+        <app-game-tab-app-build-info [class.current-tab]="currentTab() === 'app-build-info'" [hidden]="currentTab() !== 'app-build-info'" cdk-scrollable />
       </div>
       <div class="bottom">
         <button class="tab tab-map rat-toggle-button" [class.toggled-on]="currentTab() === 'map'" (click)="clickTab('map')">
@@ -35,6 +40,9 @@ import { GameTabChat } from './game-tab-chat/game-tab-chat';
         </button>
         <div class="tab-filler">
         </div>
+        <button class="tab tab-app-build-info rat-toggle-button" [class.toggled-on]="currentTab() === 'app-build-info'" (click)="clickTab('app-build-info')">
+          Build Info: {{version}}
+        </button>
       </div>
     </div>
   `,
@@ -76,6 +84,10 @@ import { GameTabChat } from './game-tab-chat/game-tab-chat';
         .tab-filler {
           flex: 1;
         }
+
+        .tab-app-build-info {
+          flex: 0;
+        }
       }
 
       .tab {
@@ -95,9 +107,10 @@ export class GameTabs {
 
   readonly game = input.required<AutopelagoClientAndData>();
 
-  readonly currentTab = this.#store.currentTab;
+  protected readonly currentTab = this.#store.currentTab;
+  protected readonly version = versionInfo.version;
 
-  clickTab(tab: GameTab) {
+  protected clickTab(tab: GameTab) {
     this.#store.updateCurrentTab(tab);
   }
 }
