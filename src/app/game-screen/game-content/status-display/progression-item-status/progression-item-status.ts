@@ -155,6 +155,7 @@ export class ProgressionItemStatus {
       .subscribe((confirm) => {
         if (confirm) {
           void game.client.messages.say(`!hint ${item.name}`);
+          clicked.blur();
         }
       });
   }
