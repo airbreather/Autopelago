@@ -190,7 +190,10 @@ export class GameTabMap {
 
   constructor() {
     const app = new Application();
+    app.ticker = new Ticker();
     inject(DestroyRef).onDestroy(() => {
+      const ticker = app.ticker;
+      ticker.stop();
       app.destroy(
         {
           removeView: true,
@@ -204,9 +207,9 @@ export class GameTabMap {
           textureSource: false,
           texture: false,
         });
+      ticker.destroy();
       appIsInitialized.set(false);
     });
-    app.ticker = new Ticker();
     effect(() => {
       if (this.#store.running()) {
         app.ticker.start();
