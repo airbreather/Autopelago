@@ -289,6 +289,13 @@ export function withGameState() {
       const targetLocationChosenBecauseConspiratorial = computed(() => {
         return targetLocationReason() === 'aura-driven' && store.locationIsTrap()[targetLocation()];
       });
+      const canEventuallyAdvance = computed(() => {
+        return !(
+          allLocationsAreChecked()
+          && targetLocationReason() === 'game-over'
+          && store.currentLocation() === targetLocation()
+        );
+      });
       const asStoredData = computed<AutopelagoStoredData>(() => ({
         foodFactor: store.foodFactor(),
         luckFactor: store.luckFactor(),
@@ -338,6 +345,7 @@ export function withGameState() {
         targetLocationChosenBecauseSmart,
         targetLocationChosenBecauseConspiratorial,
         targetLocationRoute,
+        canEventuallyAdvance,
         asStoredData,
         sampleMessage,
       };
@@ -475,6 +483,17 @@ export function withGameState() {
         addUserRequestedLocation,
         receiveItems(items: Iterable<number>) {
           const { allItems, allLocations } = store.defs();
+          if (!store.canEventuallyAdvance()) {
+            patchState(store, ({ receivedItems }) => {
+              receivedItems = receivedItems.push(...items);
+              return {
+                receivedItems,
+                processedReceivedItemCount: receivedItems.size,
+              };
+            });
+            return;
+          }
+
           const enabledAuras = store.enabledAuras();
           patchState(store, (prev) => {
             const result = {
@@ -770,6 +789,23 @@ export function withGameState() {
           }
         },
         advance() {
+          if (!store.canEventuallyAdvance()) {
+            patchState(store, {
+              foodFactor: 0,
+              luckFactor: 0,
+              energyFactor: 0,
+              styleFactor: 0,
+              distractionCounter: 0,
+              startledCounter: 0,
+              hasConfidence: false,
+              mercyFactor: 0,
+              sluggishCarryover: false,
+              auraDrivenLocations: List(),
+              userRequestedLocations: List(),
+            });
+            return;
+          }
+
           let remainingActions = 3;
           let multi = 0;
           let isFirstCheck = true;
@@ -811,7 +847,7 @@ export function withGameState() {
           // (only) movement. in the past, this was uncapped, which basically meant that the player
           // would often teleport great distances, which was against the spirit of the whole thing.
           let energyBank = remainingActions;
-          while (remainingActions > 0 && (store.targetLocationReason() !== 'game-over' || store.currentLocation() !== store.targetLocation())) {
+          while (remainingActions > 0 && store.canEventuallyAdvance()) {
             patchState(store, (prev) => {
               const result = {} as Mutable<Partial<typeof prev>>;
 

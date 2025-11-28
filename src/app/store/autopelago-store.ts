@@ -158,6 +158,10 @@ export const GameStore = signalStore(
           return;
         }
 
+        if (!store.canEventuallyAdvance()) {
+          return;
+        }
+
         const client = game.client;
         const players = client.players;
         let processedMessageCount = store.processedMessageCount();
@@ -192,7 +196,7 @@ export const GameStore = signalStore(
           return;
         }
 
-        if (store.outgoingAuraDrivenLocations().size === 0) {
+        if (store.outgoingAuraDrivenLocations().size === 0 || !store.canEventuallyAdvance()) {
           return;
         }
 
