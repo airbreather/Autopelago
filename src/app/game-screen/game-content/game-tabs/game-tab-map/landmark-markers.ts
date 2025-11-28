@@ -1,4 +1,4 @@
-import { effect, type Resource, resource, type Signal } from '@angular/core';
+import { DestroyRef, effect, inject, type Resource, resource, type Signal } from '@angular/core';
 import type BitArray from '@bitarray/typedarray';
 import { DropShadowFilter } from 'pixi-filters';
 import { AnimatedSprite, Assets, Container, Sprite, Spritesheet, type SpritesheetData, Texture, Ticker } from 'pixi.js';
@@ -29,6 +29,7 @@ export interface LandmarkMarkers {
 }
 
 export function createLandmarkMarkers(options: CreateLandmarkMarkersOptions): Resource<LandmarkMarkers | null> {
+  const destroyRef = inject(DestroyRef);
   function updateAnimatedSprite(this: AnimatedSprite, t: Ticker) {
     this.update(t);
   }
@@ -74,6 +75,7 @@ export function createLandmarkMarkers(options: CreateLandmarkMarkersOptions): Re
           const anim = sprite = new AnimatedSprite(frames, false);
           anim.animationSpeed = 1 / (500 * Ticker.targetFPMS);
           options.ticker.add(updateAnimatedSprite, anim);
+          destroyRef.onDestroy(() => options.ticker.remove(updateAnimatedSprite, anim));
           anim.play();
         }
         else {

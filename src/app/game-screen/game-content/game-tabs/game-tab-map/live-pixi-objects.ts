@@ -1,4 +1,4 @@
-import { computed, effect, signal, untracked } from '@angular/core';
+import { computed, DestroyRef, effect, inject, signal, untracked } from '@angular/core';
 import { Sprite, type Ticker } from 'pixi.js';
 import Queue from 'yocto-queue';
 import type { LandmarkYamlKey, Vec2 } from '../../../../data/locations';
@@ -16,6 +16,7 @@ interface ResolvedAction {
 
 const NO_ACTION = { run: () => { /* empty */ } } as const;
 export function createLivePixiObjects(store: InstanceType<typeof GameStore>, ticker: Ticker) {
+  const destroyRef = inject(DestroyRef);
   const wiggleOptimizationBox: WiggleOptimizationBox = {
     neutralAngle: 0,
     scaleX: SCALE,
@@ -135,6 +136,12 @@ export function createLivePixiObjects(store: InstanceType<typeof GameStore>, tic
   let prog = 0;
   const queuedActions = new Queue<ResolvedAction>();
   let animatePlayerMoveCallback: ((t: Ticker) => void) | null = null;
+  destroyRef.onDestroy(() => {
+    if (animatePlayerMoveCallback !== null) {
+      ticker.remove(animatePlayerMoveCallback);
+      animatePlayerMoveCallback = null;
+    }
+  });
   effect(() => {
     const game = store.game();
     const playerToken = playerTokenResource.value();

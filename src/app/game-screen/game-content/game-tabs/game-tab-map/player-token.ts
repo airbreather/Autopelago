@@ -1,4 +1,4 @@
-import { resource, type Signal, type WritableSignal } from '@angular/core';
+import { DestroyRef, inject, resource, type Signal, type WritableSignal } from '@angular/core';
 import { List } from 'immutable';
 import { DropShadowFilter } from 'pixi-filters';
 import { Assets, Sprite, Texture, Ticker } from 'pixi.js';
@@ -41,6 +41,7 @@ export interface PlayerTokenResult {
 export const SCALE = 0.25;
 export function createPlayerToken(options: CreatePlayerTokenOptions) {
   const { wiggleOptimizationBox, position } = options;
+  const destroyRef = inject(DestroyRef);
   const playerTokenResource = resource({
     defaultValue: null,
     params: () => ({ game: options.game() }),
@@ -62,6 +63,7 @@ export function createPlayerToken(options: CreatePlayerTokenOptions) {
 
       if (game.connectScreenState.enableRatAnimations) {
         options.ticker.add(doRotation, wiggleOptimizationBox);
+        destroyRef.onDestroy(() => options.ticker.remove(doRotation, wiggleOptimizationBox));
       }
 
       return { sprite: playerToken, position: position.asReadonly() } as PlayerTokenResult;

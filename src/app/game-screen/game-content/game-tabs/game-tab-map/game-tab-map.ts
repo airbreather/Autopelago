@@ -207,7 +207,6 @@ export class GameTabMap {
           textureSource: false,
           texture: false,
         });
-      ticker.destroy();
       appIsInitialized.set(false);
     });
     effect(() => {
