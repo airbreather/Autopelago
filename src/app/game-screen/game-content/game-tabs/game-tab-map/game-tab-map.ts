@@ -127,7 +127,7 @@ export class GameTabMap {
   protected readonly running = this.#store.running;
 
   readonly allLandmarks = computed(() => {
-    const { allLocations, allRegions, startRegion } = this.#store.defs();
+    const { allLocations, allRegions, startRegion, moonCommaThe } = this.#store.defs();
     const result: LandmarkProps[] = [];
     const visited = new BitArray(allRegions.length);
     const q = new Queue<number>();
@@ -140,6 +140,9 @@ export class GameTabMap {
     q.enqueue(startRegion);
     for (let r = q.dequeue(); r !== undefined; r = q.dequeue()) {
       const region = allRegions[r];
+      if (r === moonCommaThe?.region && !this.#store.hasCompletedGoal()) {
+        continue;
+      }
       if ('loc' in region) {
         result.push({ landmark: r, coords: allLocations[region.loc].coords });
       }
