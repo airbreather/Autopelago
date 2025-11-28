@@ -3,7 +3,7 @@ import { Player } from 'archipelago.js';
 import type { AutopelagoClientAndData } from '../../../../data/slot-data';
 
 @Component({
-  selector: 'app-game-tab-text-client',
+  selector: 'app-game-tab-chat',
   imports: [],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
@@ -149,7 +149,7 @@ import type { AutopelagoClientAndData } from '../../../../data/slot-data';
     }
   `,
 })
-export class GameTabTextClient {
+export class GameTabChat {
   readonly game = input.required<AutopelagoClientAndData>();
   readonly ownName = signal<string>('');
   readonly dateFormatter = new Intl.DateTimeFormat(navigator.languages, { dateStyle: 'short', timeStyle: 'medium' });

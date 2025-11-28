@@ -3,7 +3,7 @@ import { computed, type Signal, signal } from '@angular/core';
 import { patchState, signalStore, withMethods, withProps } from '@ngrx/signals';
 import type { ElementSize } from '../utils/element-size';
 
-export type GameTab = 'map' | 'text-client' | 'arcade';
+export type GameTab = 'map' | 'chat' | 'arcade';
 
 // Define the state interface
 export interface GameScreenState {

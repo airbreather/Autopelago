@@ -5,7 +5,7 @@ import type { AutopelagoClientAndData } from '../../../data/slot-data';
 import { GameScreenStore, type GameTab } from '../../../store/game-screen-store';
 import { GameTabArcade } from './game-tab-arcade/game-tab-arcade';
 import { GameTabMap } from './game-tab-map/game-tab-map';
-import { GameTabTextClient } from './game-tab-text-client/game-tab-text-client';
+import { GameTabChat } from './game-tab-chat/game-tab-chat';
 
 @Component({
   selector: 'app-game-tabs',
@@ -13,7 +13,7 @@ import { GameTabTextClient } from './game-tab-text-client/game-tab-text-client';
     CdkScrollable,
     GameTabMap,
     GameTabArcade,
-    GameTabTextClient,
+    GameTabChat,
   ],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
@@ -21,7 +21,7 @@ import { GameTabTextClient } from './game-tab-text-client/game-tab-text-client';
       <div class="top">
         <app-game-tab-map [class.current-tab]="currentTab() === 'map'" [hidden]="currentTab() !== 'map'" cdk-scrollable />
         <app-game-tab-arcade [class.current-tab]="currentTab() === 'arcade'" [hidden]="currentTab() !== 'arcade'" cdk-scrollable />
-        <app-game-tab-text-client [class.current-tab]="currentTab() === 'text-client'" [hidden]="currentTab() !== 'text-client'" [game]="game()" cdk-scrollable />
+        <app-game-tab-chat [class.current-tab]="currentTab() === 'chat'" [hidden]="currentTab() !== 'chat'" [game]="game()" cdk-scrollable />
       </div>
       <div class="bottom">
         <button class="tab tab-map rat-toggle-button" [class.toggled-on]="currentTab() === 'map'" (click)="clickTab('map')">
@@ -30,8 +30,8 @@ import { GameTabTextClient } from './game-tab-text-client/game-tab-text-client';
         <div class="tab tab-arcade rat-toggle-button" [class.toggled-on]="currentTab() === 'arcade'">
           Arcade
         </div>
-        <button class="tab tab-text-client rat-toggle-button" [class.toggled-on]="currentTab() === 'text-client'" (click)="clickTab('text-client')">
-          Text Client
+        <button class="tab tab-chat rat-toggle-button" [class.toggled-on]="currentTab() === 'chat'" (click)="clickTab('chat')">
+          Chat
         </button>
         <div class="tab-filler">
         </div>
@@ -62,7 +62,7 @@ import { GameTabTextClient } from './game-tab-text-client/game-tab-text-client';
           flex: 0;
         }
 
-        .tab-text-client {
+        .tab-chat {
           flex: 0;
         }
 
