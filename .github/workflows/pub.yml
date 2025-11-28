@@ -1,9 +1,9 @@
 name: Publish
 
 on:
-  push:
-    branches:
-      - angular
+  release:
+    types:
+      - created
 
 jobs:
   publish:
@@ -27,6 +27,14 @@ jobs:
 
       - name: Build
         run: bun run release --base-href 'https://autopelago.app/'
+
+      - name: Create Release Zip
+        run: zip -r dist.zip dist/
+
+      - name: Upload Release Zip
+        uses: softprops/action-gh-release@v2
+        with:
+          files: dist.zip
 
       - name: Configure GitHub Pages
         uses: actions/configure-pages@v5
