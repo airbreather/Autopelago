@@ -1,4 +1,4 @@
-import { computed, effect, untracked } from '@angular/core';
+import { computed, effect, signal, untracked } from '@angular/core';
 import { Sprite, type Ticker } from 'pixi.js';
 import Queue from 'yocto-queue';
 import type { LandmarkYamlKey, Vec2 } from '../../../../data/locations';
@@ -33,11 +33,13 @@ export function createLivePixiObjects(store: InstanceType<typeof GameStore>, tic
     }
   }
 
+  const playerTokenPosition = signal<Vec2>([0, 0]);
   const playerTokenResource = createPlayerToken({
     ticker,
     wiggleOptimizationBox,
     game: store.game,
     defs: store.defs,
+    position: playerTokenPosition,
     consumeOutgoingAnimatableActions: store.consumeOutgoingAnimatableActions,
   });
   const landmarksResource = createLandmarkMarkers({
@@ -58,10 +60,11 @@ export function createLivePixiObjects(store: InstanceType<typeof GameStore>, tic
       const dx = toCoords[0] - fromCoords[0];
       const dy = toCoords[1] - fromCoords[1];
       return {
-        run: (fraction: number, _defs: AutopelagoDefinitions, playerToken: Sprite) => {
+        run: (fraction: number, _defs: unknown, playerToken: Sprite) => {
           const x = fromCoords[0] + dx * fraction;
           const y = fromCoords[1] + dy * fraction;
           playerToken.position.set(x, y);
+          playerTokenPosition.set([x, y]);
           updateWiggleOptimizationBox(fromCoords, toCoords);
         },
       };
@@ -84,7 +87,7 @@ export function createLivePixiObjects(store: InstanceType<typeof GameStore>, tic
         }
       }
       return {
-        run: (fraction: number, _defs: AutopelagoDefinitions, _playerToken: Sprite, landmarkMarkers: LandmarkMarkers, fillerMarkers: FillerMarkers) => {
+        run: (fraction: number, _defs: unknown, _playerToken: unknown, landmarkMarkers: LandmarkMarkers, fillerMarkers: FillerMarkers) => {
           if (fraction !== 1) {
             return;
           }
@@ -110,7 +113,7 @@ export function createLivePixiObjects(store: InstanceType<typeof GameStore>, tic
     // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
     if (action.type === 'completed-goal') {
       return {
-        run: (fraction: number, _defs: AutopelagoDefinitions, _playerToken: Sprite, landmarkMarkers: LandmarkMarkers) => {
+        run: (fraction: number, _defs: unknown, _playerToken: unknown, landmarkMarkers: LandmarkMarkers) => {
           if (fraction !== 1) {
             return;
           }
@@ -140,6 +143,7 @@ export function createLivePixiObjects(store: InstanceType<typeof GameStore>, tic
       return;
     }
 
+    const playerTokenSprite = playerToken.sprite;
     const fillerMarkers = fillerMarkersSignal();
     const defs = store.defs();
     const actions = store.consumeOutgoingAnimatableActions();
@@ -148,7 +152,8 @@ export function createLivePixiObjects(store: InstanceType<typeof GameStore>, tic
         untracked(() => {
           const currentCoords = defs.allLocations[store.currentLocation()].coords;
           const targetCoords = defs.allLocations[store.targetLocation()].coords;
-          playerToken.position.set(...currentCoords);
+          playerTokenSprite.position.set(...currentCoords);
+          playerTokenPosition.set(currentCoords);
           let fromCoords = currentCoords;
           if (arraysEqual(currentCoords, targetCoords)) {
             const possiblePrev = defs.allLocations[store.currentLocation()].connected.backward.at(0);
@@ -218,7 +223,7 @@ export function createLivePixiObjects(store: InstanceType<typeof GameStore>, tic
           break;
         }
 
-        fullMove.run(1, defs, playerToken, landmarkMarkers, fillerMarkers);
+        fullMove.run(1, defs, playerToken.sprite, landmarkMarkers, fillerMarkers);
         prog -= moveDuration;
       }
 
@@ -226,7 +231,8 @@ export function createLivePixiObjects(store: InstanceType<typeof GameStore>, tic
       if (nextMove === undefined) {
         const fromCoords = defs.allLocations[store.currentLocation()].coords;
         const toCoords = defs.allLocations[store.targetLocation()].coords;
-        playerToken.position.set(...fromCoords);
+        playerToken.sprite.position.set(...fromCoords);
+        playerTokenPosition.set(fromCoords);
         if (store.currentLocation() !== store.targetLocation()) {
           updateWiggleOptimizationBox(fromCoords, toCoords);
         }
@@ -237,7 +243,7 @@ export function createLivePixiObjects(store: InstanceType<typeof GameStore>, tic
         return;
       }
 
-      nextMove.run(prog / moveDuration, defs, playerToken, landmarkMarkers, fillerMarkers);
+      nextMove.run(prog / moveDuration, defs, playerToken.sprite, landmarkMarkers, fillerMarkers);
     };
     ticker.add(animatePlayerMoveCallback);
   });

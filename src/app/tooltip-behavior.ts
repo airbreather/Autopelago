@@ -13,7 +13,7 @@ import { Directive, ElementRef, inject, input, output } from '@angular/core';
     CdkOverlayOrigin,
   ],
 })
-export class Tooltip {
+export class TooltipBehavior {
   readonly #el = inject<ElementRef<HTMLElement>>(ElementRef);
 
   readonly tooltipContext = input<TooltipContext>({ _prevFocusTimeout: NaN, _prevBlurTimeout: NaN });

@@ -4,7 +4,7 @@ import { ChangeDetectionStrategy, Component, computed, inject, Injector, signal,
 import { PROGRESSION_ITEMS_BY_VICTORY_LOCATION } from '../../../../data/items';
 import { BAKED_DEFINITIONS_FULL } from '../../../../data/resolved-definitions';
 import { GameStore } from '../../../../store/autopelago-store';
-import { createEmptyTooltipContext, Tooltip, type TooltipOriginProps } from '../../../../tooltip';
+import { createEmptyTooltipContext, TooltipBehavior, type TooltipOriginProps } from '../../../../tooltip-behavior';
 
 import { RequestHint } from './request-hint';
 
@@ -13,7 +13,7 @@ import { RequestHint } from './request-hint';
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [
     CdkConnectedOverlay,
-    Tooltip,
+    TooltipBehavior,
   ],
   template: `
     <div #outer class="outer">

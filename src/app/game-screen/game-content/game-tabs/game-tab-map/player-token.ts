@@ -1,7 +1,8 @@
-import { DestroyRef, inject, resource, type Signal } from '@angular/core';
+import { DestroyRef, inject, resource, type Signal, type WritableSignal } from '@angular/core';
 import { List } from 'immutable';
 import { DropShadowFilter } from 'pixi-filters';
 import { Assets, Sprite, Texture, Ticker } from 'pixi.js';
+import type { Vec2 } from '../../../../data/locations';
 import type { AutopelagoDefinitions } from '../../../../data/resolved-definitions';
 import type { AutopelagoClientAndData } from '../../../../data/slot-data';
 import type { AnimatableAction } from '../../../../game/defining-state';
@@ -28,12 +29,18 @@ export interface CreatePlayerTokenOptions {
   wiggleOptimizationBox: WiggleOptimizationBox;
   game: Signal<AutopelagoClientAndData | null>;
   defs: Signal<AutopelagoDefinitions>;
+  position: WritableSignal<Vec2>;
   consumeOutgoingAnimatableActions(): List<AnimatableAction>;
+}
+
+export interface PlayerTokenResult {
+  sprite: Sprite;
+  position: Signal<Vec2>;
 }
 
 export const SCALE = 0.25;
 export function createPlayerToken(options: CreatePlayerTokenOptions) {
-  const { wiggleOptimizationBox } = options;
+  const { wiggleOptimizationBox, position } = options;
   const destroyRef = inject(DestroyRef);
   const playerTokenResource = resource({
     defaultValue: null,
@@ -59,7 +66,7 @@ export function createPlayerToken(options: CreatePlayerTokenOptions) {
         destroyRef.onDestroy(() => options.ticker.remove(doRotation, wiggleOptimizationBox));
       }
 
-      return playerToken;
+      return { sprite: playerToken, position: position.asReadonly() } as PlayerTokenResult;
     },
   });
   return playerTokenResource.asReadonly();

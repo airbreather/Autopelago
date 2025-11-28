@@ -1,7 +1,7 @@
 import { NgOptimizedImage } from '@angular/common';
 import { Component, computed, inject, input } from '@angular/core';
-import type { AutopelagoLandmarkRegion } from '../../../../../data/resolved-definitions';
-import { GameStore } from '../../../../../store/autopelago-store';
+import type { AutopelagoLandmarkRegion } from '../../../../data/resolved-definitions';
+import { GameStore } from '../../../../store/autopelago-store';
 import { RequirementDisplay } from './requirement-display';
 
 @Component({
@@ -25,7 +25,8 @@ import { RequirementDisplay } from './requirement-display';
     </div>
   `,
   styles: `
-    @use '../../../../../../theme.scss';
+    @use '../../../../../theme';
+
     .outer {
       display: grid;
       grid-template-columns: min-content;

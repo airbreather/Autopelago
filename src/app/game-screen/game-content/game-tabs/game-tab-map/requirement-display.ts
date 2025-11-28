@@ -1,7 +1,7 @@
 import { Component, computed, inject, input } from '@angular/core';
-import type { AutopelagoRequirement } from '../../../../../data/resolved-definitions';
-import { buildRequirementIsSatisfied } from '../../../../../game/location-routing';
-import { GameStore } from '../../../../../store/autopelago-store';
+import type { AutopelagoRequirement } from '../../../../data/resolved-definitions';
+import { buildRequirementIsSatisfied } from '../../../../game/location-routing';
+import { GameStore } from '../../../../store/autopelago-store';
 
 @Component({
   selector: 'app-requirement-display',

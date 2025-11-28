@@ -8,6 +8,7 @@ import {
   effect,
   ElementRef,
   inject,
+  Injector,
   signal,
   untracked,
   viewChild,
@@ -19,10 +20,11 @@ import Queue from 'yocto-queue';
 import { type Vec2 } from '../../../../data/locations';
 import { VICTORY_LOCATION_CROP_LOOKUP } from '../../../../data/resolved-definitions';
 import { GameStore } from '../../../../store/autopelago-store';
-import { createEmptyTooltipContext, Tooltip, type TooltipOriginProps } from '../../../../tooltip';
+import { createEmptyTooltipContext, TooltipBehavior, type TooltipOriginProps } from '../../../../tooltip-behavior';
 import { elementSizeSignal } from '../../../../utils/element-size';
+import { LandmarkTooltip } from './landmark-tooltip';
 import { createLivePixiObjects } from './live-pixi-objects';
-import { LandmarkTooltip } from './tooltip/tooltip';
+import { PlayerTooltip } from './player-tooltip';
 
 @Component({
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -31,11 +33,12 @@ import { LandmarkTooltip } from './tooltip/tooltip';
     CdkConnectedOverlay,
     NgOptimizedImage,
     LandmarkTooltip,
-    Tooltip,
+    PlayerTooltip,
+    TooltipBehavior,
   ],
   template: `
     <div #outer class="outer">
-      <img class="map-img" alt="map" [ngSrc]="mapUrl()" width="300" height="450" priority/>
+      <img class="map-img" alt="map" [ngSrc]="mapUrl()" width="300" height="450" priority />
       <canvas #pixiCanvas class="pixi-canvas" width="300" height="450">
       </canvas>
       @for (lm of allLandmarks(); track $index) {
@@ -44,6 +47,9 @@ import { LandmarkTooltip } from './tooltip/tooltip';
              appTooltip [tooltipContext]="tooltipContext" (tooltipOriginChange)="setTooltipOrigin(lm.landmark, $event, true)">
         </div>
       }
+      <div #playerTokenHoverBox class="hover-box" [tabIndex]="998" [style.z-index]="999"
+           appTooltip [tooltipContext]="tooltipContext" (tooltipOriginChange)="setTooltipOrigin(null, $event, true)">
+      </div>
       <div #pauseButtonContainer class="pause-button-container"
            [style.margin-top]="'-' + pauseButtonContainer.clientHeight + 'px'">
         <button class="rat-toggle-button"
@@ -59,8 +65,14 @@ import { LandmarkTooltip } from './tooltip/tooltip';
       [cdkConnectedOverlayOpen]="tooltipOrigin() !== null"
       [cdkConnectedOverlayUsePopover]="'inline'"
       (detach)="tooltipOrigin()?.notifyDetached()">
-      <app-landmark-tooltip [landmarkKey]="tooltipOrigin()!.landmark">
-      </app-landmark-tooltip>
+      @if (tooltipOrigin(); as origin) {
+        @if (origin.landmark; as landmark) {
+          <app-landmark-tooltip [landmarkKey]="landmark" />
+        }
+        @else {
+          <app-player-tooltip />
+        }
+      }
     </ng-template>
   `,
   styles: `
@@ -138,6 +150,7 @@ export class GameTabMap {
 
   protected readonly pixiCanvas = viewChild.required<ElementRef<HTMLCanvasElement>>('pixiCanvas');
   protected readonly outerDiv = viewChild.required<ElementRef<HTMLDivElement>>('outer');
+  protected readonly playerTokenHoverBox = viewChild.required<ElementRef<HTMLDivElement>>('playerTokenHoverBox');
 
   protected readonly mapUrl = computed(() => {
     switch (this.#store.victoryLocationYamlKey()) {
@@ -227,7 +240,7 @@ export class GameTabMap {
       const fillerMarkers = fillerMarkersSignal();
       app.stage.addChild(fillerMarkers.container);
       app.stage.addChild(landmarks.container);
-      app.stage.addChild(playerToken);
+      app.stage.addChild(playerToken.sprite);
       app.resize();
       app.render();
       if (untracked(() => this.#store.running())) {
@@ -258,13 +271,36 @@ export class GameTabMap {
       });
       this.outerDiv().nativeElement.style.setProperty('--ap-scale', scale.toString());
     });
+
+    const injector = inject(Injector);
+    const setupRatHoverBoxEffect = effect(() => {
+      if (!appIsInitialized()) {
+        return;
+      }
+
+      const playerToken = playerTokenResource.value();
+      if (playerToken === null) {
+        return;
+      }
+
+      const playerTokenHoverBox = this.playerTokenHoverBox().nativeElement;
+      const playerPosition = playerToken.position;
+      setTimeout(() => {
+        effect(() => {
+          const [x, y] = playerPosition();
+          playerTokenHoverBox.style.setProperty('--ap-left-base', `${x.toString()}px`);
+          playerTokenHoverBox.style.setProperty('--ap-top-base', `${y.toString()}px`);
+        }, { injector });
+      });
+      setupRatHoverBoxEffect.destroy();
+    });
   }
 
   togglePause() {
     this.#store.togglePause();
   }
 
-  setTooltipOrigin(landmark: number, props: TooltipOriginProps | null, fromDirective: boolean) {
+  setTooltipOrigin(landmark: number | null, props: TooltipOriginProps | null, fromDirective: boolean) {
     this.#tooltipOrigin.update((prev) => {
       if (prev !== null && !fromDirective) {
         prev.notifyDetached();
@@ -282,7 +318,7 @@ interface LandmarkProps {
 }
 
 interface CurrentTooltipOriginProps {
-  landmark: number;
+  landmark: number | null;
   element: HTMLElement;
   notifyDetached: () => void;
 }
