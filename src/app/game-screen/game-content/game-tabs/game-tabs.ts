@@ -87,6 +87,7 @@ import versionInfo from '../../../../version-info.json';
 
         .tab-app-build-info {
           flex: 0;
+          margin-right: 5px;
         }
       }
 
