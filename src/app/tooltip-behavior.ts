@@ -42,10 +42,15 @@ export class TooltipBehavior {
       clearTimeout(ctx._prevFocusTimeout);
       ctx._prevFocusTimeout = NaN;
     }
-    ctx._prevFocusTimeout = setTimeout(() => {
+    if (fromFocus) {
       this.#emitAttached(fromFocus, ctx);
-      ctx._prevFocusTimeout = NaN;
-    }, this.delay());
+    }
+    else {
+      ctx._prevFocusTimeout = setTimeout(() => {
+        this.#emitAttached(fromFocus, ctx);
+        ctx._prevFocusTimeout = NaN;
+      }, this.delay());
+    }
   }
 
   onBlur(fromFocus: boolean) {
@@ -65,10 +70,15 @@ export class TooltipBehavior {
       clearTimeout(ctx._prevBlurTimeout);
       ctx._prevBlurTimeout = NaN;
     }
-    ctx._prevBlurTimeout = setTimeout(() => {
+    if (fromFocus) {
       this.#emitDetached(ctx);
-      ctx._prevBlurTimeout = NaN;
-    }, this.delay());
+    }
+    else {
+      ctx._prevBlurTimeout = setTimeout(() => {
+        this.#emitDetached(ctx);
+        ctx._prevBlurTimeout = NaN;
+      }, this.delay());
+    }
   }
 
   readonly #detachTooltip = () => {
