@@ -63,7 +63,7 @@ import { RequirementDisplay } from './requirement-display';
     }
   `,
 })
-export class Tooltip {
+export class LandmarkTooltip {
   readonly #store = inject(GameStore);
   readonly landmarkKey = input.required<number>();
   readonly landmark = computed(() => this.#store.defs().allRegions[this.landmarkKey()] as AutopelagoLandmarkRegion);

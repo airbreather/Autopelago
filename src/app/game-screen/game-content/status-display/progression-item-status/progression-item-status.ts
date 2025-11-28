@@ -1,29 +1,27 @@
 import { Dialog } from '@angular/cdk/dialog';
-import { CdkConnectedOverlay, CdkOverlayOrigin, createFlexibleConnectedPositionStrategy } from '@angular/cdk/overlay';
+import { CdkConnectedOverlay, createFlexibleConnectedPositionStrategy } from '@angular/cdk/overlay';
 import { ChangeDetectionStrategy, Component, computed, inject, Injector, signal, type Signal } from '@angular/core';
 import { PROGRESSION_ITEMS_BY_VICTORY_LOCATION } from '../../../../data/items';
 import { BAKED_DEFINITIONS_FULL } from '../../../../data/resolved-definitions';
-
 import { GameStore } from '../../../../store/autopelago-store';
-import { RequestHint } from './request-hint';
+import { createEmptyTooltipContext, Tooltip, type TooltipOriginProps } from '../../../../tooltip';
 
-const TOOLTIP_DELAY = 400;
+import { RequestHint } from './request-hint';
 
 @Component({
   selector: 'app-progression-item-status',
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [
     CdkConnectedOverlay,
-    CdkOverlayOrigin,
+    Tooltip,
   ],
   template: `
     <div #outer class="outer">
       @for (item of items(); track item.name) {
-        <div #thisContainer class="item-container" [class.collected]="item.collected()" cdkOverlayOrigin
+        <div #thisContainer class="item-container" [class.collected]="item.collected()"
              [tabindex]="$index + 500" (click)="onClickItem(item, thisContainer)"
              (keyup.enter)="onClickItem(item, thisContainer)" (keyup.space)="onClickItem(item, thisContainer)"
-             (focus)="onFocusTooltip($index, thisContainer)" (mouseenter)="onFocusTooltip($index, thisContainer)"
-             (blur)="onBlurTooltip()" (mouseleave)="onBlurTooltip()">
+             appTooltip [tooltipContext]="tooltipContext" (tooltipOriginChange)="setTooltipOrigin($index, $event, true)">
           <!--suppress AngularNgOptimizedImage -->
           <img class="item"
                src="/assets/images/items.webp"
@@ -34,11 +32,11 @@ const TOOLTIP_DELAY = 400;
     </div>
     <ng-template
       cdkConnectedOverlay
-      [cdkConnectedOverlayOrigin]="tooltipTarget()?.[1] ?? outer"
-      [cdkConnectedOverlayOpen]="tooltipTarget() !== null"
+      [cdkConnectedOverlayOrigin]="tooltipOrigin()?.element ?? outer"
+      [cdkConnectedOverlayOpen]="tooltipOrigin() !== null"
       [cdkConnectedOverlayUsePopover]="'inline'"
-      (detach)="detachTooltip()">
-      @let item = items()[tooltipTarget()![0]];
+      (detach)="setTooltipOrigin(0, null, false)">
+      @let item = items()[tooltipOrigin()!.item];
       <div class="box tooltip">
         <h1 class="header">{{item.name}}</h1>
         <div class="flavor-text" [hidden]="!item.flavorText">“{{item.flavorText}}”</div>
@@ -100,8 +98,11 @@ export class ProgressionItemStatus {
   readonly #dialog = inject(Dialog);
   readonly #gameStore = inject(GameStore);
   protected readonly items: Signal<readonly ItemModel[]>;
-  readonly #tooltipTarget = signal<[number, HTMLElement] | null>(null);
-  protected readonly tooltipTarget = this.#tooltipTarget.asReadonly();
+  readonly #tooltipOrigin = signal<CurrentTooltipOriginProps | null>(null);
+  protected readonly tooltipOrigin = this.#tooltipOrigin.asReadonly();
+  // all tooltips here should use the same context, so that the user can quickly switch between them
+  // without having to sit through the whole delay.
+  protected readonly tooltipContext = createEmptyTooltipContext();
 
   constructor() {
     this.items = computed(() => {
@@ -123,56 +124,15 @@ export class ProgressionItemStatus {
     });
   }
 
-  #prevFocusTimeout = NaN;
-  #prevBlurTimeout = NaN;
-  onFocusTooltip(item: number, element: HTMLDivElement) {
-    if (!Number.isNaN(this.#prevBlurTimeout)) {
-      clearTimeout(this.#prevBlurTimeout);
-      this.#prevBlurTimeout = NaN;
-      this.#tooltipTarget.set([item, element]);
-      return;
-    }
-
-    if (!Number.isNaN(this.#prevFocusTimeout)) {
-      clearTimeout(this.#prevFocusTimeout);
-      this.#prevFocusTimeout = NaN;
-    }
-    this.#prevFocusTimeout = setTimeout(() => {
-      this.#tooltipTarget.set([item, element]);
-      this.#prevFocusTimeout = NaN;
-    }, TOOLTIP_DELAY);
-  }
-
-  onBlurTooltip() {
-    if (!Number.isNaN(this.#prevFocusTimeout)) {
-      clearTimeout(this.#prevFocusTimeout);
-      this.#prevFocusTimeout = NaN;
-      this.#tooltipTarget.set(null);
-      return;
-    }
-
-    if (!Number.isNaN(this.#prevBlurTimeout)) {
-      clearTimeout(this.#prevBlurTimeout);
-      this.#prevBlurTimeout = NaN;
-    }
-    this.#prevBlurTimeout = setTimeout(() => {
-      this.#tooltipTarget.set(null);
-      this.#prevBlurTimeout = NaN;
-    }, TOOLTIP_DELAY);
-  }
-
-  protected detachTooltip() {
-    if (!Number.isNaN(this.#prevFocusTimeout)) {
-      clearTimeout(this.#prevFocusTimeout);
-      this.#prevFocusTimeout = NaN;
-    }
-
-    if (!Number.isNaN(this.#prevBlurTimeout)) {
-      clearTimeout(this.#prevBlurTimeout);
-      this.#prevBlurTimeout = NaN;
-    }
-
-    this.#tooltipTarget.set(null);
+  setTooltipOrigin(item: number, props: TooltipOriginProps | null, fromDirective: boolean) {
+    this.#tooltipOrigin.update((prev) => {
+      if (prev !== null && !fromDirective) {
+        prev.notifyDetached();
+      }
+      return props === null
+        ? null
+        : { item, ...props };
+    });
   }
 
   protected onClickItem(item: ItemModel, clicked: HTMLElement) {
@@ -206,4 +166,10 @@ interface ItemModel {
   collected: Signal<boolean>;
   offsetX: Signal<number>;
   offsetY: number;
+}
+
+interface CurrentTooltipOriginProps {
+  item: number;
+  element: HTMLElement;
+  notifyDetached: () => void;
 }

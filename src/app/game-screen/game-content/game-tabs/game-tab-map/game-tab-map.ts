@@ -1,4 +1,4 @@
-import { CdkConnectedOverlay, CdkOverlayOrigin } from '@angular/cdk/overlay';
+import { CdkConnectedOverlay } from '@angular/cdk/overlay';
 import { NgOptimizedImage } from '@angular/common';
 import {
   ChangeDetectionStrategy,
@@ -19,31 +19,29 @@ import Queue from 'yocto-queue';
 import { type Vec2 } from '../../../../data/locations';
 import { VICTORY_LOCATION_CROP_LOOKUP } from '../../../../data/resolved-definitions';
 import { GameStore } from '../../../../store/autopelago-store';
+import { createEmptyTooltipContext, Tooltip, type TooltipOriginProps } from '../../../../tooltip';
 import { elementSizeSignal } from '../../../../utils/element-size';
 import { createLivePixiObjects } from './live-pixi-objects';
-import { Tooltip } from './tooltip/tooltip';
-
-const TOOLTIP_DELAY = 400;
+import { LandmarkTooltip } from './tooltip/tooltip';
 
 @Component({
   changeDetection: ChangeDetectionStrategy.OnPush,
   selector: 'app-game-tab-map',
   imports: [
     CdkConnectedOverlay,
-    CdkOverlayOrigin,
     NgOptimizedImage,
+    LandmarkTooltip,
     Tooltip,
   ],
   template: `
     <div #outer class="outer">
-      <img class="map-img" alt="map" [ngSrc]="mapUrl()" width="300" height="450" priority />
+      <img class="map-img" alt="map" [ngSrc]="mapUrl()" width="300" height="450" priority/>
       <canvas #pixiCanvas class="pixi-canvas" width="300" height="450">
       </canvas>
       @for (lm of allLandmarks(); track $index) {
-        <div #hoverBox class="hover-box" [tabindex]="$index + 999" cdkOverlayOrigin
-             [style.--ap-left-base.px]="lm[1][0]" [style.--ap-top-base.px]="lm[1][1]"
-             (focus)="onFocusTooltip(lm[0], hoverBox)" (mouseenter)="onFocusTooltip(lm[0], hoverBox)"
-             (blur)="onBlurTooltip()" (mouseleave)="onBlurTooltip()">
+        <div #hoverBox class="hover-box" [tabindex]="$index + 999"
+             [style.--ap-left-base.px]="lm.coords[0]" [style.--ap-top-base.px]="lm.coords[1]"
+             appTooltip [tooltipContext]="tooltipContext" (tooltipOriginChange)="setTooltipOrigin(lm.landmark, $event, true)">
         </div>
       }
       <div #pauseButtonContainer class="pause-button-container"
@@ -57,11 +55,11 @@ const TOOLTIP_DELAY = 400;
     </div>
     <ng-template
       cdkConnectedOverlay
-      [cdkConnectedOverlayOrigin]="tooltipTarget()?.[1] ?? outer"
-      [cdkConnectedOverlayOpen]="tooltipTarget() !== null"
+      [cdkConnectedOverlayOrigin]="tooltipOrigin()?.element ?? outer"
+      [cdkConnectedOverlayOpen]="tooltipOrigin() !== null"
       [cdkConnectedOverlayUsePopover]="'inline'"
-      (detach)="detachTooltip()">
-      <app-landmark-tooltip [landmarkKey]="tooltipTarget()![0]">
+      (detach)="tooltipOrigin()?.notifyDetached()">
+      <app-landmark-tooltip [landmarkKey]="tooltipOrigin()!.landmark">
       </app-landmark-tooltip>
     </ng-template>
   `,
@@ -110,7 +108,7 @@ export class GameTabMap {
 
   readonly allLandmarks = computed(() => {
     const { allLocations, allRegions, startRegion } = this.#store.defs();
-    const result: [number, Vec2][] = [];
+    const result: LandmarkProps[] = [];
     const visited = new BitArray(allRegions.length);
     const q = new Queue<number>();
     function tryEnqueue(r: number) {
@@ -123,7 +121,7 @@ export class GameTabMap {
     for (let r = q.dequeue(); r !== undefined; r = q.dequeue()) {
       const region = allRegions[r];
       if ('loc' in region) {
-        result.push([r, allLocations[region.loc].coords]);
+        result.push({ landmark: r, coords: allLocations[region.loc].coords });
       }
       for (const [nxt] of region.connected.all) {
         tryEnqueue(nxt);
@@ -132,8 +130,11 @@ export class GameTabMap {
     return result;
   });
 
-  readonly #tooltipTarget = signal<[number, HTMLDivElement] | null>(null);
-  readonly tooltipTarget = this.#tooltipTarget.asReadonly();
+  // all tooltips here should use the same context, so that the user can quickly switch between them
+  // without having to sit through the whole delay.
+  protected readonly tooltipContext = createEmptyTooltipContext();
+  readonly #tooltipOrigin = signal<CurrentTooltipOriginProps | null>(null);
+  protected readonly tooltipOrigin = this.#tooltipOrigin.asReadonly();
 
   protected readonly pixiCanvas = viewChild.required<ElementRef<HTMLCanvasElement>>('pixiCanvas');
   protected readonly outerDiv = viewChild.required<ElementRef<HTMLDivElement>>('outer');
@@ -249,64 +250,39 @@ export class GameTabMap {
       const scale = clientHeight / VICTORY_LOCATION_CROP_LOOKUP[victoryLocationYamlKey];
       app.stage.scale = scale;
       app.resize();
-      this.#tooltipTarget.set(null);
+      this.#tooltipOrigin.update((tooltipOrigin) => {
+        if (tooltipOrigin !== null) {
+          tooltipOrigin.notifyDetached();
+        }
+        return null;
+      });
       this.outerDiv().nativeElement.style.setProperty('--ap-scale', scale.toString());
     });
-  }
-
-  #prevFocusTimeout = NaN;
-  #prevBlurTimeout = NaN;
-  onFocusTooltip(landmark: number, element: HTMLDivElement) {
-    if (!Number.isNaN(this.#prevBlurTimeout)) {
-      clearTimeout(this.#prevBlurTimeout);
-      this.#prevBlurTimeout = NaN;
-      this.#tooltipTarget.set([landmark, element]);
-      return;
-    }
-
-    if (!Number.isNaN(this.#prevFocusTimeout)) {
-      clearTimeout(this.#prevFocusTimeout);
-      this.#prevFocusTimeout = NaN;
-    }
-    this.#prevFocusTimeout = setTimeout(() => {
-      this.#tooltipTarget.set([landmark, element]);
-      this.#prevFocusTimeout = NaN;
-    }, TOOLTIP_DELAY);
-  }
-
-  onBlurTooltip() {
-    if (!Number.isNaN(this.#prevFocusTimeout)) {
-      clearTimeout(this.#prevFocusTimeout);
-      this.#prevFocusTimeout = NaN;
-      this.#tooltipTarget.set(null);
-      return;
-    }
-
-    if (!Number.isNaN(this.#prevBlurTimeout)) {
-      clearTimeout(this.#prevBlurTimeout);
-      this.#prevBlurTimeout = NaN;
-    }
-    this.#prevBlurTimeout = setTimeout(() => {
-      this.#tooltipTarget.set(null);
-      this.#prevBlurTimeout = NaN;
-    }, TOOLTIP_DELAY);
   }
 
   togglePause() {
     this.#store.togglePause();
   }
 
-  detachTooltip() {
-    if (!Number.isNaN(this.#prevFocusTimeout)) {
-      clearTimeout(this.#prevFocusTimeout);
-      this.#prevFocusTimeout = NaN;
-    }
-
-    if (!Number.isNaN(this.#prevBlurTimeout)) {
-      clearTimeout(this.#prevBlurTimeout);
-      this.#prevBlurTimeout = NaN;
-    }
-
-    this.#tooltipTarget.set(null);
+  setTooltipOrigin(landmark: number, props: TooltipOriginProps | null, fromDirective: boolean) {
+    this.#tooltipOrigin.update((prev) => {
+      if (prev !== null && !fromDirective) {
+        prev.notifyDetached();
+      }
+      return props === null
+        ? null
+        : { landmark, ...props };
+    });
   }
+}
+
+interface LandmarkProps {
+  landmark: number;
+  coords: Vec2;
+}
+
+interface CurrentTooltipOriginProps {
+  landmark: number;
+  element: HTMLElement;
+  notifyDetached: () => void;
 }
