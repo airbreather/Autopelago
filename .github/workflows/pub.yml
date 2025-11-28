@@ -1,6 +1,9 @@
 name: Publish
 
 on:
+  push:
+    branches:
+      - angular
   release:
     types:
       - published
@@ -29,22 +32,27 @@ jobs:
         run: bun run release --base-href 'https://autopelago.app/'
 
       - name: Create Release Zip
+        if: ${{ github.event_name == 'release' }}
         run: zip -r dist.zip dist/
 
       - name: Upload Release Zip
+        if: ${{ github.event_name == 'release' }}
         uses: softprops/action-gh-release@v2
         with:
           files: dist.zip
           token: ${{ secrets.CUSTOM_GITHUB_TOKEN_FOR_UPDATE_RELEASE_ACTION }}
 
       - name: Configure GitHub Pages
+        if: ${{ github.event_name == 'release' }}
         uses: actions/configure-pages@v5
 
       - name: Upload Artifact
+        if: ${{ github.event_name == 'release' }}
         uses: actions/upload-pages-artifact@v3
         with:
           path: dist/
 
       - name: Deploy to GitHub Pages
+        if: ${{ github.event_name == 'release' }}
         id: deployment
         uses: actions/deploy-pages@v4
