@@ -1,4 +1,8 @@
-import { CdkConnectedOverlay } from '@angular/cdk/overlay';
+import {
+  CdkConnectedOverlay,
+  createFlexibleConnectedPositionStrategy,
+  createRepositionScrollStrategy,
+} from '@angular/cdk/overlay';
 import { NgOptimizedImage } from '@angular/common';
 import {
   ChangeDetectionStrategy,
@@ -64,7 +68,10 @@ import { PlayerTooltip } from './player-tooltip';
       [cdkConnectedOverlayOrigin]="tooltipOrigin()?.element ?? outer"
       [cdkConnectedOverlayOpen]="tooltipOrigin() !== null"
       [cdkConnectedOverlayUsePopover]="'inline'"
-      (detach)="tooltipOrigin()?.notifyDetached()">
+      [cdkConnectedOverlayPositionStrategy]="tooltipPositionStrategy()"
+      [cdkConnectedOverlayScrollStrategy]="tooltipScrollStrategy()"
+      (attach)="onOverlayAttached()"
+      (detach)="onOverlayDetached()">
       @if (tooltipOrigin(); as origin) {
         @if (origin.landmark; as landmark) {
           <app-landmark-tooltip [landmarkKey]="landmark" />
@@ -115,6 +122,7 @@ import { PlayerTooltip } from './player-tooltip';
   `,
 })
 export class GameTabMap {
+  readonly #injector = inject(Injector);
   readonly #store = inject(GameStore);
   protected readonly running = this.#store.running;
 
@@ -147,10 +155,25 @@ export class GameTabMap {
   protected readonly tooltipContext = createEmptyTooltipContext();
   readonly #tooltipOrigin = signal<CurrentTooltipOriginProps | null>(null);
   protected readonly tooltipOrigin = this.#tooltipOrigin.asReadonly();
+  protected readonly tooltipPositionStrategy = computed(() => {
+    return createFlexibleConnectedPositionStrategy(this.#injector, this.#tooltipOrigin()?.element ?? this.outerDiv().nativeElement)
+      .withPositions([{
+        originX: 'start',
+        originY: 'bottom',
+        overlayX: 'start',
+        overlayY: 'top',
+      }]);
+  });
+
+  protected readonly tooltipScrollStrategy = computed(() => {
+    return createRepositionScrollStrategy(this.#injector);
+  });
 
   protected readonly pixiCanvas = viewChild.required<ElementRef<HTMLCanvasElement>>('pixiCanvas');
   protected readonly outerDiv = viewChild.required<ElementRef<HTMLDivElement>>('outer');
   protected readonly playerTokenHoverBox = viewChild.required<ElementRef<HTMLDivElement>>('playerTokenHoverBox');
+  protected readonly overlay = viewChild.required(CdkConnectedOverlay);
+  #overlayIsAttached = false;
 
   protected readonly mapUrl = computed(() => {
     switch (this.#store.victoryLocationYamlKey()) {
@@ -263,16 +286,12 @@ export class GameTabMap {
       const scale = clientHeight / VICTORY_LOCATION_CROP_LOOKUP[victoryLocationYamlKey];
       app.stage.scale = scale;
       app.resize();
-      this.#tooltipOrigin.update((tooltipOrigin) => {
-        if (tooltipOrigin !== null) {
-          tooltipOrigin.notifyDetached();
-        }
-        return null;
-      });
       this.outerDiv().nativeElement.style.setProperty('--ap-scale', scale.toString());
+      if (this.#overlayIsAttached) {
+        this.overlay().overlayRef.updatePosition();
+      }
     });
 
-    const injector = inject(Injector);
     const setupRatHoverBoxEffect = effect(() => {
       if (!appIsInitialized()) {
         return;
@@ -284,13 +303,17 @@ export class GameTabMap {
       }
 
       const playerTokenHoverBox = this.playerTokenHoverBox().nativeElement;
+      const overlay = this.overlay();
       const playerPosition = playerToken.position;
       setTimeout(() => {
         effect(() => {
           const [x, y] = playerPosition();
           playerTokenHoverBox.style.setProperty('--ap-left-base', `${x.toString()}px`);
           playerTokenHoverBox.style.setProperty('--ap-top-base', `${y.toString()}px`);
-        }, { injector });
+          if (this.#overlayIsAttached) {
+            overlay.overlayRef.updatePosition();
+          }
+        }, { injector: this.#injector });
       });
       setupRatHoverBoxEffect.destroy();
     });
@@ -309,6 +332,15 @@ export class GameTabMap {
         ? null
         : { landmark, ...props };
     });
+  }
+
+  onOverlayAttached() {
+    this.#overlayIsAttached = true;
+  }
+
+  onOverlayDetached() {
+    this.#overlayIsAttached = false;
+    this.#tooltipOrigin()?.notifyDetached();
   }
 }
 
