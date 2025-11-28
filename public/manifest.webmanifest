@@ -4,7 +4,7 @@
   "display": "standalone",
   "scope": "./",
   "start_url": "./",
-  "background_color": "#007014",
+  "background_color": "#666c69",
   "icons": [
     {
       "src": "icons/icon-16.webp",
