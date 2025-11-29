@@ -20,19 +20,22 @@ jobs:
       - name: Get Bun
         uses: oven-sh/setup-bun@v2
 
-      - name: Install Packages
+      - name: Install packages
         run: bun install
 
       - name: Run tests
         run: bun run test
 
-      - name: Build
-        run: bun run release --base-href 'https://autopelago.app/'
+      - name: Build for self-hosting
+        run: bun run release
 
-      - name: Create Release Zip
+      - name: Create release zip
         run: zip -r dist.zip dist/
 
-      - name: Upload Release Zip
+      - name: Build for GitHub Pages
+        run: bun run release --base-href 'https://autopelago.app/'
+
+      - name: Upload release zip for self-hosting
         uses: softprops/action-gh-release@v2
         with:
           files: dist.zip
@@ -40,7 +43,7 @@ jobs:
       - name: Configure GitHub Pages
         uses: actions/configure-pages@v5
 
-      - name: Upload Artifact
+      - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
         with:
           path: dist/
