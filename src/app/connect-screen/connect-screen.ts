@@ -1,7 +1,9 @@
 import { ChangeDetectionStrategy, Component, effect, inject, signal } from '@angular/core';
 
 import { disabled, Field, form, max, min, required } from '@angular/forms/signals';
+import { Title } from '@angular/platform-browser';
 import { Router } from '@angular/router';
+import versionInfo from '../../version-info.json';
 import { trySetBooleanProp, trySetNumberProp, trySetStringProp } from '../utils/hardened-state-propagation';
 import {
   CONNECT_SCREEN_STATE_DEFAULTS,
@@ -174,6 +176,15 @@ export class ConnectScreen {
   });
 
   constructor() {
+    // this is semi-repeated in player-name-and-navigation.ts, but we have a completely different
+    // thing that "player name" could mean, so copy-paste isn't bad.
+    const title = inject(Title);
+    effect(() => {
+      const slot = this.form.slot().value();
+      const slotPart = slot ? `${slot} | ` : '';
+      title.setTitle(`${slotPart}Autopelago ${versionInfo.version} | A Game So Easy, It Plays Itself!`);
+    });
+
     const saved = localStorage.getItem(STORAGE_KEY);
     if (saved) {
       let parsed: unknown = null;

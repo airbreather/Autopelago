@@ -4,13 +4,16 @@ import {
   computed,
   effect,
   ElementRef,
+  inject,
   input,
   signal,
   viewChild,
 } from '@angular/core';
+import { Title } from '@angular/platform-browser';
 
 import { RouterLink } from '@angular/router';
 import type { Player } from 'archipelago.js';
+import versionInfo from '../../../../../version-info.json';
 import type { AutopelagoClientAndData } from '../../../../data/slot-data';
 
 import { resizeText } from '../../../../utils/resize-text';
@@ -75,6 +78,13 @@ export class PlayerNameAndNavigation {
       };
       client.players.on('aliasUpdated', cb);
       onCleanup(() => client.players.off('aliasUpdated', cb));
+    });
+
+    const title = inject(Title);
+    effect(() => {
+      const playerName = this.playerName();
+      const playerNamePart = playerName ? `${playerName} | ` : '';
+      title.setTitle(`${playerNamePart}Autopelago ${versionInfo.version} | A Game So Easy, It Plays Itself!`);
     });
   }
 }

@@ -1,14 +1,14 @@
 import { CdkScrollable } from '@angular/cdk/overlay';
 import { ChangeDetectionStrategy, Component, inject, input } from '@angular/core';
+
+import versionInfo from '../../../../version-info.json';
 import type { AutopelagoClientAndData } from '../../../data/slot-data';
 
 import { GameScreenStore, type GameTab } from '../../../store/game-screen-store';
 import { GameTabAppBuildInfo } from './game-tab-app-build-info/game-tab-app-build-info';
 import { GameTabArcade } from './game-tab-arcade/game-tab-arcade';
-import { GameTabMap } from './game-tab-map/game-tab-map';
 import { GameTabChat } from './game-tab-chat/game-tab-chat';
-
-import versionInfo from '../../../../version-info.json';
+import { GameTabMap } from './game-tab-map/game-tab-map';
 
 @Component({
   selector: 'app-game-tabs',
