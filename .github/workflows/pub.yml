@@ -10,8 +10,9 @@ jobs:
     name: publish
     runs-on: ubuntu-latest
     permissions:
-      pages: write
+      contents: write
       id-token: write
+      pages: write
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -35,7 +36,6 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           files: dist.zip
-          token: ${{ secrets.CUSTOM_GITHUB_TOKEN_FOR_UPDATE_RELEASE_ACTION }}
 
       - name: Configure GitHub Pages
         uses: actions/configure-pages@v5
