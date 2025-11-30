@@ -9,12 +9,14 @@ export type GameTab = 'map' | 'chat' | 'app-build-info' | 'arcade';
 export interface GameScreenState {
   leftSize: number | null;
   currentTab: GameTab;
+  showingPath: boolean;
 }
 
 // Default state
 const initialState: GameScreenState = {
   leftSize: null,
   currentTab: 'map',
+  showingPath: false,
 };
 
 // Local storage key
@@ -49,6 +51,9 @@ export const GameScreenStore = signalStore(
       if (currentTab !== 'arcade') {
         patchState(store, { currentTab });
       }
+    },
+    toggleShowingPath() {
+      patchState(store, ({ showingPath }) => ({ showingPath: !showingPath }));
     },
   })),
 );

@@ -245,7 +245,7 @@ function densify(definingPoints: readonly Vec2[], densifiedPoints: Vec2[]) {
 }
 
 function distance(a: Vec2, b: Vec2) {
-  return Math.sqrt(Math.pow(a[0] - b[0], 2) + Math.pow(a[1] - b[1], 2));
+  return Math.hypot(a[0] - b[0], a[1] - b[1]);
 }
 
 function indexLine(definingPoints: readonly Vec2[], endpointsPrj: number[]) {
