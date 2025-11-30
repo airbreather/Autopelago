@@ -27,31 +27,34 @@ const SAMPLES_PER_PATH_LINE = 121; // this should be an odd number to avoid an e
 function buildPathLines(pts: readonly Vec2[]): readonly GraphicsContext[] {
   const result: GraphicsContext[] = [];
   for (let i = 0; i < SAMPLES_PER_PATH_LINE; i++) {
-    const gfx = new GraphicsContext();
-    result.push(gfx);
-    gfx.setStrokeStyle(STROKE_STYLE);
-    gfx.beginPath();
-    const offsetPixels = (i / SAMPLES_PER_PATH_LINE) * DASH_CYCLE_LENGTH;
-    let on = offsetPixels < DASH_LENGTH;
-    if (on) {
-      gfx.moveTo(...pts[0]);
-    }
-    for (const segment of dashedLineSegments(pts, offsetPixels)) {
-      for (let j = 0; j < segment.length; j++) {
-        if (on) {
-          gfx.lineTo(...segment[j]);
-        }
-        else {
-          gfx.moveTo(...segment[j]);
-        }
-        if (j < segment.length - 1) {
-          on = !on;
-        }
-      }
-    }
-    gfx.stroke();
+    result.push(buildPathLine(pts, (i / SAMPLES_PER_PATH_LINE) * DASH_CYCLE_LENGTH));
   }
   return result;
+}
+
+function buildPathLine(pts: readonly Vec2[], offsetPixels: number) {
+  const gfx = new GraphicsContext();
+  gfx.setStrokeStyle(STROKE_STYLE);
+  gfx.beginPath();
+  let on = offsetPixels < DASH_LENGTH;
+  if (on) {
+    gfx.moveTo(...pts[0]);
+  }
+  for (const segment of dashedLineSegments(pts, offsetPixels)) {
+    for (let j = 0; j < segment.length; j++) {
+      if (on) {
+        gfx.lineTo(...segment[j]);
+      }
+      else {
+        gfx.moveTo(...segment[j]);
+      }
+      if (j < segment.length - 1) {
+        on = !on;
+      }
+    }
+  }
+  gfx.stroke();
+  return gfx;
 }
 
 // the most popular library for dashed lines doesn't support offsets, and it doesn't have anything
