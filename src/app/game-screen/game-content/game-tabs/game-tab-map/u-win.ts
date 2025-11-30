@@ -36,6 +36,6 @@ import { type ElementSize } from '../../../../utils/element-size';
   `,
 })
 export class UWin {
-  readonly size = inject<Signal<ElementSize>>(DIALOG_DATA);
+  protected readonly size = inject<Signal<ElementSize>>(DIALOG_DATA);
   protected readonly dialogRef = inject(DialogRef);
 }

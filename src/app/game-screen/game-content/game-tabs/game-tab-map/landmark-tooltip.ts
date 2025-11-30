@@ -67,6 +67,6 @@ import { RequirementDisplay } from './requirement-display';
 export class LandmarkTooltip {
   readonly #store = inject(GameStore);
   readonly landmarkKey = input.required<number>();
-  readonly landmark = computed(() => this.#store.defs().allRegions[this.landmarkKey()] as AutopelagoLandmarkRegion);
-  readonly landmarkLocation = computed(() => this.#store.defs().allLocations[this.landmark().loc]);
+  protected readonly landmark = computed(() => this.#store.defs().allRegions[this.landmarkKey()] as AutopelagoLandmarkRegion);
+  protected readonly landmarkLocation = computed(() => this.#store.defs().allLocations[this.landmark().loc]);
 }

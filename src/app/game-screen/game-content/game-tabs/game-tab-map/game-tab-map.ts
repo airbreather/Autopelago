@@ -324,11 +324,11 @@ export class GameTabMap {
     });
   }
 
-  togglePause() {
+  protected togglePause() {
     this.#store.togglePause();
   }
 
-  setTooltipOrigin(landmark: number | null, props: TooltipOriginProps | null, fromDirective: boolean) {
+  protected setTooltipOrigin(landmark: number | null, props: TooltipOriginProps | null, fromDirective: boolean) {
     this.#tooltipOrigin.update((prev) => {
       if (prev !== null && !fromDirective) {
         prev.notifyDetached();
@@ -339,11 +339,11 @@ export class GameTabMap {
     });
   }
 
-  onOverlayAttached() {
+  protected onOverlayAttached() {
     this.#overlayIsAttached = true;
   }
 
-  onOverlayDetached() {
+  protected onOverlayDetached() {
     this.#overlayIsAttached = false;
     this.#tooltipOrigin()?.notifyDetached();
   }

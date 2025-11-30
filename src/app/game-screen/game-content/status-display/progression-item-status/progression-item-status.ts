@@ -124,7 +124,7 @@ export class ProgressionItemStatus {
     });
   }
 
-  setTooltipOrigin(item: number, props: TooltipOriginProps | null, fromDirective: boolean) {
+  protected setTooltipOrigin(item: number, props: TooltipOriginProps | null, fromDirective: boolean) {
     this.#tooltipOrigin.update((prev) => {
       if (prev !== null && !fromDirective) {
         prev.notifyDetached();

@@ -59,7 +59,7 @@ export class GameContent {
   readonly #size = elementSizeSignal(this.outerRef);
   readonly #width = computed(() => this.#size().scrollWidth);
 
-  readonly minSize = computed(() => {
+  protected readonly minSize = computed(() => {
     const width = this.#width();
     if (!width) {
       return 100;
@@ -68,7 +68,7 @@ export class GameContent {
     return Math.min(100, width - 40);
   });
 
-  readonly maxSize = computed(() => {
+  protected readonly maxSize = computed(() => {
     const width = this.#width();
     if (!width) {
       return Number.MAX_SAFE_INTEGER;
@@ -77,7 +77,7 @@ export class GameContent {
     return width - 40;
   });
 
-  readonly leftSize = computed(() => {
+  protected readonly leftSize = computed(() => {
     let val = this.#store.leftSize();
     if (!val) {
       const width = this.#width();
@@ -103,13 +103,13 @@ export class GameContent {
     });
   }
 
-  onSplitDragEnd(leftSize: number | '*') {
+  protected onSplitDragEnd(leftSize: number | '*') {
     if (leftSize !== '*') {
       this.#store.updateLeftSize(leftSize);
     }
   }
 
-  onGutterDblClick() {
+  protected onGutterDblClick() {
     const width = this.#width();
     if (width) {
       this.#store.updateLeftSize(width * 0.2);

@@ -149,9 +149,9 @@ const STORAGE_KEY = 'autopelago-connect-screen-state';
 export class ConnectScreen {
   readonly #router = inject(Router);
   readonly #connecting = signal(false);
-  readonly connecting = this.#connecting.asReadonly();
-  readonly model = signal(CONNECT_SCREEN_STATE_DEFAULTS);
-  readonly form = form(this.model, (schemaPath) => {
+  protected readonly connecting = this.#connecting.asReadonly();
+  readonly #formModel = signal(CONNECT_SCREEN_STATE_DEFAULTS);
+  protected readonly form = form(this.#formModel, (schemaPath) => {
     /* eslint-disable @typescript-eslint/unbound-method */
     required(schemaPath.slot);
     required(schemaPath.host);
@@ -215,7 +215,7 @@ export class ConnectScreen {
       trySetNumberProp(parsed, 'whenStillBlockedIntervalMinutes', model);
       trySetBooleanProp(parsed, 'whenBecomingUnblocked', model);
       trySetBooleanProp(parsed, 'forOneTimeEvents', model);
-      this.model.set({
+      this.#formModel.set({
         ...CONNECT_SCREEN_STATE_DEFAULTS,
         ...model,
       });

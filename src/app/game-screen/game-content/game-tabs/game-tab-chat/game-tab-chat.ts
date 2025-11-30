@@ -151,11 +151,11 @@ import type { AutopelagoClientAndData } from '../../../../data/slot-data';
 })
 export class GameTabChat {
   readonly game = input.required<AutopelagoClientAndData>();
-  readonly ownName = signal<string>('');
+  protected readonly ownName = signal<string>('');
   readonly dateFormatter = new Intl.DateTimeFormat(navigator.languages, { dateStyle: 'short', timeStyle: 'medium' });
-  readonly messageToSend = signal('');
+  protected readonly messageToSend = signal('');
   readonly #sendingMessage = signal(false);
-  readonly sendingMessage = this.#sendingMessage.asReadonly();
+  protected readonly sendingMessage = this.#sendingMessage.asReadonly();
 
   constructor() {
     effect((onCleanup) => {
@@ -169,7 +169,7 @@ export class GameTabChat {
     });
   }
 
-  async onSend(event: SubmitEvent) {
+  protected async onSend(event: SubmitEvent) {
     event.preventDefault();
     const messageToSend = this.messageToSend();
     if (!messageToSend) {

@@ -175,31 +175,31 @@ export class AurasDisplay {
   readonly outerElement = viewChild.required<ElementRef<HTMLElement>>('outer');
   readonly ratCountElement = viewChild.required<ElementRef<HTMLElement>>('ratCountElement');
 
-  readonly ratCount = this.#gameStore.ratCount;
-  readonly ratCountText = computed(() => `RATS: ${this.ratCount().toString()}`);
+  protected readonly ratCount = this.#gameStore.ratCount;
+  protected readonly ratCountText = computed(() => `RATS: ${this.ratCount().toString()}`);
 
-  readonly food = this.#gameStore.foodFactor;
-  readonly energy = this.#gameStore.energyFactor;
-  readonly luck = this.#gameStore.luckFactor;
+  protected readonly food = this.#gameStore.foodFactor;
+  protected readonly energy = this.#gameStore.energyFactor;
+  protected readonly luck = this.#gameStore.luckFactor;
 
-  readonly distraction = this.#gameStore.distractionCounter;
-  readonly startled = this.#gameStore.startledCounter;
-  readonly smart = this.#gameStore.targetLocationChosenBecauseSmart;
-  readonly conspiratorial = this.#gameStore.targetLocationChosenBecauseConspiratorial;
-  readonly stylish = this.#gameStore.styleFactor;
-  readonly confidence = signal(false);
+  protected readonly distraction = this.#gameStore.distractionCounter;
+  protected readonly startled = this.#gameStore.startledCounter;
+  protected readonly smart = this.#gameStore.targetLocationChosenBecauseSmart;
+  protected readonly conspiratorial = this.#gameStore.targetLocationChosenBecauseConspiratorial;
+  protected readonly stylish = this.#gameStore.styleFactor;
+  protected readonly confidence = signal(false);
 
-  readonly foodFillPercentage = computed(() => {
+  protected readonly foodFillPercentage = computed(() => {
     const value = Math.max(-20, Math.min(20, this.food()));
     return Math.abs(value / 20) * 50;
   });
 
-  readonly energyFillPercentage = computed(() => {
+  protected readonly energyFillPercentage = computed(() => {
     const value = Math.max(-20, Math.min(20, this.energy()));
     return Math.abs(value / 20) * 50;
   });
 
-  readonly luckFillPercentage = computed(() => {
+  protected readonly luckFillPercentage = computed(() => {
     const value = Math.max(-5, Math.min(5, this.luck()));
     return Math.abs(value / 5) * 50;
   });

@@ -54,7 +54,7 @@ export class PlayerNameAndNavigation {
   readonly game = input.required<AutopelagoClientAndData>();
 
   readonly #player = signal({ name: '', alias: '' });
-  readonly playerName = computed(() => {
+  protected readonly playerName = computed(() => {
     const { name, alias } = this.#player();
     return new RegExp(`(?<justAlias>.*)\\(${name}\\)`).exec(alias)?.groups?.['justAlias'] ?? alias;
   });

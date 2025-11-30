@@ -21,7 +21,7 @@ export class TooltipBehavior {
 
   readonly delay = input(400);
 
-  onFocus(fromFocus: boolean) {
+  protected onFocus(fromFocus: boolean) {
     const ctx = this.tooltipContext();
     if (!fromFocus && ctx._tooltipIsOpenBecauseOfFocus) {
       return;
@@ -53,7 +53,7 @@ export class TooltipBehavior {
     }
   }
 
-  onBlur(fromFocus: boolean) {
+  protected onBlur(fromFocus: boolean) {
     const ctx = this.tooltipContext();
     if (!fromFocus && ctx._tooltipIsOpenBecauseOfFocus) {
       return;

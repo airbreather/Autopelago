@@ -27,7 +27,7 @@ import versionInfo from '../../../../../version-info.json';
   `,
 })
 export class GameTabAppBuildInfo {
-  protected version = versionInfo.version;
-  protected commit = versionInfo.commit;
-  protected timestamp = versionInfo.timestamp || new Date().toISOString();
+  protected readonly version = versionInfo.version;
+  protected readonly commit = versionInfo.commit;
+  protected readonly timestamp = versionInfo.timestamp || new Date().toISOString();
 }
