@@ -24,6 +24,7 @@ import Queue from 'yocto-queue';
 import { type Vec2 } from '../../../../data/locations';
 import { VICTORY_LOCATION_CROP_LOOKUP } from '../../../../data/resolved-definitions';
 import { GameStore } from '../../../../store/autopelago-store';
+import { GameScreenStore } from '../../../../store/game-screen-store';
 import { createEmptyTooltipContext, TooltipBehavior, type TooltipOriginProps } from '../../../../tooltip-behavior';
 import { elementSizeSignal } from '../../../../utils/element-size';
 import { LandmarkTooltip } from './landmark-tooltip';
@@ -51,8 +52,9 @@ import { PlayerTooltip } from './player-tooltip';
              appTooltip [tooltipContext]="tooltipContext" (tooltipOriginChange)="setTooltipOrigin(lm.landmark, $event, true)">
         </div>
       }
-      <div #playerTokenHoverBox class="hover-box" [tabIndex]="998" [style.z-index]="999"
-           appTooltip [tooltipContext]="tooltipContext" (tooltipOriginChange)="setTooltipOrigin(null, $event, true)">
+      <div #playerTokenHoverBox class="hover-box" tabindex="998" [style.z-index]="999"
+           appTooltip [tooltipContext]="tooltipContext" (tooltipOriginChange)="setTooltipOrigin(null, $event, true)"
+           (click)="toggleShowingPath()" (keyup.enter)="toggleShowingPath()" (keyup.space)="toggleShowingPath()">
       </div>
       <div #pauseButtonContainer class="pause-button-container"
            [style.margin-top]="'-' + pauseButtonContainer.clientHeight + 'px'">
@@ -124,6 +126,8 @@ import { PlayerTooltip } from './player-tooltip';
 export class GameTabMap {
   readonly #injector = inject(Injector);
   readonly #store = inject(GameStore);
+  readonly #gameScreenStore = inject(GameScreenStore);
+  protected readonly toggleShowingPath = this.#gameScreenStore.toggleShowingPath;
   protected readonly running = this.#store.running;
 
   readonly allLandmarks = computed(() => {
@@ -267,7 +271,9 @@ export class GameTabMap {
 
       const fillerMarkers = fillerMarkersSignal();
       app.stage.addChild(fillerMarkers.container);
+      app.stage.addChild(playerToken.pathGfx);
       app.stage.addChild(landmarks.container);
+      app.stage.addChild(playerToken.targetX);
       app.stage.addChild(playerToken.sprite);
       app.resize();
       app.render();

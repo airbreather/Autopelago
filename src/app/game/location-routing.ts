@@ -8,7 +8,6 @@ import {
   BAKED_DEFINITIONS_FULL,
 } from '../data/resolved-definitions';
 import type { UserRequestedLocation } from '../data/slot-data';
-import type { EnumVal } from '../utils/types';
 
 export function buildRequirementIsSatisfied(relevantItemCount: readonly number[], allLocationsAreChecked: boolean): (req: AutopelagoRequirement) => boolean {
   const allItems = BAKED_DEFINITIONS_FULL.allItems;
@@ -54,13 +53,13 @@ export type TargetLocationReason =
   | 'startled';
 
 export const Desirability = {
-  STARTLED: 7,
-  GAME_OVER: 6,
-  GO_MODE: 5,
-  AURA_DRIVEN: 4,
-  USER_REQUESTED: 3,
-  UNCHECKED: 2,
-  CHECKED: 1,
+  STARTLED: 7000,
+  GAME_OVER: 6000,
+  GO_MODE: 5000,
+  AURA_DRIVEN: 4000,
+  USER_REQUESTED: 3000,
+  UNCHECKED: 2000,
+  CHECKED: 1000,
   AVOID: 0,
 } as const;
 
@@ -75,7 +74,7 @@ const desirabilityMap: TargetLocationReason[] = [
   'startled',
 ];
 
-export function determineDesirability(options: Readonly<DetermineDesirabilityOptions>): EnumVal<typeof Desirability>[] {
+export function determineDesirability(options: Readonly<DetermineDesirabilityOptions>): readonly number[] {
   const {
     defs: {
       startLocation,
@@ -95,7 +94,7 @@ export function determineDesirability(options: Readonly<DetermineDesirabilityOpt
 
   // be VERY careful about the ordering of how we fill this array. earlier blocks get overwritten by
   // later blocks that should take precedence.
-  const result = Array<EnumVal<typeof Desirability>>(allLocations.length);
+  const result = Array<number>(allLocations.length);
 
   // lowest precedence: checked/unchecked
   let allLocationsMightBeChecked: 1 | 0 = 1;
@@ -112,13 +111,15 @@ export function determineDesirability(options: Readonly<DetermineDesirabilityOpt
   }
 
   // next precedence: user requested
+  let nextUserRequestedDesirability = Desirability.USER_REQUESTED + 1000;
   for (const { location } of userRequestedLocations) {
-    result[location] = Desirability.USER_REQUESTED;
+    result[location] = --nextUserRequestedDesirability;
   }
 
   // next precedence: aura driven
+  let nextAuraDrivenDesirability = Desirability.AURA_DRIVEN + 1000;
   for (const location of auraDrivenLocations) {
-    result[location] = Desirability.AURA_DRIVEN;
+    result[location] = --nextAuraDrivenDesirability;
   }
 
   // now address the landmarks by walking to each from the start region. determineTargetLocation
@@ -202,7 +203,6 @@ export function determineTargetLocation(options: Readonly<DetermineTargetLocatio
     // assumes that you can walk through the entire path without checking landmarks in between, so
     // for now we need to actually target the closest unchecked landmark along the path, if any.
     if (bestLocation !== loc && !Number.isNaN(regionForLandmarkLocation[loc]) && desirability[loc] === Desirability.UNCHECKED) {
-      path.length = 0;
       bestLocation = loc;
     }
     path.push(loc);
@@ -210,7 +210,7 @@ export function determineTargetLocation(options: Readonly<DetermineTargetLocatio
 
   return {
     location: bestLocation,
-    reason: desirabilityMap[resultDesirability],
+    reason: desirabilityMap[Math.floor(resultDesirability / 1000)],
     path: path.reverse(),
   };
 }

@@ -1,9 +1,9 @@
 import { Dialog } from '@angular/cdk/dialog';
 import { computed, DestroyRef, effect, inject, signal, untracked } from '@angular/core';
-import { Sprite, type Ticker } from 'pixi.js';
+import { GraphicsContext, Sprite, type StrokeStyle, type Ticker } from 'pixi.js';
 import Queue from 'yocto-queue';
 import type { LandmarkYamlKey, Vec2 } from '../../../../data/locations';
-import type { AutopelagoDefinitions } from '../../../../data/resolved-definitions';
+import { type AutopelagoDefinitions } from '../../../../data/resolved-definitions';
 import type { AnimatableAction } from '../../../../game/defining-state';
 import { GameStore } from '../../../../store/autopelago-store';
 import { GameScreenStore } from '../../../../store/game-screen-store';
@@ -17,10 +17,97 @@ interface ResolvedAction {
   run(fraction: number, defs: AutopelagoDefinitions, playerToken: Sprite, landmarkMarkers: LandmarkMarkers, fillerMarkers: FillerMarkers): void;
 }
 
+const DASH_LENGTH = 4;
+const DASH_CYCLE_LENGTH = DASH_LENGTH * 2;
+const STROKE_STYLE = {
+  width: 1,
+  color: 'red',
+  join: 'round',
+} as const satisfies StrokeStyle;
+const SAMPLES_PER_PATH_LINE = 60; // this should be an odd number to avoid an edge case.
+function buildPathLines(pts: readonly Vec2[]): readonly GraphicsContext[] {
+  const result: GraphicsContext[] = [];
+  for (let i = 0; i < SAMPLES_PER_PATH_LINE; i++) {
+    result.push(buildPathLine(pts, (i / SAMPLES_PER_PATH_LINE) * DASH_CYCLE_LENGTH));
+  }
+  return result;
+}
+
+interface PathStop {
+  readonly target: Vec2;
+  readonly stroke: boolean;
+}
+function buildPathLine(pts: readonly Vec2[], offsetPixels: number) {
+  const gfx = new GraphicsContext();
+  gfx.setStrokeStyle(STROKE_STYLE);
+  gfx.beginPath();
+  let prevMove: Vec2 | null = null;
+  for (const { target, stroke } of dashedLineSegments(pts, offsetPixels)) {
+    if (stroke) {
+      if (prevMove !== null) {
+        gfx.moveTo(...prevMove);
+        prevMove = null;
+      }
+      gfx.lineTo(...target);
+    }
+    else {
+      prevMove = target;
+    }
+  }
+  gfx.stroke();
+  return gfx;
+}
+
+// the most popular library for dashed lines doesn't support offsets, and it doesn't have anything
+// special about how it does the math, so just do it all inline with the constants weaved in. the
+// usual dash style parameters we emulate are dashes of [4, 4] with an offset of 8 * offsetFraction
+// (where 8 came from the sum of all lengths in the dash array).
+function dashedLineSegments(pts: readonly Vec2[], offsetPixels: number): readonly PathStop[] {
+  if (pts.length < 2) {
+    return [{ target: pts[0], stroke: false }];
+  }
+
+  let stroke = offsetPixels < DASH_LENGTH;
+  let remainingInCurrentDashOrGap = (stroke ? DASH_LENGTH : DASH_CYCLE_LENGTH) - offsetPixels;
+  const result: PathStop[] = [{ target: pts[0], stroke: false }];
+  for (let i = 1; i < pts.length; i++) {
+    const start = pts[i - 1];
+    const end = pts[i];
+    const len = Math.hypot(end[1] - start[1], end[0] - start[0]);
+    const angle = Math.atan2(end[1] - start[1], end[0] - start[0]);
+    const cos = Math.cos(angle);
+    const sin = Math.sin(angle);
+    if (len < remainingInCurrentDashOrGap) {
+      // whatever was happening at the start of this segment continues all the way through.
+      result.push({ target: end, stroke });
+      remainingInCurrentDashOrGap -= len;
+      continue;
+    }
+
+    let prevX = start[0] + remainingInCurrentDashOrGap * cos;
+    let prevY = start[1] + remainingInCurrentDashOrGap * sin;
+    result.push({ target: [prevX, prevY], stroke });
+    stroke = !stroke;
+    const dx = DASH_LENGTH * cos;
+    const dy = DASH_LENGTH * sin;
+    let remainingInCurrentStop = len - remainingInCurrentDashOrGap;
+    while (remainingInCurrentStop > DASH_LENGTH) {
+      result.push({ target: [prevX += dx, prevY += dy], stroke });
+      remainingInCurrentStop -= DASH_LENGTH;
+      stroke = !stroke;
+    }
+    result.push({ target: end, stroke });
+    remainingInCurrentDashOrGap = DASH_LENGTH - remainingInCurrentStop;
+  }
+  return result;
+}
+
 const NO_ACTION = { run: () => { /* empty */ } } as const;
 export function createLivePixiObjects(ticker: Ticker) {
   const store = inject(GameStore);
-  const mapSizeSignal = inject(GameScreenStore).screenSizeSignal;
+  const gameScreenStore = inject(GameScreenStore);
+  const showingPath = gameScreenStore.showingPath;
+  const mapSizeSignal = gameScreenStore.screenSizeSignal;
   const dialog = inject(Dialog);
   const destroyRef = inject(DestroyRef);
   const wiggleOptimizationBox: WiggleOptimizationBox = {
@@ -158,6 +245,51 @@ export function createLivePixiObjects(ticker: Ticker) {
       animatePlayerMoveCallback = null;
     }
   });
+
+  let pathProg = 0;
+  let animateShownPathCallback: ((t: Ticker) => void) | null = null;
+  destroyRef.onDestroy(() => {
+    if (animateShownPathCallback !== null) {
+      ticker.remove(animateShownPathCallback);
+      animateShownPathCallback = null;
+    }
+  });
+  effect(() => {
+    const playerToken = playerTokenResource.value();
+    if (!playerToken) {
+      return;
+    }
+
+    if (!showingPath()) {
+      playerToken.pathGfx.visible = false;
+      playerToken.targetX.visible = false;
+      if (animateShownPathCallback !== null) {
+        ticker.remove(animateShownPathCallback);
+        animateShownPathCallback = null;
+      }
+      return;
+    }
+
+    if (animateShownPathCallback === null) {
+      playerToken.pathGfx.visible = true;
+      playerToken.targetX.visible = true;
+    }
+    else {
+      ticker.remove(animateShownPathCallback);
+    }
+
+    const CYCLE_DURATION = 1000;
+    const { allLocations } = store.defs();
+    const targetLocationRoute = store.targetLocationRoute();
+    const coords = targetLocationRoute.map(l => allLocations[l].coords);
+    playerToken.targetX.position.set(...coords[coords.length - 1]);
+    const lines = buildPathLines(coords.slice(targetLocationRoute.indexOf(store.currentLocation())));
+    animateShownPathCallback = (t) => {
+      pathProg = (pathProg + t.deltaMS) % CYCLE_DURATION;
+      playerToken.pathGfx.context = lines[lines.length - Math.ceil(pathProg / CYCLE_DURATION * lines.length)];
+    };
+    ticker.add(animateShownPathCallback);
+  });
   effect(() => {
     const game = store.game();
     const playerToken = playerTokenResource.value();
@@ -174,7 +306,7 @@ export function createLivePixiObjects(ticker: Ticker) {
       if (!finishedFirstRound) {
         untracked(() => {
           const currentCoords = defs.allLocations[store.currentLocation()].coords;
-          const targetCoords = defs.allLocations[store.targetLocation()].coords;
+          const targetCoords = defs.allLocations[store.nextLocationTowardsTarget()].coords;
           playerTokenSprite.position.set(...currentCoords);
           playerTokenPosition.set(currentCoords);
           let fromCoords = currentCoords;
@@ -253,10 +385,10 @@ export function createLivePixiObjects(ticker: Ticker) {
       const nextMove = queuedActions.peek();
       if (nextMove === undefined) {
         const fromCoords = defs.allLocations[store.currentLocation()].coords;
-        const toCoords = defs.allLocations[store.targetLocation()].coords;
+        const toCoords = defs.allLocations[store.nextLocationTowardsTarget()].coords;
         playerToken.sprite.position.set(...fromCoords);
         playerTokenPosition.set(fromCoords);
-        if (store.currentLocation() !== store.targetLocation()) {
+        if (store.currentLocation() !== store.nextLocationTowardsTarget()) {
           updateWiggleOptimizationBox(fromCoords, toCoords);
         }
         t.remove(animatePlayerMoveCallback);
