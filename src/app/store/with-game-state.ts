@@ -283,6 +283,10 @@ export function withGameState() {
       const targetLocationRoute = computed(() => {
         return _targetLocationDetail().path;
       });
+      const nextLocationTowardsTarget = computed(() => {
+        const route = targetLocationRoute();
+        return route[Math.min(route.indexOf(store.currentLocation()) + 1, route.length - 1)];
+      });
       const targetLocationChosenBecauseSmart = computed(() => {
         return targetLocationReason() === 'aura-driven' && store.locationIsProgression()[targetLocation()];
       });
@@ -345,6 +349,7 @@ export function withGameState() {
         targetLocationChosenBecauseSmart,
         targetLocationChosenBecauseConspiratorial,
         targetLocationRoute,
+        nextLocationTowardsTarget,
         canEventuallyAdvance,
         asStoredData,
         sampleMessage,

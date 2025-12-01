@@ -278,8 +278,9 @@ export function createLivePixiObjects(ticker: Ticker) {
 
     const CYCLE_DURATION = 1000;
     const { allLocations } = store.defs();
-    const coords = store.targetLocationRoute().map(l => allLocations[l].coords);
-    const lines = buildPathLines(coords);
+    const targetLocationRoute = store.targetLocationRoute();
+    const coords = targetLocationRoute.map(l => allLocations[l].coords);
+    const lines = buildPathLines(coords.slice(targetLocationRoute.indexOf(store.currentLocation())));
     animateShownPathCallback = (t) => {
       pathProg = (pathProg + t.deltaMS) % CYCLE_DURATION;
       playerToken.pathGfx.context = lines[Math.floor((CYCLE_DURATION - pathProg) * lines.length / CYCLE_DURATION)];
@@ -302,7 +303,7 @@ export function createLivePixiObjects(ticker: Ticker) {
       if (!finishedFirstRound) {
         untracked(() => {
           const currentCoords = defs.allLocations[store.currentLocation()].coords;
-          const targetCoords = defs.allLocations[store.targetLocation()].coords;
+          const targetCoords = defs.allLocations[store.nextLocationTowardsTarget()].coords;
           playerTokenSprite.position.set(...currentCoords);
           playerTokenPosition.set(currentCoords);
           let fromCoords = currentCoords;
@@ -381,10 +382,10 @@ export function createLivePixiObjects(ticker: Ticker) {
       const nextMove = queuedActions.peek();
       if (nextMove === undefined) {
         const fromCoords = defs.allLocations[store.currentLocation()].coords;
-        const toCoords = defs.allLocations[store.targetLocation()].coords;
+        const toCoords = defs.allLocations[store.nextLocationTowardsTarget()].coords;
         playerToken.sprite.position.set(...fromCoords);
         playerTokenPosition.set(fromCoords);
-        if (store.currentLocation() !== store.targetLocation()) {
+        if (store.currentLocation() !== store.nextLocationTowardsTarget()) {
           updateWiggleOptimizationBox(fromCoords, toCoords);
         }
         t.remove(animatePlayerMoveCallback);
