@@ -202,7 +202,6 @@ export function determineTargetLocation(options: Readonly<DetermineTargetLocatio
     // assumes that you can walk through the entire path without checking landmarks in between, so
     // for now we need to actually target the closest unchecked landmark along the path, if any.
     if (bestLocation !== loc && !Number.isNaN(regionForLandmarkLocation[loc]) && desirability[loc] === Desirability.UNCHECKED) {
-      path.length = 0;
       bestLocation = loc;
     }
     path.push(loc);

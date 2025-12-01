@@ -17,13 +17,14 @@ interface ResolvedAction {
   run(fraction: number, defs: AutopelagoDefinitions, playerToken: Sprite, landmarkMarkers: LandmarkMarkers, fillerMarkers: FillerMarkers): void;
 }
 
-const DASH_LENGTH = 3;
+const DASH_LENGTH = 4;
 const DASH_CYCLE_LENGTH = DASH_LENGTH * 2;
 const STROKE_STYLE = {
   width: 1,
   color: 'red',
+  join: 'round',
 } as const satisfies StrokeStyle;
-const SAMPLES_PER_PATH_LINE = 121; // this should be an odd number to avoid an edge case.
+const SAMPLES_PER_PATH_LINE = 60; // this should be an odd number to avoid an edge case.
 function buildPathLines(pts: readonly Vec2[]): readonly GraphicsContext[] {
   const result: GraphicsContext[] = [];
   for (let i = 0; i < SAMPLES_PER_PATH_LINE; i++) {
@@ -32,25 +33,25 @@ function buildPathLines(pts: readonly Vec2[]): readonly GraphicsContext[] {
   return result;
 }
 
+interface PathStop {
+  readonly target: Vec2;
+  readonly stroke: boolean;
+}
 function buildPathLine(pts: readonly Vec2[], offsetPixels: number) {
   const gfx = new GraphicsContext();
   gfx.setStrokeStyle(STROKE_STYLE);
   gfx.beginPath();
-  let on = offsetPixels < DASH_LENGTH;
-  if (on) {
-    gfx.moveTo(...pts[0]);
-  }
-  for (const segment of dashedLineSegments(pts, offsetPixels)) {
-    for (let j = 0; j < segment.length; j++) {
-      if (on) {
-        gfx.lineTo(...segment[j]);
+  let prevMove: Vec2 | null = null;
+  for (const { target, stroke } of dashedLineSegments(pts, offsetPixels)) {
+    if (stroke) {
+      if (prevMove !== null) {
+        gfx.moveTo(...prevMove);
+        prevMove = null;
       }
-      else {
-        gfx.moveTo(...segment[j]);
-      }
-      if (j < segment.length - 1) {
-        on = !on;
-      }
+      gfx.lineTo(...target);
+    }
+    else {
+      prevMove = target;
     }
   }
   gfx.stroke();
@@ -61,57 +62,44 @@ function buildPathLine(pts: readonly Vec2[], offsetPixels: number) {
 // special about how it does the math, so just do it all inline with the constants weaved in. the
 // usual dash style parameters we emulate are dashes of [4, 4] with an offset of 8 * offsetFraction
 // (where 8 came from the sum of all lengths in the dash array).
-function dashedLineSegments(pts: readonly Vec2[], offsetPixels: number): readonly (readonly Vec2[])[] {
+function dashedLineSegments(pts: readonly Vec2[], offsetPixels: number): readonly PathStop[] {
   if (pts.length < 2) {
-    return [pts];
+    return [{ target: pts[0], stroke: false }];
   }
 
-  const allStops: Vec2[][] = [];
+  let stroke = offsetPixels < DASH_LENGTH;
+  let remainingInCurrentDashOrGap = (stroke ? DASH_LENGTH : DASH_CYCLE_LENGTH) - offsetPixels;
+  const result: PathStop[] = [{ target: pts[0], stroke: false }];
   for (let i = 1; i < pts.length; i++) {
     const start = pts[i - 1];
     const end = pts[i];
-    const stops: Vec2[] = [];
-    allStops.push(stops);
     const len = Math.hypot(end[1] - start[1], end[0] - start[0]);
     const angle = Math.atan2(end[1] - start[1], end[0] - start[0]);
     const cos = Math.cos(angle);
     const sin = Math.sin(angle);
-    // handle the remaining bit from the previous chunk. our caller can handle figuring out whether
-    // the current segment is a dash or a gap based on starting from >=0.5 and alternating at every
-    // stop that isn't at the end of an array.
-    const halfOffsetPixels = offsetPixels > DASH_LENGTH ? offsetPixels - DASH_LENGTH : offsetPixels;
-    if (len < DASH_LENGTH - halfOffsetPixels) {
+    if (len < remainingInCurrentDashOrGap) {
       // whatever was happening at the start of this segment continues all the way through.
-      stops.push(end);
-      offsetPixels += len;
+      result.push({ target: end, stroke });
+      remainingInCurrentDashOrGap -= len;
       continue;
     }
 
-    let prevX = start[0] + halfOffsetPixels * cos;
-    let prevY = start[1] + halfOffsetPixels * sin;
-    stops.push([prevX, prevY]);
+    let prevX = start[0] + remainingInCurrentDashOrGap * cos;
+    let prevY = start[1] + remainingInCurrentDashOrGap * sin;
+    result.push({ target: [prevX, prevY], stroke });
+    stroke = !stroke;
     const dx = DASH_LENGTH * cos;
     const dy = DASH_LENGTH * sin;
-    let remainingInCurrentStop = len - halfOffsetPixels;
+    let remainingInCurrentStop = len - remainingInCurrentDashOrGap;
     while (remainingInCurrentStop > DASH_LENGTH) {
-      stops.push([prevX += dx, prevY += dy]);
+      result.push({ target: [prevX += dx, prevY += dy], stroke });
       remainingInCurrentStop -= DASH_LENGTH;
+      stroke = !stroke;
     }
-    stops.push(end);
-    if ((offsetPixels > DASH_LENGTH) !== (stops.length % 2 === 1)) {
-      // flip
-      offsetPixels = offsetPixels > DASH_LENGTH
-        ? (DASH_LENGTH - remainingInCurrentStop)
-        : (DASH_CYCLE_LENGTH - remainingInCurrentStop);
-    }
-    else {
-      // keep the same
-      offsetPixels = offsetPixels > DASH_LENGTH
-        ? (DASH_CYCLE_LENGTH - remainingInCurrentStop)
-        : (DASH_LENGTH - remainingInCurrentStop);
-    }
+    result.push({ target: end, stroke });
+    remainingInCurrentDashOrGap = DASH_LENGTH - remainingInCurrentStop;
   }
-  return allStops;
+  return result;
 }
 
 const NO_ACTION = { run: () => { /* empty */ } } as const;
@@ -288,14 +276,13 @@ export function createLivePixiObjects(ticker: Ticker) {
       ticker.remove(animateShownPathCallback);
     }
 
-    const CYCLE_DURATION = 4000;
+    const CYCLE_DURATION = 1000;
     const { allLocations } = store.defs();
     const coords = store.targetLocationRoute().map(l => allLocations[l].coords);
     const lines = buildPathLines(coords);
-    const scale = lines.length / CYCLE_DURATION;
     animateShownPathCallback = (t) => {
       pathProg = (pathProg + t.deltaMS) % CYCLE_DURATION;
-      playerToken.pathGfx.context = lines[Math.floor(pathProg * scale)];
+      playerToken.pathGfx.context = lines[Math.floor((CYCLE_DURATION - pathProg) * lines.length / CYCLE_DURATION)];
     };
     ticker.add(animateShownPathCallback);
   });
