@@ -286,7 +286,8 @@ export function createLivePixiObjects(ticker: Ticker) {
     const lines = buildPathLines(coords.slice(targetLocationRoute.indexOf(store.currentLocation())));
     animateShownPathCallback = (t) => {
       pathProg = (pathProg + t.deltaMS) % CYCLE_DURATION;
-      playerToken.pathGfx.context = lines[lines.length - Math.ceil(pathProg / CYCLE_DURATION * lines.length)];
+      const pathProgFraction = pathProg / CYCLE_DURATION;
+      playerToken.pathGfx.context = lines.at(-Math.ceil(pathProgFraction * lines.length)) as unknown as GraphicsContext;
     };
     ticker.add(animateShownPathCallback);
   });
