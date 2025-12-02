@@ -3,18 +3,17 @@ import { computed, DestroyRef, effect, inject, signal, untracked } from '@angula
 import { GraphicsContext, Sprite, type StrokeStyle, type Ticker } from 'pixi.js';
 import Queue from 'yocto-queue';
 import type { LandmarkYamlKey, Vec2 } from '../../../../data/locations';
-import { type AutopelagoDefinitions } from '../../../../data/resolved-definitions';
 import type { AnimatableAction } from '../../../../game/defining-state';
 import { GameStore } from '../../../../store/autopelago-store';
 import { GameScreenStore } from '../../../../store/game-screen-store';
 import { arraysEqual, bitArraysEqual } from '../../../../utils/equal-helpers';
 import { createFillerMarkers, type FillerMarkers } from './filler-markers';
 import { createLandmarkMarkers, type LandmarkMarkers } from './landmark-markers';
-import { createPlayerToken, SCALE, type WiggleOptimizationBox } from './player-token';
+import { createPlayerToken, type PlayerTokenResult, SCALE, type WiggleOptimizationBox } from './player-token';
 import { UWin } from './u-win';
 
 interface ResolvedAction {
-  run(fraction: number, defs: AutopelagoDefinitions, playerToken: Sprite, landmarkMarkers: LandmarkMarkers, fillerMarkers: FillerMarkers): void;
+  run(fraction: number, playerToken: PlayerTokenResult, landmarkMarkers: LandmarkMarkers, fillerMarkers: FillerMarkers): void;
 }
 
 const DASH_LENGTH = 4;
@@ -24,7 +23,7 @@ const STROKE_STYLE = {
   color: 'red',
   join: 'round',
 } as const satisfies StrokeStyle;
-const SAMPLES_PER_PATH_LINE = 60; // this should be an odd number to avoid an edge case.
+const SAMPLES_PER_PATH_LINE = 60;
 function buildPathLines(pts: readonly Vec2[]): readonly GraphicsContext[] {
   const result: GraphicsContext[] = [];
   for (let i = 0; i < SAMPLES_PER_PATH_LINE; i++) {
@@ -147,17 +146,18 @@ export function createLivePixiObjects(ticker: Ticker) {
     victoryLocationYamlKey: store.victoryLocationYamlKey,
   });
 
-  function resolveAction(defs: AutopelagoDefinitions, action: AnimatableAction): ResolvedAction {
+  function resolveAction(action: AnimatableAction): ResolvedAction {
     if (action.type === 'move') {
+      const defs = store.defs();
       const fromCoords = defs.allLocations[action.fromLocation].coords;
       const toCoords = defs.allLocations[action.toLocation].coords;
       const dx = toCoords[0] - fromCoords[0];
       const dy = toCoords[1] - fromCoords[1];
       return {
-        run: (fraction: number, _defs: unknown, playerToken: Sprite) => {
+        run: (fraction: number, playerToken: PlayerTokenResult) => {
           const x = fromCoords[0] + dx * fraction;
           const y = fromCoords[1] + dy * fraction;
-          playerToken.position.set(x, y);
+          playerToken.sprite.position.set(x, y);
           playerTokenPosition.set([x, y]);
           updateWiggleOptimizationBox(fromCoords, toCoords);
         },
@@ -165,6 +165,7 @@ export function createLivePixiObjects(ticker: Ticker) {
     }
 
     if (action.type === 'check-locations') {
+      const defs = store.defs();
       const fillerLocations: number[] = [];
       const landmarkLocations: LandmarkYamlKey[] = [];
       for (const location of action.locations) {
@@ -181,7 +182,7 @@ export function createLivePixiObjects(ticker: Ticker) {
         }
       }
       return {
-        run: (fraction: number, _defs: unknown, _playerToken: unknown, landmarkMarkers: LandmarkMarkers, fillerMarkers: FillerMarkers) => {
+        run: (fraction: number, _playerToken: unknown, landmarkMarkers: LandmarkMarkers, fillerMarkers: FillerMarkers) => {
           if (fraction !== 1) {
             return;
           }
@@ -206,7 +207,7 @@ export function createLivePixiObjects(ticker: Ticker) {
 
     if (action.type === 'completed-goal') {
       return {
-        run: (fraction: number, _defs: unknown, _playerToken: unknown, landmarkMarkers: LandmarkMarkers) => {
+        run: (fraction: number, _playerToken: unknown, landmarkMarkers: LandmarkMarkers) => {
           if (fraction !== 1) {
             return;
           }
@@ -351,7 +352,7 @@ export function createLivePixiObjects(ticker: Ticker) {
     }
 
     for (const action of actions) {
-      queuedActions.enqueue(resolveAction(defs, action));
+      queuedActions.enqueue(resolveAction(action));
     }
 
     if (animatePlayerMoveCallback !== null) {
@@ -379,7 +380,7 @@ export function createLivePixiObjects(ticker: Ticker) {
           break;
         }
 
-        fullMove.run(1, defs, playerToken.sprite, landmarkMarkers, fillerMarkers);
+        fullMove.run(1, playerToken, landmarkMarkers, fillerMarkers);
         prog -= moveDuration;
       }
 
@@ -399,7 +400,7 @@ export function createLivePixiObjects(ticker: Ticker) {
         return;
       }
 
-      nextMove.run(prog / moveDuration, defs, playerToken.sprite, landmarkMarkers, fillerMarkers);
+      nextMove.run(prog / moveDuration, playerToken, landmarkMarkers, fillerMarkers);
     };
     ticker.add(animatePlayerMoveCallback);
   });
