@@ -1,9 +1,19 @@
-import { ChangeDetectionStrategy, Component, effect, inject, signal } from '@angular/core';
+import {
+  ChangeDetectionStrategy,
+  Component,
+  computed,
+  effect,
+  type ElementRef,
+  inject,
+  signal,
+  viewChild,
+} from '@angular/core';
 
 import { disabled, Field, form, max, min, required } from '@angular/forms/signals';
 import { Title } from '@angular/platform-browser';
 import { Router } from '@angular/router';
 import versionInfo from '../../version-info.json';
+import { elementSizeSignal } from '../utils/element-size';
 import { trySetBooleanProp, trySetNumberProp, trySetStringProp } from '../utils/hardened-state-propagation';
 import {
   CONNECT_SCREEN_STATE_DEFAULTS,
@@ -24,9 +34,17 @@ const STORAGE_KEY = 'autopelago-connect-screen-state';
     <form #allInputs class="root" (submit)="onConnect($event)">
       <div class="inputs">
         <label for="slot">Slot:</label>
-        <input id="slot"
-               type="text"
-               [field]="form.slot"/>
+        <div #slotAndPersonalize class="slot-and-personalize">
+          <input #slot
+                 id="slot"
+                 type="text"
+                 [field]="form.slot"/>
+          <input id="personalize"
+                 type="image"
+                 alt="open personalize panel"
+                 (click)="$event.preventDefault()"
+                 src="/assets/images/players/pack_rat.webp"/>
+        </div>
         <label for="host">Host:</label>
         <input id="host"
                type="text"
@@ -132,6 +150,19 @@ const STORAGE_KEY = 'autopelago-connect-screen-state';
       }
     }
 
+    .slot-and-personalize {
+      display: grid;
+      gap: calc(5rem / 16);
+      grid-template-columns: 1fr max-content;
+      #slot {
+        flex: 1;
+      }
+      #personalize {
+        height: var(--ap-slot-height, 0);
+        padding: 0;
+      }
+    }
+
     .indent-chat-message-details {
       padding-left: 20px;
     }
@@ -150,6 +181,8 @@ export class ConnectScreen {
   readonly #router = inject(Router);
   readonly #connecting = signal(false);
   protected readonly connecting = this.#connecting.asReadonly();
+  protected readonly slotElement = viewChild.required<ElementRef<HTMLInputElement>>('slot');
+  protected readonly slotAndPersonalizeElement = viewChild.required<ElementRef<HTMLDivElement>>('slotAndPersonalize');
   readonly #formModel = signal(CONNECT_SCREEN_STATE_DEFAULTS);
   protected readonly form = form(this.#formModel, (schemaPath) => {
     /* eslint-disable @typescript-eslint/unbound-method */
@@ -244,6 +277,12 @@ export class ConnectScreen {
 
     effect(() => {
       localStorage.setItem(STORAGE_KEY, JSON.stringify(this.form().value()));
+    });
+
+    const slotElementSizeSignal = elementSizeSignal(this.slotElement);
+    const slotElementHeightSignal = computed(() => slotElementSizeSignal().clientHeight);
+    effect(() => {
+      this.slotAndPersonalizeElement().nativeElement.style.setProperty('--ap-slot-height', `${slotElementHeightSignal().toString()}px`);
     });
   }
 
