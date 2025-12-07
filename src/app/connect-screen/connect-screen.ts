@@ -1,3 +1,4 @@
+import { Dialog } from '@angular/cdk/dialog';
 import {
   ChangeDetectionStrategy,
   Component,
@@ -20,6 +21,7 @@ import {
   type ConnectScreenState,
   queryParamsFromConnectScreenState,
 } from './connect-screen-state';
+import { Personalize } from './personalize';
 
 // Local storage key
 const STORAGE_KEY = 'autopelago-connect-screen-state';
@@ -42,7 +44,7 @@ const STORAGE_KEY = 'autopelago-connect-screen-state';
           <input id="personalize"
                  type="image"
                  alt="open personalize panel"
-                 (click)="$event.preventDefault()"
+                 (click)="$event.preventDefault(); openPersonalizeDialog()"
                  src="/assets/images/players/pack_rat.webp"/>
         </div>
         <label for="host">Host:</label>
@@ -179,6 +181,7 @@ const STORAGE_KEY = 'autopelago-connect-screen-state';
 })
 export class ConnectScreen {
   readonly #router = inject(Router);
+  readonly #dialog = inject(Dialog);
   readonly #connecting = signal(false);
   protected readonly connecting = this.#connecting.asReadonly();
   protected readonly slotElement = viewChild.required<ElementRef<HTMLInputElement>>('slot');
@@ -284,6 +287,8 @@ export class ConnectScreen {
     effect(() => {
       this.slotAndPersonalizeElement().nativeElement.style.setProperty('--ap-slot-height', `${slotElementHeightSignal().toString()}px`);
     });
+
+    this.openPersonalizeDialog();
   }
 
   async onConnect(event: SubmitEvent) {
@@ -298,5 +303,9 @@ export class ConnectScreen {
       this.#connecting.set(false);
       throw err;
     }
+  }
+
+  protected openPersonalizeDialog() {
+    this.#dialog.open(Personalize);
   }
 }
