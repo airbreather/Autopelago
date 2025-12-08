@@ -1,5 +1,5 @@
 import { ChangeDetectionStrategy, Component, computed, model } from '@angular/core';
-import { type ColorInput, TinyColor } from '@ctrl/tinycolor';
+import { type ColorInput, stringInputToObject, TinyColor } from '@ctrl/tinycolor';
 
 @Component({
   selector: 'app-color-picker',
@@ -141,30 +141,44 @@ import { type ColorInput, TinyColor } from '@ctrl/tinycolor';
 })
 export class ColorPicker {
   readonly color = model.required<ColorInput>();
-  protected readonly h = computed(() => {
+  readonly #colorObject = computed(() => {
     const a = this.color();
-    return typeof a === 'object' && 'h' in a
+    if (typeof a === 'object') {
+      return a;
+    }
+    if (typeof a === 'string') {
+      const o = stringInputToObject(a) as ColorInput | false;
+      if (typeof o === 'object') {
+        return o;
+      }
+    }
+    return new TinyColor(a);
+  });
+
+  protected readonly h = computed(() => {
+    const a = this.#colorObject();
+    return 'h' in a
       ? a.h
       : new TinyColor(a).toHsv().h;
   });
 
   protected readonly s = computed(() => {
-    const a = this.color();
-    return typeof a === 'object' && 's' in a
+    const a = this.#colorObject();
+    return 's' in a
       ? a.s
       : new TinyColor(a).toHsv().s;
   });
 
   protected readonly v = computed(() => {
-    const a = this.color();
-    return typeof a === 'object' && 'v' in a
+    const a = this.#colorObject();
+    return 'v' in a
       ? a.v
       : new TinyColor(a).toHsv().v;
   });
 
   protected readonly l = computed(() => {
-    const a = this.color();
-    return typeof a === 'object' && 'l' in a
+    const a = this.#colorObject();
+    return 'l' in a
       ? a.l
       : new TinyColor(a).toHsl().l;
   });
