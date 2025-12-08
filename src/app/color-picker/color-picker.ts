@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, computed, effect, model, signal, untracked } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, model } from '@angular/core';
 import { type ColorInput, TinyColor } from '@ctrl/tinycolor';
 
 @Component({
@@ -140,54 +140,38 @@ import { type ColorInput, TinyColor } from '@ctrl/tinycolor';
   `,
 })
 export class ColorPicker {
-  readonly #authoritative = signal<ColorInput | null>(null);
-  readonly color = model.required<TinyColor>();
+  readonly color = model.required<ColorInput>();
   protected readonly h = computed(() => {
-    const a = this.#authoritative();
-    return a !== null && typeof a === 'object' && 'h' in a
+    const a = this.color();
+    return typeof a === 'object' && 'h' in a
       ? a.h
-      : this.color().toHsv().h;
+      : new TinyColor(a).toHsv().h;
   });
 
   protected readonly s = computed(() => {
-    const a = this.#authoritative();
-    return a !== null && typeof a === 'object' && 's' in a
+    const a = this.color();
+    return typeof a === 'object' && 's' in a
       ? a.s
-      : this.color().toHsv().s;
+      : new TinyColor(a).toHsv().s;
   });
 
   protected readonly v = computed(() => {
-    const a = this.#authoritative();
-    return a !== null && typeof a === 'object' && 'v' in a
+    const a = this.color();
+    return typeof a === 'object' && 'v' in a
       ? a.v
-      : this.color().toHsv().v;
+      : new TinyColor(a).toHsv().v;
   });
 
   protected readonly l = computed(() => {
-    const a = this.#authoritative();
-    return a !== null && typeof a === 'object' && 'l' in a
+    const a = this.color();
+    return typeof a === 'object' && 'l' in a
       ? a.l
-      : this.color().toHsl().l;
+      : new TinyColor(a).toHsl().l;
   });
 
   protected readonly background = computed(() => new TinyColor({ h: this.h(), s: 1, l: 0.5 }).toHslString());
   protected readonly valuePercentageFrom100 = computed(() => -(Number(this.v()) * 100) + 1 + 100);
   protected readonly saturationPercentage = computed(() => Number(this.s()) * 100);
-
-  constructor() {
-    effect(() => {
-      const a = this.#authoritative();
-      if (a !== null) {
-        this.color.set(new TinyColor(a));
-      }
-    });
-    effect(() => {
-      const color = this.color();
-      untracked(() => {
-        this.#authoritative.set(color.originalInput);
-      });
-    });
-  }
 
   protected onDragStart(pointer: HTMLElement, event: PointerEvent) {
     pointer.setPointerCapture(event.pointerId);
@@ -201,7 +185,7 @@ export class ColorPicker {
     const { left: pLeft, top: pTop, width: pWidth, height: pHeight } = (pointer.parentElement as unknown as HTMLDivElement).getBoundingClientRect();
     const v = 1 - Math.min(Math.max((event.pageY - pTop) / pHeight, 0), 1);
     const s = Math.min(Math.max((event.pageX - pLeft) / pWidth, 0), 1);
-    this.#authoritative.set(new TinyColor({ h: this.h(), v, s }));
+    this.color.set({ h: this.h(), v, s });
     event.preventDefault();
   }
 

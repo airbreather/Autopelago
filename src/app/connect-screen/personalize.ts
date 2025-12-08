@@ -8,7 +8,7 @@ import {
   signal,
   viewChild,
 } from '@angular/core';
-import { TinyColor } from '@ctrl/tinycolor';
+import { type ColorInput, TinyColor } from '@ctrl/tinycolor';
 import { ColorPicker } from '../color-picker/color-picker';
 import { applyPixelColors, getPixelTones, type PixelTones } from '../utils/color-helpers';
 import { resizeText } from '../utils/resize-text';
@@ -140,7 +140,7 @@ export class Personalize {
 
   protected readonly outer = viewChild.required<ElementRef<HTMLDivElement>>('outer');
   protected readonly header = viewChild.required<ElementRef<HTMLHeadingElement>>('header');
-  protected readonly selectedColor = signal(new TinyColor('#382E26'));
+  protected readonly selectedColor = signal<ColorInput>('#382E26');
 
   protected readonly player1Canvas = viewChild.required<ElementRef<HTMLCanvasElement>>('player1Canvas');
   protected readonly player2Canvas = viewChild.required<ElementRef<HTMLCanvasElement>>('player2Canvas');
@@ -207,13 +207,14 @@ export class Personalize {
         return;
       }
 
-      applyPixelColors(this.selectedColor(), pixelTones.player1);
+      const color = new TinyColor(this.selectedColor());
+      applyPixelColors(color, pixelTones.player1);
       player1.putImageData(pixelTones.player1.data, 0, 0);
 
-      applyPixelColors(this.selectedColor(), pixelTones.player2);
+      applyPixelColors(color, pixelTones.player2);
       player2.putImageData(pixelTones.player2.data, 0, 0);
 
-      applyPixelColors(this.selectedColor(), pixelTones.player4);
+      applyPixelColors(color, pixelTones.player4);
       player4.putImageData(pixelTones.player4.data, 0, 0);
     });
   }
