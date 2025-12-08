@@ -38,15 +38,17 @@ interface PlayerPixelTones {
     <div #outer class="outer">
       <h1 #header class="header">Personalize Your Rat!</h1>
       <div class="rat-options">
-        <button>
+        <div></div>
+        <button class="no-color-change-on-press" [class.hovering]="hoveringPlayer1()" [class.selected]="selectedPlayer1()" (click)="select('player1')" (mouseenter)="hover('player1')" (mouseleave)="hover(null)">
           <canvas #player1Canvas width="64" height="64"></canvas>
         </button>
-        <button>
+        <button class="no-color-change-on-press" [class.hovering]="hoveringPlayer2()" [class.selected]="selectedPlayer2()" (click)="select('player2')" (mouseenter)="hover('player2')" (mouseleave)="hover(null)">
           <canvas #player2Canvas width="64" height="64"></canvas>
         </button>
-        <button>
+        <button class="no-color-change-on-press" [class.hovering]="hoveringPlayer4()" [class.selected]="selectedPlayer4()" (click)="select('player4')" (mouseenter)="hover('player4')" (mouseleave)="hover(null)">
           <canvas #player4Canvas width="64" height="64"></canvas>
         </button>
+        <div></div>
       </div>
       <app-color-picker class="color-picker" [(color)]="selectedColor"/>
     </div>
@@ -56,9 +58,7 @@ interface PlayerPixelTones {
 
     .outer {
       height: 80vh;
-      width: 80vw;
-      min-width: 400px;
-      min-height: 600px;
+      width: 400px;
       display: flex;
       flex-direction: column;
       gap: 40px;
@@ -79,15 +79,56 @@ interface PlayerPixelTones {
       flex: 0;
       display: flex;
       justify-content: space-between;
-      height: 64px;
+      width: 100%;
+      button {
+        border: 3px solid black;
+      }
     }
 
     .color-picker {
       flex: 1;
     }
 
+    .hovering {
+      canvas {
+        scale: 0.75;
+      }
+    }
+
+    .selected {
+      background-color: theme.$accent-dark-2;
+      &:hover {
+        background-color: theme.$accent-dark-1;
+      }
+      canvas {
+        scale: 1;
+      }
+    }
+
     canvas {
       image-rendering: pixelated;
+      filter: drop-shadow(3px 3px 2px black);
+      scale: 0.5;
+      transition: scale 0.1s ease-in-out;
+      animation: wiggle 1s linear infinite;
+    }
+
+    @keyframes wiggle {
+      0% {
+        transform: rotate(0);
+      }
+      25% {
+        transform: rotate(10deg);
+      }
+      50% {
+        transform: rotate(0);
+      }
+      75% {
+        transform: rotate(-10deg);
+      }
+      100% {
+        transform: rotate(0);
+      }
     }
   `,
 })
@@ -106,6 +147,15 @@ export class Personalize {
   readonly #player1CanvasContext = computed(() => this.player1Canvas().nativeElement.getContext('2d'));
   readonly #player2CanvasContext = computed(() => this.player2Canvas().nativeElement.getContext('2d'));
   readonly #player4CanvasContext = computed(() => this.player4Canvas().nativeElement.getContext('2d'));
+
+  readonly #selected = signal<'player1' | 'player2' | 'player4'>('player1');
+  protected readonly selectedPlayer1 = computed(() => this.#selected() === 'player1');
+  protected readonly selectedPlayer2 = computed(() => this.#selected() === 'player2');
+  protected readonly selectedPlayer4 = computed(() => this.#selected() === 'player4');
+  readonly #hoveringOver = signal<'player1' | 'player2' | 'player4' | null>(null);
+  protected readonly hoveringPlayer1 = computed(() => this.#hoveringOver() === 'player1' && !this.selectedPlayer1());
+  protected readonly hoveringPlayer2 = computed(() => this.#hoveringOver() === 'player2' && !this.selectedPlayer2());
+  protected readonly hoveringPlayer4 = computed(() => this.#hoveringOver() === 'player4' && !this.selectedPlayer4());
 
   constructor() {
     resizeText({
@@ -165,5 +215,13 @@ export class Personalize {
       applyPixelColors(this.selectedColor(), pixelTones.player4);
       player4.putImageData(pixelTones.player4.data, 0, 0);
     });
+  }
+
+  protected hover(player: 'player1' | 'player2' | 'player4' | null) {
+    this.#hoveringOver.set(player);
+  }
+
+  protected select(player: 'player1' | 'player2' | 'player4') {
+    this.#selected.set(player);
   }
 }

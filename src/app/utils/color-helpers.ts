@@ -13,6 +13,7 @@ export interface PixelTones {
 
 const LIGHT_COLOR = new TinyColor('#382E26', { format: 'hex3' }).toRgb();
 const DARK_COLOR = new TinyColor('#1A130F', { format: 'hex3' }).toRgb();
+const DARK_COLOR_OOPS = new TinyColor('#251E1A', { format: 'hex3' }).toRgb();
 export function getPixelTones(img: HTMLImageElement, ctx: CanvasRenderingContext2D) {
   ctx.clearRect(0, 0, 64, 64);
   ctx.drawImage(img, 0, 0);
@@ -25,6 +26,9 @@ export function getPixelTones(img: HTMLImageElement, ctx: CanvasRenderingContext
         light.push([x, y]);
       }
       else if (r === DARK_COLOR.r && g === DARK_COLOR.g && b === DARK_COLOR.b) {
+        dark.push([x, y]);
+      }
+      else if (r === DARK_COLOR_OOPS.r && g === DARK_COLOR_OOPS.g && b === DARK_COLOR_OOPS.b) {
         dark.push([x, y]);
       }
     }

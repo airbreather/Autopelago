@@ -62,8 +62,10 @@ input[type='submit'],input[type='image'],button {
     }
 
     &:active {
-      background-color: theme.$button-background-pressed;
       scale: 0.98;
+      &:not(.no-color-change-on-press) {
+        background-color: theme.$button-background-pressed;
+      }
     }
   }
 }
