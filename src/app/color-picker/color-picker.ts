@@ -6,7 +6,6 @@ import { type ColorInput, TinyColor } from '@ctrl/tinycolor';
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [],
   template: `
-    <input #col type="color" [value]="color().toHexString(true)" (input)="onInput(col.value)"/>
     <div class="sketch-picker">
       <div class="sketch-saturation">
         <div
@@ -188,10 +187,6 @@ export class ColorPicker {
         this.#authoritative.set(color.originalInput);
       });
     });
-  }
-
-  protected onInput(val: string) {
-    this.color.set(new TinyColor(val));
   }
 
   protected onDragStart(pointer: HTMLElement, event: PointerEvent) {
