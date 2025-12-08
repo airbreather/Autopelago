@@ -10,7 +10,7 @@ import { type ColorInput, stringInputToObject, TinyColor } from '@ctrl/tinycolor
       <div class="sketch-saturation">
         <div
           class="color-saturation"
-          [style.background]="background()">
+          [style.background]="svBackground()">
           <div class="saturation-white"
                (pointerdown)="onDragStart(saturationPointer, $event)"
                (pointermove)="onDrag(saturationPointer, $event)"
@@ -24,6 +24,22 @@ import { type ColorInput, stringInputToObject, TinyColor } from '@ctrl/tinycolor
               <div class="saturation-circle"></div>
             </div>
           </div>
+        </div>
+      </div>
+      <div class="sketch-controls">
+        <div class="sketch-sliders">
+          <div class="sketch-hue">
+            <div class="color-hue">
+              <div class="color-hue-container">
+                <div class="color-hue-pointer" [style.left]="1" [style.top]="1">
+                  <div class="color-hue-slider"></div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="sketch-color">
+          <div class="sketch-active" [style.background]="selectionBackground()"></div>
         </div>
       </div>
     </div>
@@ -52,18 +68,21 @@ import { type ColorInput, stringInputToObject, TinyColor } from '@ctrl/tinycolor
 
     .sketch-controls {
       display: flex;
+      width: 100%;
     }
 
     .sketch-sliders {
       padding: 4px 0;
       -webkit-box-flex: 1;
       flex: 1 1 0;
+      width: 100%;
     }
 
     .sketch-hue {
       position: relative;
-      height: 10px;
+      height: 24px;
       overflow: hidden;
+      width: 100%;
     }
 
     .sketch-alpha {
@@ -137,6 +156,39 @@ import { type ColorInput, stringInputToObject, TinyColor } from '@ctrl/tinycolor
       border-radius: 50%;
       transform: translate(-2px, -4px);
     }
+
+    .color-hue {
+      width: 100%;
+      height: 100%;
+      background: linear-gradient(
+          to right,
+          #ff0000 0%,
+          #ffff00 17%,
+          #00ff00 33%,
+          #00ffff 50%,
+          #0000ff 67%,
+          #ff00ff 83%,
+          #ff0000 100%
+      );
+    }
+    .color-hue-container {
+      margin: 0 2px;
+      position: relative;
+      height: 100%;
+      width: 100%;
+    }
+    .color-hue-pointer {
+      position: absolute;
+    }
+    .color-hue-slider {
+      margin-top: 1px;
+      width: 4px;
+      border-radius: 1px;
+      height: 22px;
+      box-shadow: 0 0 2px rgba(0, 0, 0, 0.6);
+      background: #fff;
+      transform: translateX(-2px);
+    }
   `,
 })
 export class ColorPicker {
@@ -183,7 +235,8 @@ export class ColorPicker {
       : new TinyColor(a).toHsl().l;
   });
 
-  protected readonly background = computed(() => new TinyColor({ h: this.h(), s: 1, l: 0.5 }).toHslString());
+  protected readonly svBackground = computed(() => new TinyColor({ h: this.h(), s: 1, l: 0.5 }).toHslString());
+  protected readonly selectionBackground = computed(() => new TinyColor(this.color()).toRgbString());
   protected readonly valuePercentageFrom100 = computed(() => -(Number(this.v()) * 100) + 1 + 100);
   protected readonly saturationPercentage = computed(() => Number(this.s()) * 100);
 
