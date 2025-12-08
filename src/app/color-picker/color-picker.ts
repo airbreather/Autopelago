@@ -5,7 +5,7 @@ import { TinyColor } from '@ctrl/tinycolor/dist';
   selector: 'app-color-picker',
   imports: [],
   template: `
-    <input #col type="color" [value]="color()" (input)="onInput(col.value)" />
+    <input #col type="color" [value]="color().toHexString(true)" (input)="onInput(col.value)" />
   `,
   styles: `
   `,

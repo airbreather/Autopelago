@@ -10,7 +10,7 @@ import {
 } from '@angular/core';
 import { TinyColor } from '@ctrl/tinycolor/dist';
 import { ColorPicker } from '../color-picker/color-picker';
-import { applyPixelColors, getPixelTones, type PixelTones, toRatDark } from '../utils/color-helpers';
+import { applyPixelColors, getPixelTones, type PixelTones } from '../utils/color-helpers';
 import { resizeText } from '../utils/resize-text';
 
 interface PlayerImages {
@@ -156,23 +156,14 @@ export class Personalize {
         return;
       }
 
-      const lightColor = this.selectedColor();
-      const darkColor = toRatDark(lightColor);
-      applyPixelColors(
-        player1,
-        { color: lightColor, pixels: pixelTones.player1.light },
-        { color: darkColor, pixels: pixelTones.player1.dark },
-      );
-      applyPixelColors(
-        player2,
-        { color: lightColor, pixels: pixelTones.player2.light },
-        { color: darkColor, pixels: pixelTones.player2.dark },
-      );
-      applyPixelColors(
-        player4,
-        { color: lightColor, pixels: pixelTones.player4.light },
-        { color: darkColor, pixels: pixelTones.player4.dark },
-      );
+      applyPixelColors(this.selectedColor(), pixelTones.player1);
+      player1.putImageData(pixelTones.player1.data, 0, 0);
+
+      applyPixelColors(this.selectedColor(), pixelTones.player2);
+      player2.putImageData(pixelTones.player2.data, 0, 0);
+
+      applyPixelColors(this.selectedColor(), pixelTones.player4);
+      player4.putImageData(pixelTones.player4.data, 0, 0);
     });
   }
 }
