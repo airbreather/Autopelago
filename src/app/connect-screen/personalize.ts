@@ -8,7 +8,7 @@ import {
   signal,
   viewChild,
 } from '@angular/core';
-import { TinyColor } from '@ctrl/tinycolor/dist';
+import { TinyColor } from '@ctrl/tinycolor';
 import { ColorPicker } from '../color-picker/color-picker';
 import { applyPixelColors, getPixelTones, type PixelTones } from '../utils/color-helpers';
 import { resizeText } from '../utils/resize-text';
@@ -87,6 +87,7 @@ interface PlayerPixelTones {
 
     .color-picker {
       flex: 1;
+      width: 100%;
     }
 
     .hovering {

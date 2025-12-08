@@ -1,4 +1,4 @@
-import { TinyColor } from '@ctrl/tinycolor/dist';
+import { TinyColor } from '@ctrl/tinycolor';
 import type { Vec2 } from '../data/locations';
 
 const SHIFT_H = 21 - 26;
