@@ -41,11 +41,10 @@ const STORAGE_KEY = 'autopelago-connect-screen-state';
                  id="slot"
                  type="text"
                  [field]="form.slot"/>
-          <input id="personalize"
-                 type="image"
-                 alt="open personalize panel"
-                 (click)="$event.preventDefault(); openPersonalizeDialog()"
-                 src="/assets/images/players/pack_rat.webp"/>
+          <button id="personalize"
+                 (click)="$event.preventDefault(); openPersonalizeDialog()">
+            <img src="/assets/images/players/pack_rat.webp" alt="Personalize">
+          </button>
         </div>
         <label for="host">Host:</label>
         <input id="host"
@@ -160,8 +159,14 @@ const STORAGE_KEY = 'autopelago-connect-screen-state';
         flex: 1;
       }
       #personalize {
+        width: var(--ap-slot-height, 0);
         height: var(--ap-slot-height, 0);
         padding: 0;
+        img {
+          width: 100%;
+          height: 100%;
+          object-fit: contain;
+        }
       }
     }
 
