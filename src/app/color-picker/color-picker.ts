@@ -48,7 +48,6 @@ import { type ColorInput, stringInputToObject, TinyColor } from '@ctrl/tinycolor
   `,
   styles: `
     .sketch-picker {
-      box-sizing: initial;
       border-radius: 4px;
       width: 100%;
 

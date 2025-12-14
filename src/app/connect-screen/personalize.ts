@@ -117,6 +117,7 @@ interface PlayerPixelTones {
     .color-picker {
       flex: 1;
       width: 100%;
+      padding: 5px;
     }
 
     @keyframes wiggle {
