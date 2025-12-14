@@ -66,15 +66,6 @@ import { type ColorInput, stringInputToObject, TinyColor } from '@ctrl/tinycolor
       width: 100%;
       height: 300px;
       position: relative;
-      overflow: hidden;
-    }
-
-    .sketch-fields-container {
-      display: block;
-    }
-
-    .sketch-swatches-container {
-      display: block;
     }
 
     .sketch-controls {
@@ -124,28 +115,19 @@ import { type ColorInput, stringInputToObject, TinyColor } from '@ctrl/tinycolor
 
     .saturation-white {
       background: linear-gradient(to right, #ffffff, rgba(255, 255, 255, 0));
-      position: absolute;
-      top: 0;
-      bottom: 0;
-      left: 0;
-      right: 0;
+      width: 100%;
+      height: 100%;
     }
 
     .saturation-black {
       background: linear-gradient(to top, #000000, rgba(0, 0, 0, 0));
-      position: absolute;
-      top: 0;
-      bottom: 0;
-      left: 0;
-      right: 0;
+      width: 100%;
+      height: 100%;
     }
 
     .color-saturation {
-      position: absolute;
-      top: 0;
-      bottom: 0;
-      left: 0;
-      right: 0;
+      width: 100%;
+      height: 100%;
     }
 
     .saturation-pointer {
