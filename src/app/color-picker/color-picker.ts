@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, computed, model } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, model, signal } from '@angular/core';
 import { type ColorInput, stringInputToObject, TinyColor } from '@ctrl/tinycolor';
 
 @Component({
@@ -12,9 +12,9 @@ import { type ColorInput, stringInputToObject, TinyColor } from '@ctrl/tinycolor
           class="color-saturation"
           [style.background]="svBackground()">
           <div class="saturation-white"
-               (pointerdown)="onDragStart(saturationPointer, $event)"
-               (pointermove)="onDrag(saturationPointer, $event)"
-               (pointerup)="onDragEnd(saturationPointer, $event)">
+               (pointerdown)="onDragDotStart(saturationPointer, $event)"
+               (pointermove)="onDragDot(saturationPointer, $event)"
+               (pointerup)="onDragDotEnd(saturationPointer, $event)">
             <div class="saturation-black"></div>
             <div
               #saturationPointer
@@ -30,8 +30,13 @@ import { type ColorInput, stringInputToObject, TinyColor } from '@ctrl/tinycolor
         <div class="sketch-sliders">
           <div class="sketch-hue">
             <div class="color-hue">
-              <div class="color-hue-container">
-                <div class="color-hue-pointer" [style.left]="1" [style.top]="1">
+              <div class="color-hue-container"
+                   #hueContainer
+                   (pointerdown)="onDragHueStart(hueContainer, $event)"
+                   (pointermove)="onDragHue(hueContainer, $event)"
+                   (pointerup)="onDragHueEnd(hueContainer, $event)">
+                <div class="color-hue-pointer"
+                     [style.left.%]="huePercentage()">
                   <div class="color-hue-slider"></div>
                 </div>
               </div>
@@ -41,6 +46,16 @@ import { type ColorInput, stringInputToObject, TinyColor } from '@ctrl/tinycolor
         <div class="sketch-color">
           <div class="sketch-active" [style.background]="selectionBackground()"></div>
         </div>
+      </div>
+      <div class="debug-display">
+        <span>h:</span><span [innerText]="round3(h())"></span>
+        <span>s:</span><span [innerText]="round3(s())"></span>
+        <span>v:</span><span [innerText]="round3(v())"></span>
+        <span>l:</span><span [innerText]="round3(l())"></span>
+        <span>r:</span><span [innerText]="round3(r())"></span>
+        <span>g:</span><span [innerText]="round3(g())"></span>
+        <span>b:</span><span [innerText]="round3(b())"></span>
+        <span>str:</span><input #strBox type="text" [value]="str()" (input)="updateStr(strBox.value)">
       </div>
     </div>
   `,
@@ -189,6 +204,12 @@ import { type ColorInput, stringInputToObject, TinyColor } from '@ctrl/tinycolor
       background: #fff;
       transform: translateX(-2px);
     }
+    .debug-display {
+      display: grid;
+      grid-template-columns: auto min-content;
+      grid-auto-rows: auto;
+      margin: 10px;
+    }
   `,
 })
 export class ColorPicker {
@@ -235,31 +256,101 @@ export class ColorPicker {
       : new TinyColor(a).toHsl().l;
   });
 
+  protected readonly r = computed(() => {
+    const a = this.#colorObject();
+    return 'r' in a
+      ? a.r
+      : new TinyColor(a).toRgb().r;
+  });
+
+  protected readonly g = computed(() => {
+    const a = this.#colorObject();
+    return 'g' in a
+      ? a.g
+      : new TinyColor(a).toRgb().g;
+  });
+
+  protected readonly b = computed(() => {
+    const a = this.#colorObject();
+    return 'b' in a
+      ? a.b
+      : new TinyColor(a).toRgb().b;
+  });
+
+  readonly #unvalidatedStr = signal<string | null>(null);
+  protected readonly str = computed(() => {
+    const s = this.#unvalidatedStr();
+    if (s !== null) {
+      return s;
+    }
+    const a = this.color();
+    return typeof a === 'string'
+      ? a
+      : new TinyColor(this.color()).toHexString();
+  });
+
+  protected updateStr(input: string) {
+    this.#unvalidatedStr.set(input);
+    const validated = stringInputToObject(input) as ColorInput | false;
+    if (validated !== false) {
+      this.color.set(validated);
+    }
+  }
+
   protected readonly svBackground = computed(() => new TinyColor({ h: this.h(), s: 1, l: 0.5 }).toHslString());
   protected readonly selectionBackground = computed(() => new TinyColor(this.color()).toRgbString());
   protected readonly valuePercentageFrom100 = computed(() => -(Number(this.v()) * 100) + 1 + 100);
   protected readonly saturationPercentage = computed(() => Number(this.s()) * 100);
+  protected readonly huePercentage = computed(() => Number(this.h()) * (1 / 3.6));
 
-  protected onDragStart(pointer: HTMLElement, event: PointerEvent) {
+  protected onDragDotStart(pointer: HTMLElement, event: PointerEvent) {
     pointer.setPointerCapture(event.pointerId);
-    this.onDrag(pointer, event);
+    this.onDragDot(pointer, event);
   }
 
-  protected onDrag(pointer: HTMLElement, event: PointerEvent) {
+  protected onDragDot(pointer: HTMLElement, event: PointerEvent) {
     if (!pointer.hasPointerCapture(event.pointerId)) {
       return;
     }
     const { left: pLeft, top: pTop, width: pWidth, height: pHeight } = (pointer.parentElement as unknown as HTMLDivElement).getBoundingClientRect();
     const v = 1 - Math.min(Math.max((event.pageY - pTop) / pHeight, 0), 1);
     const s = Math.min(Math.max((event.pageX - pLeft) / pWidth, 0), 1);
+    this.#unvalidatedStr.set(null);
     this.color.set({ h: this.h(), v, s });
     event.preventDefault();
   }
 
-  protected onDragEnd(pointer: HTMLElement, event: PointerEvent) {
+  protected onDragDotEnd(pointer: HTMLElement, event: PointerEvent) {
     if (!pointer.hasPointerCapture(event.pointerId)) {
       return;
     }
     pointer.releasePointerCapture(event.pointerId);
+  }
+
+  protected onDragHueStart(pointer: HTMLElement, event: PointerEvent) {
+    pointer.setPointerCapture(event.pointerId);
+    this.onDragHue(pointer, event);
+  }
+
+  protected onDragHue(pointer: HTMLElement, event: PointerEvent) {
+    if (!pointer.hasPointerCapture(event.pointerId)) {
+      return;
+    }
+    const { left: pLeft, width: pWidth } = (pointer.parentElement as unknown as HTMLDivElement).getBoundingClientRect();
+    const h = Math.min(Math.max((event.pageX - pLeft - 2) / pWidth, 0), 1) * 360;
+    this.#unvalidatedStr.set(null);
+    this.color.set({ h, v: this.v(), s: this.s() });
+    event.preventDefault();
+  }
+
+  protected onDragHueEnd(pointer: HTMLElement, event: PointerEvent) {
+    if (!pointer.hasPointerCapture(event.pointerId)) {
+      return;
+    }
+    pointer.releasePointerCapture(event.pointerId);
+  }
+
+  protected round3(num: string | number) {
+    return Math.round(Number(num) * 1000) / 1000;
   }
 }
