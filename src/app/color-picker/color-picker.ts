@@ -28,23 +28,19 @@ import { type ColorInput, stringInputToObject, TinyColor } from '@ctrl/tinycolor
       </div>
       <div class="sketch-controls">
         <div class="sketch-sliders">
-          <div class="sketch-hue">
-            <div class="color-hue">
-              <div class="color-hue-container"
-                   #hueContainer
-                   (pointerdown)="onDragHueStart(hueContainer, $event)"
-                   (pointermove)="onDragHue(hueContainer, $event)"
-                   (pointerup)="onDragHueEnd(hueContainer, $event)">
-                <div class="color-hue-pointer"
-                     [style.left.%]="huePercentage()">
-                  <div class="color-hue-slider"></div>
-                </div>
-              </div>
+          <div class="color-hue-container"
+               #hueContainer
+               (pointerdown)="onDragHueStart(hueContainer, $event)"
+               (pointermove)="onDragHue(hueContainer, $event)"
+               (pointerup)="onDragHueEnd(hueContainer, $event)">
+            <div class="color-hue-pointer"
+                 [style.left.%]="huePercentage()">
+              <div class="color-hue-slider"></div>
             </div>
           </div>
         </div>
-        <div class="sketch-color">
-          <div class="sketch-active" [style.background]="selectionBackground()"></div>
+        <div class="sketch-color" [style.background]="selectionBackground()">
+          <div class="sketch-active" ></div>
         </div>
       </div>
       <div class="debug-display">
@@ -68,7 +64,7 @@ import { type ColorInput, stringInputToObject, TinyColor } from '@ctrl/tinycolor
 
     .sketch-saturation {
       width: 100%;
-      padding-bottom: 75%;
+      height: 300px;
       position: relative;
       overflow: hidden;
     }
@@ -87,24 +83,27 @@ import { type ColorInput, stringInputToObject, TinyColor } from '@ctrl/tinycolor
     }
 
     .sketch-sliders {
-      padding: 4px 0;
       -webkit-box-flex: 1;
       flex: 1 1 0;
       width: 100%;
-    }
-
-    .sketch-hue {
-      position: relative;
       height: 24px;
-      overflow: hidden;
-      width: 100%;
+      margin: 4px 2px;
+      background: linear-gradient(
+          to right,
+          #ff0000 0%,
+          #ffff00 17%,
+          #00ff00 33%,
+          #00ffff 50%,
+          #0000ff 67%,
+          #ff00ff 83%,
+          #ff0000 100%
+      );
     }
 
-    .sketch-alpha {
+    .color-hue-container {
       position: relative;
-      height: 10px;
-      margin-top: 4px;
-      overflow: hidden;
+      height: 100%;
+      width: 100%;
     }
 
     .sketch-color {
@@ -114,15 +113,6 @@ import { type ColorInput, stringInputToObject, TinyColor } from '@ctrl/tinycolor
       margin-top: 4px;
       margin-left: 4px;
       border-radius: 3px;
-    }
-
-    .sketch-active {
-      position: absolute;
-      top: 0;
-      right: 0;
-      bottom: 0;
-      left: 0;
-      border-radius: 2px;
       box-shadow: rgba(0, 0, 0, 0.15) 0 0 0 1px inset,
       rgba(0, 0, 0, 0.25) 0 0 4px inset;
     }
@@ -172,26 +162,6 @@ import { type ColorInput, stringInputToObject, TinyColor } from '@ctrl/tinycolor
       transform: translate(-2px, -4px);
     }
 
-    .color-hue {
-      width: 100%;
-      height: 100%;
-      background: linear-gradient(
-          to right,
-          #ff0000 0%,
-          #ffff00 17%,
-          #00ff00 33%,
-          #00ffff 50%,
-          #0000ff 67%,
-          #ff00ff 83%,
-          #ff0000 100%
-      );
-    }
-    .color-hue-container {
-      margin: 0 2px;
-      position: relative;
-      height: 100%;
-      width: 100%;
-    }
     .color-hue-pointer {
       position: absolute;
     }
@@ -337,7 +307,7 @@ export class ColorPicker {
       return;
     }
     const { left: pLeft, width: pWidth } = (pointer.parentElement as unknown as HTMLDivElement).getBoundingClientRect();
-    const h = Math.min(Math.max((event.pageX - pLeft - 2) / pWidth, 0), 1) * 360;
+    const h = Math.min(Math.max((event.pageX - pLeft) / pWidth, 0), 1) * 360;
     this.#unvalidatedStr.set(null);
     this.color.set({ h, v: this.v(), s: this.s() });
     event.preventDefault();
