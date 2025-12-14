@@ -14,7 +14,7 @@ export interface PixelTones {
 const LIGHT_COLOR = new TinyColor('#382E26').toRgb();
 const DARK_COLOR = new TinyColor('#1A130F').toRgb();
 const DARK_COLOR_OOPS = new TinyColor('#251E1A').toRgb();
-export function getPixelTones(img: HTMLImageElement, ctx: CanvasRenderingContext2D) {
+export function getPixelTones(img: HTMLImageElement, ctx: CanvasRenderingContext2D | OffscreenCanvasRenderingContext2D) {
   ctx.clearRect(0, 0, 64, 64);
   ctx.drawImage(img, 0, 0);
   const light: Vec2[] = [];
