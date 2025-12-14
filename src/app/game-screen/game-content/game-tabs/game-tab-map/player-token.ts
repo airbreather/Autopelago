@@ -1,14 +1,12 @@
 import { DestroyRef, inject, resource, type Signal, type WritableSignal } from '@angular/core';
-import { TinyColor } from '@ctrl/tinycolor';
 import { List } from 'immutable';
 import { DropShadowFilter } from 'pixi-filters';
 import { Graphics, Sprite, Texture, Ticker } from 'pixi.js';
-import type { PlayerIcon } from '../../../../connect-screen/connect-screen-state';
 import type { Vec2 } from '../../../../data/locations';
 import type { AutopelagoDefinitions } from '../../../../data/resolved-definitions';
 import type { AutopelagoClientAndData } from '../../../../data/slot-data';
 import type { AnimatableAction } from '../../../../game/defining-state';
-import { applyPixelColors, getPixelTones } from '../../../../utils/color-helpers';
+import { makePlayerToken } from '../../../../utils/make-player-token';
 
 export interface WiggleOptimizationBox {
   neutralAngle: number;
@@ -43,12 +41,6 @@ export interface PlayerTokenResult {
   targetX: Graphics;
 }
 
-const PLAYER_TOKEN_PATHS = {
-  1: '/assets/images/players/pack_rat.webp',
-  2: '/assets/images/players/player2.webp',
-  4: '/assets/images/players/player4.webp',
-} as const satisfies Record<PlayerIcon, string>;
-
 export const SCALE = 0.25;
 export function createPlayerToken(options: CreatePlayerTokenOptions) {
   const { wiggleOptimizationBox, position } = options;
@@ -62,19 +54,7 @@ export function createPlayerToken(options: CreatePlayerTokenOptions) {
       }
 
       const { playerIcon, playerColor } = game.connectScreenState;
-      const img = new Image();
-      img.src = PLAYER_TOKEN_PATHS[playerIcon];
-      await img.decode();
-      const cnv = new OffscreenCanvas(64, 64);
-      const t2d = cnv.getContext('2d');
-      if (t2d === null) {
-        return null;
-      }
-
-      const tones = getPixelTones(img, t2d);
-      applyPixelColors(new TinyColor(playerColor), tones);
-      t2d.putImageData(tones.data, 0, 0);
-      const texture = Texture.from(cnv);
+      const texture = Texture.from(await makePlayerToken(playerIcon, playerColor));
       const playerToken = wiggleOptimizationBox._playerToken = new Sprite(texture);
       playerToken.position.set(2, 80);
       playerToken.scale.set(SCALE);
