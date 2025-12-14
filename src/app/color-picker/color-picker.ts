@@ -19,34 +19,29 @@ import { type ColorInput, stringInputToObject, TinyColor } from '@ctrl/tinycolor
           class="saturation-pointer"
           [style.top.%]="valuePercentageFrom100()"
           [style.left.%]="saturationPercentage()">
-          <div class="saturation-circle"></div>
         </div>
       </div>
       <div class="sketch-controls">
-        <div class="sketch-sliders">
-          <div class="color-hue-container"
-               #hueContainer
-               (pointerdown)="onDragHueStart(hueContainer, $event)"
-               (pointermove)="onDragHue(hueContainer, $event)"
-               (pointerup)="onDragHueEnd(hueContainer, $event)">
-            <div class="color-hue-pointer"
-                 [style.left.%]="huePercentage()">
-              <div class="color-hue-slider"></div>
-            </div>
+        <div class="sketch-sliders"
+             (pointerdown)="onDragHueStart(huePointer, $event)"
+             (pointermove)="onDragHue(huePointer, $event)"
+             (pointerup)="onDragHueEnd(huePointer, $event)">
+          <div #huePointer
+               class="color-hue-pointer"
+               [style.left.%]="huePercentage()">
           </div>
         </div>
         <div class="sketch-color" [style.background]="selectionBackground()">
-          <div class="sketch-active" ></div>
         </div>
       </div>
       <div class="debug-display">
-        <span>h:</span><span [innerText]="round3(h())"></span>
-        <span>s:</span><span [innerText]="round3(s())"></span>
-        <span>v:</span><span [innerText]="round3(v())"></span>
-        <span>l:</span><span [innerText]="round3(l())"></span>
-        <span>r:</span><span [innerText]="round3(r())"></span>
-        <span>g:</span><span [innerText]="round3(g())"></span>
-        <span>b:</span><span [innerText]="round3(b())"></span>
+        <span>h:</span><span>{{round3(h())}}</span>
+        <span>s:</span><span>{{round3(s())}}</span>
+        <span>v:</span><span>{{round3(v())}}</span>
+        <span>l:</span><span>{{round3(l())}}</span>
+        <span>r:</span><span>{{round3(r())}}</span>
+        <span>g:</span><span>{{round3(g())}}</span>
+        <span>b:</span><span>{{round3(b())}}</span>
         <span>str:</span><input #strBox type="text" [value]="str()" (input)="updateStr(strBox.value)">
       </div>
     </div>
@@ -80,16 +75,13 @@ import { type ColorInput, stringInputToObject, TinyColor } from '@ctrl/tinycolor
 
         .saturation-pointer {
           position: absolute;
-
-          .saturation-circle {
-            width: 4px;
-            height: 4px;
-            box-shadow: 0 0 0 1.5px #ffffff,
-            inset 0 0 1px 1px rgba(0, 0, 0, 0.3),
-            0 0 1px 2px rgba(0, 0, 0, 0.4);
-            border-radius: 50%;
-            transform: translate(-2px, -4px);
-          }
+          width: 4px;
+          height: 4px;
+          box-shadow: 0 0 0 1.5px #ffffff,
+          inset 0 0 1px 1px rgba(0, 0, 0, 0.3),
+          0 0 1px 2px rgba(0, 0, 0, 0.4);
+          border-radius: 50%;
+          transform: translate(-2px, -4px);
         }
       }
 
@@ -114,23 +106,16 @@ import { type ColorInput, stringInputToObject, TinyColor } from '@ctrl/tinycolor
               #ff0000 100%
           );
 
-          .color-hue-container {
-            position: relative;
-            height: 100%;
-            width: 100%;
-
-            .color-hue-pointer {
-              position: absolute;
-              .color-hue-slider {
-                margin-top: 1px;
-                width: 4px;
-                border-radius: 1px;
-                height: 22px;
-                box-shadow: 0 0 2px rgba(0, 0, 0, 0.6);
-                background: #fff;
-                transform: translateX(-2px);
-              }
-            }
+          position: relative;
+          .color-hue-pointer {
+            position: absolute;
+            margin-top: 1px;
+            width: 4px;
+            border-radius: 1px;
+            height: 22px;
+            box-shadow: 0 0 2px rgba(0, 0, 0, 0.6);
+            background: #ffffff;
+            transform: translateX(-2px);
           }
         }
 
