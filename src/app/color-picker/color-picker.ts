@@ -86,15 +86,16 @@ import { type ColorInput, stringInputToObject, TinyColor } from '@ctrl/tinycolor
       }
 
       .sketch-controls {
+        margin-top: 4px;
         display: flex;
+        gap: 4px;
         width: 100%;
+        height: 24px;
 
         .sketch-sliders {
           -webkit-box-flex: 1;
           flex: 1 1 0;
-          width: 100%;
-          height: 24px;
-          margin: 4px 2px;
+          height: 100%;
           background: linear-gradient(
               to right,
               #ff0000 0%,
@@ -109,10 +110,10 @@ import { type ColorInput, stringInputToObject, TinyColor } from '@ctrl/tinycolor
           position: relative;
           .color-hue-pointer {
             position: absolute;
-            margin-top: 1px;
+            margin: 1px 0;
             width: 4px;
             border-radius: 1px;
-            height: 22px;
+            height: calc(100% - 2px);
             box-shadow: 0 0 2px rgba(0, 0, 0, 0.6);
             background: #ffffff;
             transform: translateX(-2px);
@@ -121,18 +122,10 @@ import { type ColorInput, stringInputToObject, TinyColor } from '@ctrl/tinycolor
 
         .sketch-color {
           width: 24px;
-          height: 24px;
-          position: relative;
-          margin-top: 4px;
-          margin-left: 4px;
+          height: 100%;
           border-radius: 3px;
           box-shadow: rgba(0, 0, 0, 0.15) 0 0 0 1px inset,
           rgba(0, 0, 0, 0.25) 0 0 4px inset;
-        }
-
-        :host-context([dir='rtl']) .sketch-color {
-          margin-right: 4px;
-          margin-left: 0;
         }
       }
 
