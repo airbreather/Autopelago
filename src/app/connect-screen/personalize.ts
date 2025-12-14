@@ -69,7 +69,7 @@ interface PlayerPixelTones {
 
     .outer {
       height: 80vh;
-      width: 400px;
+      width: 440px;
       display: flex;
       flex-direction: column;
       gap: 20px;

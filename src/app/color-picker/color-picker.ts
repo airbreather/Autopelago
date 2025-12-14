@@ -1,5 +1,5 @@
 import { ChangeDetectionStrategy, Component, computed, model, signal } from '@angular/core';
-import { type ColorInput, stringInputToObject, TinyColor } from '@ctrl/tinycolor';
+import { type ColorInput, type RGBA, stringInputToObject, TinyColor } from '@ctrl/tinycolor';
 
 @Component({
   selector: 'app-color-picker',
@@ -34,15 +34,15 @@ import { type ColorInput, stringInputToObject, TinyColor } from '@ctrl/tinycolor
         <div class="color-square" [style.background]="selectionBackground()">
         </div>
       </div>
-      <div class="debug-display">
-        <span>h:</span><span>{{ round3(h()) }}</span>
-        <span>s:</span><span>{{ round3(s()) }}</span>
-        <span>v:</span><span>{{ round3(v()) }}</span>
-        <span>l:</span><span>{{ round3(l()) }}</span>
-        <span>r:</span><span>{{ round3(r()) }}</span>
-        <span>g:</span><span>{{ round3(g()) }}</span>
-        <span>b:</span><span>{{ round3(b()) }}</span>
-        <span>str:</span><input #strBox type="text" [value]="str()" (input)="updateStr(strBox.value)">
+      <div class="manual-entries">
+        <input #strBox id="strBox" class="freeform" type="text" [value]="str()" (input)="updateStr(strBox.value)">
+        <input #rBox id="rBox" class="r" type="number" min="0" max="255" [valueAsNumber]="r()" (input)="updateRgb({ r: rBox.valueAsNumber })">
+        <input #gBox id="gBox" class="g" type="number" min="0" max="255" [valueAsNumber]="g()" (input)="updateRgb({ g: gBox.valueAsNumber })">
+        <input #bBox id="bBox" class="b" type="number" min="0" max="255" [valueAsNumber]="b()" (input)="updateRgb({ b: bBox.valueAsNumber })">
+        <label for="strBox">HEX</label>
+        <label for="rBox">R</label>
+        <label for="gBox">G</label>
+        <label for="bBox">B</label>
       </div>
     </div>
   `,
@@ -128,11 +128,22 @@ import { type ColorInput, stringInputToObject, TinyColor } from '@ctrl/tinycolor
         }
       }
 
-      .debug-display {
+      .manual-entries {
+        width: 100%;
+        margin-top: 4px;
         display: grid;
-        grid-template-columns: auto min-content;
-        grid-auto-rows: auto;
-        margin: 10px;
+        grid-template-columns: 1fr auto auto auto;
+        grid-auto-rows: min-content;
+        gap: 4px;
+        .freeform,.r,.g,.b {
+            width: 100%;
+            &[type="number"] {
+              text-align: right;
+            }
+        }
+        label {
+          justify-self: center;
+        }
       }
     }
   `,
@@ -275,7 +286,17 @@ export class ColorPicker {
     pointer.releasePointerCapture(event.pointerId);
   }
 
-  protected round3(num: string | number) {
-    return Math.round(Number(num) * 1000) / 1000;
+  protected updateRgb(rgb: Partial<Omit<RGBA, 'a'>>) {
+    const a = this.#colorObject();
+    if ('r' in a && 'g' in a && 'b' in a) {
+      this.color.set({ ...a, ...rgb });
+    }
+    else {
+      this.color.set({
+        r: rgb.r ?? this.r(),
+        g: rgb.g ?? this.g(),
+        b: rgb.b ?? this.b(),
+      });
+    }
   }
 }
