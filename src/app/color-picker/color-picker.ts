@@ -6,14 +6,14 @@ import { type ColorInput, stringInputToObject, TinyColor } from '@ctrl/tinycolor
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [],
   template: `
-    <div class="sketch-picker">
-      <div class="sketch-saturation"
-        [style.background]="svBackground()"
-        (pointerdown)="onDragDotStart(saturationPointer, $event)"
-        (pointermove)="onDragDot(saturationPointer, $event)"
-        (pointerup)="onDragDotEnd(saturationPointer, $event)">
-        <div class="saturation-white"></div>
-        <div class="saturation-black"></div>
+    <div class="outer">
+      <div class="saturation"
+           [style.background]="svBackground()"
+           (pointerdown)="onDragDotStart(saturationPointer, $event)"
+           (pointermove)="onDragDot(saturationPointer, $event)"
+           (pointerup)="onDragDotEnd(saturationPointer, $event)">
+        <div class="gradient-white"></div>
+        <div class="gradient-black"></div>
         <div
           #saturationPointer
           class="saturation-pointer"
@@ -21,54 +21,54 @@ import { type ColorInput, stringInputToObject, TinyColor } from '@ctrl/tinycolor
           [style.left.%]="saturationPercentage()">
         </div>
       </div>
-      <div class="sketch-controls">
-        <div class="sketch-sliders"
+      <div class="hue-and-square">
+        <div class="hue-slider"
              (pointerdown)="onDragHueStart(huePointer, $event)"
              (pointermove)="onDragHue(huePointer, $event)"
              (pointerup)="onDragHueEnd(huePointer, $event)">
           <div #huePointer
-               class="color-hue-pointer"
+               class="hue-pointer"
                [style.left.%]="huePercentage()">
           </div>
         </div>
-        <div class="sketch-color" [style.background]="selectionBackground()">
+        <div class="color-square" [style.background]="selectionBackground()">
         </div>
       </div>
       <div class="debug-display">
-        <span>h:</span><span>{{round3(h())}}</span>
-        <span>s:</span><span>{{round3(s())}}</span>
-        <span>v:</span><span>{{round3(v())}}</span>
-        <span>l:</span><span>{{round3(l())}}</span>
-        <span>r:</span><span>{{round3(r())}}</span>
-        <span>g:</span><span>{{round3(g())}}</span>
-        <span>b:</span><span>{{round3(b())}}</span>
+        <span>h:</span><span>{{ round3(h()) }}</span>
+        <span>s:</span><span>{{ round3(s()) }}</span>
+        <span>v:</span><span>{{ round3(v()) }}</span>
+        <span>l:</span><span>{{ round3(l()) }}</span>
+        <span>r:</span><span>{{ round3(r()) }}</span>
+        <span>g:</span><span>{{ round3(g()) }}</span>
+        <span>b:</span><span>{{ round3(b()) }}</span>
         <span>str:</span><input #strBox type="text" [value]="str()" (input)="updateStr(strBox.value)">
       </div>
     </div>
   `,
   styles: `
-    .sketch-picker {
+    .outer {
       border-radius: 4px;
       width: 100%;
 
-      .sketch-saturation {
+      .saturation {
         width: 100%;
         height: 300px;
         display: grid;
         position: relative;
 
-        .saturation-white,.saturation-black {
+        .gradient-white, .gradient-black {
           grid-row: 1;
           grid-column: 1;
           width: 100%;
           height: 100%;
         }
 
-        .saturation-white {
+        .gradient-white {
           background: linear-gradient(to right, #ffffff, rgba(255, 255, 255, 0));
         }
 
-        .saturation-black {
+        .gradient-black {
           background: linear-gradient(to top, #000000, rgba(0, 0, 0, 0));
         }
 
@@ -84,17 +84,18 @@ import { type ColorInput, stringInputToObject, TinyColor } from '@ctrl/tinycolor
         }
       }
 
-      .sketch-controls {
+      .hue-and-square {
         margin-top: 4px;
         display: flex;
         gap: 4px;
         width: 100%;
         height: 24px;
 
-        .sketch-sliders {
+        .hue-slider {
           -webkit-box-flex: 1;
           flex: 1 1 0;
           height: 100%;
+          position: relative;
           background: linear-gradient(
               to right,
               #ff0000 0%,
@@ -106,8 +107,7 @@ import { type ColorInput, stringInputToObject, TinyColor } from '@ctrl/tinycolor
               #ff0000 100%
           );
 
-          position: relative;
-          .color-hue-pointer {
+          .hue-pointer {
             position: absolute;
             margin: 1px 0;
             width: 4px;
@@ -119,7 +119,7 @@ import { type ColorInput, stringInputToObject, TinyColor } from '@ctrl/tinycolor
           }
         }
 
-        .sketch-color {
+        .color-square {
           width: 24px;
           height: 100%;
           border-radius: 3px;
