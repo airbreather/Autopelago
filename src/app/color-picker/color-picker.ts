@@ -7,23 +7,19 @@ import { type ColorInput, stringInputToObject, TinyColor } from '@ctrl/tinycolor
   imports: [],
   template: `
     <div class="sketch-picker">
-      <div class="sketch-saturation">
+      <div class="sketch-saturation"
+        [style.background]="svBackground()"
+        (pointerdown)="onDragDotStart(saturationPointer, $event)"
+        (pointermove)="onDragDot(saturationPointer, $event)"
+        (pointerup)="onDragDotEnd(saturationPointer, $event)">
+        <div class="saturation-white"></div>
+        <div class="saturation-black"></div>
         <div
-          class="color-saturation"
-          [style.background]="svBackground()">
-          <div class="saturation-white"
-               (pointerdown)="onDragDotStart(saturationPointer, $event)"
-               (pointermove)="onDragDot(saturationPointer, $event)"
-               (pointerup)="onDragDotEnd(saturationPointer, $event)">
-            <div class="saturation-black"></div>
-            <div
-              #saturationPointer
-              class="saturation-pointer"
-              [style.top.%]="valuePercentageFrom100()"
-              [style.left.%]="saturationPercentage()">
-              <div class="saturation-circle"></div>
-            </div>
-          </div>
+          #saturationPointer
+          class="saturation-pointer"
+          [style.top.%]="valuePercentageFrom100()"
+          [style.left.%]="saturationPercentage()">
+          <div class="saturation-circle"></div>
         </div>
       </div>
       <div class="sketch-controls">
@@ -60,107 +56,107 @@ import { type ColorInput, stringInputToObject, TinyColor } from '@ctrl/tinycolor
       box-sizing: initial;
       border-radius: 4px;
       width: 100%;
-    }
 
-    .sketch-saturation {
-      width: 100%;
-      height: 300px;
-      position: relative;
-    }
+      .sketch-saturation {
+        width: 100%;
+        height: 300px;
+        display: grid;
+        position: relative;
 
-    .sketch-controls {
-      display: flex;
-      width: 100%;
-    }
+        .saturation-white,.saturation-black {
+          grid-row: 1;
+          grid-column: 1;
+          width: 100%;
+          height: 100%;
+        }
 
-    .sketch-sliders {
-      -webkit-box-flex: 1;
-      flex: 1 1 0;
-      width: 100%;
-      height: 24px;
-      margin: 4px 2px;
-      background: linear-gradient(
-          to right,
-          #ff0000 0%,
-          #ffff00 17%,
-          #00ff00 33%,
-          #00ffff 50%,
-          #0000ff 67%,
-          #ff00ff 83%,
-          #ff0000 100%
-      );
-    }
+        .saturation-white {
+          background: linear-gradient(to right, #ffffff, rgba(255, 255, 255, 0));
+        }
 
-    .color-hue-container {
-      position: relative;
-      height: 100%;
-      width: 100%;
-    }
+        .saturation-black {
+          background: linear-gradient(to top, #000000, rgba(0, 0, 0, 0));
+        }
 
-    .sketch-color {
-      width: 24px;
-      height: 24px;
-      position: relative;
-      margin-top: 4px;
-      margin-left: 4px;
-      border-radius: 3px;
-      box-shadow: rgba(0, 0, 0, 0.15) 0 0 0 1px inset,
-      rgba(0, 0, 0, 0.25) 0 0 4px inset;
-    }
+        .saturation-pointer {
+          position: absolute;
 
-    :host-context([dir='rtl']) .sketch-color {
-      margin-right: 4px;
-      margin-left: 0;
-    }
+          .saturation-circle {
+            width: 4px;
+            height: 4px;
+            box-shadow: 0 0 0 1.5px #ffffff,
+            inset 0 0 1px 1px rgba(0, 0, 0, 0.3),
+            0 0 1px 2px rgba(0, 0, 0, 0.4);
+            border-radius: 50%;
+            transform: translate(-2px, -4px);
+          }
+        }
+      }
 
-    .saturation-white {
-      background: linear-gradient(to right, #ffffff, rgba(255, 255, 255, 0));
-      width: 100%;
-      height: 100%;
-    }
+      .sketch-controls {
+        display: flex;
+        width: 100%;
 
-    .saturation-black {
-      background: linear-gradient(to top, #000000, rgba(0, 0, 0, 0));
-      width: 100%;
-      height: 100%;
-    }
+        .sketch-sliders {
+          -webkit-box-flex: 1;
+          flex: 1 1 0;
+          width: 100%;
+          height: 24px;
+          margin: 4px 2px;
+          background: linear-gradient(
+              to right,
+              #ff0000 0%,
+              #ffff00 17%,
+              #00ff00 33%,
+              #00ffff 50%,
+              #0000ff 67%,
+              #ff00ff 83%,
+              #ff0000 100%
+          );
 
-    .color-saturation {
-      width: 100%;
-      height: 100%;
-    }
+          .color-hue-container {
+            position: relative;
+            height: 100%;
+            width: 100%;
 
-    .saturation-pointer {
-      position: absolute;
-    }
+            .color-hue-pointer {
+              position: absolute;
+              .color-hue-slider {
+                margin-top: 1px;
+                width: 4px;
+                border-radius: 1px;
+                height: 22px;
+                box-shadow: 0 0 2px rgba(0, 0, 0, 0.6);
+                background: #fff;
+                transform: translateX(-2px);
+              }
+            }
+          }
+        }
 
-    .saturation-circle {
-      width: 4px;
-      height: 4px;
-      box-shadow: 0 0 0 1.5px #ffffff,
-      inset 0 0 1px 1px rgba(0, 0, 0, 0.3),
-      0 0 1px 2px rgba(0, 0, 0, 0.4);
-      border-radius: 50%;
-      transform: translate(-2px, -4px);
-    }
+        .sketch-color {
+          width: 24px;
+          height: 24px;
+          position: relative;
+          margin-top: 4px;
+          margin-left: 4px;
+          border-radius: 3px;
+          box-shadow: rgba(0, 0, 0, 0.15) 0 0 0 1px inset,
+          rgba(0, 0, 0, 0.25) 0 0 4px inset;
+        }
 
-    .color-hue-pointer {
-      position: absolute;
-    }
-    .color-hue-slider {
-      margin-top: 1px;
-      width: 4px;
-      border-radius: 1px;
-      height: 22px;
-      box-shadow: 0 0 2px rgba(0, 0, 0, 0.6);
-      background: #fff;
-      transform: translateX(-2px);
-    }
-    .debug-display {
-      display: grid;
-      grid-template-columns: auto min-content;
-      grid-auto-rows: auto;
-      margin: 10px;
+        :host-context([dir='rtl']) .sketch-color {
+          margin-right: 4px;
+          margin-left: 0;
+        }
+      }
+
+      .debug-display {
+        display: grid;
+        grid-template-columns: auto min-content;
+        grid-auto-rows: auto;
+        margin: 10px;
+      }
     }
   `,
 })
