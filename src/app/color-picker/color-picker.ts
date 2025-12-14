@@ -218,7 +218,7 @@ export class ColorPicker {
     this.#unvalidatedStr.set(input);
     const validated = stringInputToObject(input) as ColorInput | false;
     if (validated !== false) {
-      this.color.set(validated);
+      this.color.set(input);
     }
   }
 

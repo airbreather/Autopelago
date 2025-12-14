@@ -15,7 +15,7 @@ import { type ColorInput, TinyColor } from '@ctrl/tinycolor';
 import { ColorPicker } from '../color-picker/color-picker';
 import { applyPixelColors, getPixelTones, type PixelTones } from '../utils/color-helpers';
 import { resizeText } from '../utils/resize-text';
-import type { PlayerIcon } from './connect-screen-state';
+import { CONNECT_SCREEN_STATE_DEFAULTS, type PlayerIcon } from './connect-screen-state';
 
 export interface PersonalizeData {
   readonly playerImages: Signal<PlayerImages | null>;
@@ -58,6 +58,9 @@ interface PlayerPixelTones {
         </button>
         <div></div>
       </div>
+      <button class="reset-to-default" (click)="resetToDefault()">
+        Reset to Default
+      </button>
       <app-color-picker class="color-picker" [(color)]="selectedColor" />
     </div>
   `,
@@ -69,7 +72,7 @@ interface PlayerPixelTones {
       width: 400px;
       display: flex;
       flex-direction: column;
-      gap: 40px;
+      gap: 20px;
       background-color: theme.$region-color;
       align-items: center;
       justify-content: center;
@@ -112,6 +115,10 @@ interface PlayerPixelTones {
           }
         }
       }
+    }
+
+    .reset-to-default {
+      flex: 0;
     }
 
     .color-picker {
@@ -212,5 +219,10 @@ export class Personalize {
 
   protected select(playerIcon: PlayerIcon) {
     this.#data.playerIcon.set(playerIcon);
+  }
+
+  protected resetToDefault() {
+    this.#data.playerIcon.set(CONNECT_SCREEN_STATE_DEFAULTS.playerIcon);
+    this.#data.playerColor.set(CONNECT_SCREEN_STATE_DEFAULTS.playerColor);
   }
 }
