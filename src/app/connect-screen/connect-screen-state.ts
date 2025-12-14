@@ -1,5 +1,5 @@
 import type { ParamMap } from '@angular/router';
-import { TinyColor } from '@ctrl/tinycolor';
+import { type ColorInput, TinyColor } from '@ctrl/tinycolor';
 import type { SymmetricPropertiesOf, TypeAssert } from '../utils/types';
 
 const QUERY_PARAM_NAME_MAP = {
@@ -47,7 +47,7 @@ type _AssertAllPropsAreSymmetric = TypeAssert<
 export type ConnectScreenQueryParams = {
   [K in keyof ConnectScreenState as typeof QUERY_PARAM_NAME_MAP[K]]: ConnectScreenState[K] extends boolean
     ? 0 | 1
-    : ConnectScreenState[K] extends TinyColor
+    : TinyColor extends ConnectScreenState[K]
       ? string
       : ConnectScreenState[K];
 };
@@ -75,7 +75,7 @@ export interface ConnectScreenState {
   whenBecomingUnblocked: boolean;
   forOneTimeEvents: boolean;
   playerIcon: PlayerIcon;
-  playerColor: TinyColor;
+  playerColor: ColorInput;
 }
 
 export const CONNECT_SCREEN_STATE_DEFAULTS: ConnectScreenState = {
@@ -95,7 +95,7 @@ export const CONNECT_SCREEN_STATE_DEFAULTS: ConnectScreenState = {
   whenBecomingUnblocked: true,
   forOneTimeEvents: true,
   playerIcon: 1,
-  playerColor: new TinyColor('#382E26'),
+  playerColor: '#382E26',
 } as const;
 
 export function queryParamsFromConnectScreenState(s: Readonly<ConnectScreenState>): ConnectScreenQueryParams {
@@ -116,7 +116,7 @@ export function queryParamsFromConnectScreenState(s: Readonly<ConnectScreenState
     [QUERY_PARAM_NAME_MAP.whenBecomingUnblocked]: s.whenBecomingUnblocked ? 1 : 0,
     [QUERY_PARAM_NAME_MAP.forOneTimeEvents]: s.forOneTimeEvents ? 1 : 0,
     [QUERY_PARAM_NAME_MAP.playerIcon]: s.playerIcon,
-    [QUERY_PARAM_NAME_MAP.playerColor]: s.playerColor.toString(),
+    [QUERY_PARAM_NAME_MAP.playerColor]: typeof s.playerColor === 'string' ? s.playerColor : new TinyColor(s.playerColor).toString(),
   };
 }
 
@@ -158,7 +158,7 @@ type PlayerIconKey = {
 }[keyof ConnectScreenState];
 
 type ColorKey = {
-  [K in keyof ConnectScreenState]: ConnectScreenState[K] extends TinyColor ? K : never;
+  [K in keyof ConnectScreenState]: TinyColor extends ConnectScreenState[K] ? K : never;
 }[keyof ConnectScreenState];
 
 function readBoolean(qp: ParamMap, key: BooleanKey): boolean {
@@ -186,14 +186,13 @@ function readPlayerIcon(qp: ParamMap, key: PlayerIconKey): PlayerIcon {
     : CONNECT_SCREEN_STATE_DEFAULTS[key];
 }
 
-function readColor(qp: ParamMap, key: ColorKey): TinyColor {
+function readColor(qp: ParamMap, key: ColorKey): ColorInput {
   const val = qp.get(QUERY_PARAM_NAME_MAP[key]);
   if (val === null) {
     return CONNECT_SCREEN_STATE_DEFAULTS[key];
   }
 
-  const tinyColor = new TinyColor(val);
-  return tinyColor.isValid
-    ? tinyColor
+  return new TinyColor(val).isValid
+    ? val
     : CONNECT_SCREEN_STATE_DEFAULTS[key];
 }

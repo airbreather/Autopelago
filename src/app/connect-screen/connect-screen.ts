@@ -16,6 +16,7 @@ import {
 import { disabled, Field, form, max, min, required } from '@angular/forms/signals';
 import { Title } from '@angular/platform-browser';
 import { Router } from '@angular/router';
+import { TinyColor } from '@ctrl/tinycolor';
 import versionInfo from '../../version-info.json';
 import { applyPixelColors, getPixelTones } from '../utils/color-helpers';
 import { elementSizeSignal } from '../utils/element-size';
@@ -363,7 +364,7 @@ export class ConnectScreen {
 
       const playerIcon = this.form.playerIcon().value().toString() as `${PlayerIcon}`;
       const tones = getPixelTones(playerImages[`player${playerIcon}Image`], canvas);
-      applyPixelColors(this.form.playerColor().value(), tones);
+      applyPixelColors(new TinyColor(this.form.playerColor().value()), tones);
       canvas.putImageData(tones.data, 0, 0);
       initialImageDraw.destroy();
     });

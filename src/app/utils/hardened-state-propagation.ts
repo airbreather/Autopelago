@@ -32,14 +32,14 @@ export function trySetStringProp<TKey extends string | number | symbol>(source: 
   }
 }
 
-export function trySetColorProp<TKey extends string | number | symbol>(source: Partial<Record<TKey, unknown>>, key: TKey, target: Partial<Record<TKey, TinyColor>>) {
+export function trySetColorProp<TKey extends string | number | symbol>(source: Partial<Record<TKey, unknown>>, key: TKey, target: Partial<Record<TKey, ColorInput>>) {
   if (key in source) {
     // there are enough ColorInput types, and few enough straightforward "is this ColorInput legal?"
     // methods, that it's simplest and easiest to just try/catch.
     try {
       const color = new TinyColor(source[key] as ColorInput);
       if (color.isValid) {
-        target[key] = color;
+        target[key] = color.originalInput;
       }
     }
     catch {
