@@ -57,21 +57,6 @@ import { type ColorInput, stringInputToObject, TinyColor } from '@ctrl/tinycolor
         display: grid;
         position: relative;
 
-        .gradient-white, .gradient-black {
-          grid-row: 1;
-          grid-column: 1;
-          width: 100%;
-          height: 100%;
-        }
-
-        .gradient-white {
-          background: linear-gradient(to right, #ffffff, rgba(255, 255, 255, 0));
-        }
-
-        .gradient-black {
-          background: linear-gradient(to top, #000000, rgba(0, 0, 0, 0));
-        }
-
         .saturation-pointer {
           position: absolute;
           width: 4px;
@@ -81,6 +66,21 @@ import { type ColorInput, stringInputToObject, TinyColor } from '@ctrl/tinycolor
           0 0 1px 2px rgba(0, 0, 0, 0.4);
           border-radius: 50%;
           transform: translate(-2px, -4px);
+        }
+
+        .gradient-white, .gradient-black {
+          grid-row: 1;
+          grid-column: 1;
+          width: 100%;
+          height: 100%;
+
+          &.gradient-white {
+            background: linear-gradient(to right, #ffffff, rgba(255, 255, 255, 0));
+          }
+
+          &.gradient-black {
+            background: linear-gradient(to top, #000000, rgba(0, 0, 0, 0));
+          }
         }
       }
 
