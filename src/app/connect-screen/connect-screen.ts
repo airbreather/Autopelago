@@ -1,4 +1,5 @@
 import { Dialog } from '@angular/cdk/dialog';
+import { createGlobalPositionStrategy } from '@angular/cdk/overlay';
 import {
   ChangeDetectionStrategy,
   Component,
@@ -6,6 +7,8 @@ import {
   effect,
   type ElementRef,
   inject,
+  Injector,
+  resource,
   signal,
   viewChild,
 } from '@angular/core';
@@ -14,14 +17,22 @@ import { disabled, Field, form, max, min, required } from '@angular/forms/signal
 import { Title } from '@angular/platform-browser';
 import { Router } from '@angular/router';
 import versionInfo from '../../version-info.json';
+import { applyPixelColors, getPixelTones } from '../utils/color-helpers';
 import { elementSizeSignal } from '../utils/element-size';
-import { trySetBooleanProp, trySetNumberProp, trySetStringProp } from '../utils/hardened-state-propagation';
+import {
+  trySetBooleanProp,
+  trySetColorProp,
+  trySetNumberProp,
+  trySetStringProp,
+} from '../utils/hardened-state-propagation';
 import {
   CONNECT_SCREEN_STATE_DEFAULTS,
   type ConnectScreenState,
+  isValidPlayerIcon,
+  type PlayerIcon,
   queryParamsFromConnectScreenState,
 } from './connect-screen-state';
-import { Personalize } from './personalize';
+import { Personalize, type PersonalizeData, type PlayerImages } from './personalize';
 
 // Local storage key
 const STORAGE_KEY = 'autopelago-connect-screen-state';
@@ -33,6 +44,9 @@ const STORAGE_KEY = 'autopelago-connect-screen-state';
     Field,
   ],
   template: `
+    <img #player1Image alt="player1Image" src="/assets/images/players/pack_rat.webp" hidden>
+    <img #player2Image alt="player2Image" src="/assets/images/players/player2.webp" hidden>
+    <img #player4Image alt="player4Image" src="/assets/images/players/player4.webp" hidden>
     <form #allInputs class="root" (submit)="onConnect($event)">
       <div class="inputs">
         <label for="slot">Slot:</label>
@@ -41,10 +55,14 @@ const STORAGE_KEY = 'autopelago-connect-screen-state';
                  id="slot"
                  type="text"
                  [field]="form.slot"/>
-          <button id="personalize"
-                 (click)="$event.preventDefault(); openPersonalizeDialog()">
-            <img src="/assets/images/players/pack_rat.webp" alt="Personalize">
-          </button>
+          <div class="spinner-and-button">
+            <div class="spinner" [hidden]="loadedInitialImages()"></div>
+            <button id="personalize"
+                   (click)="$event.preventDefault(); openPersonalizeDialog()"
+                   [disabled]="!loadedInitialImages()">
+              <canvas #personalizeButtonCanvas width="64" height="64"></canvas>
+            </button>
+          </div>
         </div>
         <label for="host">Host:</label>
         <input id="host"
@@ -158,14 +176,36 @@ const STORAGE_KEY = 'autopelago-connect-screen-state';
       #slot {
         flex: 1;
       }
-      #personalize {
+      .spinner-and-button {
+        display: grid;
         width: var(--ap-slot-height, 0);
         height: var(--ap-slot-height, 0);
-        padding: 0;
-        img {
+
+        .spinner {
+          grid-column: 1;
+          grid-row: 1;
           width: 100%;
           height: 100%;
-          object-fit: contain;
+          border: 2px solid #f3f3f3;
+          border-top: 2px solid #3498db;
+          border-radius: 50%;
+          animation: spin 2s linear infinite;
+          @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+          }
+        }
+
+        #personalize {
+          grid-column: 1;
+          grid-row: 1;
+          width: 100%;
+          height: 100%;
+          padding: 0;
+          canvas {
+            width: 100%;
+            height: 100%;
+          }
         }
       }
     }
@@ -189,8 +229,27 @@ export class ConnectScreen {
   readonly #dialog = inject(Dialog);
   readonly #connecting = signal(false);
   protected readonly connecting = this.#connecting.asReadonly();
+
+  protected readonly player1Image = viewChild.required<ElementRef<HTMLImageElement>>('player1Image');
+  protected readonly player2Image = viewChild.required<ElementRef<HTMLImageElement>>('player2Image');
+  protected readonly player4Image = viewChild.required<ElementRef<HTMLImageElement>>('player4Image');
+  readonly #playerImagesResource = resource({
+    defaultValue: null,
+    params: () => ({
+      player1Image: this.player1Image().nativeElement,
+      player2Image: this.player2Image().nativeElement,
+      player4Image: this.player4Image().nativeElement,
+    }),
+    loader: async ({ params: { player1Image, player2Image, player4Image } }) => {
+      await Promise.all([player1Image, player2Image, player4Image].map(i => i.decode()));
+      return { player1Image, player2Image, player4Image } as PlayerImages | null;
+    },
+  }).asReadonly();
+
+  protected readonly loadedInitialImages = computed(() => this.#playerImagesResource.value());
   protected readonly slotElement = viewChild.required<ElementRef<HTMLInputElement>>('slot');
   protected readonly slotAndPersonalizeElement = viewChild.required<ElementRef<HTMLDivElement>>('slotAndPersonalize');
+  protected readonly personalizeButtonCanvas = viewChild.required<ElementRef<HTMLCanvasElement>>('personalizeButtonCanvas');
   readonly #formModel = signal(CONNECT_SCREEN_STATE_DEFAULTS);
   protected readonly form = form(this.#formModel, (schemaPath) => {
     /* eslint-disable @typescript-eslint/unbound-method */
@@ -256,6 +315,8 @@ export class ConnectScreen {
       trySetNumberProp(parsed, 'whenStillBlockedIntervalMinutes', model);
       trySetBooleanProp(parsed, 'whenBecomingUnblocked', model);
       trySetBooleanProp(parsed, 'forOneTimeEvents', model);
+      trySetNumberProp(parsed, 'playerIcon', model, n => isValidPlayerIcon(n));
+      trySetColorProp(parsed, 'playerColor', model);
       this.#formModel.set({
         ...CONNECT_SCREEN_STATE_DEFAULTS,
         ...model,
@@ -293,7 +354,19 @@ export class ConnectScreen {
       this.slotAndPersonalizeElement().nativeElement.style.setProperty('--ap-slot-height', `${slotElementHeightSignal().toString()}px`);
     });
 
-    this.openPersonalizeDialog();
+    const initialImageDraw = effect(() => {
+      const playerImages = this.#playerImagesResource.value();
+      const canvas = this.personalizeButtonCanvas().nativeElement.getContext('2d');
+      if (playerImages === null || canvas === null) {
+        return;
+      }
+
+      const playerIcon = this.form.playerIcon().value().toString() as `${PlayerIcon}`;
+      const tones = getPixelTones(playerImages[`player${playerIcon}Image`], canvas);
+      applyPixelColors(this.form.playerColor().value(), tones);
+      canvas.putImageData(tones.data, 0, 0);
+      initialImageDraw.destroy();
+    });
   }
 
   async onConnect(event: SubmitEvent) {
@@ -310,7 +383,22 @@ export class ConnectScreen {
     }
   }
 
+  readonly #injector = inject(Injector);
   protected openPersonalizeDialog() {
-    this.#dialog.open(Personalize);
+    if (!this.#playerImagesResource.hasValue()) {
+      return;
+    }
+
+    this.#dialog.open(Personalize, {
+      data: {
+        playerImages: this.#playerImagesResource.value,
+        playerIcon: this.form.playerIcon().value,
+        playerColor: this.form.playerColor().value,
+        canvas: this.personalizeButtonCanvas().nativeElement.getContext('2d'),
+      } as PersonalizeData,
+      positionStrategy: createGlobalPositionStrategy(this.#injector)
+        .right()
+        .centerVertically(),
+    });
   }
 }

@@ -1,19 +1,30 @@
+import { DIALOG_DATA } from '@angular/cdk/dialog';
 import {
   ChangeDetectionStrategy,
   Component,
   computed,
   effect,
   type ElementRef,
-  resource,
+  inject,
+  type Signal,
   signal,
   viewChild,
+  type WritableSignal,
 } from '@angular/core';
 import { type ColorInput, TinyColor } from '@ctrl/tinycolor';
 import { ColorPicker } from '../color-picker/color-picker';
 import { applyPixelColors, getPixelTones, type PixelTones } from '../utils/color-helpers';
 import { resizeText } from '../utils/resize-text';
+import type { PlayerIcon } from './connect-screen-state';
 
-interface PlayerImages {
+export interface PersonalizeData {
+  readonly playerImages: Signal<PlayerImages | null>;
+  readonly playerIcon: WritableSignal<PlayerIcon>;
+  readonly playerColor: WritableSignal<ColorInput>;
+  readonly canvas: CanvasRenderingContext2D;
+}
+
+export interface PlayerImages {
   player1Image: HTMLImageElement;
   player2Image: HTMLImageElement;
   player4Image: HTMLImageElement;
@@ -32,25 +43,22 @@ interface PlayerPixelTones {
     ColorPicker,
   ],
   template: `
-    <img #player1 alt="player1" src="/assets/images/players/pack_rat.webp" hidden>
-    <img #player2 alt="player2" src="/assets/images/players/player2.webp" hidden>
-    <img #player4 alt="player4" src="/assets/images/players/player4.webp" hidden>
     <div #outer class="outer">
       <h1 #header class="header">Personalize Your Rat!</h1>
       <div class="rat-options">
         <div></div>
-        <button class="no-color-change-on-press" [class.selected]="selectedPlayer1()" (click)="select('player1')">
+        <button class="no-color-change-on-press" [class.selected]="selectedPlayer1()" (click)="select(1)">
           <canvas #player1Canvas width="64" height="64"></canvas>
         </button>
-        <button class="no-color-change-on-press" [class.selected]="selectedPlayer2()" (click)="select('player2')">
+        <button class="no-color-change-on-press" [class.selected]="selectedPlayer2()" (click)="select(2)">
           <canvas #player2Canvas width="64" height="64"></canvas>
         </button>
-        <button class="no-color-change-on-press" [class.selected]="selectedPlayer4()" (click)="select('player4')">
+        <button class="no-color-change-on-press" [class.selected]="selectedPlayer4()" (click)="select(4)">
           <canvas #player4Canvas width="64" height="64"></canvas>
         </button>
         <div></div>
       </div>
-      <app-color-picker class="color-picker" [(color)]="selectedColor"/>
+      <app-color-picker class="color-picker" [(color)]="selectedColor" />
     </div>
   `,
   styles: `
@@ -131,13 +139,12 @@ interface PlayerPixelTones {
   `,
 })
 export class Personalize {
-  protected readonly player1 = viewChild.required<ElementRef<HTMLImageElement>>('player1');
-  protected readonly player2 = viewChild.required<ElementRef<HTMLImageElement>>('player2');
-  protected readonly player4 = viewChild.required<ElementRef<HTMLImageElement>>('player4');
+  readonly #data = inject<PersonalizeData>(DIALOG_DATA);
 
   protected readonly outer = viewChild.required<ElementRef<HTMLDivElement>>('outer');
   protected readonly header = viewChild.required<ElementRef<HTMLHeadingElement>>('header');
-  protected readonly selectedColor = signal<ColorInput>('#382E26');
+
+  protected readonly selectedColor = this.#data.playerColor;
 
   protected readonly player1Canvas = viewChild.required<ElementRef<HTMLCanvasElement>>('player1Canvas');
   protected readonly player2Canvas = viewChild.required<ElementRef<HTMLCanvasElement>>('player2Canvas');
@@ -146,10 +153,9 @@ export class Personalize {
   readonly #player2CanvasContext = computed(() => this.player2Canvas().nativeElement.getContext('2d'));
   readonly #player4CanvasContext = computed(() => this.player4Canvas().nativeElement.getContext('2d'));
 
-  readonly #selected = signal<'player1' | 'player2' | 'player4'>('player1');
-  protected readonly selectedPlayer1 = computed(() => this.#selected() === 'player1');
-  protected readonly selectedPlayer2 = computed(() => this.#selected() === 'player2');
-  protected readonly selectedPlayer4 = computed(() => this.#selected() === 'player4');
+  protected readonly selectedPlayer1 = computed(() => this.#data.playerIcon() === 1);
+  protected readonly selectedPlayer2 = computed(() => this.#data.playerIcon() === 2);
+  protected readonly selectedPlayer4 = computed(() => this.#data.playerIcon() === 4);
 
   constructor() {
     resizeText({
@@ -159,21 +165,9 @@ export class Personalize {
       text: computed(() => 'Personalize Your Rat!'),
     });
 
-    const img = resource({
-      defaultValue: null,
-      params: () => ({ player1: this.player1(), player2: this.player2(), player4: this.player4() }),
-      loader: async ({ params: { player1, player2, player4 } }) => {
-        await Promise.all([player1, player2, player4].map(i => i.nativeElement.decode()));
-        return {
-          player1Image: player1.nativeElement,
-          player2Image: player2.nativeElement,
-          player4Image: player4.nativeElement,
-        } as PlayerImages | null;
-      },
-    });
     const ratPixelTones = signal<PlayerPixelTones | null>(null);
     effect(() => {
-      const playerImages = img.value();
+      const playerImages = this.#data.playerImages();
       const player1Ctx = this.#player1CanvasContext();
       const player2Ctx = this.#player2CanvasContext();
       const player4Ctx = this.#player4CanvasContext();
@@ -209,10 +203,13 @@ export class Personalize {
 
       applyPixelColors(color, pixelTones.player4);
       player4.putImageData(pixelTones.player4.data, 0, 0);
+
+      const playerIconString = this.#data.playerIcon().toString() as `${PlayerIcon}`;
+      this.#data.canvas.putImageData(pixelTones[`player${playerIconString}`].data, 0, 0);
     });
   }
 
-  protected select(player: 'player1' | 'player2' | 'player4') {
-    this.#selected.set(player);
+  protected select(playerIcon: PlayerIcon) {
+    this.#data.playerIcon.set(playerIcon);
   }
 }

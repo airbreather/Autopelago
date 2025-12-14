@@ -1,4 +1,5 @@
 import type { ParamMap } from '@angular/router';
+import { TinyColor } from '@ctrl/tinycolor';
 import type { SymmetricPropertiesOf, TypeAssert } from '../utils/types';
 
 const QUERY_PARAM_NAME_MAP = {
@@ -17,6 +18,8 @@ const QUERY_PARAM_NAME_MAP = {
   whenStillBlockedIntervalMinutes: 'i',
   whenBecomingUnblocked: 'u',
   forOneTimeEvents: 'o',
+  playerIcon: 'I',
+  playerColor: 'C',
   h: 'host',
   p: 'port',
   s: 'slot',
@@ -32,6 +35,8 @@ const QUERY_PARAM_NAME_MAP = {
   i: 'whenStillBlockedIntervalMinutes',
   u: 'whenBecomingUnblocked',
   o: 'forOneTimeEvents',
+  I: 'playerIcon',
+  C: 'playerColor',
 } as const;
 
 // noinspection JSUnusedLocalSymbols
@@ -40,8 +45,18 @@ type _AssertAllPropsAreSymmetric = TypeAssert<
 >;
 
 export type ConnectScreenQueryParams = {
-  [K in keyof ConnectScreenState as typeof QUERY_PARAM_NAME_MAP[K]]: ConnectScreenState[K] extends boolean ? 0 | 1 : ConnectScreenState[K];
+  [K in keyof ConnectScreenState as typeof QUERY_PARAM_NAME_MAP[K]]: ConnectScreenState[K] extends boolean
+    ? 0 | 1
+    : ConnectScreenState[K] extends TinyColor
+      ? string
+      : ConnectScreenState[K];
 };
+
+const VALID_PLAYER_ICONS = [1, 2, 4] as const;
+export type PlayerIcon = typeof VALID_PLAYER_ICONS[number];
+export function isValidPlayerIcon(n: number): n is PlayerIcon {
+  return (VALID_PLAYER_ICONS as readonly number[]).includes(n);
+}
 
 export interface ConnectScreenState {
   slot: string;
@@ -59,6 +74,8 @@ export interface ConnectScreenState {
   whenStillBlockedIntervalMinutes: number;
   whenBecomingUnblocked: boolean;
   forOneTimeEvents: boolean;
+  playerIcon: PlayerIcon;
+  playerColor: TinyColor;
 }
 
 export const CONNECT_SCREEN_STATE_DEFAULTS: ConnectScreenState = {
@@ -77,6 +94,8 @@ export const CONNECT_SCREEN_STATE_DEFAULTS: ConnectScreenState = {
   whenStillBlockedIntervalMinutes: 15,
   whenBecomingUnblocked: true,
   forOneTimeEvents: true,
+  playerIcon: 1,
+  playerColor: new TinyColor('#382E26'),
 } as const;
 
 export function queryParamsFromConnectScreenState(s: Readonly<ConnectScreenState>): ConnectScreenQueryParams {
@@ -96,6 +115,8 @@ export function queryParamsFromConnectScreenState(s: Readonly<ConnectScreenState
     [QUERY_PARAM_NAME_MAP.whenStillBlockedIntervalMinutes]: s.whenStillBlockedIntervalMinutes,
     [QUERY_PARAM_NAME_MAP.whenBecomingUnblocked]: s.whenBecomingUnblocked ? 1 : 0,
     [QUERY_PARAM_NAME_MAP.forOneTimeEvents]: s.forOneTimeEvents ? 1 : 0,
+    [QUERY_PARAM_NAME_MAP.playerIcon]: s.playerIcon,
+    [QUERY_PARAM_NAME_MAP.playerColor]: s.playerColor.toString(),
   };
 }
 
@@ -123,11 +144,21 @@ export function connectScreenStateFromQueryParams(qp: ParamMap): ConnectScreenSt
     whenStillBlockedIntervalMinutes: Number(qp.get(QUERY_PARAM_NAME_MAP.whenStillBlockedIntervalMinutes)) || CONNECT_SCREEN_STATE_DEFAULTS.whenStillBlockedIntervalMinutes,
     whenBecomingUnblocked: readBoolean(qp, 'whenBecomingUnblocked'),
     forOneTimeEvents: readBoolean(qp, 'forOneTimeEvents'),
+    playerIcon: readPlayerIcon(qp, 'playerIcon'),
+    playerColor: readColor(qp, 'playerColor'),
   };
 }
 
 type BooleanKey = {
   [K in keyof ConnectScreenState]: ConnectScreenState[K] extends boolean ? K : never;
+}[keyof ConnectScreenState];
+
+type PlayerIconKey = {
+  [K in keyof ConnectScreenState]: ConnectScreenState[K] extends PlayerIcon ? K : never;
+}[keyof ConnectScreenState];
+
+type ColorKey = {
+  [K in keyof ConnectScreenState]: ConnectScreenState[K] extends TinyColor ? K : never;
 }[keyof ConnectScreenState];
 
 function readBoolean(qp: ParamMap, key: BooleanKey): boolean {
@@ -141,4 +172,28 @@ function readBoolean(qp: ParamMap, key: BooleanKey): boolean {
     default:
       return CONNECT_SCREEN_STATE_DEFAULTS[key];
   }
+}
+
+function readPlayerIcon(qp: ParamMap, key: PlayerIconKey): PlayerIcon {
+  const val = qp.get(QUERY_PARAM_NAME_MAP[key]);
+  if (val === null) {
+    return CONNECT_SCREEN_STATE_DEFAULTS[key];
+  }
+
+  const num = Number(val);
+  return isValidPlayerIcon(num)
+    ? num
+    : CONNECT_SCREEN_STATE_DEFAULTS[key];
+}
+
+function readColor(qp: ParamMap, key: ColorKey): TinyColor {
+  const val = qp.get(QUERY_PARAM_NAME_MAP[key]);
+  if (val === null) {
+    return CONNECT_SCREEN_STATE_DEFAULTS[key];
+  }
+
+  const tinyColor = new TinyColor(val);
+  return tinyColor.isValid
+    ? tinyColor
+    : CONNECT_SCREEN_STATE_DEFAULTS[key];
 }
