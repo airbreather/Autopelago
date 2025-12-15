@@ -1,4 +1,4 @@
-import { DIALOG_DATA } from '@angular/cdk/dialog';
+import { DIALOG_DATA, DialogRef } from '@angular/cdk/dialog';
 import {
   ChangeDetectionStrategy,
   Component,
@@ -44,7 +44,12 @@ interface PlayerPixelTones {
   ],
   template: `
     <div #outer class="outer">
-      <h1 #header class="header">Personalize Your Rat!</h1>
+      <div class="header-container">
+        <h1 #header class="header">Personalize Your Rat!</h1>
+        <button class="close-button" (click)="close()">
+          X
+        </button>
+      </div>
       <div class="rat-options">
         <div></div>
         <button class="no-color-change-on-press" [class.selected]="selectedPlayer1()" (click)="select(1)">
@@ -68,7 +73,7 @@ interface PlayerPixelTones {
     @use '../../theme';
 
     .outer {
-      height: 80vh;
+      height: 620px;
       width: 440px;
       display: flex;
       flex-direction: column;
@@ -79,11 +84,22 @@ interface PlayerPixelTones {
       border: 1px solid black;
     }
 
-    .header {
+    .header-container {
       flex: 0;
-      white-space: nowrap;
-      padding-left: 40px;
-      padding-right: 40px;
+      display: grid;
+
+      .header {
+        grid-column: 1;
+        grid-row: 1;
+        white-space: nowrap;
+        padding-left: 40px;
+        padding-right: 40px;
+      }
+      .close-button {
+        grid-column: 1;
+        grid-row: 1;
+        justify-self: end;
+      }
     }
 
     .rat-options {
@@ -147,6 +163,7 @@ interface PlayerPixelTones {
   `,
 })
 export class Personalize {
+  readonly #dialog = inject(DialogRef);
   readonly #data = inject<PersonalizeData>(DIALOG_DATA);
 
   protected readonly outer = viewChild.required<ElementRef<HTMLDivElement>>('outer');
@@ -215,6 +232,10 @@ export class Personalize {
       const playerIconString = this.#data.playerIcon().toString() as `${PlayerIcon}`;
       this.#data.canvas.putImageData(pixelTones[`player${playerIconString}`].data, 0, 0);
     });
+  }
+
+  protected close() {
+    this.#dialog.close();
   }
 
   protected select(playerIcon: PlayerIcon) {

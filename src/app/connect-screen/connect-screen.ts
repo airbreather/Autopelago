@@ -50,16 +50,15 @@ const STORAGE_KEY = 'autopelago-connect-screen-state';
     <form #allInputs class="root" (submit)="onConnect($event)">
       <div class="inputs">
         <label for="slot">Slot:</label>
-        <div #slotAndPersonalize class="slot-and-personalize">
-          <input #slot
-                 id="slot"
+        <div class="slot-and-personalize">
+          <input id="slot"
                  type="text"
                  [field]="form.slot"/>
           <div class="spinner-and-button">
             <div class="spinner" [hidden]="loadedInitialImages()"></div>
             <button id="personalize"
-                   (click)="$event.preventDefault(); openPersonalizeDialog()"
-                   [disabled]="!loadedInitialImages()">
+                    (click)="$event.preventDefault(); openPersonalizeDialog()"
+                    [disabled]="!loadedInitialImages()">
               <canvas #personalizeButtonCanvas width="64" height="64"></canvas>
             </button>
           </div>
@@ -391,7 +390,7 @@ export class ConnectScreen {
       } as PersonalizeData,
       positionStrategy: createGlobalPositionStrategy(this.#injector)
         .right()
-        .centerVertically(),
+        .top(),
     });
   }
 }
