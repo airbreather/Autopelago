@@ -19,7 +19,6 @@ import { Router } from '@angular/router';
 import { TinyColor } from '@ctrl/tinycolor';
 import versionInfo from '../../version-info.json';
 import { applyPixelColors, getPixelTones } from '../utils/color-helpers';
-import { elementSizeSignal } from '../utils/element-size';
 import {
   trySetBooleanProp,
   trySetColorProp,
@@ -174,13 +173,10 @@ const STORAGE_KEY = 'autopelago-connect-screen-state';
       display: grid;
       gap: calc(5rem / 16);
       grid-template-columns: 1fr max-content;
-      #slot {
-        flex: 1;
-      }
       .spinner-and-button {
         display: grid;
-        width: var(--ap-slot-height, 0);
-        height: var(--ap-slot-height, 0);
+        width: 100%;
+        height: 100%;
 
         .spinner {
           grid-column: 1;
@@ -192,8 +188,12 @@ const STORAGE_KEY = 'autopelago-connect-screen-state';
           border-radius: 50%;
           animation: spin 2s linear infinite;
           @keyframes spin {
-            0% { transform: rotate(0deg); }
-            100% { transform: rotate(360deg); }
+            0% {
+              transform: rotate(0deg);
+            }
+            100% {
+              transform: rotate(360deg);
+            }
           }
         }
 
@@ -248,8 +248,6 @@ export class ConnectScreen {
   }).asReadonly();
 
   protected readonly loadedInitialImages = computed(() => this.#playerImagesResource.value());
-  protected readonly slotElement = viewChild.required<ElementRef<HTMLInputElement>>('slot');
-  protected readonly slotAndPersonalizeElement = viewChild.required<ElementRef<HTMLDivElement>>('slotAndPersonalize');
   protected readonly personalizeButtonCanvas = viewChild.required<ElementRef<HTMLCanvasElement>>('personalizeButtonCanvas');
   readonly #formModel = signal(CONNECT_SCREEN_STATE_DEFAULTS);
   protected readonly form = form(this.#formModel, (schemaPath) => {
@@ -347,12 +345,6 @@ export class ConnectScreen {
 
     effect(() => {
       localStorage.setItem(STORAGE_KEY, JSON.stringify(this.form().value()));
-    });
-
-    const slotElementSizeSignal = elementSizeSignal(this.slotElement);
-    const slotElementHeightSignal = computed(() => slotElementSizeSignal().clientHeight);
-    effect(() => {
-      this.slotAndPersonalizeElement().nativeElement.style.setProperty('--ap-slot-height', `${slotElementHeightSignal().toString()}px`);
     });
 
     const initialImageDraw = effect(() => {
