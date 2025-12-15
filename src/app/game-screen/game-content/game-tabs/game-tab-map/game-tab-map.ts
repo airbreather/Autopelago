@@ -102,7 +102,6 @@ import { PlayerTooltip } from './player-tooltip';
     }
 
     .landmark {
-      scale: calc(var(--ap-scale, 4) / 4);
       img {
         object-fit: none;
         object-position: calc(-65px * (var(--ap-frame-offset, 0) + var(--ap-checked-offset, 0))) calc(-65px * var(--ap-sprite-index, 0));
@@ -115,12 +114,10 @@ import { PlayerTooltip } from './player-tooltip';
       position: absolute;
       pointer-events: initial;
 
-      width: calc(16px * var(--ap-scale, 1));
-      height: calc(16px * var(--ap-scale, 1));
-
       transform-origin: left top;
-      left: calc((var(--ap-left-base, 8px) - 8px) * var(--ap-scale, 1));
-      top: calc((var(--ap-top-base, 8px) - 8px) * var(--ap-scale, 1));
+      scale: calc(var(--ap-scale, 4) / 4);
+      left: calc((var(--ap-left-base, 8px) - 8px) * var(--ap-scale, 4));
+      top: calc((var(--ap-top-base, 8px) - 8px) * var(--ap-scale, 4));
     }
   `,
 })
