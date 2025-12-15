@@ -106,7 +106,6 @@ export function createLivePixiObjects(ticker: Ticker) {
   const store = inject(GameStore);
   const gameScreenStore = inject(GameScreenStore);
   const showingPath = gameScreenStore.showingPath;
-  const mapSizeSignal = gameScreenStore.screenSizeSignal;
   const dialog = inject(Dialog);
   const destroyRef = inject(DestroyRef);
   const wiggleOptimizationBox: WiggleOptimizationBox = {
@@ -225,7 +224,10 @@ export function createLivePixiObjects(ticker: Ticker) {
       return {
         run: (fraction: number) => {
           if (fraction === 1) {
-            dialog.open(UWin, { data: mapSizeSignal });
+            dialog.open(UWin, {
+              width: '60%',
+              height: '60%',
+            });
           }
         },
       };

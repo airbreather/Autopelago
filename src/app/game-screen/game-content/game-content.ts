@@ -93,7 +93,6 @@ export class GameContent {
   });
 
   constructor() {
-    this.#store.setScreenSizeSignal(this.#size);
     const initEffect = effect(() => {
       this.#gameStore.init(this.game());
       initEffect.destroy();
