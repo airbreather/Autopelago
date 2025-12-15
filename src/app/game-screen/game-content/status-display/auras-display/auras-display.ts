@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, computed, ElementRef, inject, signal, viewChild } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, ElementRef, inject, viewChild } from '@angular/core';
 
 import { GameStore } from '../../../../store/autopelago-store';
 import { resizeText } from '../../../../utils/resize-text';
@@ -187,7 +187,7 @@ export class AurasDisplay {
   protected readonly smart = this.#gameStore.targetLocationChosenBecauseSmart;
   protected readonly conspiratorial = this.#gameStore.targetLocationChosenBecauseConspiratorial;
   protected readonly stylish = this.#gameStore.styleFactor;
-  protected readonly confidence = signal(false);
+  protected readonly confidence = this.#gameStore.hasConfidence;
 
   protected readonly foodFillPercentage = computed(() => {
     const value = Math.max(-20, Math.min(20, this.food()));
