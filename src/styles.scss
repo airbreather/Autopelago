@@ -46,7 +46,7 @@ input[type='text'],input[type='password'],input[type='number'] {
   }
 }
 
-input[type='submit'],button {
+input[type='submit'],input[type='image'],button {
   background-color: theme.$button-background;
   border: none;
   color: theme.$button-foreground;
@@ -62,8 +62,10 @@ input[type='submit'],button {
     }
 
     &:active {
-      background-color: theme.$button-background-pressed;
       scale: 0.98;
+      &:not(.no-color-change-on-press) {
+        background-color: theme.$button-background-pressed;
+      }
     }
   }
 }

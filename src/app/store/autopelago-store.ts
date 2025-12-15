@@ -1,4 +1,5 @@
-import { effect } from '@angular/core';
+import { withResource } from '@angular-architects/ngrx-toolkit';
+import { effect, resource } from '@angular/core';
 
 import { patchState, signalStore, withHooks, withMethods, withState } from '@ngrx/signals';
 import type { SayPacket } from 'archipelago.js';
@@ -10,6 +11,7 @@ import {
 } from '../data/resolved-definitions';
 import type { AutopelagoClientAndData } from '../data/slot-data';
 import { targetLocationEvidenceFromJSONSerializable } from '../game/target-location-evidence';
+import { makePlayerToken } from '../utils/make-player-token';
 import { toWeighted } from '../utils/weighted-sampler';
 import { withCleverTimer } from './with-clever-timer';
 import { withGameState } from './with-game-state';
@@ -21,6 +23,20 @@ export const GameStore = signalStore(
     game: null as AutopelagoClientAndData | null,
     processedMessageCount: 0,
   }),
+  withResource(({ game }) => ({
+    playerToken: resource({
+      defaultValue: null,
+      params: () => ({ game: game() }),
+      loader: async ({ params: { game } }) => {
+        if (game === null) {
+          return null;
+        }
+
+        const { playerIcon, playerColor } = game.connectScreenState;
+        return await makePlayerToken(playerIcon, playerColor);
+      },
+    }),
+  })),
   withMethods(store => ({
     init(game: AutopelagoClientAndData) {
       const { connectScreenState, client, pkg, slotData, storedData, locationIsProgression, locationIsTrap } = game;

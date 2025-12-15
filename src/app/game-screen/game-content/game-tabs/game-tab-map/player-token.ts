@@ -1,11 +1,12 @@
 import { DestroyRef, inject, resource, type Signal, type WritableSignal } from '@angular/core';
 import { List } from 'immutable';
 import { DropShadowFilter } from 'pixi-filters';
-import { Assets, Graphics, Sprite, Texture, Ticker } from 'pixi.js';
+import { Graphics, Sprite, Texture, Ticker } from 'pixi.js';
 import type { Vec2 } from '../../../../data/locations';
 import type { AutopelagoDefinitions } from '../../../../data/resolved-definitions';
 import type { AutopelagoClientAndData } from '../../../../data/slot-data';
 import type { AnimatableAction } from '../../../../game/defining-state';
+import { makePlayerToken } from '../../../../utils/make-player-token';
 
 export interface WiggleOptimizationBox {
   neutralAngle: number;
@@ -52,7 +53,8 @@ export function createPlayerToken(options: CreatePlayerTokenOptions) {
         return null;
       }
 
-      const texture = await Assets.load<Texture>('assets/images/players/pack_rat.webp');
+      const { playerIcon, playerColor } = game.connectScreenState;
+      const texture = Texture.from((await makePlayerToken(playerIcon, playerColor)).canvas);
       const playerToken = wiggleOptimizationBox._playerToken = new Sprite(texture);
       playerToken.position.set(2, 80);
       playerToken.scale.set(SCALE);

@@ -11,7 +11,6 @@ import type { AutopelagoStoredData, UserRequestedLocation } from '../data/slot-d
 import type { AnimatableAction, DefiningGameState } from '../game/defining-state';
 import {
   buildRequirementIsSatisfied,
-  Desirability,
   determineDesirability,
   determineTargetLocation,
   type TargetLocationResult,
@@ -25,7 +24,7 @@ import {
   targetLocationEvidenceToJSONSerializable,
 } from '../game/target-location-evidence';
 import { arraysEqual, bitArraysEqual } from '../utils/equal-helpers';
-import type { EnumVal, Mutable } from '../utils/types';
+import type { Mutable } from '../utils/types';
 import { createWeightedSampler } from '../utils/weighted-sampler';
 
 function regionLocksEqual(a: RegionLocks, b: RegionLocks) {

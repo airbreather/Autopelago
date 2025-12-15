@@ -1,7 +1,6 @@
-import { DIALOG_DATA, DialogRef } from '@angular/cdk/dialog';
+import { DialogRef } from '@angular/cdk/dialog';
 import { NgOptimizedImage } from '@angular/common';
-import { Component, inject, type Signal } from '@angular/core';
-import { type ElementSize } from '../../../../utils/element-size';
+import { Component, inject } from '@angular/core';
 
 @Component({
   selector: 'app-u-win',
@@ -9,7 +8,7 @@ import { type ElementSize } from '../../../../utils/element-size';
     NgOptimizedImage,
   ],
   template: `
-    <div class="outer" [style.height.px]="size().clientHeight * .6" [style.width.px]="size().clientWidth * .6">
+    <div class="outer">
       <div class="uwin-and-flag">
         <span>u win.</span><img alt="moon_comma_the" ngSrc="/assets/images/locations/moon_comma_the.webp" width="64" height="64">
       </div>
@@ -20,6 +19,8 @@ import { type ElementSize } from '../../../../utils/element-size';
     @use '../../../../../theme';
 
     .outer {
+      width: 100%;
+      height: 100%;
       display: flex;
       flex-direction: column;
       gap: 40px;
@@ -36,6 +37,5 @@ import { type ElementSize } from '../../../../utils/element-size';
   `,
 })
 export class UWin {
-  protected readonly size = inject<Signal<ElementSize>>(DIALOG_DATA);
   protected readonly dialogRef = inject(DialogRef);
 }
