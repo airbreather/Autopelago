@@ -148,7 +148,7 @@ import { PlayerTooltip } from './player-tooltip';
       img {
         transform-origin: center;
         filter: drop-shadow(calc(var(--ap-scale, 4) * 0.8px) calc(var(--ap-scale, 4) * .8px) calc(var(--ap-scale, 4) * 0.5px) black);
-        rotate: calc(var(--ap-wiggle-amount, 0) * 10deg);
+        transform: rotate(calc(var(--ap-wiggle-amount, 0) * 10deg + var(--ap-neutral-angle, 0rad))) scaleX(var(--ap-scale-x, 1));
       }
     }
 
@@ -301,6 +301,22 @@ export class GameTabMap {
           case 'move': {
             const fromCoords = allLocations[anim.fromLocation].coords;
             const toCoords = allLocations[anim.toLocation].coords;
+            let neutralAngle = Math.atan2(toCoords[1] - fromCoords[1], toCoords[0] - fromCoords[0]);
+            let scaleX = 1;
+            if (Math.abs(neutralAngle) >= Math.PI / 2) {
+              neutralAngle -= Math.PI;
+              scaleX = -1;
+            }
+            this.#oneShotTimeline
+              .set(
+                playerTokenContainer, {
+                  ['--ap-neutral-angle']: `${neutralAngle.toString()}rad`,
+                  ['--ap-scale-x']: scaleX.toString(),
+                  immediateRender: false,
+                  duration: 0,
+                },
+                '>',
+              );
             this.#oneShotTimeline
               .fromTo(
                 playerTokenContainer, {
