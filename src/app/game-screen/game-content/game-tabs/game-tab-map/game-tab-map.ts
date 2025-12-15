@@ -40,7 +40,14 @@ import { PlayerTooltip } from './player-tooltip';
   template: `
     <div #outer class="outer">
       <img class="map-img" alt="map" [ngSrc]="mapUrl()" width="300" height="450" priority />
-      @for (lm of allLandmarks(); track lm.yamlKey) {
+      @for (f of allFillers(); track f.loc) {
+        <div
+          class="hover-box filler" [tabindex]="$index + 1999"
+          [style.--ap-left-base.px]="f.coords[0]" [style.--ap-top-base.px]="f.coords[1]"
+          #fillerSquare [id]="'filler-div-' + f.loc">
+        </div>
+      }
+      @for (lm of allLandmarks(); track lm.loc) {
         <div
           class="hover-box landmark" [tabindex]="$index + 999"
           [style.--ap-left-base.px]="lm.coords[0]" [style.--ap-top-base.px]="lm.coords[1]">
@@ -102,6 +109,9 @@ import { PlayerTooltip } from './player-tooltip';
     }
 
     .landmark {
+      scale: calc(var(--ap-scale, 4) / 4);
+      left: calc((var(--ap-left-base, 8px) - 8px) * var(--ap-scale, 4));
+      top: calc((var(--ap-top-base, 8px) - 8px) * var(--ap-scale, 4));
       img {
         object-fit: none;
         object-position: calc(-65px * (var(--ap-frame-offset, 0) + var(--ap-checked-offset, 0))) calc(-65px * var(--ap-sprite-index, 0));
@@ -110,14 +120,21 @@ import { PlayerTooltip } from './player-tooltip';
       }
     }
 
+    .filler {
+      scale: var(--ap-scale, 4);
+      width: 1.6px;
+      height: 1.6px;
+      border-radius: 0;
+      filter: drop-shadow(calc(var(--ap-scale, 4) * 0.1px) calc(var(--ap-scale, 4) * 0.1px) calc(var(--ap-scale, 4) * 0.1px) black);
+      left: calc((var(--ap-left-base, 8px) - 0.8px) * var(--ap-scale, 4));
+      top: calc((var(--ap-top-base, 8px) - 0.8px) * var(--ap-scale, 4));
+    }
+
     .hover-box {
       position: absolute;
       pointer-events: initial;
 
       transform-origin: left top;
-      scale: calc(var(--ap-scale, 4) / 4);
-      left: calc((var(--ap-left-base, 8px) - 8px) * var(--ap-scale, 4));
-      top: calc((var(--ap-top-base, 8px) - 8px) * var(--ap-scale, 4));
     }
   `,
 })
@@ -128,9 +145,10 @@ export class GameTabMap {
   protected readonly toggleShowingPath = this.#gameScreenStore.toggleShowingPath;
   protected readonly running = this.#store.running;
 
-  readonly allLandmarks = computed(() => {
+  readonly #allLocations = computed<AllLocationProps>(() => {
     const { allLocations, allRegions, startRegion, moonCommaThe } = this.#store.defs();
-    const result: LandmarkProps[] = [];
+    const fillers: LocationProps[] = [];
+    const landmarks: LandmarkProps[] = [];
     const visited = new BitArray(allRegions.length);
     const q = new Queue<number>();
     function tryEnqueue(r: number) {
@@ -146,7 +164,7 @@ export class GameTabMap {
         continue;
       }
       if ('loc' in region) {
-        result.push({
+        landmarks.push({
           landmark: r,
           loc: region.loc,
           yamlKey: region.yamlKey,
@@ -154,12 +172,20 @@ export class GameTabMap {
           spriteIndex: LANDMARKS[region.yamlKey].sprite_index,
         });
       }
+      else {
+        for (const loc of region.locs) {
+          fillers.push({ loc, coords: allLocations[loc].coords });
+        }
+      }
       for (const [nxt] of region.connected.all) {
         tryEnqueue(nxt);
       }
     }
-    return result;
+    return { fillers, landmarks };
   });
+
+  readonly allFillers = computed(() => this.#allLocations().fillers);
+  readonly allLandmarks = computed(() => this.#allLocations().landmarks);
 
   // all tooltips here should use the same context so that the user can quickly switch between them
   // without having to sit through the whole delay.
@@ -181,6 +207,7 @@ export class GameTabMap {
   });
 
   protected readonly outerDiv = viewChild.required<ElementRef<HTMLDivElement>>('outer');
+  protected readonly fillerSquares = viewChildren<ElementRef<HTMLDivElement>>('fillerSquare');
   protected readonly landmarkImages = viewChildren<ElementRef<HTMLImageElement>>('landmarkImage');
 
   protected readonly mapUrl = computed(() => {
@@ -236,6 +263,15 @@ export class GameTabMap {
           }, { injector: this.#injector });
         });
       }
+      for (const { nativeElement: square } of this.fillerSquares()) {
+        const id = Number(square.id.slice('filler-div-'.length));
+        const locationIsCheckedSignal = locationIsCheckedSignals[id];
+        setTimeout(() => {
+          effect(() => {
+            square.style.setProperty('background-color', locationIsCheckedSignal() ? 'grey' : 'yellow');
+          }, { injector: this.#injector });
+        });
+      }
     });
   }
 
@@ -255,11 +291,19 @@ export class GameTabMap {
   }
 }
 
-interface LandmarkProps {
-  landmark: number;
+interface AllLocationProps {
+  fillers: readonly LocationProps[];
+  landmarks: readonly LandmarkProps[];
+}
+
+interface LocationProps {
   loc: number;
-  yamlKey: LandmarkYamlKey;
   coords: Vec2;
+}
+
+interface LandmarkProps extends LocationProps {
+  landmark: number;
+  yamlKey: LandmarkYamlKey;
   spriteIndex: number;
 }
 
