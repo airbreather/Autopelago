@@ -31,5 +31,5 @@ export async function makePlayerToken(playerIcon: PlayerIcon, playerColor: Color
   const tones = getPixelTones(await PLAYER_TOKEN_LOADING[playerIcon], t2d);
   applyPixelColors(new TinyColor(playerColor), tones);
   t2d.putImageData(tones.data, 0, 0);
-  return cnv;
+  return { data: tones.data, canvas: cnv };
 }

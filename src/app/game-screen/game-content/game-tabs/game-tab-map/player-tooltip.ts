@@ -1,5 +1,4 @@
-import { NgOptimizedImage } from '@angular/common';
-import { Component, computed, inject } from '@angular/core';
+import { Component, computed, effect, type ElementRef, inject, viewChild } from '@angular/core';
 import { GameStore } from '../../../../store/autopelago-store';
 
 const RAT_THOUGHTS_LACTOSE = [
@@ -36,16 +35,12 @@ const RAT_THOUGHTS_LACTOSE_INTOLERANT = [
 
 @Component({
   selector: 'app-player-tooltip',
-  imports: [
-    NgOptimizedImage,
-  ],
+  imports: [],
   template: `
     <div class="outer">
       <h1 class="box header">Rat Thoughts</h1>
       <div class="box main-content">
-        <img class="player-image" alt="player"
-             width="64" height="64"
-             ngSrc="/assets/images/players/pack_rat.webp">
+        <canvas #playerToken class="player-image" width="64" height="64"></canvas>
         <div class="current-location">●At '{{currentLocationName()}}'</div>
         <div class="target-location">●Going to '{{targetLocationName()}}'</div>
         <div class="rat-thought">{{ratThought()}}</div>
@@ -114,6 +109,25 @@ const RAT_THOUGHTS_LACTOSE_INTOLERANT = [
 })
 export class PlayerTooltip {
   readonly #store = inject(GameStore);
+
+  protected readonly playerToken = viewChild.required<ElementRef<HTMLCanvasElement>>('playerToken');
+  constructor() {
+    effect(() => {
+      const playerToken = this.#store.playerTokenValue();
+      if (playerToken === null) {
+        return;
+      }
+
+      const canvas = this.playerToken().nativeElement;
+      const ctx = canvas.getContext('2d');
+      if (ctx === null) {
+        return;
+      }
+
+      ctx.putImageData(playerToken.data, 0, 0);
+    });
+  }
+
   protected readonly currentLocationName = computed(() => {
     const { allLocations } = this.#store.defs();
     return allLocations[this.#store.currentLocation()].name;

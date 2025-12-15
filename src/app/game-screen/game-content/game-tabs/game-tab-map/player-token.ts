@@ -54,7 +54,7 @@ export function createPlayerToken(options: CreatePlayerTokenOptions) {
       }
 
       const { playerIcon, playerColor } = game.connectScreenState;
-      const texture = Texture.from(await makePlayerToken(playerIcon, playerColor));
+      const texture = Texture.from((await makePlayerToken(playerIcon, playerColor)).canvas);
       const playerToken = wiggleOptimizationBox._playerToken = new Sprite(texture);
       playerToken.position.set(2, 80);
       playerToken.scale.set(SCALE);
