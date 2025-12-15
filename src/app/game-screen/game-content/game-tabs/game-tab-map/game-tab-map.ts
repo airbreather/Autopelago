@@ -269,11 +269,11 @@ export class GameTabMap {
     effect(() => {
       const outerDiv = this.outerDiv().nativeElement;
       this.#repeatTimeline.add(
-        gsap.timeline({ repeat: -1 })
-          .to(outerDiv, { ['--ap-wiggle-amount']: 1, ease: 'none', duration: 0.25 })
-          .to(outerDiv, { ['--ap-wiggle-amount']: 0, ease: 'none', duration: 0.25 })
-          .to(outerDiv, { ['--ap-wiggle-amount']: -1, ease: 'none', duration: 0.25 })
-          .to(outerDiv, { ['--ap-wiggle-amount']: 0, ease: 'none', duration: 0.25 }),
+        gsap.timeline({ repeat: -1, defaults: { ease: 'none', duration: 0.25 } })
+          .to(outerDiv, { ['--ap-wiggle-amount']: 1 })
+          .to(outerDiv, { ['--ap-wiggle-amount']: 0 })
+          .to(outerDiv, { ['--ap-wiggle-amount']: -1 })
+          .to(outerDiv, { ['--ap-wiggle-amount']: 0 }),
         0,
       );
       this.#repeatTimeline.add(
@@ -293,6 +293,7 @@ export class GameTabMap {
         this.#oneShotTimeline.pause();
       }
     });
+    const locationIsCheckedSignals = this.#store.defs().allLocations.map(() => signal(false));
     effect(() => {
       const playerTokenContainer = this.playerTokenContainer().nativeElement;
       const { allLocations } = this.#store.defs();
@@ -347,7 +348,6 @@ export class GameTabMap {
       }
     });
 
-    const locationIsCheckedSignals = this.#store.defs().allLocations.map(() => signal(false));
     effect(() => {
       for (const { nativeElement: image } of this.landmarkImages()) {
         const id = Number(image.id.slice('landmark-image-'.length));
