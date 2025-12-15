@@ -12,6 +12,7 @@ import {
   ElementRef,
   inject,
   Injector,
+  resource,
   signal,
   viewChild,
   viewChildren,
@@ -57,9 +58,11 @@ import { PlayerTooltip } from './player-tooltip';
                appTooltip [tooltipContext]="tooltipContext" (tooltipOriginChange)="setTooltipOrigin(lm.landmark, $event, true)">
         </div>
       }
-      <div #playerTokenHoverBox class="hover-box" tabindex="998" [style.z-index]="999"
+      <div class="hover-box player" tabindex="998" [style.z-index]="999"
            appTooltip [tooltipContext]="tooltipContext" (tooltipOriginChange)="setTooltipOrigin(null, $event, true)"
+           [style.--ap-left-base.px]="player().coords[0]" [style.--ap-top-base.px]="player().coords[1]"
            (click)="toggleShowingPath()" (keyup.enter)="toggleShowingPath()" (keyup.space)="toggleShowingPath()">
+        <img #playerToken width="64" height="64" alt="player" [src]="playerImageSource.value()">
       </div>
       <div #pauseButtonContainer class="pause-button-container"
            [style.margin-top]="'-' + pauseButtonContainer.clientHeight + 'px'">
@@ -116,7 +119,7 @@ import { PlayerTooltip } from './player-tooltip';
         object-fit: none;
         object-position: calc(-65px * (var(--ap-frame-offset, 0) + var(--ap-checked-offset, 0))) calc(-65px * var(--ap-sprite-index, 0));
         overflow: hidden;
-        filter: drop-shadow(calc(var(--ap-scale, 4) * 1px) calc(var(--ap-scale, 4) * 1px) calc(var(--ap-scale, 4) * 0.5px) black);
+        filter: drop-shadow(calc(var(--ap-scale, 4) * 0.8px) calc(var(--ap-scale, 4) * .8px) calc(var(--ap-scale, 4) * 0.5px) black);
       }
     }
 
@@ -128,6 +131,32 @@ import { PlayerTooltip } from './player-tooltip';
       filter: drop-shadow(calc(var(--ap-scale, 4) * 0.1px) calc(var(--ap-scale, 4) * 0.1px) calc(var(--ap-scale, 4) * 0.1px) black);
       left: calc((var(--ap-left-base, 8px) - 0.8px) * var(--ap-scale, 4));
       top: calc((var(--ap-top-base, 8px) - 0.8px) * var(--ap-scale, 4));
+    }
+
+    .player {
+      scale: calc(var(--ap-scale, 4) / 4);
+      left: calc((var(--ap-left-base, 8px) - 8px) * var(--ap-scale, 4));
+      top: calc((var(--ap-top-base, 8px) - 8px) * var(--ap-scale, 4));
+      img {
+        transform-origin: center;
+        animation: 1s linear 0s infinite normal wiggle;
+        filter: drop-shadow(calc(var(--ap-scale, 4) * 0.8px) calc(var(--ap-scale, 4) * .8px) calc(var(--ap-scale, 4) * 0.5px) black);
+
+        @keyframes wiggle {
+          0% {
+            transform: rotate(0deg);
+          }
+          25% {
+            transform: rotate(10deg);
+          }
+          75% {
+            transform: rotate(-10deg);
+          }
+          100% {
+            transform: rotate(0deg);
+          }
+        }
+      }
     }
 
     .hover-box {
@@ -157,7 +186,7 @@ export class GameTabMap {
         q.enqueue(r);
       }
     }
-    q.enqueue(startRegion);
+    tryEnqueue(startRegion);
     for (let r = q.dequeue(); r !== undefined; r = q.dequeue()) {
       const region = allRegions[r];
       if (r === moonCommaThe?.region && !this.#store.hasCompletedGoal()) {
@@ -186,6 +215,7 @@ export class GameTabMap {
 
   readonly allFillers = computed(() => this.#allLocations().fillers);
   readonly allLandmarks = computed(() => this.#allLocations().landmarks);
+  readonly player = computed(() => this.#store.defs().allLocations[this.#store.currentLocation()]);
 
   // all tooltips here should use the same context so that the user can quickly switch between them
   // without having to sit through the whole delay.
@@ -209,6 +239,17 @@ export class GameTabMap {
   protected readonly outerDiv = viewChild.required<ElementRef<HTMLDivElement>>('outer');
   protected readonly fillerSquares = viewChildren<ElementRef<HTMLDivElement>>('fillerSquare');
   protected readonly landmarkImages = viewChildren<ElementRef<HTMLImageElement>>('landmarkImage');
+
+  readonly playerImageSource = resource({
+    params: () => this.#store.playerTokenValue(),
+    loader: async ({ params: playerToken }) => {
+      if (playerToken === null) {
+        return null;
+      }
+      const blob = await playerToken.canvas.convertToBlob();
+      return URL.createObjectURL(blob);
+    },
+  });
 
   protected readonly mapUrl = computed(() => {
     switch (this.#store.victoryLocationYamlKey()) {
