@@ -11,7 +11,8 @@ import { type ColorInput, type RGBA, stringInputToObject, TinyColor } from '@ctr
            [style.background]="svBackground()"
            (pointerdown)="onDragDotStart(saturationPointer, $event)"
            (pointermove)="onDragDot(saturationPointer, $event)"
-           (pointerup)="onDragDotEnd(saturationPointer, $event)">
+           (pointerup)="onDragDotEnd(saturationPointer, $event)"
+           (touchmove)="$event.preventDefault()">
         <div class="gradient-white"></div>
         <div class="gradient-black"></div>
         <div
@@ -25,7 +26,8 @@ import { type ColorInput, type RGBA, stringInputToObject, TinyColor } from '@ctr
         <div class="hue-slider"
              (pointerdown)="onDragHueStart(huePointer, $event)"
              (pointermove)="onDragHue(huePointer, $event)"
-             (pointerup)="onDragHueEnd(huePointer, $event)">
+             (pointerup)="onDragHueEnd(huePointer, $event)"
+             (touchmove)="$event.preventDefault()">
           <div #huePointer
                class="hue-pointer"
                [style.left.%]="huePercentage()">
