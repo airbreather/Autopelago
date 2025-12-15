@@ -8,19 +8,22 @@ import {
   ChangeDetectionStrategy,
   Component,
   computed,
+  effect,
   ElementRef,
   inject,
   Injector,
   signal,
   viewChild,
+  viewChildren,
 } from '@angular/core';
 import BitArray from '@bitarray/typedarray';
 
 import Queue from 'yocto-queue';
-import { type Vec2 } from '../../../../data/locations';
+import { LANDMARKS, type LandmarkYamlKey, type Vec2 } from '../../../../data/locations';
 import { GameStore } from '../../../../store/autopelago-store';
 import { GameScreenStore } from '../../../../store/game-screen-store';
 import { createEmptyTooltipContext, TooltipBehavior, type TooltipOriginProps } from '../../../../tooltip-behavior';
+import { elementSizeSignal } from '../../../../utils/element-size';
 import { LandmarkTooltip } from './landmark-tooltip';
 import { PlayerTooltip } from './player-tooltip';
 
@@ -37,12 +40,14 @@ import { PlayerTooltip } from './player-tooltip';
   template: `
     <div #outer class="outer">
       <img class="map-img" alt="map" [ngSrc]="mapUrl()" width="300" height="450" priority />
-      <canvas #pixiCanvas class="pixi-canvas" width="300" height="450">
-      </canvas>
-      @for (lm of allLandmarks(); track $index) {
-        <div #hoverBox class="hover-box" [tabindex]="$index + 999"
-             [style.--ap-left-base.px]="lm.coords[0]" [style.--ap-top-base.px]="lm.coords[1]"
-             appTooltip [tooltipContext]="tooltipContext" (tooltipOriginChange)="setTooltipOrigin(lm.landmark, $event, true)">
+      @for (lm of allLandmarks(); track lm.yamlKey) {
+        <div
+          class="hover-box landmark" [tabindex]="$index + 999"
+          [style.--ap-left-base.px]="lm.coords[0]" [style.--ap-top-base.px]="lm.coords[1]">
+          <!--suppress CheckImageSize -->
+          <img #landmarkImage width="64" height="64" [alt]="lm.yamlKey" src="/assets/images/locations.webp"
+               [id]="'landmark-image-' + lm.loc" [style.--ap-sprite-index]="lm.spriteIndex"
+               appTooltip [tooltipContext]="tooltipContext" (tooltipOriginChange)="setTooltipOrigin(lm.landmark, $event, true)">
         </div>
       }
       <div #playerTokenHoverBox class="hover-box" tabindex="998" [style.z-index]="999"
@@ -96,19 +101,24 @@ import { PlayerTooltip } from './player-tooltip';
       width: fit-content;
     }
 
-    .pixi-canvas {
-      position: absolute;
-      top: 0;
-      left: 0;
-      width: 100%;
-      height: 100%;
+    .landmark {
+      scale: calc(var(--ap-scale, 4) / 4);
+      img {
+        object-fit: none;
+        object-position: calc(-65px * (var(--ap-frame-offset, 0) + var(--ap-checked-offset, 0))) calc(-65px * var(--ap-sprite-index, 0));
+        overflow: hidden;
+        filter: drop-shadow(calc(var(--ap-scale, 4) * 1px) calc(var(--ap-scale, 4) * 1px) calc(var(--ap-scale, 4) * 0.5px) black);
+      }
     }
 
     .hover-box {
       position: absolute;
       pointer-events: initial;
+
       width: calc(16px * var(--ap-scale, 1));
       height: calc(16px * var(--ap-scale, 1));
+
+      transform-origin: left top;
       left: calc((var(--ap-left-base, 8px) - 8px) * var(--ap-scale, 1));
       top: calc((var(--ap-top-base, 8px) - 8px) * var(--ap-scale, 1));
     }
@@ -139,7 +149,13 @@ export class GameTabMap {
         continue;
       }
       if ('loc' in region) {
-        result.push({ landmark: r, coords: allLocations[region.loc].coords });
+        result.push({
+          landmark: r,
+          loc: region.loc,
+          yamlKey: region.yamlKey,
+          coords: allLocations[region.loc].coords,
+          spriteIndex: LANDMARKS[region.yamlKey].sprite_index,
+        });
       }
       for (const [nxt] of region.connected.all) {
         tryEnqueue(nxt);
@@ -168,6 +184,7 @@ export class GameTabMap {
   });
 
   protected readonly outerDiv = viewChild.required<ElementRef<HTMLDivElement>>('outer');
+  protected readonly landmarkImages = viewChildren<ElementRef<HTMLImageElement>>('landmarkImage');
 
   protected readonly mapUrl = computed(() => {
     switch (this.#store.victoryLocationYamlKey()) {
@@ -181,6 +198,45 @@ export class GameTabMap {
         return '';
     }
   });
+
+  constructor() {
+    const sizeSignal = elementSizeSignal(this.outerDiv);
+    const width = computed(() => sizeSignal().clientWidth);
+    effect(() => {
+      const { nativeElement: outerDiv } = this.outerDiv();
+      outerDiv.style.setProperty('--ap-scale', (width() / 300).toString());
+    });
+
+    let interval: number | null = null;
+    effect(() => {
+      const outerDiv = this.outerDiv().nativeElement;
+      if (this.#store.running()) {
+        if (interval !== null) {
+          clearInterval(interval);
+        }
+        let frame1 = true;
+        interval = setInterval(() => {
+          outerDiv.style.setProperty('--ap-frame-offset', frame1 ? '0' : '1');
+          frame1 = !frame1;
+        }, 500);
+      }
+    });
+
+    const locationIsCheckedSignals = this.#store.defs().allLocations.map(l => computed(() => {
+      return this.#store.locationIsChecked()[l.key];
+    }));
+    effect(() => {
+      for (const { nativeElement: image } of this.landmarkImages()) {
+        const id = Number(image.id.slice('landmark-image-'.length));
+        const locationIsCheckedSignal = locationIsCheckedSignals[id];
+        setTimeout(() => {
+          effect(() => {
+            image.style.setProperty('--ap-checked-offset', locationIsCheckedSignal() ? '0' : '2');
+          }, { injector: this.#injector });
+        });
+      }
+    });
+  }
 
   protected togglePause() {
     this.#store.togglePause();
@@ -200,7 +256,10 @@ export class GameTabMap {
 
 interface LandmarkProps {
   landmark: number;
+  loc: number;
+  yamlKey: LandmarkYamlKey;
   coords: Vec2;
+  spriteIndex: number;
 }
 
 interface CurrentTooltipOriginProps {
