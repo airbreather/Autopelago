@@ -19,6 +19,7 @@ import {
 } from '@angular/core';
 import BitArray from '@bitarray/typedarray';
 
+import gsap from 'gsap';
 import Queue from 'yocto-queue';
 import { LANDMARKS, type LandmarkYamlKey, type Vec2 } from '../../../../data/locations';
 import { GameStore } from '../../../../store/autopelago-store';
@@ -41,26 +42,29 @@ import { PlayerTooltip } from './player-tooltip';
   template: `
     <div #outer class="outer">
       <img class="map-img" alt="map" [ngSrc]="mapUrl()" width="300" height="450" priority />
-      @for (f of allFillers(); track f.loc) {
-        <div
-          class="hover-box filler" [tabindex]="$index + 1999"
-          [style.--ap-left-base.px]="f.coords[0]" [style.--ap-top-base.px]="f.coords[1]"
-          #fillerSquare [id]="'filler-div-' + f.loc">
-        </div>
-      }
-      @for (lm of allLandmarks(); track lm.loc) {
-        <div
-          class="hover-box landmark" [tabindex]="$index + 999"
-          [style.--ap-left-base.px]="lm.coords[0]" [style.--ap-top-base.px]="lm.coords[1]">
-          <!--suppress CheckImageSize -->
-          <img #landmarkImage width="64" height="64" [alt]="lm.yamlKey" src="/assets/images/locations.webp"
-               [id]="'landmark-image-' + lm.loc" [style.--ap-sprite-index]="lm.spriteIndex"
-               appTooltip [tooltipContext]="tooltipContext" (tooltipOriginChange)="setTooltipOrigin(lm.landmark, $event, true)">
-        </div>
-      }
-      <div class="hover-box player" tabindex="998" [style.z-index]="999"
+      <div id="fillers" class="just-for-organization">
+        @for (f of allFillers(); track f.loc) {
+          <div
+            class="hover-box filler" [tabindex]="$index + 1999"
+            [style.--ap-left-base.px]="f.coords[0]" [style.--ap-top-base.px]="f.coords[1]"
+            #fillerSquare [id]="'filler-div-' + f.loc">
+          </div>
+        }
+      </div>
+      <div id="landmarks" class="just-for-organization">
+        @for (lm of allLandmarks(); track lm.loc) {
+          <div
+            class="hover-box landmark" [tabindex]="$index + 999"
+            [style.--ap-left-base.px]="lm.coords[0]" [style.--ap-top-base.px]="lm.coords[1]">
+            <!--suppress CheckImageSize -->
+            <img #landmarkImage width="64" height="64" [alt]="lm.yamlKey" src="/assets/images/locations.webp"
+                 [id]="'landmark-image-' + lm.loc" [style.--ap-sprite-index]="lm.spriteIndex"
+                 appTooltip [tooltipContext]="tooltipContext" (tooltipOriginChange)="setTooltipOrigin(lm.landmark, $event, true)">
+          </div>
+        }
+      </div>
+      <div #playerTokenContainer class="hover-box player" tabindex="998" [style.z-index]="999"
            appTooltip [tooltipContext]="tooltipContext" (tooltipOriginChange)="setTooltipOrigin(null, $event, true)"
-           [style.--ap-left-base.px]="player().coords[0]" [style.--ap-top-base.px]="player().coords[1]"
            (click)="toggleShowingPath()" (keyup.enter)="toggleShowingPath()" (keyup.space)="toggleShowingPath()">
         <img #playerToken width="64" height="64" alt="player" [src]="playerImageSource.value()">
       </div>
@@ -102,6 +106,10 @@ import { PlayerTooltip } from './player-tooltip';
       height: 100%;
     }
 
+    .just-for-organization {
+      display: contents;
+    }
+
     .pause-button-container {
       position: sticky;
       margin-bottom: 0;
@@ -139,23 +147,8 @@ import { PlayerTooltip } from './player-tooltip';
       top: calc((var(--ap-top-base, 8px) - 8px) * var(--ap-scale, 4));
       img {
         transform-origin: center;
-        animation: 1s linear 0s infinite normal wiggle;
         filter: drop-shadow(calc(var(--ap-scale, 4) * 0.8px) calc(var(--ap-scale, 4) * .8px) calc(var(--ap-scale, 4) * 0.5px) black);
-
-        @keyframes wiggle {
-          0% {
-            transform: rotate(0deg);
-          }
-          25% {
-            transform: rotate(10deg);
-          }
-          75% {
-            transform: rotate(-10deg);
-          }
-          100% {
-            transform: rotate(0deg);
-          }
-        }
+        rotate: calc(var(--ap-wiggle-amount, 0) * 10deg);
       }
     }
 
@@ -215,7 +208,6 @@ export class GameTabMap {
 
   readonly allFillers = computed(() => this.#allLocations().fillers);
   readonly allLandmarks = computed(() => this.#allLocations().landmarks);
-  readonly player = computed(() => this.#store.defs().allLocations[this.#store.currentLocation()]);
 
   // all tooltips here should use the same context so that the user can quickly switch between them
   // without having to sit through the whole delay.
@@ -236,9 +228,12 @@ export class GameTabMap {
     return createRepositionScrollStrategy(this.#injector);
   });
 
+  readonly #repeatTimeline = gsap.timeline();
+  readonly #oneShotTimeline = gsap.timeline();
   protected readonly outerDiv = viewChild.required<ElementRef<HTMLDivElement>>('outer');
   protected readonly fillerSquares = viewChildren<ElementRef<HTMLDivElement>>('fillerSquare');
   protected readonly landmarkImages = viewChildren<ElementRef<HTMLImageElement>>('landmarkImage');
+  protected readonly playerTokenContainer = viewChild.required<ElementRef<HTMLDivElement>>('playerTokenContainer');
 
   readonly playerImageSource = resource({
     params: () => this.#store.playerTokenValue(),
@@ -271,29 +266,72 @@ export class GameTabMap {
       const { nativeElement: outerDiv } = this.outerDiv();
       outerDiv.style.setProperty('--ap-scale', (width() / 300).toString());
     });
-
-    let interval: number | null = null;
     effect(() => {
       const outerDiv = this.outerDiv().nativeElement;
+      this.#repeatTimeline.add(
+        gsap.timeline({ repeat: -1 })
+          .to(outerDiv, { ['--ap-wiggle-amount']: 1, ease: 'none', duration: 0.25 })
+          .to(outerDiv, { ['--ap-wiggle-amount']: 0, ease: 'none', duration: 0.25 })
+          .to(outerDiv, { ['--ap-wiggle-amount']: -1, ease: 'none', duration: 0.25 })
+          .to(outerDiv, { ['--ap-wiggle-amount']: 0, ease: 'none', duration: 0.25 }),
+        0,
+      );
+      this.#repeatTimeline.add(
+        gsap.timeline({ repeat: -1 })
+          .set(outerDiv, { ['--ap-frame-offset']: 1 }, 0.5)
+          .set(outerDiv, { ['--ap-frame-offset']: 0 }, 1),
+        0,
+      );
+    });
+    effect(() => {
       if (this.#store.running()) {
-        if (interval !== null) {
-          clearInterval(interval);
-        }
-        let frame1 = true;
-        interval = setInterval(() => {
-          outerDiv.style.setProperty('--ap-frame-offset', frame1 ? '0' : '1');
-          frame1 = !frame1;
-        }, 500);
+        this.#repeatTimeline.play();
+        this.#oneShotTimeline.play();
       }
-      else if (interval !== null) {
-        clearInterval(interval);
-        interval = null;
+      else {
+        this.#repeatTimeline.pause();
+        this.#oneShotTimeline.pause();
+      }
+    });
+    effect(() => {
+      const playerTokenContainer = this.playerTokenContainer().nativeElement;
+      const { allLocations } = this.#store.defs();
+      for (const anim of this.#store.consumeOutgoingAnimatableActions()) {
+        switch (anim.type) {
+          case 'move': {
+            const fromCoords = allLocations[anim.fromLocation].coords;
+            const toCoords = allLocations[anim.toLocation].coords;
+            this.#oneShotTimeline
+              .fromTo(
+                playerTokenContainer, {
+                  ['--ap-left-base']: `${fromCoords[0].toString()}px`,
+                  ['--ap-top-base']: `${fromCoords[1].toString()}px`,
+                  immediateRender: false,
+                }, {
+                  ['--ap-left-base']: `${toCoords[0].toString()}px`,
+                  ['--ap-top-base']: `${toCoords[1].toString()}px`,
+                  ease: 'none',
+                  immediateRender: false,
+                },
+                '>',
+              );
+            break;
+          }
+
+          case 'check-locations': {
+            this.#oneShotTimeline
+              .call(() => {
+                anim.locations.forEach((loc) => {
+                  locationIsCheckedSignals[loc].set(true);
+                });
+              }, [], '>');
+            break;
+          }
+        }
       }
     });
 
-    const locationIsCheckedSignals = this.#store.defs().allLocations.map(l => computed(() => {
-      return this.#store.locationIsChecked()[l.key];
-    }));
+    const locationIsCheckedSignals = this.#store.defs().allLocations.map(() => signal(false));
     effect(() => {
       for (const { nativeElement: image } of this.landmarkImages()) {
         const id = Number(image.id.slice('landmark-image-'.length));
