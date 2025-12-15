@@ -217,6 +217,10 @@ export class GameTabMap {
           frame1 = !frame1;
         }, 500);
       }
+      else if (interval !== null) {
+        clearInterval(interval);
+        interval = null;
+      }
     });
 
     const locationIsCheckedSignals = this.#store.defs().allLocations.map(l => computed(() => {
