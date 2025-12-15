@@ -53,7 +53,7 @@ import { type ColorInput, type RGBA, stringInputToObject, TinyColor } from '@ctr
 
       .saturation {
         width: 100%;
-        height: 300px;
+        height: 180px;
         display: grid;
         position: relative;
 

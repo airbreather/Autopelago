@@ -73,11 +73,10 @@ interface PlayerPixelTones {
     @use '../../theme';
 
     .outer {
-      height: 620px;
-      width: 440px;
+      width: 400px;
       display: flex;
       flex-direction: column;
-      gap: 20px;
+      gap: 12px;
       background-color: theme.$region-color;
       align-items: center;
       justify-content: center;
@@ -92,13 +91,14 @@ interface PlayerPixelTones {
         grid-column: 1;
         grid-row: 1;
         white-space: nowrap;
-        padding-left: 40px;
-        padding-right: 40px;
+        padding-left: 24px;
+        padding-right: 24px;
       }
       .close-button {
         grid-column: 1;
         grid-row: 1;
         justify-self: end;
+        font-size: 10px;
       }
     }
 
@@ -186,7 +186,7 @@ export class Personalize {
     resizeText({
       outer: this.outer,
       inner: this.header,
-      max: 40,
+      max: 30,
       text: computed(() => 'Personalize Your Rat!'),
     });
 
