@@ -57,6 +57,7 @@ const STORAGE_KEY = 'autopelago-connect-screen-state';
           <div class="spinner-and-button">
             <div class="spinner" [hidden]="loadedInitialImages()"></div>
             <button id="personalize"
+                    type="button"
                     (click)="$event.preventDefault(); openPersonalizeDialog()"
                     [disabled]="!loadedInitialImages()">
               <canvas #personalizeButtonCanvas width="64" height="64"></canvas>
