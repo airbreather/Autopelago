@@ -8,27 +8,20 @@ import {
   ChangeDetectionStrategy,
   Component,
   computed,
-  DestroyRef,
-  effect,
   ElementRef,
   inject,
   Injector,
   signal,
-  untracked,
   viewChild,
 } from '@angular/core';
 import BitArray from '@bitarray/typedarray';
 
-import { Application, Ticker } from 'pixi.js';
 import Queue from 'yocto-queue';
 import { type Vec2 } from '../../../../data/locations';
-import { VICTORY_LOCATION_CROP_LOOKUP } from '../../../../data/resolved-definitions';
 import { GameStore } from '../../../../store/autopelago-store';
 import { GameScreenStore } from '../../../../store/game-screen-store';
 import { createEmptyTooltipContext, TooltipBehavior, type TooltipOriginProps } from '../../../../tooltip-behavior';
-import { elementSizeSignal } from '../../../../utils/element-size';
 import { LandmarkTooltip } from './landmark-tooltip';
-import { createLivePixiObjects } from './live-pixi-objects';
 import { PlayerTooltip } from './player-tooltip';
 
 @Component({
@@ -71,9 +64,7 @@ import { PlayerTooltip } from './player-tooltip';
       [cdkConnectedOverlayOpen]="tooltipOrigin() !== null"
       [cdkConnectedOverlayUsePopover]="'inline'"
       [cdkConnectedOverlayPositionStrategy]="tooltipPositionStrategy()"
-      [cdkConnectedOverlayScrollStrategy]="tooltipScrollStrategy()"
-      (attach)="onOverlayAttached()"
-      (detach)="onOverlayDetached()">
+      [cdkConnectedOverlayScrollStrategy]="tooltipScrollStrategy()">
       @if (tooltipOrigin(); as origin) {
         @if (origin.landmark; as landmark) {
           <app-landmark-tooltip [landmarkKey]="landmark" />
@@ -176,11 +167,7 @@ export class GameTabMap {
     return createRepositionScrollStrategy(this.#injector);
   });
 
-  protected readonly pixiCanvas = viewChild.required<ElementRef<HTMLCanvasElement>>('pixiCanvas');
   protected readonly outerDiv = viewChild.required<ElementRef<HTMLDivElement>>('outer');
-  protected readonly playerTokenHoverBox = viewChild.required<ElementRef<HTMLDivElement>>('playerTokenHoverBox');
-  protected readonly overlay = viewChild.required(CdkConnectedOverlay);
-  #overlayIsAttached = false;
 
   protected readonly mapUrl = computed(() => {
     switch (this.#store.victoryLocationYamlKey()) {
@@ -195,141 +182,6 @@ export class GameTabMap {
     }
   });
 
-  constructor() {
-    const app = new Application();
-    app.ticker = new Ticker();
-    inject(DestroyRef).onDestroy(() => {
-      const ticker = app.ticker;
-      ticker.stop();
-      app.destroy(
-        {
-          removeView: true,
-          releaseGlobalResources: true,
-        },
-        {
-          children: true,
-          style: true,
-          context: true,
-          // these are cached, which PixiJS warns about if we go out and in again:
-          textureSource: false,
-          texture: false,
-        });
-      appIsInitialized.set(false);
-    });
-    effect(() => {
-      if (this.#store.running()) {
-        app.ticker.start();
-      }
-      else {
-        app.ticker.stop();
-      }
-    });
-
-    // these resources (and signal) need to be created in our injection context, and they have their
-    // own asynchronous initialization (though the signal is only pseudo-asynchronous, since it gets
-    // initialized during the first microtask tick after we're done).
-    const {
-      playerTokenResource,
-      landmarksResource,
-      fillerMarkersSignal,
-    } = createLivePixiObjects(app.ticker);
-
-    // app.init is async, and nothing can be done with the app until it's initialized, so let's do
-    // just everything up to app.init and then open up the floodgates for everything afterward by
-    // giving them the initialized app.
-    const appIsInitialized = signal(false);
-    effect(() => {
-      const canvas = this.pixiCanvas().nativeElement;
-      const outerDiv = this.outerDiv().nativeElement;
-
-      const victoryLocationYamlKey = this.#store.victoryLocationYamlKey();
-      canvas.height = VICTORY_LOCATION_CROP_LOOKUP[victoryLocationYamlKey];
-      void app.init({
-        canvas,
-        resizeTo: outerDiv,
-        backgroundAlpha: 0,
-        antialias: false,
-        autoStart: false,
-      }).then(() => {
-        appIsInitialized.set(true);
-      });
-    });
-
-    // add stuff to the app stage, but only once it's initialized. for the sake of simplicity, DON'T
-    // observe any signals in this effect that will change after everything has been initialized. I
-    // really don't want to bother removing and recreating stuff for no reason.
-    effect(() => {
-      if (!appIsInitialized()) {
-        return;
-      }
-
-      const playerToken = playerTokenResource.value();
-      const landmarks = landmarksResource.value();
-      if (!(playerToken && landmarks)) {
-        return;
-      }
-
-      const fillerMarkers = fillerMarkersSignal();
-      app.stage.addChild(fillerMarkers.container);
-      app.stage.addChild(playerToken.pathGfx);
-      app.stage.addChild(landmarks.container);
-      app.stage.addChild(playerToken.targetX);
-      app.stage.addChild(playerToken.sprite);
-      app.resize();
-      app.render();
-      if (untracked(() => this.#store.running())) {
-        app.ticker.start();
-      }
-      else {
-        app.ticker.stop();
-      }
-    });
-
-    // whenever the outer div resizes, we also need to resize the app to match.
-    const outerDivSize = elementSizeSignal(this.outerDiv);
-    effect(() => {
-      if (!appIsInitialized()) {
-        return;
-      }
-
-      const victoryLocationYamlKey = this.#store.victoryLocationYamlKey();
-      const { clientHeight } = outerDivSize();
-      const scale = clientHeight / VICTORY_LOCATION_CROP_LOOKUP[victoryLocationYamlKey];
-      app.stage.scale = scale;
-      app.resize();
-      this.outerDiv().nativeElement.style.setProperty('--ap-scale', scale.toString());
-      if (this.#overlayIsAttached) {
-        this.overlay().overlayRef.updatePosition();
-      }
-    });
-
-    const setupRatHoverBoxEffect = effect(() => {
-      if (!appIsInitialized()) {
-        return;
-      }
-
-      const playerToken = playerTokenResource.value();
-      if (playerToken === null) {
-        return;
-      }
-
-      const playerTokenHoverBox = this.playerTokenHoverBox().nativeElement;
-      const overlay = this.overlay();
-      const playerPosition = playerToken.position;
-      setTimeout(() => {
-        effect(() => {
-          const [x, y] = playerPosition();
-          playerTokenHoverBox.style.setProperty('--ap-left-base', `${x.toString()}px`);
-          playerTokenHoverBox.style.setProperty('--ap-top-base', `${y.toString()}px`);
-          if (this.#overlayIsAttached) {
-            overlay.overlayRef.updatePosition();
-          }
-        }, { injector: this.#injector });
-      });
-      setupRatHoverBoxEffect.destroy();
-    });
-  }
-
   protected togglePause() {
     this.#store.togglePause();
   }
@@ -343,15 +195,6 @@ export class GameTabMap {
         ? null
         : { landmark, ...props };
     });
-  }
-
-  protected onOverlayAttached() {
-    this.#overlayIsAttached = true;
-  }
-
-  protected onOverlayDetached() {
-    this.#overlayIsAttached = false;
-    this.#tooltipOrigin()?.notifyDetached();
   }
 }
 
