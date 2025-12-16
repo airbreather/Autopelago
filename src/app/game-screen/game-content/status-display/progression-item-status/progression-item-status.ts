@@ -5,6 +5,7 @@ import { PROGRESSION_ITEMS_BY_VICTORY_LOCATION } from '../../../../data/items';
 import { BAKED_DEFINITIONS_FULL } from '../../../../data/resolved-definitions';
 import { GameStore } from '../../../../store/autopelago-store';
 import { createEmptyTooltipContext, TooltipBehavior, type TooltipOriginProps } from '../../../../tooltip-behavior';
+import { AnimationSequencedGameState } from '../../animation-sequenced-game-state';
 
 import { RequestHint } from './request-hint';
 
@@ -97,6 +98,7 @@ export class ProgressionItemStatus {
   readonly #injector = inject(Injector);
   readonly #dialog = inject(Dialog);
   readonly #gameStore = inject(GameStore);
+  readonly #anim = inject(AnimationSequencedGameState);
   protected readonly items: Signal<readonly ItemModel[]>;
   readonly #tooltipOrigin = signal<CurrentTooltipOriginProps | null>(null);
   protected readonly tooltipOrigin = this.#tooltipOrigin.asReadonly();
@@ -110,7 +112,7 @@ export class ProgressionItemStatus {
       const lactoseIntolerant = this.#gameStore.lactoseIntolerant();
       return PROGRESSION_ITEMS_BY_VICTORY_LOCATION[victoryLocationYamlKey].map((itemYamlKey, index) => {
         const item = BAKED_DEFINITIONS_FULL.progressionItemsByYamlKey.get(itemYamlKey) ?? -1;
-        const collected = computed(() => this.#gameStore.receivedItemCountLookup()[item] > 0);
+        const collected = computed(() => this.#anim.itemCount[item]() > 0);
         return {
           name: lactoseIntolerant
             ? BAKED_DEFINITIONS_FULL.allItems[item].lactoseIntolerantName

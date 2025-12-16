@@ -22,12 +22,33 @@ import BitArray from '@bitarray/typedarray';
 import gsap from 'gsap';
 import Queue from 'yocto-queue';
 import { LANDMARKS, type LandmarkYamlKey, type Vec2 } from '../../../../data/locations';
+import { BAKED_DEFINITIONS_FULL } from '../../../../data/resolved-definitions';
 import { GameStore } from '../../../../store/autopelago-store';
 import { GameScreenStore } from '../../../../store/game-screen-store';
 import { createEmptyTooltipContext, TooltipBehavior, type TooltipOriginProps } from '../../../../tooltip-behavior';
 import { elementSizeSignal } from '../../../../utils/element-size';
+import { AnimationSequencedGameState } from '../../animation-sequenced-game-state';
 import { LandmarkTooltip } from './landmark-tooltip';
 import { PlayerTooltip } from './player-tooltip';
+
+function extractObservedBits(gameStore: InstanceType<typeof GameStore>) {
+  return {
+    defs: gameStore.defs(),
+    ratCount: gameStore.ratCount(),
+    food: gameStore.foodFactor(),
+    energy: gameStore.energyFactor(),
+    luck: gameStore.luckFactor(),
+    distraction: gameStore.distractionCounter(),
+    startled: gameStore.startledCounter(),
+    smart: gameStore.targetLocationChosenBecauseSmart(),
+    conspiratorial: gameStore.targetLocationChosenBecauseConspiratorial(),
+    stylish: gameStore.styleFactor(),
+    confidence: gameStore.hasConfidence(),
+    outgoingAnimatableActions: gameStore.consumeOutgoingAnimatableActions(),
+    receivedItemCountLookup: gameStore.receivedItemCountLookup(),
+    checkedLocations: gameStore.checkedLocations(),
+  };
+}
 
 @Component({
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -42,7 +63,7 @@ import { PlayerTooltip } from './player-tooltip';
   template: `
     <div #outer class="outer">
       <img class="map-img" alt="map" [ngSrc]="mapUrl()" width="300" height="450" priority />
-      <div id="fillers" class="just-for-organization">
+      <div class="organize fillers">
         @for (f of allFillers(); track f.loc) {
           <div
             class="hover-box filler" [tabindex]="$index + 1999"
@@ -51,7 +72,7 @@ import { PlayerTooltip } from './player-tooltip';
           </div>
         }
       </div>
-      <div id="landmarks" class="just-for-organization">
+      <div class="organize landmarks">
         @for (lm of allLandmarks(); track lm.loc) {
           <div
             class="hover-box landmark" [tabindex]="$index + 999"
@@ -59,6 +80,7 @@ import { PlayerTooltip } from './player-tooltip';
             <!--suppress CheckImageSize -->
             <img #landmarkImage width="64" height="64" [alt]="lm.yamlKey" src="/assets/images/locations.webp"
                  [id]="'landmark-image-' + lm.loc" [style.--ap-sprite-index]="lm.spriteIndex"
+                 [style.--ap-checked-offset]="2"
                  appTooltip [tooltipContext]="tooltipContext" (tooltipOriginChange)="setTooltipOrigin(lm.landmark, $event, true)">
           </div>
         }
@@ -106,8 +128,18 @@ import { PlayerTooltip } from './player-tooltip';
       height: 100%;
     }
 
-    .just-for-organization {
+    .organize {
       display: contents;
+    }
+
+    .landmarks {
+      --ap-checked-offset: 2;
+    }
+
+    .fillers {
+      div {
+        background-color: yellow;
+      }
     }
 
     .pause-button-container {
@@ -164,6 +196,7 @@ export class GameTabMap {
   readonly #injector = inject(Injector);
   readonly #store = inject(GameStore);
   readonly #gameScreenStore = inject(GameScreenStore);
+  readonly #anim = inject(AnimationSequencedGameState);
   protected readonly toggleShowingPath = this.#gameScreenStore.toggleShowingPath;
   protected readonly running = this.#store.running;
 
@@ -293,11 +326,12 @@ export class GameTabMap {
         this.#oneShotTimeline.pause();
       }
     });
-    const locationIsCheckedSignals = this.#store.defs().allLocations.map(() => signal(false));
+    const locationsMarkedChecked = new BitArray(BAKED_DEFINITIONS_FULL.allLocations.length + 1);
     effect(() => {
       const playerTokenContainer = this.playerTokenContainer().nativeElement;
-      const { allLocations } = this.#store.defs();
-      for (const anim of this.#store.consumeOutgoingAnimatableActions()) {
+      const observedBits = extractObservedBits(this.#store);
+      const { allLocations } = observedBits.defs;
+      for (const anim of observedBits.outgoingAnimatableActions) {
         switch (anim.type) {
           case 'move': {
             const fromCoords = allLocations[anim.fromLocation].coords;
@@ -329,44 +363,38 @@ export class GameTabMap {
                   ['--ap-top-base']: `${toCoords[1].toString()}px`,
                   ease: 'none',
                   immediateRender: false,
+                  duration: 0.1,
                 },
                 '>',
               );
             break;
           }
-
-          case 'check-locations': {
-            this.#oneShotTimeline
-              .call(() => {
-                anim.locations.forEach((loc) => {
-                  locationIsCheckedSignals[loc].set(true);
-                });
-              }, [], '>');
-            break;
-          }
         }
       }
-    });
 
-    effect(() => {
-      for (const { nativeElement: image } of this.landmarkImages()) {
-        const id = Number(image.id.slice('landmark-image-'.length));
-        const locationIsCheckedSignal = locationIsCheckedSignals[id];
-        setTimeout(() => {
-          effect(() => {
-            image.style.setProperty('--ap-checked-offset', locationIsCheckedSignal() ? '0' : '2');
-          }, { injector: this.#injector });
-        });
+      const newlyCheckedLocations = [...observedBits.checkedLocations.filter(l => !locationsMarkedChecked[l])];
+      if (newlyCheckedLocations.length > 0) {
+        this.#oneShotTimeline.to(
+          newlyCheckedLocations.map(l => `#landmark-image-${l.toString()}`),
+          { ['--ap-checked-offset']: 0, duration: 0 },
+          '>',
+        );
+        this.#oneShotTimeline.to(
+          newlyCheckedLocations.map(l => `#filler-div-${l.toString()}`),
+          { ['background-color']: 'gray', duration: 0 },
+          '>',
+        );
+        for (const l of newlyCheckedLocations) {
+          locationsMarkedChecked[l] = 1;
+        }
       }
-      for (const { nativeElement: square } of this.fillerSquares()) {
-        const id = Number(square.id.slice('filler-div-'.length));
-        const locationIsCheckedSignal = locationIsCheckedSignals[id];
-        setTimeout(() => {
-          effect(() => {
-            square.style.setProperty('background-color', locationIsCheckedSignal() ? 'grey' : 'yellow');
-          }, { injector: this.#injector });
-        });
-      }
+
+      this.#oneShotTimeline.to(this, {
+        duration: 0,
+        onUpdate: () => {
+          this.#apply(observedBits);
+        },
+      }, '>');
     });
   }
 
@@ -383,6 +411,26 @@ export class GameTabMap {
         ? null
         : { landmark, ...props };
     });
+  }
+
+  #apply(state: ReturnType<typeof extractObservedBits>) {
+    const { ratCount, food, energy, luck, distraction, startled, smart, conspiratorial, stylish, confidence } = state;
+    this.#anim.ratCount.set(ratCount);
+    this.#anim.food.set(food);
+    this.#anim.energy.set(energy);
+    this.#anim.luck.set(luck);
+    this.#anim.distraction.set(distraction);
+    this.#anim.startled.set(startled);
+    this.#anim.smart.set(smart);
+    this.#anim.conspiratorial.set(conspiratorial);
+    this.#anim.stylish.set(stylish);
+    this.#anim.confidence.set(confidence);
+    for (let i = 0; i < state.receivedItemCountLookup.length; ++i) {
+      this.#anim.itemCount[i].set(state.receivedItemCountLookup[i]);
+    }
+    for (const checkedLocation of state.checkedLocations) {
+      this.#anim.locationIsChecked[checkedLocation].set(true);
+    }
   }
 }
 

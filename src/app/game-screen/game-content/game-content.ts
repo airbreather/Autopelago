@@ -14,6 +14,7 @@ import type { AutopelagoClientAndData } from '../../data/slot-data';
 import { GameStore } from '../../store/autopelago-store';
 import { GameScreenStore } from '../../store/game-screen-store';
 import { elementSizeSignal } from '../../utils/element-size';
+import { AnimationSequencedGameState } from './animation-sequenced-game-state';
 import { GameTabs } from './game-tabs/game-tabs';
 import { StatusDisplay } from './status-display/status-display';
 
@@ -28,6 +29,7 @@ import { StatusDisplay } from './status-display/status-display';
   providers: [
     GameScreenStore,
     GameStore,
+    AnimationSequencedGameState,
   ],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
