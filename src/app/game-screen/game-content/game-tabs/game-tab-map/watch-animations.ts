@@ -4,6 +4,7 @@ import { PerformanceInsensitiveAnimatableState } from '../../status-display/perf
 
 interface WatchAnimationsParams {
   gameStore: InstanceType<typeof GameStore>;
+  outerDiv: HTMLDivElement;
   playerTokenContainer: HTMLDivElement;
   landmarkContainers: readonly HTMLDivElement[];
   questContainers: readonly HTMLDivElement[];
@@ -13,12 +14,19 @@ interface WatchAnimationsParams {
 }
 
 export function watchAnimations(
-  { gameStore, playerTokenContainer, landmarkContainers, questContainers, fillerSquares, performanceInsensitiveAnimatableState, injector }: WatchAnimationsParams,
+  { gameStore, outerDiv, playerTokenContainer, landmarkContainers, questContainers, fillerSquares, performanceInsensitiveAnimatableState, injector }: WatchAnimationsParams,
 ) {
   const destroyRef = injector.get(DestroyRef);
-  playerTokenContainer.animate({
+  const landmarkShake = outerDiv.animate([
+    { ['--ap-frame-offset']: 0, easing: 'steps(1)' },
+    { ['--ap-frame-offset']: 1, easing: 'steps(1)' },
+    { ['--ap-frame-offset']: 0, easing: 'steps(1)' },
+  ], { duration: 1000, iterations: Infinity });
+  const playerWiggle = playerTokenContainer.animate({
     ['--ap-wiggle-amount']: [0, 1, 0, -1, 0],
   }, { duration: 1000, iterations: Infinity });
+
+  let currentMovementAnimation: Animation | null = null;
 
   let prevAnimation = Promise.resolve();
 
@@ -68,7 +76,19 @@ export function watchAnimations(
       checkLocations(untracked(() => gameStore.checkedLocations()));
     }, { injector });
     effect(() => {
-      const { allLocations } = gameStore.defs();
+      if (gameStore.running()) {
+        playerWiggle.play();
+        landmarkShake.play();
+        currentMovementAnimation?.play();
+      }
+      else {
+        playerWiggle.pause();
+        landmarkShake.pause();
+        currentMovementAnimation?.pause();
+      }
+    }, { injector });
+    effect(() => {
+      const { allLocations, regionForLandmarkLocation } = gameStore.defs();
       // this captures the full snapshot at this time, but applySnapshot only handles some of it.
       const snapshot = performanceInsensitiveAnimatableState.getSnapshot(gameStore);
       {
@@ -79,6 +99,14 @@ export function watchAnimations(
             return;
           }
           performanceInsensitiveAnimatableState.applySnapshot(snapshot);
+
+          // applySnapshot doesn't do quest markers
+          for (const [loc, questContainer] of questContainersLookup.entries()) {
+            const region = regionForLandmarkLocation[loc];
+            if (snapshot.regionIsLandmarkWithRequirementSatisfied[region]) {
+              questContainer.style.setProperty('--ap-blocked-offset', '0');
+            }
+          }
         })();
       }
 
@@ -106,18 +134,19 @@ export function watchAnimations(
               }
               playerTokenContainer.style.setProperty('--ap-neutral-angle', neutralAngle.toString() + 'rad');
               playerTokenContainer.style.setProperty('--ap-scale-x', scaleX.toString());
-              const animation = playerTokenContainer.animate({
+              currentMovementAnimation = playerTokenContainer.animate({
                 ['--ap-left-base']: [tx.toString() + 'px'],
                 ['--ap-top-base']: [ty.toString() + 'px'],
               }, { fill: 'forwards', duration: 100 });
               try {
-                await animation.finished;
-                animation.commitStyles();
-                animation.cancel();
+                await currentMovementAnimation.finished;
+                currentMovementAnimation.commitStyles();
+                currentMovementAnimation.cancel();
               }
               catch {
                 // doesn't matter.
               }
+              currentMovementAnimation = null;
             })();
             break;
           }

@@ -64,15 +64,17 @@ import { watchAnimations } from './watch-animations';
                  [style.--ap-sprite-index]="lm.spriteIndex"
                  appTooltip [tooltipContext]="tooltipContext" (tooltipOriginChange)="setTooltipOrigin(lm.landmark, $event, true)">
           </div>
-          <div
-            #questContainer class="hover-box landmark-quest"
-            [attr.data-location-id]="lm.loc"
-            [style.--ap-left-base.px]="lm.coords[0]" [style.--ap-top-base.px]="lm.coords[1]">
-            <!--suppress CheckImageSize -->
-            <img width="64" height="64" [alt]="lm.yamlKey" src="/assets/images/locations.webp"
-                 [style.--ap-sprite-index]="0"
-                 appTooltip [tooltipContext]="tooltipContext" (tooltipOriginChange)="setTooltipOrigin(lm.landmark, $event, true)">
-          </div>
+          @if (lm.yamlKey !== 'moon_comma_the') {
+            <div
+              #questContainer class="hover-box landmark-quest"
+              [attr.data-location-id]="lm.loc"
+              [style.--ap-left-base.px]="lm.coords[0]" [style.--ap-top-base.px]="lm.coords[1]">
+              <!--suppress CheckImageSize -->
+              <img width="64" height="64" [alt]="lm.yamlKey" src="/assets/images/locations.webp"
+                   [style.--ap-sprite-index]="0"
+                   appTooltip [tooltipContext]="tooltipContext" (tooltipOriginChange)="setTooltipOrigin(lm.landmark, $event, true)">
+            </div>
+          }
         }
       </div>
       <div #playerTokenContainer class="hover-box player" tabindex="998" [style.z-index]="999"
@@ -311,6 +313,7 @@ export class GameTabMap {
     });
 
     const initAnimationWatcherEffect = effect(() => {
+      const outerDiv = this.outerDiv().nativeElement;
       const playerTokenContainer = this.playerTokenContainer().nativeElement;
       const landmarkContainers = this.landmarkContainers().map(l => l.nativeElement);
       const questContainers = this.questContainers().map(l => l.nativeElement);
@@ -323,10 +326,11 @@ export class GameTabMap {
 
       watchAnimations({
         gameStore: this.#store,
-        playerTokenContainer: playerTokenContainer,
-        landmarkContainers: landmarkContainers,
-        questContainers: questContainers,
-        fillerSquares: fillerSquares,
+        outerDiv,
+        playerTokenContainer,
+        landmarkContainers,
+        questContainers,
+        fillerSquares,
         performanceInsensitiveAnimatableState: this.#performanceInsensitiveAnimatableState,
         injector: this.#injector,
       });

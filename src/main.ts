@@ -4,6 +4,13 @@ import { App } from './app/app';
 import { appConfig } from './app/app.config';
 
 CSS.registerProperty({
+  name: '--ap-frame-offset',
+  syntax: '<number>',
+  inherits: true,
+  initialValue: '0',
+});
+
+CSS.registerProperty({
   name: '--ap-left-base',
   syntax: '<length>',
   inherits: true,

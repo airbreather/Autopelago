@@ -32,7 +32,6 @@ export class PerformanceInsensitiveAnimatableState {
       confidence: gameStore.hasConfidence(),
       outgoingAnimatableActions: gameStore.consumeOutgoingAnimatableActions(),
       receivedItemCountLookup: gameStore.receivedItemCountLookup(),
-      checkedLocations: gameStore.checkedLocations(),
       regionIsLandmarkWithRequirementSatisfied: gameStore.regionLocks().regionIsLandmarkWithRequirementSatisfied,
     };
   }
