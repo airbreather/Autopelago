@@ -44,7 +44,7 @@ function extractObservedBits(gameStore: InstanceType<typeof GameStore>) {
     conspiratorial: gameStore.targetLocationChosenBecauseConspiratorial(),
     stylish: gameStore.styleFactor(),
     confidence: gameStore.hasConfidence(),
-    outgoingAnimatableActions: gameStore.consumeOutgoingAnimatableActions(),
+    outgoingMovementActions: gameStore.consumeOutgoingMovementActions(),
     receivedItemCountLookup: gameStore.receivedItemCountLookup(),
     checkedLocations: gameStore.checkedLocations(),
   };
@@ -331,45 +331,40 @@ export class GameTabMap {
       const playerTokenContainer = this.playerTokenContainer().nativeElement;
       const observedBits = extractObservedBits(this.#store);
       const { allLocations } = observedBits.defs;
-      for (const anim of observedBits.outgoingAnimatableActions) {
-        switch (anim.type) {
-          case 'move': {
-            const fromCoords = allLocations[anim.fromLocation].coords;
-            const toCoords = allLocations[anim.toLocation].coords;
-            let neutralAngle = Math.atan2(toCoords[1] - fromCoords[1], toCoords[0] - fromCoords[0]);
-            let scaleX = 1;
-            if (Math.abs(neutralAngle) >= Math.PI / 2) {
-              neutralAngle -= Math.PI;
-              scaleX = -1;
-            }
-            this.#oneShotTimeline
-              .set(
-                playerTokenContainer, {
-                  ['--ap-neutral-angle']: `${neutralAngle.toString()}rad`,
-                  ['--ap-scale-x']: scaleX.toString(),
-                  immediateRender: false,
-                  duration: 0,
-                },
-                '>',
-              );
-            this.#oneShotTimeline
-              .fromTo(
-                playerTokenContainer, {
-                  ['--ap-left-base']: `${fromCoords[0].toString()}px`,
-                  ['--ap-top-base']: `${fromCoords[1].toString()}px`,
-                  immediateRender: false,
-                }, {
-                  ['--ap-left-base']: `${toCoords[0].toString()}px`,
-                  ['--ap-top-base']: `${toCoords[1].toString()}px`,
-                  ease: 'none',
-                  immediateRender: false,
-                  duration: 0.1,
-                },
-                '>',
-              );
-            break;
-          }
+      for (const move of observedBits.outgoingMovementActions) {
+        const fromCoords = allLocations[move.fromLocation].coords;
+        const toCoords = allLocations[move.toLocation].coords;
+        let neutralAngle = Math.atan2(toCoords[1] - fromCoords[1], toCoords[0] - fromCoords[0]);
+        let scaleX = 1;
+        if (Math.abs(neutralAngle) >= Math.PI / 2) {
+          neutralAngle -= Math.PI;
+          scaleX = -1;
         }
+        this.#oneShotTimeline
+          .set(
+            playerTokenContainer, {
+              ['--ap-neutral-angle']: `${neutralAngle.toString()}rad`,
+              ['--ap-scale-x']: scaleX.toString(),
+              immediateRender: false,
+              duration: 0,
+            },
+            '>',
+          );
+        this.#oneShotTimeline
+          .fromTo(
+            playerTokenContainer, {
+              ['--ap-left-base']: `${fromCoords[0].toString()}px`,
+              ['--ap-top-base']: `${fromCoords[1].toString()}px`,
+              immediateRender: false,
+            }, {
+              ['--ap-left-base']: `${toCoords[0].toString()}px`,
+              ['--ap-top-base']: `${toCoords[1].toString()}px`,
+              ease: 'none',
+              immediateRender: false,
+              duration: 0.1,
+            },
+            '>',
+          );
       }
 
       const newlyCheckedLocations = [...observedBits.checkedLocations.filter(l => !locationsMarkedChecked[l])];

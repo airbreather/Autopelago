@@ -8,7 +8,7 @@ import Queue from 'yocto-queue';
 import type { Message } from '../archipelago-client';
 import { type AutopelagoAura, BAKED_DEFINITIONS_BY_VICTORY_LANDMARK } from '../data/resolved-definitions';
 import type { AutopelagoStoredData, UserRequestedLocation } from '../data/slot-data';
-import type { AnimatableAction, DefiningGameState } from '../game/defining-state';
+import type { DefiningGameState, MovementAction } from '../game/defining-state';
 import {
   buildRequirementIsSatisfied,
   determineDesirability,
@@ -127,7 +127,7 @@ const initialState: DefiningGameState = {
   checkedLocations: ImmutableSet<number>(),
   prng: rand.xoroshiro128plus(42),
   outgoingCheckedLocations: List<number>(),
-  outgoingAnimatableActions: List<AnimatableAction>(),
+  outgoingMovementActions: List<MovementAction>(),
   outgoingMessages: List<string>(),
   outgoingAuraDrivenLocations: List<number>(),
 };
@@ -674,12 +674,12 @@ export function withGameState() {
             return result;
           });
         },
-        consumeOutgoingAnimatableActions() {
-          const outgoingAnimatableActions = store.outgoingAnimatableActions();
-          if (outgoingAnimatableActions.size > 0) {
-            patchState(store, { outgoingAnimatableActions: outgoingAnimatableActions.clear() });
+        consumeOutgoingMovementActions() {
+          const outgoingMovementActions = store.outgoingMovementActions();
+          if (outgoingMovementActions.size > 0) {
+            patchState(store, { outgoingMovementActions: outgoingMovementActions.clear() });
           }
-          return outgoingAnimatableActions;
+          return outgoingMovementActions;
         },
         processMessage(msg: Message, players: PlayersManager) {
           switch (msg.type) {
@@ -897,12 +897,11 @@ export function withGameState() {
                   }
                 }
                 for (let i = 0; i < 3 && result.currentLocation !== targetLocation; i++) {
-                  if (!('outgoingAnimatableActions' in result)) {
-                    result.outgoingAnimatableActions = prev.outgoingAnimatableActions;
+                  if (!('outgoingMovementActions' in result)) {
+                    result.outgoingMovementActions = prev.outgoingMovementActions;
                   }
 
-                  result.outgoingAnimatableActions = result.outgoingAnimatableActions.push({
-                    type: 'move',
+                  result.outgoingMovementActions = result.outgoingMovementActions.push({
                     fromLocation: result.currentLocation,
                     toLocation: result.currentLocation = route[++j],
                   });
@@ -959,13 +958,6 @@ export function withGameState() {
                 }
                 result.outgoingCheckedLocations = prev.outgoingCheckedLocations.push(result.currentLocation);
                 result.checkedLocations = prev.checkedLocations.add(result.currentLocation);
-                if (!('outgoingAnimatableActions' in result)) {
-                  result.outgoingAnimatableActions = prev.outgoingAnimatableActions;
-                }
-                // only push exactly one at a time, even if we will be checking multiple locations
-                // during this advance() call. the action type allows for multiple because that's
-                // what happens when the server dumps a bunch on us.
-                result.outgoingAnimatableActions = result.outgoingAnimatableActions.push({ type: 'check-locations', locations: [result.currentLocation] });
                 result.mercyFactor = 0;
                 bumpMercyModifierForNextTime = false;
               }

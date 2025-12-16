@@ -8,30 +8,9 @@ import type { Weighted } from '../utils/weighted-sampler';
 import type { TargetLocationEvidence } from './target-location-evidence';
 
 export interface MovementAction {
-  type: 'move';
   fromLocation: number;
   toLocation: number;
 }
-
-export interface CheckLocationsAction {
-  type: 'check-locations';
-  locations: readonly number[];
-}
-
-export interface CompletedGoalAction {
-  type: 'completed-goal';
-}
-
-export interface UWinAction {
-  type: 'u-win';
-}
-
-export type AnimatableAction =
-  | MovementAction
-  | CheckLocationsAction
-  | CompletedGoalAction
-  | UWinAction
-  ;
 
 export interface DefiningGameState {
   // values that don't change throughout the entire run:
@@ -74,7 +53,7 @@ export interface DefiningGameState {
 
   // other values used to indicate autonomous actions that haven't been observed yet:
   outgoingCheckedLocations: List<number>;
-  outgoingAnimatableActions: List<AnimatableAction>;
+  outgoingMovementActions: List<MovementAction>;
   outgoingMessages: List<string>;
   outgoingAuraDrivenLocations: List<number>;
 }

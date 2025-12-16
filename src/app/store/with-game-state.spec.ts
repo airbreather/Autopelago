@@ -736,11 +736,7 @@ describe('withGameState', () => {
       }
     }
 
-    for (const action of store.consumeOutgoingAnimatableActions()) {
-      if (action.type !== 'move') {
-        continue;
-      }
-
+    for (const action of store.consumeOutgoingMovementActions()) {
       expect.soft(action.toLocation).not.toStrictEqual(pirateBakeSale);
       expect.soft(action.toLocation).not.toStrictEqual(prawnStars);
     }

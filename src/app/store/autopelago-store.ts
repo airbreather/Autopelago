@@ -69,7 +69,7 @@ export const GameStore = signalStore(
         receivedItems: List<number>(),
         checkedLocations: ImmutableSet(checkedLocations),
         previousTargetLocationEvidence: targetLocationEvidenceFromJSONSerializable(storedData.previousTargetLocationEvidence),
-        outgoingAnimatableActions: List(),
+        outgoingMovementActions: List(),
       });
       const itemsJustReceived: number[] = [];
       for (const item of client.items.received) {
@@ -93,26 +93,15 @@ export const GameStore = signalStore(
       });
 
       client.room.on('locationsChecked', (locations) => {
-        patchState(store, ({ checkedLocations, outgoingAnimatableActions }) => {
+        patchState(store, ({ checkedLocations }) => {
           checkedLocations = checkedLocations.withMutations((c) => {
-            outgoingAnimatableActions = outgoingAnimatableActions.withMutations((a) => {
-              const newlyCheckedLocations: number[] = [];
-              for (const serverLocationId of locations) {
-                const location = locationNameLookup.get(pkg.reverseLocationTable[serverLocationId]) ?? -1;
-                const sizeBefore = c.size;
-                c.add(location);
-                if (c.size > sizeBefore) {
-                  newlyCheckedLocations.push(location);
-                }
-              }
-              if (newlyCheckedLocations.length > 0) {
-                a.push({ type: 'check-locations', locations: newlyCheckedLocations });
-              }
-            });
+            for (const serverLocationId of locations) {
+              const location = locationNameLookup.get(pkg.reverseLocationTable[serverLocationId]) ?? -1;
+              c.add(location);
+            }
           });
           return {
             checkedLocations,
-            outgoingAnimatableActions,
           };
         });
       });
@@ -158,8 +147,7 @@ export const GameStore = signalStore(
 
         game.client.goal();
         const { sendChatMessages, forOneTimeEvents } = game.connectScreenState;
-        patchState(store, ({ outgoingAnimatableActions, outgoingMessages }) => ({
-          outgoingAnimatableActions: outgoingAnimatableActions.push({ type: 'completed-goal' }),
+        patchState(store, ({ outgoingMessages }) => ({
           outgoingMessages: sendChatMessages && forOneTimeEvents
             ? outgoingMessages.push(sampleMessage(Math.random()))
             : outgoingMessages,
@@ -310,21 +298,6 @@ export const GameStore = signalStore(
             }));
           }
         }
-      });
-      const uwin = effect(() => {
-        if (!store.allLocationsAreChecked()) {
-          return;
-        }
-
-        if (store.victoryLocationYamlKey() === 'snakes_on_a_planet' && store.currentLocation() !== store.defs().moonCommaThe?.location) {
-          return;
-        }
-
-        patchState(store, ({ outgoingAnimatableActions }) => ({
-          outgoingAnimatableActions: outgoingAnimatableActions.push({ type: 'u-win' }),
-        }));
-
-        uwin.destroy();
       });
     },
   }),
