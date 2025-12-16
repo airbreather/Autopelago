@@ -15,6 +15,7 @@ import {
   resource,
   signal,
   viewChild,
+  viewChildren,
 } from '@angular/core';
 import BitArray from '@bitarray/typedarray';
 
@@ -25,8 +26,10 @@ import { GameStore } from '../../../../store/autopelago-store';
 import { GameScreenStore } from '../../../../store/game-screen-store';
 import { createEmptyTooltipContext, TooltipBehavior, type TooltipOriginProps } from '../../../../tooltip-behavior';
 import { elementSizeSignal } from '../../../../utils/element-size';
+import { PerformanceInsensitiveAnimatableState } from '../../status-display/performance-insensitive-animatable-state';
 import { LandmarkTooltip } from './landmark-tooltip';
 import { PlayerTooltip } from './player-tooltip';
+import { watchAnimations } from './watch-animations';
 
 @Component({
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -44,28 +47,30 @@ import { PlayerTooltip } from './player-tooltip';
       <div class="organize fillers">
         @for (f of allFillers(); track f.loc) {
           <div
-            class="hover-box filler" [tabindex]="$index + 1999"
+            #fillerSquare class="hover-box filler" [tabindex]="$index + 1999"
             [style.--ap-left-base.px]="f.coords[0]" [style.--ap-top-base.px]="f.coords[1]"
-            #fillerSquare [attr.data-location-id]="f.loc">
+            [attr.data-location-id]="f.loc">
           </div>
         }
       </div>
       <div class="organize landmarks">
         @for (lm of allLandmarks(); track lm.loc) {
           <div
-            class="hover-box landmark" [tabindex]="$index + 999"
+            #landmarkContainer class="hover-box landmark" [tabindex]="$index + 999"
+            [attr.data-location-id]="lm.loc"
             [style.--ap-left-base.px]="lm.coords[0]" [style.--ap-top-base.px]="lm.coords[1]">
             <!--suppress CheckImageSize -->
             <img width="64" height="64" [alt]="lm.yamlKey" src="/assets/images/locations.webp"
-                 [attr.data-location-id]="lm.loc" [style.--ap-sprite-index]="lm.spriteIndex"
+                 [style.--ap-sprite-index]="lm.spriteIndex"
                  appTooltip [tooltipContext]="tooltipContext" (tooltipOriginChange)="setTooltipOrigin(lm.landmark, $event, true)">
           </div>
           <div
-            class="hover-box landmark-quest"
+            #questContainer class="hover-box landmark-quest"
+            [attr.data-location-id]="lm.loc"
             [style.--ap-left-base.px]="lm.coords[0]" [style.--ap-top-base.px]="lm.coords[1]">
             <!--suppress CheckImageSize -->
             <img width="64" height="64" [alt]="lm.yamlKey" src="/assets/images/locations.webp"
-                 [attr.data-location-id]="lm.loc" [style.--ap-sprite-index]="0"
+                 [style.--ap-sprite-index]="0"
                  appTooltip [tooltipContext]="tooltipContext" (tooltipOriginChange)="setTooltipOrigin(lm.landmark, $event, true)">
           </div>
         }
@@ -183,7 +188,6 @@ import { PlayerTooltip } from './player-tooltip';
     .hover-box {
       position: absolute;
       pointer-events: initial;
-
       transform-origin: left top;
     }
   `,
@@ -192,10 +196,15 @@ export class GameTabMap {
   readonly #injector = inject(Injector);
   readonly #store = inject(GameStore);
   readonly #gameScreenStore = inject(GameScreenStore);
+  readonly #performanceInsensitiveAnimatableState = inject(PerformanceInsensitiveAnimatableState);
   protected readonly toggleShowingPath = this.#gameScreenStore.toggleShowingPath;
   protected readonly running = this.#store.running;
 
-  readonly #allLocations = computed<AllLocationProps>(() => {
+  readonly #allLocations = computed<AllLocationProps | null>(() => {
+    if (this.#store.game() === null) {
+      // not initialized yet. don't waste time rendering.
+      return null;
+    }
     const { allLocations, allRegions, startRegion, moonCommaThe } = this.#store.defs();
     const fillers: LocationProps[] = [];
     const landmarks: LandmarkProps[] = [];
@@ -234,8 +243,8 @@ export class GameTabMap {
     return { fillers, landmarks };
   });
 
-  readonly allFillers = computed(() => this.#allLocations().fillers);
-  readonly allLandmarks = computed(() => this.#allLocations().landmarks);
+  readonly allFillers = computed(() => this.#allLocations()?.fillers ?? []);
+  readonly allLandmarks = computed(() => this.#allLocations()?.landmarks ?? []);
 
   // all tooltips here should use the same context so that the user can quickly switch between them
   // without having to sit through the whole delay.
@@ -258,6 +267,10 @@ export class GameTabMap {
 
   protected readonly outerDiv = viewChild.required<ElementRef<HTMLDivElement>>('outer');
   protected readonly overlay = viewChild.required(CdkConnectedOverlay);
+  protected readonly fillerSquares = viewChildren<ElementRef<HTMLDivElement>>('fillerSquare');
+  protected readonly landmarkContainers = viewChildren<ElementRef<HTMLDivElement>>('landmarkContainer');
+  protected readonly questContainers = viewChildren<ElementRef<HTMLDivElement>>('questContainer');
+  protected readonly playerTokenContainer = viewChild.required<ElementRef<HTMLDivElement>>('playerTokenContainer');
   #overlayIsAttached = false;
 
   readonly playerImageSource = resource({
@@ -295,6 +308,29 @@ export class GameTabMap {
       if (this.#overlayIsAttached) {
         this.overlay().overlayRef.updatePosition();
       }
+    });
+
+    const initAnimationWatcherEffect = effect(() => {
+      const playerTokenContainer = this.playerTokenContainer().nativeElement;
+      const landmarkContainers = this.landmarkContainers().map(l => l.nativeElement);
+      const questContainers = this.questContainers().map(l => l.nativeElement);
+      const fillerSquares = this.fillerSquares().map(l => l.nativeElement);
+
+      if (landmarkContainers.length === 0 || questContainers.length === 0 || fillerSquares.length === 0) {
+        // still waiting to know how many landmarks / fillers there are.
+        return;
+      }
+
+      watchAnimations({
+        gameStore: this.#store,
+        playerTokenContainer: playerTokenContainer,
+        landmarkContainers: landmarkContainers,
+        questContainers: questContainers,
+        fillerSquares: fillerSquares,
+        performanceInsensitiveAnimatableState: this.#performanceInsensitiveAnimatableState,
+        injector: this.#injector,
+      });
+      initAnimationWatcherEffect.destroy();
     });
   }
 

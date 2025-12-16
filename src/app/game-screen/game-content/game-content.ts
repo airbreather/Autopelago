@@ -15,6 +15,7 @@ import { GameStore } from '../../store/autopelago-store';
 import { GameScreenStore } from '../../store/game-screen-store';
 import { elementSizeSignal } from '../../utils/element-size';
 import { GameTabs } from './game-tabs/game-tabs';
+import { PerformanceInsensitiveAnimatableState } from './status-display/performance-insensitive-animatable-state';
 import { StatusDisplay } from './status-display/status-display';
 
 @Component({
@@ -28,6 +29,7 @@ import { StatusDisplay } from './status-display/status-display';
   providers: [
     GameScreenStore,
     GameStore,
+    PerformanceInsensitiveAnimatableState,
   ],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
