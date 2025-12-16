@@ -1,6 +1,8 @@
+import { Dialog } from '@angular/cdk/dialog';
 import { DestroyRef, effect, type Injector, untracked } from '@angular/core';
 import type { GameStore } from '../../../../store/autopelago-store';
 import { PerformanceInsensitiveAnimatableState } from '../../status-display/performance-insensitive-animatable-state';
+import { UWin } from './u-win';
 
 interface WatchAnimationsParams {
   gameStore: InstanceType<typeof GameStore>;
@@ -17,6 +19,7 @@ export function watchAnimations(
   { gameStore, outerDiv, playerTokenContainer, landmarkContainers, questContainers, fillerSquares, performanceInsensitiveAnimatableState, injector }: WatchAnimationsParams,
 ) {
   const destroyRef = injector.get(DestroyRef);
+  const dialog = injector.get(Dialog);
   const landmarkShake = outerDiv.animate([
     { ['--ap-frame-offset']: 0, easing: 'steps(1)' },
     { ['--ap-frame-offset']: 1, easing: 'steps(1)' },
@@ -159,6 +162,21 @@ export function watchAnimations(
                 return;
               }
               checkLocations(anim.locations);
+            })();
+            break;
+          }
+
+          case 'u-win': {
+            const prevPrevAnimation = prevAnimation;
+            prevAnimation = (async () => {
+              await prevPrevAnimation;
+              if (destroyRef.destroyed) {
+                return;
+              }
+              dialog.open(UWin, {
+                width: '60%',
+                height: '60%',
+              });
             })();
             break;
           }

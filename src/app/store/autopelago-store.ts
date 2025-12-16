@@ -158,8 +158,7 @@ export const GameStore = signalStore(
 
         game.client.goal();
         const { sendChatMessages, forOneTimeEvents } = game.connectScreenState;
-        patchState(store, ({ outgoingAnimatableActions, outgoingMessages }) => ({
-          outgoingAnimatableActions: outgoingAnimatableActions.push({ type: 'completed-goal' }),
+        patchState(store, ({ outgoingMessages }) => ({
           outgoingMessages: sendChatMessages && forOneTimeEvents
             ? outgoingMessages.push(sampleMessage(Math.random()))
             : outgoingMessages,

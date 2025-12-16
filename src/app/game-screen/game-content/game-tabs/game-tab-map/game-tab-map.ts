@@ -57,7 +57,7 @@ import { watchAnimations } from './watch-animations';
         @for (lm of allLandmarks(); track lm.loc) {
           <div
             #landmarkContainer class="hover-box landmark" [tabindex]="$index + 999"
-            [attr.data-location-id]="lm.loc"
+            [attr.data-location-id]="lm.loc" [style.--ap-checked-offset]="lm.yamlKey === 'moon_comma_the' ? 0 : 'unset'"
             [style.--ap-left-base.px]="lm.coords[0]" [style.--ap-top-base.px]="lm.coords[1]">
             <!--suppress CheckImageSize -->
             <img width="64" height="64" [alt]="lm.yamlKey" src="/assets/images/locations.webp"
@@ -221,7 +221,7 @@ export class GameTabMap {
     tryEnqueue(startRegion);
     for (let r = q.dequeue(); r !== undefined; r = q.dequeue()) {
       const region = allRegions[r];
-      if (r === moonCommaThe?.region && !this.#store.hasCompletedGoal()) {
+      if (r === moonCommaThe?.region && !this.#performanceInsensitiveAnimatableState.hasCompletedGoal()) {
         continue;
       }
       if ('loc' in region) {
