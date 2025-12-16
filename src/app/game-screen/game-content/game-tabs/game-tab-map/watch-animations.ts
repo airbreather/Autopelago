@@ -94,26 +94,6 @@ export function watchAnimations(
       const { allLocations, regionForLandmarkLocation } = gameStore.defs();
       // this captures the full snapshot at this time, but applySnapshot only handles some of it.
       const snapshot = performanceInsensitiveAnimatableState.getSnapshot(gameStore);
-      {
-        const prevPrevAnimation = prevAnimation;
-        prevAnimation = (async () => {
-          await prevPrevAnimation;
-          if (destroyRef.destroyed) {
-            return;
-          }
-          performanceInsensitiveAnimatableState.applySnapshot(snapshot);
-
-          // applySnapshot doesn't do quest markers
-          for (const [loc, questContainer] of questContainersLookup.entries()) {
-            const region = regionForLandmarkLocation[loc];
-            if (snapshot.regionIsLandmarkWithRequirementSatisfied[region]) {
-              questContainer.style.setProperty('--ap-blocked-offset', '0');
-            }
-          }
-        })();
-      }
-
-      // applySnapshot doesn't do the movements.
       for (const anim of snapshot.outgoingAnimatableActions) {
         switch (anim.type) {
           case 'move': {
@@ -181,6 +161,28 @@ export function watchAnimations(
             break;
           }
         }
+      }
+
+      // handle the rest of the stuff that happened on the turn in question. for the most part, it's
+      // better to do this stuff later because, e.g., if you get startled for one turn, then all the
+      // movement you do on the startled turn happens first, THEN the startled counter decrements.
+      {
+        const prevPrevAnimation = prevAnimation;
+        prevAnimation = (async () => {
+          await prevPrevAnimation;
+          if (destroyRef.destroyed) {
+            return;
+          }
+          performanceInsensitiveAnimatableState.applySnapshot(snapshot);
+
+          // applySnapshot doesn't do quest markers
+          for (const [loc, questContainer] of questContainersLookup.entries()) {
+            const region = regionForLandmarkLocation[loc];
+            if (snapshot.regionIsLandmarkWithRequirementSatisfied[region]) {
+              questContainer.style.setProperty('--ap-blocked-offset', '0');
+            }
+          }
+        })();
       }
     }, { injector });
   });
