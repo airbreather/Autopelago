@@ -46,7 +46,7 @@ import { PlayerTooltip } from './player-tooltip';
           <div
             class="hover-box filler" [tabindex]="$index + 1999"
             [style.--ap-left-base.px]="f.coords[0]" [style.--ap-top-base.px]="f.coords[1]"
-            #fillerSquare [id]="'filler-div-' + f.loc">
+            #fillerSquare [attr.data-location-id]="f.loc">
           </div>
         }
       </div>
@@ -57,7 +57,7 @@ import { PlayerTooltip } from './player-tooltip';
             [style.--ap-left-base.px]="lm.coords[0]" [style.--ap-top-base.px]="lm.coords[1]">
             <!--suppress CheckImageSize -->
             <img width="64" height="64" [alt]="lm.yamlKey" src="/assets/images/locations.webp"
-                 [id]="'landmark-image-' + lm.loc" [style.--ap-sprite-index]="lm.spriteIndex"
+                 [attr.data-location-id]="lm.loc" [style.--ap-sprite-index]="lm.spriteIndex"
                  appTooltip [tooltipContext]="tooltipContext" (tooltipOriginChange)="setTooltipOrigin(lm.landmark, $event, true)">
           </div>
           <div
@@ -65,7 +65,7 @@ import { PlayerTooltip } from './player-tooltip';
             [style.--ap-left-base.px]="lm.coords[0]" [style.--ap-top-base.px]="lm.coords[1]">
             <!--suppress CheckImageSize -->
             <img width="64" height="64" [alt]="lm.yamlKey" src="/assets/images/locations.webp"
-                 [id]="'landmark-quest-image-' + lm.loc" [style.--ap-sprite-index]="0"
+                 [attr.data-location-id]="lm.loc" [style.--ap-sprite-index]="0"
                  appTooltip [tooltipContext]="tooltipContext" (tooltipOriginChange)="setTooltipOrigin(lm.landmark, $event, true)">
           </div>
         }
