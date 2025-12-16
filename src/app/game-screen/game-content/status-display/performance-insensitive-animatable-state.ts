@@ -30,7 +30,7 @@ export class PerformanceInsensitiveAnimatableState {
       conspiratorial: gameStore.targetLocationChosenBecauseConspiratorial(),
       stylish: gameStore.styleFactor(),
       confidence: gameStore.hasConfidence(),
-      outgoingMovementActions: gameStore.consumeOutgoingAnimatableActions(),
+      outgoingAnimatableActions: gameStore.consumeOutgoingAnimatableActions(),
       receivedItemCountLookup: gameStore.receivedItemCountLookup(),
       checkedLocations: gameStore.checkedLocations(),
       regionIsLandmarkWithRequirementSatisfied: gameStore.regionLocks().regionIsLandmarkWithRequirementSatisfied,

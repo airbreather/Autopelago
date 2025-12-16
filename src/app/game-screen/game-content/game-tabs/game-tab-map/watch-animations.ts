@@ -24,18 +24,40 @@ export function watchAnimations(
 
   const landmarkContainersLookup = new Map<number, HTMLDivElement>();
   for (const landmarkContainer of landmarkContainers) {
-    landmarkContainersLookup.set(landmarkContainer.dataset['locationId'] as unknown as number, landmarkContainer);
+    landmarkContainersLookup.set(Number(landmarkContainer.dataset['locationId']), landmarkContainer);
   }
 
   const questContainersLookup = new Map<number, HTMLDivElement>();
   for (const questContainer of questContainers) {
-    questContainersLookup.set(questContainer.dataset['locationId'] as unknown as number, questContainer);
+    questContainersLookup.set(Number(questContainer.dataset['locationId']), questContainer);
   }
 
   const fillerSquaresLookup = new Map<number, HTMLDivElement>();
   for (const fillerSquare of fillerSquares) {
-    fillerSquaresLookup.set(fillerSquare.dataset['locationId'] as unknown as number, fillerSquare);
+    fillerSquaresLookup.set(Number(fillerSquare.dataset['locationId']), fillerSquare);
   }
+
+  const checkLocations = (locations: Iterable<number>) => {
+    for (const loc of locations) {
+      const landmarkContainer = landmarkContainersLookup.get(loc);
+      if (landmarkContainer !== undefined) {
+        landmarkContainer.style.setProperty('--ap-checked-offset', '0');
+        landmarkContainersLookup.delete(loc);
+      }
+
+      const questContainer = questContainersLookup.get(loc);
+      if (questContainer !== undefined) {
+        questContainer.style.setProperty('display', 'none');
+        questContainersLookup.delete(loc);
+      }
+
+      const fillerSquare = fillerSquaresLookup.get(loc);
+      if (fillerSquare !== undefined) {
+        fillerSquare.style.setProperty('background-color', 'grey');
+        fillerSquaresLookup.delete(loc);
+      }
+    }
+  };
 
   setTimeout(() => {
     effect(() => {
@@ -43,6 +65,7 @@ export function watchAnimations(
       const coords = allLocations[untracked(() => gameStore.currentLocation())].coords;
       playerTokenContainer.style.setProperty('--ap-left-base', `${coords[0].toString()}px`);
       playerTokenContainer.style.setProperty('--ap-top-base', `${coords[1].toString()}px`);
+      checkLocations(untracked(() => gameStore.checkedLocations()));
     }, { injector });
     effect(() => {
       const { allLocations } = gameStore.defs();
@@ -56,49 +79,60 @@ export function watchAnimations(
             return;
           }
           performanceInsensitiveAnimatableState.applySnapshot(snapshot);
-
-          // applySnapshot doesn't set the landmarks / fillers. those don't need an animation, so
-          // we can just set them inline here.
-
         })();
       }
 
       // applySnapshot doesn't do the movements.
-      for (const move of snapshot.outgoingMovementActions) {
-        if (move.type === 'move') {
-          if (move.fromLocation === move.toLocation) {
-            continue;
+      for (const anim of snapshot.outgoingAnimatableActions) {
+        switch (anim.type) {
+          case 'move': {
+            if (anim.fromLocation === anim.toLocation) {
+              continue;
+            }
+
+            const [fx, fy] = allLocations[anim.fromLocation].coords;
+            const [tx, ty] = allLocations[anim.toLocation].coords;
+            let neutralAngle = Math.atan2(ty - fy, tx - fx);
+            let scaleX = 1;
+            if (Math.abs(neutralAngle) >= Math.PI / 2) {
+              neutralAngle -= Math.PI;
+              scaleX = -1;
+            }
+            const prevPrevAnimation = prevAnimation;
+            prevAnimation = (async () => {
+              await prevPrevAnimation;
+              if (destroyRef.destroyed) {
+                return;
+              }
+              playerTokenContainer.style.setProperty('--ap-neutral-angle', neutralAngle.toString() + 'rad');
+              playerTokenContainer.style.setProperty('--ap-scale-x', scaleX.toString());
+              const animation = playerTokenContainer.animate({
+                ['--ap-left-base']: [tx.toString() + 'px'],
+                ['--ap-top-base']: [ty.toString() + 'px'],
+              }, { fill: 'forwards', duration: 100 });
+              try {
+                await animation.finished;
+                animation.commitStyles();
+                animation.cancel();
+              }
+              catch {
+                // doesn't matter.
+              }
+            })();
+            break;
           }
 
-          const [fx, fy] = allLocations[move.fromLocation].coords;
-          const [tx, ty] = allLocations[move.toLocation].coords;
-          let neutralAngle = Math.atan2(ty - fy, tx - fx);
-          let scaleX = 1;
-          if (Math.abs(neutralAngle) >= Math.PI / 2) {
-            neutralAngle -= Math.PI;
-            scaleX = -1;
+          case 'check-locations': {
+            const prevPrevAnimation = prevAnimation;
+            prevAnimation = (async () => {
+              await prevPrevAnimation;
+              if (destroyRef.destroyed) {
+                return;
+              }
+              checkLocations(anim.locations);
+            })();
+            break;
           }
-          const prevPrevAnimation = prevAnimation;
-          prevAnimation = (async () => {
-            await prevPrevAnimation;
-            if (destroyRef.destroyed) {
-              return;
-            }
-            playerTokenContainer.style.setProperty('--ap-neutral-angle', neutralAngle.toString() + 'rad');
-            playerTokenContainer.style.setProperty('--ap-scale-x', scaleX.toString());
-            const animation = playerTokenContainer.animate({
-              ['--ap-left-base']: [tx.toString() + 'px'],
-              ['--ap-top-base']: [ty.toString() + 'px'],
-            }, { fill: 'forwards', duration: 100 });
-            try {
-              await animation.finished;
-              animation.commitStyles();
-              animation.cancel();
-            }
-            catch {
-              // doesn't matter.
-            }
-          })();
         }
       }
     }, { injector });
