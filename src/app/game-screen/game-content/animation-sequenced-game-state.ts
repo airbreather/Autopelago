@@ -17,4 +17,5 @@ export class AnimationSequencedGameState {
 
   readonly itemCount = Array.from({ length: BAKED_DEFINITIONS_FULL.allItems.length }, () => signal(0));
   readonly locationIsChecked = Array.from({ length: BAKED_DEFINITIONS_FULL.allLocations.length + 1 }, () => signal(false));
+  readonly regionIsLandmarkWithRequirementSatisfied = Array.from({ length: BAKED_DEFINITIONS_FULL.allRegions.length }, () => signal(false));
 }

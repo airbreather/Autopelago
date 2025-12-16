@@ -15,7 +15,6 @@ import {
   resource,
   signal,
   viewChild,
-  viewChildren,
 } from '@angular/core';
 import BitArray from '@bitarray/typedarray';
 
@@ -47,6 +46,7 @@ function extractObservedBits(gameStore: InstanceType<typeof GameStore>) {
     outgoingMovementActions: gameStore.consumeOutgoingMovementActions(),
     receivedItemCountLookup: gameStore.receivedItemCountLookup(),
     checkedLocations: gameStore.checkedLocations(),
+    regionIsLandmarkWithRequirementSatisfied: gameStore.regionLocks().regionIsLandmarkWithRequirementSatisfied,
   };
 }
 
@@ -78,9 +78,16 @@ function extractObservedBits(gameStore: InstanceType<typeof GameStore>) {
             class="hover-box landmark" [tabindex]="$index + 999"
             [style.--ap-left-base.px]="lm.coords[0]" [style.--ap-top-base.px]="lm.coords[1]">
             <!--suppress CheckImageSize -->
-            <img #landmarkImage width="64" height="64" [alt]="lm.yamlKey" src="/assets/images/locations.webp"
+            <img width="64" height="64" [alt]="lm.yamlKey" src="/assets/images/locations.webp"
                  [id]="'landmark-image-' + lm.loc" [style.--ap-sprite-index]="lm.spriteIndex"
-                 [style.--ap-checked-offset]="2"
+                 appTooltip [tooltipContext]="tooltipContext" (tooltipOriginChange)="setTooltipOrigin(lm.landmark, $event, true)">
+          </div>
+          <div
+            class="hover-box landmark-quest"
+            [style.--ap-left-base.px]="lm.coords[0]" [style.--ap-top-base.px]="lm.coords[1]">
+            <!--suppress CheckImageSize -->
+            <img width="64" height="64" [alt]="lm.yamlKey" src="/assets/images/locations.webp"
+                 [id]="'landmark-quest-image-' + lm.loc" [style.--ap-sprite-index]="0"
                  appTooltip [tooltipContext]="tooltipContext" (tooltipOriginChange)="setTooltipOrigin(lm.landmark, $event, true)">
           </div>
         }
@@ -134,6 +141,7 @@ function extractObservedBits(gameStore: InstanceType<typeof GameStore>) {
 
     .landmarks {
       --ap-checked-offset: 2;
+      --ap-blocked-offset: 2;
     }
 
     .fillers {
@@ -158,7 +166,17 @@ function extractObservedBits(gameStore: InstanceType<typeof GameStore>) {
       img {
         object-fit: none;
         object-position: calc(-65px * (var(--ap-frame-offset, 0) + var(--ap-checked-offset, 0))) calc(-65px * var(--ap-sprite-index, 0));
-        overflow: hidden;
+        filter: drop-shadow(calc(var(--ap-scale, 4) * 0.8px) calc(var(--ap-scale, 4) * .8px) calc(var(--ap-scale, 4) * 0.5px) black);
+      }
+    }
+
+    .landmark-quest {
+      scale: calc(var(--ap-scale, 4) / 4 * 0.75);
+      left: calc((var(--ap-left-base, 8px) - 6px) * var(--ap-scale, 4));
+      top: calc((var(--ap-top-base, 8px) - 21px) * var(--ap-scale, 4));
+      img {
+        object-fit: none;
+        object-position: calc(-65px * (var(--ap-frame-offset, 0) + var(--ap-blocked-offset, 0))) 0;
         filter: drop-shadow(calc(var(--ap-scale, 4) * 0.8px) calc(var(--ap-scale, 4) * .8px) calc(var(--ap-scale, 4) * 0.5px) black);
       }
     }
@@ -264,8 +282,6 @@ export class GameTabMap {
   readonly #repeatTimeline = gsap.timeline();
   readonly #oneShotTimeline = gsap.timeline();
   protected readonly outerDiv = viewChild.required<ElementRef<HTMLDivElement>>('outer');
-  protected readonly fillerSquares = viewChildren<ElementRef<HTMLDivElement>>('fillerSquare');
-  protected readonly landmarkImages = viewChildren<ElementRef<HTMLImageElement>>('landmarkImage');
   protected readonly playerTokenContainer = viewChild.required<ElementRef<HTMLDivElement>>('playerTokenContainer');
 
   readonly playerImageSource = resource({
@@ -327,10 +343,11 @@ export class GameTabMap {
       }
     });
     const locationsMarkedChecked = new BitArray(BAKED_DEFINITIONS_FULL.allLocations.length + 1);
+    const landmarksMarkedSatisfied = new BitArray(BAKED_DEFINITIONS_FULL.allRegions.length + 1);
     effect(() => {
       const playerTokenContainer = this.playerTokenContainer().nativeElement;
       const observedBits = extractObservedBits(this.#store);
-      const { allLocations } = observedBits.defs;
+      const { allLocations, allRegions, regionForLandmarkLocation } = observedBits.defs;
       for (const move of observedBits.outgoingMovementActions) {
         const fromCoords = allLocations[move.fromLocation].coords;
         const toCoords = allLocations[move.toLocation].coords;
@@ -369,19 +386,49 @@ export class GameTabMap {
 
       const newlyCheckedLocations = [...observedBits.checkedLocations.filter(l => !locationsMarkedChecked[l])];
       if (newlyCheckedLocations.length > 0) {
-        this.#oneShotTimeline.to(
-          newlyCheckedLocations.map(l => `#landmark-image-${l.toString()}`),
-          { ['--ap-checked-offset']: 0, duration: 0 },
-          '>',
-        );
-        this.#oneShotTimeline.to(
-          newlyCheckedLocations.map(l => `#filler-div-${l.toString()}`),
-          { ['background-color']: 'gray', duration: 0 },
-          '>',
-        );
-        for (const l of newlyCheckedLocations) {
-          locationsMarkedChecked[l] = 1;
+        const newlyCheckedLandmarks = newlyCheckedLocations.filter(l => !Number.isNaN(regionForLandmarkLocation[l]));
+        if (newlyCheckedLandmarks.length > 0) {
+          this.#oneShotTimeline.to(
+            newlyCheckedLandmarks.map(l => `#landmark-image-${l.toString()}`),
+            { ['--ap-checked-offset']: 0, duration: 0 },
+            '>',
+          );
+          this.#oneShotTimeline.to(
+            newlyCheckedLandmarks.map(l => `#landmark-quest-image-${l.toString()}`),
+            { display: 'none', duration: 0 },
+            '>',
+          );
         }
+        const newlyCheckedFillers = newlyCheckedLocations.filter(l => Number.isNaN(regionForLandmarkLocation[l]));
+        if (newlyCheckedFillers.length > 0) {
+          this.#oneShotTimeline.to(
+            newlyCheckedFillers.map(l => `#filler-div-${l.toString()}`),
+            { ['background-color']: 'gray', duration: 0 },
+            '>',
+          );
+        }
+      }
+
+      const newlyMarkedLandmarks: number[] = [];
+      for (let i = 0; i < observedBits.regionIsLandmarkWithRequirementSatisfied.length; i++) {
+        if (landmarksMarkedSatisfied[i]) {
+          continue;
+        }
+
+        if (observedBits.regionIsLandmarkWithRequirementSatisfied[i]) {
+          const region = allRegions[i];
+          if ('loc' in region) {
+            newlyMarkedLandmarks.push(region.loc);
+          }
+          landmarksMarkedSatisfied[i] = 1;
+        }
+      }
+      if (newlyMarkedLandmarks.length > 0) {
+        this.#oneShotTimeline.to(
+          newlyMarkedLandmarks.map(l => `#landmark-quest-image-${l.toString()}`),
+          { ['--ap-blocked-offset']: 0, duration: 0 },
+          '>',
+        );
       }
 
       this.#oneShotTimeline.to(this, {
@@ -422,9 +469,6 @@ export class GameTabMap {
     this.#anim.confidence.set(confidence);
     for (let i = 0; i < state.receivedItemCountLookup.length; ++i) {
       this.#anim.itemCount[i].set(state.receivedItemCountLookup[i]);
-    }
-    for (const checkedLocation of state.checkedLocations) {
-      this.#anim.locationIsChecked[checkedLocation].set(true);
     }
   }
 }
