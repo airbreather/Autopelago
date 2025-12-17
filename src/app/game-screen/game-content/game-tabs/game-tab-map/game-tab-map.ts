@@ -28,7 +28,7 @@ import { GameScreenStore } from '../../../../store/game-screen-store';
 import { createEmptyTooltipContext, TooltipBehavior, type TooltipOriginProps } from '../../../../tooltip-behavior';
 import { elementSizeSignal } from '../../../../utils/element-size';
 import { PerformanceInsensitiveAnimatableState } from '../../status-display/performance-insensitive-animatable-state';
-import { LandmarkTooltip } from './landmark-tooltip';
+import { LocationTooltip } from './location-tooltip';
 import { PlayerTooltip } from './player-tooltip';
 import { watchAnimations } from './watch-animations';
 
@@ -38,23 +38,13 @@ import { watchAnimations } from './watch-animations';
   imports: [
     CdkConnectedOverlay,
     NgOptimizedImage,
-    LandmarkTooltip,
+    LocationTooltip,
     PlayerTooltip,
     TooltipBehavior,
   ],
   template: `
     <div #outer class="outer">
       <img class="map-img" alt="map" [ngSrc]="mapUrl()" width="300" height="450" priority />
-      <div class="organize fillers">
-        @for (f of allFillers(); track f.loc) {
-          <div
-            #fillerSquare class="hover-box filler" [tabindex]="$index + 1999"
-            [style.--ap-left-base.px]="f.coords[0]" [style.--ap-top-base.px]="f.coords[1]"
-            [attr.data-location-id]="f.loc"
-            (click)="hyperFocus(f.loc)" (keyup.enter)="hyperFocus(f.loc)" (keyup.space)="hyperFocus(f.loc)">
-          </div>
-        }
-      </div>
       <svg class="dashed-path" viewBox="0 0 300 450" preserveAspectRatio="none">
         <path #dashedPath fill="none" stroke="red" stroke-width="1" stroke-dasharray="3 1" d="">
           <animate
@@ -71,7 +61,7 @@ import { watchAnimations } from './watch-animations';
             #landmarkContainer class="hover-box landmark" [tabindex]="$index + 999"
             [attr.data-location-id]="lm.loc" [style.--ap-checked-offset]="lm.yamlKey === 'moon_comma_the' ? 0 : 'unset'"
             [style.--ap-left-base.px]="lm.coords[0]" [style.--ap-top-base.px]="lm.coords[1]"
-            appTooltip [tooltipContext]="tooltipContext" (tooltipOriginChange)="setTooltipOrigin(lm.landmark, $event, true)"
+            appTooltip [tooltipContext]="tooltipContext" (tooltipOriginChange)="setTooltipOrigin(lm.loc, $event, true)"
             (click)="hyperFocus(lm.loc)" (keyup.enter)="hyperFocus(lm.loc)" (keyup.space)="hyperFocus(lm.loc)">
             <!--suppress CheckImageSize -->
             <img width="64" height="64" [alt]="lm.yamlKey" src="/assets/images/locations.webp"
@@ -82,13 +72,24 @@ import { watchAnimations } from './watch-animations';
               #questContainer class="hover-box landmark-quest"
               [attr.data-location-id]="lm.loc"
               [style.--ap-left-base.px]="lm.coords[0]" [style.--ap-top-base.px]="lm.coords[1]"
-              appTooltip [tooltipContext]="tooltipContext" (tooltipOriginChange)="setTooltipOrigin(lm.landmark, $event, true)"
+              appTooltip [tooltipContext]="tooltipContext" (tooltipOriginChange)="setTooltipOrigin(lm.loc, $event, true)"
               (click)="hyperFocus(lm.loc)" (keyup.enter)="hyperFocus(lm.loc)" (keyup.space)="hyperFocus(lm.loc)">
               <!--suppress CheckImageSize -->
               <img width="64" height="64" [alt]="lm.yamlKey" src="/assets/images/locations.webp"
                    [style.--ap-sprite-index]="0">
             </div>
           }
+        }
+      </div>
+      <div class="organize fillers">
+        @for (f of allFillers(); track f.loc) {
+          <div
+            #fillerSquare class="hover-box filler" [tabindex]="$index + 1999"
+            [style.--ap-left-base.px]="f.coords[0]" [style.--ap-top-base.px]="f.coords[1]"
+            [attr.data-location-id]="f.loc"
+            appTooltip [tooltipContext]="tooltipContext" (tooltipOriginChange)="setTooltipOrigin(f.loc, $event, true)"
+            (click)="hyperFocus(f.loc)" (keyup.enter)="hyperFocus(f.loc)" (keyup.space)="hyperFocus(f.loc)">
+          </div>
         }
       </div>
       <div #playerTokenContainer class="hover-box player" tabindex="998" [style.z-index]="999"
@@ -113,8 +114,8 @@ import { watchAnimations } from './watch-animations';
       [cdkConnectedOverlayPositionStrategy]="tooltipPositionStrategy()"
       [cdkConnectedOverlayScrollStrategy]="tooltipScrollStrategy()">
       @if (tooltipOrigin(); as origin) {
-        @if (origin.landmark; as landmark) {
-          <app-landmark-tooltip [landmarkKey]="landmark" />
+        @if (origin.location; as location) {
+          <app-location-tooltip [locationKey]="location" />
         }
         @else {
           <app-player-tooltip />
@@ -370,14 +371,14 @@ export class GameTabMap {
     this.#store.togglePause();
   }
 
-  protected setTooltipOrigin(landmark: number | null, props: TooltipOriginProps | null, fromDirective: boolean) {
+  protected setTooltipOrigin(location: number | null, props: TooltipOriginProps | null, fromDirective: boolean) {
     this.#tooltipOrigin.update((prev) => {
       if (prev !== null && !fromDirective) {
         prev.notifyDetached();
       }
       return props === null
         ? null
-        : { landmark, ...props };
+        : { location, ...props };
     });
   }
 }
@@ -399,7 +400,7 @@ interface LandmarkProps extends LocationProps {
 }
 
 interface CurrentTooltipOriginProps {
-  landmark: number | null;
+  location: number | null;
   element: HTMLElement;
   notifyDetached: () => void;
 }

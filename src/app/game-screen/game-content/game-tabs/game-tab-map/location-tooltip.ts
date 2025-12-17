@@ -5,23 +5,25 @@ import { GameStore } from '../../../../store/autopelago-store';
 import { RequirementDisplay } from './requirement-display';
 
 @Component({
-  selector: 'app-landmark-tooltip',
+  selector: 'app-location-tooltip',
   imports: [
     RequirementDisplay,
     NgOptimizedImage,
   ],
   template: `
     <div class="outer">
-      <h1 class="box header">{{landmarkLocation().name}}</h1>
-      <div class="box main-content">
-        <div class="image-and-requirement">
-          <img class="landmark-image" [alt]="landmark().yamlKey"
-               width="64" height="64"
-               [ngSrc]="'assets/images/locations/' + landmark().yamlKey + '.webp'">
-          <app-requirement-display class="requirement-display" [requirement]="landmark().requirement" />
+      <h1 class="box header">{{ location().name }}</h1>
+      @if (landmarkRegion(); as region) {
+        <div class="box main-content">
+          <div class="image-and-requirement">
+            <img class="landmark-image" [alt]="region.yamlKey"
+                 width="64" height="64"
+                 [ngSrc]="'assets/images/locations/' + region.yamlKey + '.webp'">
+            <app-requirement-display class="requirement-display" [requirement]="region.requirement"/>
+          </div>
+          <div class="flavor-text" [hidden]="!location().flavorText">“{{ location().flavorText }}”</div>
         </div>
-        <div class="flavor-text" [hidden]="!landmarkLocation().flavorText">“{{landmarkLocation().flavorText}}”</div>
-      </div>
+      }
     </div>
   `,
   styles: `
@@ -64,9 +66,15 @@ import { RequirementDisplay } from './requirement-display';
     }
   `,
 })
-export class LandmarkTooltip {
+export class LocationTooltip {
   readonly #store = inject(GameStore);
-  readonly landmarkKey = input.required<number>();
-  protected readonly landmark = computed(() => this.#store.defs().allRegions[this.landmarkKey()] as AutopelagoLandmarkRegion);
-  protected readonly landmarkLocation = computed(() => this.#store.defs().allLocations[this.landmark().loc]);
+  readonly locationKey = input.required<number>();
+  protected readonly location = computed(() => this.#store.defs().allLocations[this.locationKey()]);
+  protected readonly landmarkRegion = computed(() => {
+    const { allRegions, regionForLandmarkLocation } = this.#store.defs();
+    const regionKeyIfLandmark = regionForLandmarkLocation[this.locationKey()];
+    return Number.isNaN(regionKeyIfLandmark)
+      ? null
+      : allRegions[regionKeyIfLandmark] as AutopelagoLandmarkRegion;
+  });
 }
