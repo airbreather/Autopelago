@@ -19,6 +19,7 @@ import { Router } from '@angular/router';
 import { TinyColor } from '@ctrl/tinycolor';
 import versionInfo from '../../version-info.json';
 import { applyPixelColors, getPixelTones } from '../utils/color-helpers';
+import { elementSizeSignal } from '../utils/element-size';
 import {
   trySetBooleanProp,
   trySetColorProp,
@@ -60,12 +61,15 @@ const STORAGE_KEY = 'autopelago-connect-screen-state';
                     type="button"
                     (click)="$event.preventDefault(); openPersonalizeDialog()"
                     [disabled]="!loadedInitialImages()">
-              <canvas #personalizeButtonCanvas width="64" height="64"></canvas>
+              <canvas #personalizeButtonCanvas width="64" height="64"
+                      [style.height.px]="textBoxHeight()">
+              </canvas>
             </button>
           </div>
         </div>
         <label for="host">Host:</label>
-        <input id="host"
+        <input #hostTextBox
+               id="host"
                type="text"
                [field]="form.host"/>
         <label for="port">Port:</label>
@@ -203,10 +207,6 @@ const STORAGE_KEY = 'autopelago-connect-screen-state';
           width: 100%;
           height: 100%;
           padding: 0;
-          canvas {
-            width: 100%;
-            height: 100%;
-          }
         }
       }
     }
@@ -231,6 +231,9 @@ export class ConnectScreen {
   readonly #connecting = signal(false);
   protected readonly connecting = this.#connecting.asReadonly();
 
+  protected readonly hostTextBox = viewChild.required<ElementRef<HTMLInputElement>>('hostTextBox');
+  readonly #hostTextBoxSize = elementSizeSignal(this.hostTextBox);
+  protected readonly textBoxHeight = computed(() => this.#hostTextBoxSize().clientHeight);
   protected readonly player1Image = viewChild.required<ElementRef<HTMLImageElement>>('player1Image');
   protected readonly player2Image = viewChild.required<ElementRef<HTMLImageElement>>('player2Image');
   protected readonly player4Image = viewChild.required<ElementRef<HTMLImageElement>>('player4Image');
