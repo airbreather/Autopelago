@@ -56,4 +56,6 @@ export interface AutopelagoStoredData extends JSONRecord {
   previousTargetLocationEvidence: ToJSONSerializable<TargetLocationEvidence>;
   auraDrivenLocations: number[];
   userRequestedLocations: UserRequestedLocation[];
+  // things below this line are added after 0.11.5
+  hyperFocusLocation?: number | null;
 }

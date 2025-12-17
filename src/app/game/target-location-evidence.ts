@@ -6,8 +6,16 @@ interface Startled {
   isStartled: true;
 }
 
+interface HyperFocusing {
+  isStartled: false;
+  reachableHyperFocusLocation: number;
+}
+
 interface AuraDriven {
   isStartled: false;
+  // aura-driven locations are pulled from the set of locations that are reachable at the time, and
+  // reachable locations can never become unreachable again, so changing clearedOrClearableLandmarks
+  // shouldn't affect the rat's routing decisions.
   firstAuraDrivenLocation: number;
 }
 
@@ -28,6 +36,7 @@ interface ClosestReachableUncheckedOrNowhereToMove {
 export type TargetLocationEvidence =
   | null
   | Startled
+  | HyperFocusing
   | AuraDriven
   | UserRequested
   | ClosestReachableUncheckedOrNowhereToMove
@@ -40,6 +49,13 @@ export function targetLocationEvidenceToJSONSerializable(locationEvidence: Targe
 
   if (locationEvidence.isStartled) {
     return { isStartled: true };
+  }
+
+  if ('reachableHyperFocusLocation' in locationEvidence) {
+    return {
+      isStartled: false,
+      reachableHyperFocusLocation: locationEvidence.reachableHyperFocusLocation,
+    };
   }
 
   if (typeof locationEvidence.firstAuraDrivenLocation === 'number') {
@@ -63,8 +79,10 @@ export function targetLocationEvidenceFromJSONSerializable(locationEvidence: ToJ
   if (
     locationEvidence === null
     || locationEvidence.isStartled
-    || locationEvidence.firstAuraDrivenLocation !== null) {
-    return null;
+    || 'reachableHyperFocusLocation' in locationEvidence
+    || locationEvidence.firstAuraDrivenLocation !== null
+  ) {
+    return locationEvidence;
   }
 
   return {
@@ -90,6 +108,19 @@ export function targetLocationEvidenceEquals(a: TargetLocationEvidence, b: Targe
   }
 
   if (b.isStartled) {
+    return false;
+  }
+
+  if ('reachableHyperFocusLocation' in a) {
+    if (!('reachableHyperFocusLocation' in b)) {
+      return false;
+    }
+    return (
+      a.reachableHyperFocusLocation === b.reachableHyperFocusLocation
+    );
+  }
+
+  if ('reachableHyperFocusLocation' in b) {
     return false;
   }
 

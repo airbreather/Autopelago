@@ -26,6 +26,11 @@ export function watchAnimations(
   const injector = inject(Injector);
   const destroyRef = inject(DestroyRef);
   const dialog = inject(Dialog);
+
+  // get the initial state
+  performanceInsensitiveAnimatableState.apparentCurrentLocation.set(gameStore.currentLocation());
+  performanceInsensitiveAnimatableState.applySnapshot(performanceInsensitiveAnimatableState.getSnapshot(gameStore));
+
   const landmarkShake = outerDiv.animate([
     { ['--ap-frame-offset']: 0, easing: 'steps(1)' },
     { ['--ap-frame-offset']: 1, easing: 'steps(1)' },

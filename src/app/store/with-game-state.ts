@@ -115,6 +115,7 @@ const initialState: DefiningGameState = {
   sluggishCarryover: false,
   processedReceivedItemCount: NaN,
   currentLocation: -1,
+  hyperFocusLocation: null,
   auraDrivenLocations: List<number>(),
   userRequestedLocations: List<Readonly<UserRequestedLocation>>(),
   previousTargetLocationEvidence: {
@@ -231,6 +232,9 @@ export function withGameState() {
           regionIsLandmarkWithRequirementUnsatisfied,
         };
       }, { equal: regionLocksEqual });
+      const _regionIsHardLocked = computed(() => {
+        return regionLocks().regionIsHardLocked;
+      }, { equal: bitArraysEqual });
       const _clearedOrClearableLandmarks = computed<readonly number[]>(() => {
         const { regionIsHardLocked, regionIsLandmarkWithRequirementSatisfied } = regionLocks();
         const result: number[] = [];
@@ -248,12 +252,23 @@ export function withGameState() {
           relevantItemCount: requirementRelevantItemCountLookup(),
           locationIsChecked: locationIsChecked(),
           isStartled: isStartled(),
+          hyperFocusLocation: store.hyperFocusLocation(),
           userRequestedLocations: store.userRequestedLocations(),
           auraDrivenLocations: store.auraDrivenLocations(),
         }), { equal: arraysEqual });
       const targetLocationEvidence = computed<TargetLocationEvidence>(() => {
         if (isStartled()) {
           return { isStartled: true } satisfies TargetLocationEvidence;
+        }
+
+        const hyperFocusLocation = store.hyperFocusLocation();
+        if (hyperFocusLocation !== null) {
+          if (_regionIsHardLocked()[defs().allLocations[hyperFocusLocation].regionLocationKey[0]]) {
+            return {
+              isStartled: false,
+              reachableHyperFocusLocation: hyperFocusLocation
+            } satisfies TargetLocationEvidence;
+          }
         }
 
         const firstAuraDrivenLocation = store.auraDrivenLocations().first() ?? null;
@@ -311,6 +326,7 @@ export function withGameState() {
         sluggishCarryover: store.sluggishCarryover(),
         processedReceivedItemCount: store.processedReceivedItemCount(),
         currentLocation: store.currentLocation(),
+        hyperFocusLocation: store.hyperFocusLocation(),
         auraDrivenLocations: store.auraDrivenLocations().toJS(),
         userRequestedLocations: store.userRequestedLocations().toJS().map(l => ({
           location: l.location,
@@ -485,6 +501,9 @@ export function withGameState() {
       }
       return {
         addUserRequestedLocation,
+        hyperFocus(location: number) {
+          patchState(store, { hyperFocusLocation: location });
+        },
         receiveItems(items: Iterable<number>) {
           const { allItems, allLocations } = store.defs();
           if (!store.canEventuallyAdvance()) {

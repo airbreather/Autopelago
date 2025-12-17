@@ -64,6 +64,7 @@ export const GameStore = signalStore(
         messagesForRemindBK: toWeighted(slotData.msg_remind_bk),
         messagesForExitBK: toWeighted(slotData.msg_exit_bk),
         messagesForCompletedGoal: toWeighted(slotData.msg_completed_goal),
+        hyperFocusLocation: 'hyperFocusLocation' in storedData ? storedData.hyperFocusLocation : null,
         auraDrivenLocations: List(storedData.auraDrivenLocations),
         userRequestedLocations: List(storedData.userRequestedLocations),
         receivedItems: List<number>(),

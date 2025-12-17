@@ -10,7 +10,12 @@ import type {
   AutopelagoStoredData,
   UserRequestedLocation,
 } from './data/slot-data';
-import { trySetArrayProp, trySetBooleanProp, trySetNumberProp } from './utils/hardened-state-propagation';
+import {
+  trySetArrayProp,
+  trySetBooleanProp,
+  trySetNullableNumberProp,
+  trySetNumberProp,
+} from './utils/hardened-state-propagation';
 
 export interface InitializeClientOptions {
   connectScreenState: ConnectScreenState;
@@ -94,6 +99,7 @@ export async function initializeClient(initializeClientOptions: InitializeClient
     trySetBooleanProp(retrievedStoredData, 'sluggishCarryover', validatedStoredDataParts);
     trySetNumberProp(retrievedStoredData, 'processedReceivedItemCount', validatedStoredDataParts, n => n >= 0);
     trySetNumberProp(retrievedStoredData, 'currentLocation', validatedStoredDataParts, n => n >= 0 && n < defs.allLocations.length);
+    trySetNullableNumberProp(retrievedStoredData, 'hyperFocusLocation', validatedStoredDataParts, n => n >= 0 && n < defs.allLocations.length);
     trySetArrayProp(retrievedStoredData, 'auraDrivenLocations', validatedStoredDataParts, n => typeof n === 'number' && n >= 0 && n < defs.allLocations.length);
     trySetArrayProp(retrievedStoredData, 'userRequestedLocations', validatedStoredDataParts, n =>
       typeof n === 'object'

@@ -55,6 +55,7 @@ export interface DefiningGameState {
   readonly sluggishCarryover: boolean;
   readonly processedReceivedItemCount: number;
   readonly currentLocation: number;
+  readonly hyperFocusLocation: number | null;
   readonly auraDrivenLocations: List<number>;
   readonly userRequestedLocations: List<UserRequestedLocation>;
   readonly previousTargetLocationEvidence: TargetLocationEvidence;

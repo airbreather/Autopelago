@@ -8,6 +8,7 @@ import {
   BAKED_DEFINITIONS_FULL,
 } from '../data/resolved-definitions';
 import type { UserRequestedLocation } from '../data/slot-data';
+import { arraysEqual } from '../utils/equal-helpers';
 
 export function buildRequirementIsSatisfied(relevantItemCount: readonly number[], allLocationsAreChecked: boolean): (req: AutopelagoRequirement) => boolean {
   const allItems = BAKED_DEFINITIONS_FULL.allItems;
@@ -39,21 +40,14 @@ export interface DetermineDesirabilityOptions {
   relevantItemCount: readonly number[];
   locationIsChecked: Readonly<BitArray>;
   isStartled: boolean;
+  hyperFocusLocation: number | null;
   userRequestedLocations: Iterable<UserRequestedLocation>;
   auraDrivenLocations: Iterable<number>;
 }
 
-export type TargetLocationReason =
-  | 'nowhere-useful-to-move'
-  | 'closest-reachable-unchecked'
-  | 'user-requested'
-  | 'aura-driven'
-  | 'go-mode'
-  | 'game-over'
-  | 'startled';
-
 export const Desirability = {
-  STARTLED: 7000,
+  STARTLED: 8000,
+  HYPER_FOCUS: 7000,
   GAME_OVER: 6000,
   GO_MODE: 5000,
   AURA_DRIVEN: 4000,
@@ -63,7 +57,7 @@ export const Desirability = {
   AVOID: 0,
 } as const;
 
-const desirabilityMap: TargetLocationReason[] = [
+const desirabilityMap = [
   'nowhere-useful-to-move', // value is irrelevant, just need to fill the slot
   'nowhere-useful-to-move',
   'closest-reachable-unchecked',
@@ -71,8 +65,11 @@ const desirabilityMap: TargetLocationReason[] = [
   'aura-driven',
   'go-mode',
   'game-over',
+  'hyper-focus',
   'startled',
-];
+] as const;
+
+export type TargetLocationReason = typeof desirabilityMap[number];
 
 export function determineDesirability(options: Readonly<DetermineDesirabilityOptions>): readonly number[] {
   const {
@@ -87,6 +84,7 @@ export function determineDesirability(options: Readonly<DetermineDesirabilityOpt
     relevantItemCount,
     locationIsChecked,
     isStartled,
+    hyperFocusLocation,
     userRequestedLocations,
     auraDrivenLocations,
   } = options;
@@ -120,6 +118,11 @@ export function determineDesirability(options: Readonly<DetermineDesirabilityOpt
   let nextAuraDrivenDesirability = Desirability.AURA_DRIVEN + 1000;
   for (const location of auraDrivenLocations) {
     result[location] = --nextAuraDrivenDesirability;
+  }
+
+  // next precedence: hyper focus
+  if (hyperFocusLocation !== null) {
+    result[hyperFocusLocation] = Desirability.HYPER_FOCUS;
   }
 
   // now address the landmarks by walking to each from the start region. determineTargetLocation
@@ -216,5 +219,5 @@ export function determineTargetLocation(options: Readonly<DetermineTargetLocatio
 }
 
 export function targetLocationResultsEqual(a: TargetLocationResult, b: TargetLocationResult): boolean {
-  return a.location === b.location && a.reason === b.reason;
+  return a.location === b.location && a.reason === b.reason && arraysEqual(a.path, b.path);
 }
