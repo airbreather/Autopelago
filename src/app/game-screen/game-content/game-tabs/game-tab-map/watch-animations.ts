@@ -10,7 +10,7 @@ interface WatchAnimationsParams {
   gameStore: InstanceType<typeof GameStore>;
   gameScreenStore: InstanceType<typeof GameScreenStore>;
   outerDiv: HTMLDivElement;
-  mapCanvas: HTMLCanvasElement;
+  dashedPath: SVGPathElement;
   playerTokenContainer: HTMLDivElement;
   landmarkContainers: readonly HTMLDivElement[];
   questContainers: readonly HTMLDivElement[];
@@ -20,7 +20,7 @@ interface WatchAnimationsParams {
 }
 
 export function watchAnimations(
-  { gameStore, gameScreenStore, outerDiv, mapCanvas, playerTokenContainer, landmarkContainers, questContainers, fillerSquares, performanceInsensitiveAnimatableState, injector }: WatchAnimationsParams,
+  { gameStore, gameScreenStore, outerDiv, dashedPath, playerTokenContainer, landmarkContainers, questContainers, fillerSquares, performanceInsensitiveAnimatableState, injector }: WatchAnimationsParams,
 ) {
   const destroyRef = injector.get(DestroyRef);
   const dialog = injector.get(Dialog);
@@ -94,64 +94,7 @@ export function watchAnimations(
         currentMovementAnimation?.pause();
       }
     }, { injector });
-    let wasShowingPath: boolean | null = null;
     const apparentCurrentLocation = signal(0);
-    let lastAnimationFrame: number | null = null;
-    effect(() => {
-      if (lastAnimationFrame !== null) {
-        cancelAnimationFrame(lastAnimationFrame);
-        lastAnimationFrame = null;
-      }
-
-      if (!gameScreenStore.showingPath()) {
-        if (wasShowingPath) {
-          const ctx = mapCanvas.getContext('2d');
-          if (ctx !== null) {
-            ctx.clearRect(0, 0, mapCanvas.width, mapCanvas.height);
-          }
-          wasShowingPath = false;
-        }
-
-        return;
-      }
-
-      const targetLocationRoute = performanceInsensitiveAnimatableState.targetLocationRoute();
-      const ctx = mapCanvas.getContext('2d');
-      if (ctx === null) {
-        return;
-      }
-      ctx.clearRect(0, 0, mapCanvas.width, mapCanvas.height);
-      const scale = mapCanvas.width / 300;
-      const path = new Path2D();
-      const { allLocations } = gameStore.defs();
-      const currentLocation = apparentCurrentLocation();
-      let foundCurrentLocation = false;
-      for (let i = 0; i < targetLocationRoute.length; i++) {
-        const loc = targetLocationRoute[i];
-        const [x, y] = allLocations[loc].coords;
-        if (loc === currentLocation) {
-          if (i === targetLocationRoute.length - 1) {
-            // just a dot, that's not very interesting.
-            break;
-          }
-          foundCurrentLocation = true;
-          path.moveTo(x * scale, y * scale);
-        }
-        else if (foundCurrentLocation) {
-          path.lineTo(x * scale, y * scale);
-        }
-      }
-      if (!foundCurrentLocation) {
-        return;
-      }
-
-      ctx.strokeStyle = 'red';
-      ctx.lineWidth = scale;
-      ctx.setLineDash([scale * 2, scale]);
-      ctx.clearRect(0, 0, mapCanvas.width, mapCanvas.height);
-      ctx.lineDashOffset = 0;
-      ctx.stroke(path);
-    }, { injector });
     effect(() => {
       const { allLocations, regionForLandmarkLocation } = gameStore.defs();
       // this captures the full snapshot at this time, but applySnapshot only handles some of it.

@@ -53,8 +53,9 @@ import { watchAnimations } from './watch-animations';
           </div>
         }
       </div>
-      <canvas
-        #mapCanvas class="map-canvas" [width]="outerDivSize().clientWidth" [height]="outerDivSize().clientHeight"></canvas>
+      <svg class="dashed-path" viewBox="0 0 300 450" preserveAspectRatio="none">
+        <path #dashedPath stroke="red" stroke-width="1" stroke-dasharray="4" d="" />
+      </svg>
       <div class="organize landmarks">
         @for (lm of allLandmarks(); track lm.loc) {
           <div
@@ -122,10 +123,10 @@ import { watchAnimations } from './watch-animations';
       height: 100%;
     }
 
-    .map-canvas {
+    .dashed-path {
       position: absolute;
-      left: 0;
       top: 0;
+      left: 0;
       width: 100%;
       height: 100%;
     }
@@ -279,8 +280,7 @@ export class GameTabMap {
   });
 
   protected readonly outerDiv = viewChild.required<ElementRef<HTMLDivElement>>('outer');
-  protected readonly outerDivSize = elementSizeSignal(this.outerDiv);
-  protected readonly mapCanvas = viewChild.required<ElementRef<HTMLCanvasElement>>('mapCanvas');
+  protected readonly dashedPath = viewChild.required<ElementRef<SVGPathElement>>('dashedPath');
   protected readonly overlay = viewChild.required(CdkConnectedOverlay);
   protected readonly fillerSquares = viewChildren<ElementRef<HTMLDivElement>>('fillerSquare');
   protected readonly landmarkContainers = viewChildren<ElementRef<HTMLDivElement>>('landmarkContainer');
@@ -313,9 +313,11 @@ export class GameTabMap {
   });
 
   constructor() {
+    // whenever the outer div resizes, we also need to resize the app to match.
+    const outerDivSize = elementSizeSignal(this.outerDiv);
     effect(() => {
       const victoryLocationYamlKey = this.#store.victoryLocationYamlKey();
-      const { clientHeight } = this.outerDivSize();
+      const { clientHeight } = outerDivSize();
       const scale = clientHeight / VICTORY_LOCATION_CROP_LOOKUP[victoryLocationYamlKey];
       this.outerDiv().nativeElement.style.setProperty('--ap-scale', scale.toString());
       if (this.#overlayIsAttached) {
@@ -325,7 +327,7 @@ export class GameTabMap {
 
     const initAnimationWatcherEffect = effect(() => {
       const outerDiv = this.outerDiv().nativeElement;
-      const mapCanvas = this.mapCanvas().nativeElement;
+      const dashedPath = this.dashedPath().nativeElement;
       const playerTokenContainer = this.playerTokenContainer().nativeElement;
       const landmarkContainers = this.landmarkContainers().map(l => l.nativeElement);
       const questContainers = this.questContainers().map(l => l.nativeElement);
@@ -336,12 +338,11 @@ export class GameTabMap {
         return;
       }
 
-      mapCanvas.height = VICTORY_LOCATION_CROP_LOOKUP[this.#store.victoryLocationYamlKey()];
       watchAnimations({
         gameStore: this.#store,
         gameScreenStore: this.#gameScreenStore,
         outerDiv,
-        mapCanvas,
+        dashedPath,
         playerTokenContainer,
         landmarkContainers,
         questContainers,
