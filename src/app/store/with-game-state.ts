@@ -990,17 +990,15 @@ export function withGameState() {
               }
 
               if (result.currentLocation === targetLocation) {
-                switch (store.targetLocationReason()) {
-                  case 'user-requested':
-                    result.userRequestedLocations = prev.userRequestedLocations.filter(l => l.location !== targetLocation);
-                    break;
-
-                  case 'aura-driven':
-                    // this is sometimes redundant with the effect in onInit, but I think that it's
-                    // also required here because microtasks aren't scheduled until after we return.
-                    result.auraDrivenLocations = prev.auraDrivenLocations.filter(l => l !== targetLocation);
-                    break;
+                if (prev.hyperFocusLocation === targetLocation) {
+                  result.hyperFocusLocation = null;
                 }
+
+                result.userRequestedLocations = prev.userRequestedLocations.filter(l => l.location !== targetLocation);
+
+                // this is sometimes redundant with the effect in onInit, but I think that it's
+                // also required here because microtasks aren't scheduled until after we return.
+                result.auraDrivenLocations = prev.auraDrivenLocations.filter(l => l !== targetLocation);
               }
 
               return result;
