@@ -27,6 +27,10 @@ export class TooltipBehavior {
       return;
     }
 
+    if (fromFocus && getComputedStyle(this.#el.nativeElement).getPropertyValue('--ap-focus-visible') !== '1') {
+      return;
+    }
+
     if (fromFocus && ctx._tooltipIsOpenBecauseOfMouse) {
       this.#emitDetached(ctx);
     }

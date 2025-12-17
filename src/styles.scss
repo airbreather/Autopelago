@@ -16,6 +16,9 @@
   box-sizing: border-box;
   color: theme.$text-control-foreground;
   font-family: var(--font-family, 'PublicPixel'), monospace, sans-serif;
+  &:focus-visible {
+    --ap-focus-visible: 1;
+  }
 }
 
 body {
