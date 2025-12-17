@@ -51,6 +51,7 @@ import { watchAnimations } from './watch-animations';
             #fillerSquare class="hover-box filler" [tabindex]="$index + 1999"
             [style.--ap-left-base.px]="f.coords[0]" [style.--ap-top-base.px]="f.coords[1]"
             [attr.data-location-id]="f.loc"
+            [class.hyper-focus]="hyperFocusLocation() === f.loc"
             appTooltip [tooltipContext]="tooltipContext" (tooltipOriginChange)="setTooltipOrigin(f.loc, $event, true)"
             (click)="setOrClearHyperFocus(f.loc)" (keyup.enter)="setOrClearHyperFocus(f.loc)" (keyup.space)="setOrClearHyperFocus(f.loc)">
           </div>
@@ -72,6 +73,7 @@ import { watchAnimations } from './watch-animations';
             #landmarkContainer class="hover-box landmark" [tabindex]="$index + 999"
             [attr.data-location-id]="lm.loc" [style.--ap-checked-offset]="lm.yamlKey === 'moon_comma_the' ? 0 : 'unset'"
             [style.--ap-left-base.px]="lm.coords[0]" [style.--ap-top-base.px]="lm.coords[1]"
+            [class.hyper-focus]="hyperFocusLocation() === lm.loc"
             appTooltip [tooltipContext]="tooltipContext" (tooltipOriginChange)="setTooltipOrigin(lm.loc, $event, true)"
             (click)="setOrClearHyperFocus(lm.loc)" (keyup.enter)="setOrClearHyperFocus(lm.loc)" (keyup.space)="setOrClearHyperFocus(lm.loc)">
             <!--suppress CheckImageSize -->
@@ -191,11 +193,10 @@ import { watchAnimations } from './watch-animations';
     }
 
     .filler {
-      scale: var(--ap-scale, 4);
-      width: 1.6px;
-      height: 1.6px;
+      width: calc(1.6px * var(--ap-scale, 4));
+      height: calc(1.6px * var(--ap-scale, 4));
       border-radius: 0;
-      filter: drop-shadow(calc(var(--ap-scale, 4) * 0.1px) calc(var(--ap-scale, 4) * 0.1px) calc(var(--ap-scale, 4) * 0.1px) black);
+      filter: drop-shadow(calc(var(--ap-scale, 4) * 0.5px) calc(var(--ap-scale, 4) * 0.5px) calc(var(--ap-scale, 4) * 0.5px) black);
       left: calc((var(--ap-left-base, 8px) - 0.8px) * var(--ap-scale, 4));
       top: calc((var(--ap-top-base, 8px) - 0.8px) * var(--ap-scale, 4));
     }
@@ -216,6 +217,11 @@ import { watchAnimations } from './watch-animations';
       position: absolute;
       pointer-events: initial;
       transform-origin: left top;
+
+      &.hyper-focus {
+        outline: 2px dotted red;
+        outline-offset: 1px;
+      }
     }
   `,
 })
@@ -225,6 +231,7 @@ export class GameTabMap {
   readonly #gameScreenStore = inject(GameScreenStore);
   readonly #performanceInsensitiveAnimatableState = inject(PerformanceInsensitiveAnimatableState);
   protected readonly toggleShowingPath = this.#gameScreenStore.toggleShowingPath;
+  protected readonly hyperFocusLocation = this.#store.hyperFocusLocation;
   protected readonly setOrClearHyperFocus = this.#store.setOrClearHyperFocus;
   protected readonly running = this.#store.running;
 
