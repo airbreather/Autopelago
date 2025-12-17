@@ -29,7 +29,9 @@ export function watchAnimations(
 
   // get the initial state
   performanceInsensitiveAnimatableState.apparentCurrentLocation.set(gameStore.currentLocation());
-  performanceInsensitiveAnimatableState.applySnapshot(performanceInsensitiveAnimatableState.getSnapshot(gameStore));
+  performanceInsensitiveAnimatableState.applySnapshot(
+    performanceInsensitiveAnimatableState.getSnapshot({ gameStore, consumeOutgoingAnimatableActions: false }),
+  );
 
   const landmarkShake = outerDiv.animate([
     { ['--ap-frame-offset']: 0, easing: 'steps(1)' },
@@ -143,7 +145,7 @@ export function watchAnimations(
     effect(() => {
       const { allLocations, regionForLandmarkLocation } = gameStore.defs();
       // this captures the full snapshot at this time, but applySnapshot only handles some of it.
-      const snapshot = performanceInsensitiveAnimatableState.getSnapshot(gameStore);
+      const snapshot = performanceInsensitiveAnimatableState.getSnapshot({ gameStore, consumeOutgoingAnimatableActions: true });
       for (const anim of snapshot.outgoingAnimatableActions) {
         switch (anim.type) {
           case 'move': {

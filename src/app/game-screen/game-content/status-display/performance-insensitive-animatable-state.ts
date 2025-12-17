@@ -2,6 +2,11 @@ import { Injectable, signal } from '@angular/core';
 import { BAKED_DEFINITIONS_FULL } from '../../../data/resolved-definitions';
 import type { GameStore } from '../../../store/autopelago-store';
 
+interface GetSnapshotOptions {
+  gameStore: InstanceType<typeof GameStore>;
+  consumeOutgoingAnimatableActions: boolean;
+}
+
 @Injectable()
 export class PerformanceInsensitiveAnimatableState {
   readonly ratCount = signal(0);
@@ -24,7 +29,7 @@ export class PerformanceInsensitiveAnimatableState {
   readonly targetLocation = signal(0);
   readonly targetLocationRoute = signal<readonly number[]>([]);
 
-  getSnapshot(gameStore: InstanceType<typeof GameStore>) {
+  getSnapshot({ gameStore, consumeOutgoingAnimatableActions }: GetSnapshotOptions) {
     return {
       ratCount: gameStore.ratCount(),
       food: gameStore.foodFactor(),
@@ -36,7 +41,9 @@ export class PerformanceInsensitiveAnimatableState {
       conspiratorial: gameStore.targetLocationChosenBecauseConspiratorial(),
       stylish: gameStore.styleFactor(),
       confidence: gameStore.hasConfidence(),
-      outgoingAnimatableActions: gameStore.consumeOutgoingAnimatableActions(),
+      outgoingAnimatableActions: consumeOutgoingAnimatableActions
+        ? gameStore.consumeOutgoingAnimatableActions()
+        : gameStore.outgoingAnimatableActions(),
       receivedItemCountLookup: gameStore.receivedItemCountLookup(),
       regionIsLandmarkWithRequirementSatisfied: gameStore.regionLocks().regionIsLandmarkWithRequirementSatisfied,
       allLocationsAreChecked: gameStore.allLocationsAreChecked(),
