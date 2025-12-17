@@ -89,7 +89,7 @@ import { watchAnimations } from './watch-animations';
               appTooltip [tooltipContext]="tooltipContext" (tooltipOriginChange)="setTooltipOrigin(lm.loc, $event, true)"
               (click)="setOrClearHyperFocus(lm.loc)" (keyup.enter)="setOrClearHyperFocus(lm.loc)" (keyup.space)="setOrClearHyperFocus(lm.loc)">
               <!--suppress CheckImageSize -->
-              <img width="64" height="64" [alt]="lm.yamlKey" src="/assets/images/locations.webp"
+              <img width="16" height="48" [alt]="lm.yamlKey" src="/assets/images/locations.webp"
                    [style.--ap-sprite-index]="0">
             </div>
           }
@@ -183,11 +183,11 @@ import { watchAnimations } from './watch-animations';
 
     .landmark-quest {
       scale: calc(var(--ap-scale, 4) / 4 * 0.75);
-      left: calc((var(--ap-left-base, 8px) - 6px) * var(--ap-scale, 4));
-      top: calc((var(--ap-top-base, 8px) - 18px) * var(--ap-scale, 4));
+      left: calc((var(--ap-left-base, 8px) - 6px) * var(--ap-scale, 4) + 32px);
+      top: calc((var(--ap-top-base, 8px) - 18px) * var(--ap-scale, 4) - 4px);
       img {
         object-fit: none;
-        object-position: calc(-65px * (var(--ap-frame-offset, 0) + var(--ap-blocked-offset, 0))) 0;
+        object-position: calc(-65px * (var(--ap-frame-offset, 0) + var(--ap-blocked-offset, 0)) - 24px) -4px;
         filter: drop-shadow(calc(var(--ap-scale, 4) * 0.8px) calc(var(--ap-scale, 4) * .8px) calc(var(--ap-scale, 4) * 0.5px) black);
       }
     }
