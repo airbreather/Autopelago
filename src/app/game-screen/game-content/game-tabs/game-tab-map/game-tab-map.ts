@@ -69,21 +69,21 @@ import { watchAnimations } from './watch-animations';
           <div
             #landmarkContainer class="hover-box landmark" [tabindex]="$index + 999"
             [attr.data-location-id]="lm.loc" [style.--ap-checked-offset]="lm.yamlKey === 'moon_comma_the' ? 0 : 'unset'"
-            [style.--ap-left-base.px]="lm.coords[0]" [style.--ap-top-base.px]="lm.coords[1]">
+            [style.--ap-left-base.px]="lm.coords[0]" [style.--ap-top-base.px]="lm.coords[1]"
+            appTooltip [tooltipContext]="tooltipContext" (tooltipOriginChange)="setTooltipOrigin(lm.landmark, $event, true)">
             <!--suppress CheckImageSize -->
             <img width="64" height="64" [alt]="lm.yamlKey" src="/assets/images/locations.webp"
-                 [style.--ap-sprite-index]="lm.spriteIndex"
-                 appTooltip [tooltipContext]="tooltipContext" (tooltipOriginChange)="setTooltipOrigin(lm.landmark, $event, true)">
+                 [style.--ap-sprite-index]="lm.spriteIndex">
           </div>
           @if (lm.yamlKey !== 'moon_comma_the') {
             <div
               #questContainer class="hover-box landmark-quest"
               [attr.data-location-id]="lm.loc"
-              [style.--ap-left-base.px]="lm.coords[0]" [style.--ap-top-base.px]="lm.coords[1]">
+              [style.--ap-left-base.px]="lm.coords[0]" [style.--ap-top-base.px]="lm.coords[1]"
+              appTooltip [tooltipContext]="tooltipContext" (tooltipOriginChange)="setTooltipOrigin(lm.landmark, $event, true)">
               <!--suppress CheckImageSize -->
               <img width="64" height="64" [alt]="lm.yamlKey" src="/assets/images/locations.webp"
-                   [style.--ap-sprite-index]="0"
-                   appTooltip [tooltipContext]="tooltipContext" (tooltipOriginChange)="setTooltipOrigin(lm.landmark, $event, true)">
+                   [style.--ap-sprite-index]="0">
             </div>
           }
         }
