@@ -45,6 +45,17 @@ import { watchAnimations } from './watch-animations';
   template: `
     <div #outer class="outer">
       <img class="map-img" alt="map" [ngSrc]="mapUrl()" width="300" height="450" priority />
+      <div class="organize fillers">
+        @for (f of allFillers(); track f.loc) {
+          <div
+            #fillerSquare class="hover-box filler" [tabindex]="$index + 1999"
+            [style.--ap-left-base.px]="f.coords[0]" [style.--ap-top-base.px]="f.coords[1]"
+            [attr.data-location-id]="f.loc"
+            appTooltip [tooltipContext]="tooltipContext" (tooltipOriginChange)="setTooltipOrigin(f.loc, $event, true)"
+            (click)="hyperFocus(f.loc)" (keyup.enter)="hyperFocus(f.loc)" (keyup.space)="hyperFocus(f.loc)">
+          </div>
+        }
+      </div>
       <svg class="dashed-path" viewBox="0 0 300 450" preserveAspectRatio="none">
         <path #dashedPath fill="none" stroke="red" stroke-width="1" stroke-dasharray="3 1" d="">
           <animate
@@ -80,17 +91,6 @@ import { watchAnimations } from './watch-animations';
                    [style.--ap-sprite-index]="0">
             </div>
           }
-        }
-      </div>
-      <div class="organize fillers">
-        @for (f of allFillers(); track f.loc) {
-          <div
-            #fillerSquare class="hover-box filler" [tabindex]="$index + 1999"
-            [style.--ap-left-base.px]="f.coords[0]" [style.--ap-top-base.px]="f.coords[1]"
-            [attr.data-location-id]="f.loc"
-            appTooltip [tooltipContext]="tooltipContext" (tooltipOriginChange)="setTooltipOrigin(f.loc, $event, true)"
-            (click)="hyperFocus(f.loc)" (keyup.enter)="hyperFocus(f.loc)" (keyup.space)="hyperFocus(f.loc)">
-          </div>
         }
       </div>
       <div #playerTokenContainer class="hover-box player" tabindex="998" [style.z-index]="999"
@@ -249,7 +249,11 @@ export class GameTabMap {
       copyright_mouse: {
         offset: null,
         rotationDegrees: -30,
-      }
+      },
+      homeless_mummy: {
+        offset: null,
+        rotationDegrees: 10,
+      },
     } as const satisfies Partial<Record<LandmarkYamlKey, unknown>>;
     const { allLocations, allRegions, startRegion, moonCommaThe } = this.#store.defs();
     const fillers: LocationProps[] = [];
