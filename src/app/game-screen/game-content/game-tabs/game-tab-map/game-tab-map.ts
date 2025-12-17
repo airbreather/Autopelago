@@ -52,7 +52,7 @@ import { watchAnimations } from './watch-animations';
             [style.--ap-left-base.px]="f.coords[0]" [style.--ap-top-base.px]="f.coords[1]"
             [attr.data-location-id]="f.loc"
             appTooltip [tooltipContext]="tooltipContext" (tooltipOriginChange)="setTooltipOrigin(f.loc, $event, true)"
-            (click)="hyperFocus(f.loc)" (keyup.enter)="hyperFocus(f.loc)" (keyup.space)="hyperFocus(f.loc)">
+            (click)="setOrClearHyperFocus(f.loc)" (keyup.enter)="setOrClearHyperFocus(f.loc)" (keyup.space)="setOrClearHyperFocus(f.loc)">
           </div>
         }
       </div>
@@ -73,7 +73,7 @@ import { watchAnimations } from './watch-animations';
             [attr.data-location-id]="lm.loc" [style.--ap-checked-offset]="lm.yamlKey === 'moon_comma_the' ? 0 : 'unset'"
             [style.--ap-left-base.px]="lm.coords[0]" [style.--ap-top-base.px]="lm.coords[1]"
             appTooltip [tooltipContext]="tooltipContext" (tooltipOriginChange)="setTooltipOrigin(lm.loc, $event, true)"
-            (click)="hyperFocus(lm.loc)" (keyup.enter)="hyperFocus(lm.loc)" (keyup.space)="hyperFocus(lm.loc)">
+            (click)="setOrClearHyperFocus(lm.loc)" (keyup.enter)="setOrClearHyperFocus(lm.loc)" (keyup.space)="setOrClearHyperFocus(lm.loc)">
             <!--suppress CheckImageSize -->
             <img width="64" height="64" [alt]="lm.yamlKey" src="/assets/images/locations.webp"
                  [style.--ap-sprite-index]="lm.spriteIndex">
@@ -85,7 +85,7 @@ import { watchAnimations } from './watch-animations';
               [style.--ap-left-base.px]="lm.coords[0]" [style.--ap-top-base.px]="lm.coords[1]"
               [style.transform]="lm.questMarkerTransform"
               appTooltip [tooltipContext]="tooltipContext" (tooltipOriginChange)="setTooltipOrigin(lm.loc, $event, true)"
-              (click)="hyperFocus(lm.loc)" (keyup.enter)="hyperFocus(lm.loc)" (keyup.space)="hyperFocus(lm.loc)">
+              (click)="setOrClearHyperFocus(lm.loc)" (keyup.enter)="setOrClearHyperFocus(lm.loc)" (keyup.space)="setOrClearHyperFocus(lm.loc)">
               <!--suppress CheckImageSize -->
               <img width="64" height="64" [alt]="lm.yamlKey" src="/assets/images/locations.webp"
                    [style.--ap-sprite-index]="0">
@@ -225,7 +225,7 @@ export class GameTabMap {
   readonly #gameScreenStore = inject(GameScreenStore);
   readonly #performanceInsensitiveAnimatableState = inject(PerformanceInsensitiveAnimatableState);
   protected readonly toggleShowingPath = this.#gameScreenStore.toggleShowingPath;
-  protected readonly hyperFocus = this.#store.hyperFocus;
+  protected readonly setOrClearHyperFocus = this.#store.setOrClearHyperFocus;
   protected readonly running = this.#store.running;
 
   readonly #allLocations = computed<AllLocationProps | null>(() => {

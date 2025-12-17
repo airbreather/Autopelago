@@ -501,8 +501,8 @@ export function withGameState() {
       }
       return {
         addUserRequestedLocation,
-        hyperFocus(location: number) {
-          patchState(store, { hyperFocusLocation: location });
+        setOrClearHyperFocus(location: number) {
+          patchState(store, (({ hyperFocusLocation }) => ({ hyperFocusLocation: hyperFocusLocation === location ? null : location })));
         },
         receiveItems(items: Iterable<number>) {
           const { allItems, allLocations } = store.defs();
