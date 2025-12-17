@@ -1,12 +1,16 @@
 import { Dialog } from '@angular/cdk/dialog';
-import { DestroyRef, effect, type Injector, untracked } from '@angular/core';
+import { DestroyRef, effect, type Injector, signal, untracked } from '@angular/core';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import type { GameStore } from '../../../../store/autopelago-store';
+import type { GameScreenStore } from '../../../../store/game-screen-store';
 import { PerformanceInsensitiveAnimatableState } from '../../status-display/performance-insensitive-animatable-state';
 import { UWin } from './u-win';
 
 interface WatchAnimationsParams {
   gameStore: InstanceType<typeof GameStore>;
+  gameScreenStore: InstanceType<typeof GameScreenStore>;
   outerDiv: HTMLDivElement;
+  mapCanvas: HTMLCanvasElement;
   playerTokenContainer: HTMLDivElement;
   landmarkContainers: readonly HTMLDivElement[];
   questContainers: readonly HTMLDivElement[];
@@ -16,7 +20,7 @@ interface WatchAnimationsParams {
 }
 
 export function watchAnimations(
-  { gameStore, outerDiv, playerTokenContainer, landmarkContainers, questContainers, fillerSquares, performanceInsensitiveAnimatableState, injector }: WatchAnimationsParams,
+  { gameStore, gameScreenStore, outerDiv, mapCanvas, playerTokenContainer, landmarkContainers, questContainers, fillerSquares, performanceInsensitiveAnimatableState, injector }: WatchAnimationsParams,
 ) {
   const destroyRef = injector.get(DestroyRef);
   const dialog = injector.get(Dialog);
@@ -90,6 +94,64 @@ export function watchAnimations(
         currentMovementAnimation?.pause();
       }
     }, { injector });
+    let wasShowingPath: boolean | null = null;
+    const apparentCurrentLocation = signal(0);
+    let lastAnimationFrame: number | null = null;
+    effect(() => {
+      if (lastAnimationFrame !== null) {
+        cancelAnimationFrame(lastAnimationFrame);
+        lastAnimationFrame = null;
+      }
+
+      if (!gameScreenStore.showingPath()) {
+        if (wasShowingPath) {
+          const ctx = mapCanvas.getContext('2d');
+          if (ctx !== null) {
+            ctx.clearRect(0, 0, mapCanvas.width, mapCanvas.height);
+          }
+          wasShowingPath = false;
+        }
+
+        return;
+      }
+
+      const targetLocationRoute = performanceInsensitiveAnimatableState.targetLocationRoute();
+      const ctx = mapCanvas.getContext('2d');
+      if (ctx === null) {
+        return;
+      }
+      ctx.clearRect(0, 0, mapCanvas.width, mapCanvas.height);
+      const scale = mapCanvas.width / 300;
+      const path = new Path2D();
+      const { allLocations } = gameStore.defs();
+      const currentLocation = apparentCurrentLocation();
+      let foundCurrentLocation = false;
+      for (let i = 0; i < targetLocationRoute.length; i++) {
+        const loc = targetLocationRoute[i];
+        const [x, y] = allLocations[loc].coords;
+        if (loc === currentLocation) {
+          if (i === targetLocationRoute.length - 1) {
+            // just a dot, that's not very interesting.
+            break;
+          }
+          foundCurrentLocation = true;
+          path.moveTo(x * scale, y * scale);
+        }
+        else if (foundCurrentLocation) {
+          path.lineTo(x * scale, y * scale);
+        }
+      }
+      if (!foundCurrentLocation) {
+        return;
+      }
+
+      ctx.strokeStyle = 'red';
+      ctx.lineWidth = scale;
+      ctx.setLineDash([scale * 2, scale]);
+      ctx.clearRect(0, 0, mapCanvas.width, mapCanvas.height);
+      ctx.lineDashOffset = 0;
+      ctx.stroke(path);
+    }, { injector });
     effect(() => {
       const { allLocations, regionForLandmarkLocation } = gameStore.defs();
       // this captures the full snapshot at this time, but applySnapshot only handles some of it.
@@ -115,6 +177,7 @@ export function watchAnimations(
               if (destroyRef.destroyed) {
                 return;
               }
+              apparentCurrentLocation.set(anim.toLocation);
               playerTokenContainer.style.setProperty('--ap-neutral-angle', neutralAngle.toString() + 'rad');
               playerTokenContainer.style.setProperty('--ap-scale-x', scaleX.toString());
               currentMovementAnimation = playerTokenContainer.animate({
@@ -153,10 +216,19 @@ export function watchAnimations(
               if (destroyRef.destroyed) {
                 return;
               }
-              dialog.open(UWin, {
+              const dialogRef = dialog.open(UWin, {
                 width: '60%',
                 height: '60%',
               });
+              const closeOnDestroy = destroyRef.onDestroy(() => {
+                sub.unsubscribe();
+                dialogRef.close();
+              });
+              const sub = dialogRef.closed
+                .pipe(takeUntilDestroyed(destroyRef))
+                .subscribe(() => {
+                  closeOnDestroy();
+                });
             })();
             break;
           }

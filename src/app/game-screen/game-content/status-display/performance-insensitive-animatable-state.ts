@@ -19,6 +19,7 @@ export class PerformanceInsensitiveAnimatableState {
   readonly receivedItemCountLookup = signal<readonly number[]>(Array.from({ length: BAKED_DEFINITIONS_FULL.allItems.length }, () => 0));
   readonly allLocationsAreChecked = signal(false);
   readonly hasCompletedGoal = signal(false);
+  readonly targetLocationRoute = signal<readonly number[]>([]);
 
   getSnapshot(gameStore: InstanceType<typeof GameStore>) {
     return {
@@ -37,11 +38,12 @@ export class PerformanceInsensitiveAnimatableState {
       regionIsLandmarkWithRequirementSatisfied: gameStore.regionLocks().regionIsLandmarkWithRequirementSatisfied,
       allLocationsAreChecked: gameStore.allLocationsAreChecked(),
       hasCompletedGoal: gameStore.hasCompletedGoal(),
+      targetLocationRoute: gameStore.targetLocationRoute(),
     };
   }
 
   applySnapshot(snapshot: ReturnType<this['getSnapshot']>) {
-    const { ratCount, food, energy, luck, distraction, startled, smart, conspiratorial, stylish, confidence, receivedItemCountLookup, allLocationsAreChecked, hasCompletedGoal } = snapshot;
+    const { ratCount, food, energy, luck, distraction, startled, smart, conspiratorial, stylish, confidence, receivedItemCountLookup, allLocationsAreChecked, hasCompletedGoal, targetLocationRoute } = snapshot;
     this.ratCount.set(ratCount);
     this.food.set(food);
     this.energy.set(energy);
@@ -55,5 +57,6 @@ export class PerformanceInsensitiveAnimatableState {
     this.receivedItemCountLookup.set(receivedItemCountLookup);
     this.allLocationsAreChecked.set(allLocationsAreChecked);
     this.hasCompletedGoal.set(hasCompletedGoal);
+    this.targetLocationRoute.set(targetLocationRoute);
   }
 }
