@@ -81,13 +81,24 @@ import { watchAnimations } from './watch-animations';
                  [style.--ap-sprite-index]="lm.spriteIndex">
           </div>
           @if (lm.yamlKey !== 'moon_comma_the') {
+            <!--
+            eslint-disable-next-line
+              @angular-eslint/template/interactive-supports-focus,
+              @angular-eslint/template/click-events-have-key-events
+            --
+            the intended way to interact is via the landmark containers themselves, which totally
+            support tab focusing. the mouse is allowed to interact with the quest markers for one
+            specific reason: the player token sometimes covers up the landmark, so this is the ONLY
+            way to get at that landmark with the mouse. the keyboard has no such limitation, so this
+            is preferable to adding duplicate things in the tab order.
+            -->
             <div
               #questContainer class="hover-box landmark-quest"
               [attr.data-location-id]="lm.loc"
               [style.--ap-left-base.px]="lm.coords[0]" [style.--ap-top-base.px]="lm.coords[1]"
               [style.transform]="lm.questMarkerTransform"
               appTooltip [tooltipContext]="tooltipContext" (tooltipOriginChange)="setTooltipOrigin(lm.loc, $event, true)"
-              (click)="setOrClearHyperFocus(lm.loc)" (keyup.enter)="setOrClearHyperFocus(lm.loc)" (keyup.space)="setOrClearHyperFocus(lm.loc)">
+              (click)="setOrClearHyperFocus(lm.loc)">
               <!--suppress CheckImageSize -->
               <img width="16" height="48" [alt]="lm.yamlKey" src="/assets/images/locations.webp"
                    [style.--ap-sprite-index]="0">
@@ -283,18 +294,18 @@ export class GameTabMap {
         const transformParts: string[] = [];
         if (region.yamlKey in adjustments) {
           const { offset, rotationDegrees } = adjustments[region.yamlKey as keyof typeof adjustments];
-          let finalTranslate = [0, 0];
+          const finalTranslate = [0, 0];
           if (rotationDegrees !== null) {
             // effectively move the transform origin without affecting anything else
             finalTranslate[0] -= 4;
             finalTranslate[1] -= 16;
-            transformParts.push(`translate(calc(4px * var(--ap-scale, 4)), calc(16px * var(--ap-scale, 4))) rotate(${rotationDegrees}deg)`);
+            transformParts.push(`translate(calc(4px * var(--ap-scale, 4)), calc(16px * var(--ap-scale, 4))) rotate(${rotationDegrees.toString()}deg)`);
           }
           if (offset !== null) {
             finalTranslate[0] += offset[0];
             finalTranslate[1] += offset[1];
           }
-          transformParts.push(`translate(calc(${finalTranslate[0]}px * var(--ap-scale, 4)), calc(${finalTranslate[1]}px * var(--ap-scale, 4)))`);
+          transformParts.push(`translate(calc(${finalTranslate[0].toString()}px * var(--ap-scale, 4)), calc(${finalTranslate[1].toString()}px * var(--ap-scale, 4)))`);
         }
         landmarks.push({
           landmark: r,

@@ -266,7 +266,7 @@ export function withGameState() {
           if (_regionIsHardLocked()[defs().allLocations[hyperFocusLocation].regionLocationKey[0]]) {
             return {
               isStartled: false,
-              reachableHyperFocusLocation: hyperFocusLocation
+              reachableHyperFocusLocation: hyperFocusLocation,
             } satisfies TargetLocationEvidence;
           }
         }
@@ -502,7 +502,7 @@ export function withGameState() {
       return {
         addUserRequestedLocation,
         setOrClearHyperFocus(location: number) {
-          patchState(store, (({ hyperFocusLocation }) => ({ hyperFocusLocation: hyperFocusLocation === location ? null : location })));
+          patchState(store, ({ hyperFocusLocation }) => ({ hyperFocusLocation: hyperFocusLocation === location ? null : location }));
         },
         receiveItems(items: Iterable<number>) {
           const { allItems, allLocations } = store.defs();

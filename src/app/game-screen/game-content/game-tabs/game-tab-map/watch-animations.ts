@@ -182,6 +182,12 @@ export function watchAnimations(
               catch {
                 // doesn't matter.
               }
+              /*
+              eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
+              --
+              I would LOVE to remove the condition, but this property was declared incorrectly. not
+              only CAN it be nullish, but it IS nullish. quite often, in fact.
+              */
               overlay.overlayRef?.updatePosition();
               currentMovementAnimation = null;
             })();
