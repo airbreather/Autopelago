@@ -1,5 +1,6 @@
 import { Dialog } from '@angular/cdk/dialog';
-import { DestroyRef, effect, inject, Injector, signal, untracked } from '@angular/core';
+import type { CdkConnectedOverlay } from '@angular/cdk/overlay';
+import { DestroyRef, effect, inject, Injector, untracked } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { GameStore } from '../../../../store/autopelago-store';
 import { GameScreenStore } from '../../../../store/game-screen-store';
@@ -9,6 +10,7 @@ import { UWin } from './u-win';
 interface WatchAnimationsParams {
   outerDiv: HTMLDivElement;
   dashedPath: SVGPathElement;
+  overlay: CdkConnectedOverlay;
   playerTokenContainer: HTMLDivElement;
   landmarkContainers: readonly HTMLDivElement[];
   questContainers: readonly HTMLDivElement[];
@@ -16,7 +18,7 @@ interface WatchAnimationsParams {
 }
 
 export function watchAnimations(
-  { outerDiv, dashedPath, playerTokenContainer, landmarkContainers, questContainers, fillerSquares }: WatchAnimationsParams,
+  { outerDiv, dashedPath, overlay, playerTokenContainer, landmarkContainers, questContainers, fillerSquares }: WatchAnimationsParams,
 ) {
   const gameStore = inject(GameStore);
   const gameScreenStore = inject(GameScreenStore);
@@ -93,7 +95,6 @@ export function watchAnimations(
         currentMovementAnimation?.pause();
       }
     }, { injector });
-    const apparentCurrentLocation = signal(0);
     let wasShowingPath = false;
     effect(() => {
       if (!gameScreenStore.showingPath()) {
@@ -105,9 +106,9 @@ export function watchAnimations(
         return;
       }
 
+      const currentLocation = performanceInsensitiveAnimatableState.apparentCurrentLocation();
       const targetLocationRoute = performanceInsensitiveAnimatableState.targetLocationRoute();
       const { allLocations } = gameStore.defs();
-      const currentLocation = apparentCurrentLocation();
       let foundCurrentLocation = false;
       const newData: string[] = [];
       for (let i = 0; i < targetLocationRoute.length; i++) {
@@ -159,7 +160,7 @@ export function watchAnimations(
               if (destroyRef.destroyed) {
                 return;
               }
-              apparentCurrentLocation.set(anim.toLocation);
+              performanceInsensitiveAnimatableState.apparentCurrentLocation.set(anim.toLocation);
               playerTokenContainer.style.setProperty('--ap-neutral-angle', neutralAngle.toString() + 'rad');
               playerTokenContainer.style.setProperty('--ap-scale-x', scaleX.toString());
               currentMovementAnimation = playerTokenContainer.animate({
@@ -174,6 +175,7 @@ export function watchAnimations(
               catch {
                 // doesn't matter.
               }
+              overlay.overlayRef?.updatePosition();
               currentMovementAnimation = null;
             })();
             break;

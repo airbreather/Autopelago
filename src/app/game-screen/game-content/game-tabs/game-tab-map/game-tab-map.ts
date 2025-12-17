@@ -55,11 +55,11 @@ import { watchAnimations } from './watch-animations';
         }
       </div>
       <svg class="dashed-path" viewBox="0 0 300 450" preserveAspectRatio="none">
-        <path #dashedPath fill="none" stroke="red" stroke-width="1" stroke-dasharray="4" d="">
+        <path #dashedPath fill="none" stroke="red" stroke-width="1" stroke-dasharray="3 1" d="">
           <animate
             id="animate-stroke-dashoffset"
             attributeName="stroke-dashoffset"
-            values="8;0"
+            values="4;0"
             dur="1s"
             repeatCount="indefinite" />
         </path>
@@ -336,6 +336,7 @@ export class GameTabMap {
     const initAnimationWatcherEffect = effect(() => {
       const outerDiv = this.outerDiv().nativeElement;
       const dashedPath = this.dashedPath().nativeElement;
+      const overlay = this.overlay();
       const playerTokenContainer = this.playerTokenContainer().nativeElement;
       const landmarkContainers = this.landmarkContainers().map(l => l.nativeElement);
       const questContainers = this.questContainers().map(l => l.nativeElement);
@@ -350,6 +351,7 @@ export class GameTabMap {
         watchAnimations({
           outerDiv,
           dashedPath,
+          overlay,
           playerTokenContainer,
           landmarkContainers,
           questContainers,

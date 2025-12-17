@@ -1,5 +1,6 @@
 import { Component, computed, effect, type ElementRef, inject, viewChild } from '@angular/core';
 import { GameStore } from '../../../../store/autopelago-store';
+import { PerformanceInsensitiveAnimatableState } from '../../status-display/performance-insensitive-animatable-state';
 
 const RAT_THOUGHTS_LACTOSE = [
   'squeak squeak',
@@ -109,6 +110,7 @@ const RAT_THOUGHTS_LACTOSE_INTOLERANT = [
 })
 export class PlayerTooltip {
   readonly #store = inject(GameStore);
+  readonly #performanceInsensitiveAnimatableState = inject(PerformanceInsensitiveAnimatableState);
 
   protected readonly playerToken = viewChild.required<ElementRef<HTMLCanvasElement>>('playerToken');
   constructor() {
@@ -130,12 +132,12 @@ export class PlayerTooltip {
 
   protected readonly currentLocationName = computed(() => {
     const { allLocations } = this.#store.defs();
-    return allLocations[this.#store.currentLocation()].name;
+    return allLocations[this.#performanceInsensitiveAnimatableState.apparentCurrentLocation()].name;
   });
 
   protected readonly targetLocationName = computed(() => {
     const { allLocations } = this.#store.defs();
-    return allLocations[this.#store.targetLocation()].name;
+    return allLocations[this.#performanceInsensitiveAnimatableState.targetLocation()].name;
   });
 
   protected readonly ratThought = computed(() => {
