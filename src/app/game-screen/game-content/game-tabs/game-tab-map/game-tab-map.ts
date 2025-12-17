@@ -72,6 +72,7 @@ import { watchAnimations } from './watch-animations';
               #questContainer class="hover-box landmark-quest"
               [attr.data-location-id]="lm.loc"
               [style.--ap-left-base.px]="lm.coords[0]" [style.--ap-top-base.px]="lm.coords[1]"
+              [style.transform]="lm.questMarkerTransform"
               appTooltip [tooltipContext]="tooltipContext" (tooltipOriginChange)="setTooltipOrigin(lm.loc, $event, true)"
               (click)="hyperFocus(lm.loc)" (keyup.enter)="hyperFocus(lm.loc)" (keyup.space)="hyperFocus(lm.loc)">
               <!--suppress CheckImageSize -->
@@ -181,7 +182,7 @@ import { watchAnimations } from './watch-animations';
     .landmark-quest {
       scale: calc(var(--ap-scale, 4) / 4 * 0.75);
       left: calc((var(--ap-left-base, 8px) - 6px) * var(--ap-scale, 4));
-      top: calc((var(--ap-top-base, 8px) - 21px) * var(--ap-scale, 4));
+      top: calc((var(--ap-top-base, 8px) - 18px) * var(--ap-scale, 4));
       img {
         object-fit: none;
         object-position: calc(-65px * (var(--ap-frame-offset, 0) + var(--ap-blocked-offset, 0))) 0;
@@ -232,6 +233,24 @@ export class GameTabMap {
       // not initialized yet. don't waste time rendering.
       return null;
     }
+    const adjustments = {
+      makeshift_rocket_ship: {
+        offset: [0, -7],
+        rotationDegrees: null,
+      },
+      overweight_boulder: {
+        offset: null,
+        rotationDegrees: -30,
+      },
+      captured_goldfish: {
+        offset: null,
+        rotationDegrees: -30,
+      },
+      copyright_mouse: {
+        offset: null,
+        rotationDegrees: -30,
+      }
+    } as const satisfies Partial<Record<LandmarkYamlKey, unknown>>;
     const { allLocations, allRegions, startRegion, moonCommaThe } = this.#store.defs();
     const fillers: LocationProps[] = [];
     const landmarks: LandmarkProps[] = [];
@@ -250,12 +269,29 @@ export class GameTabMap {
         continue;
       }
       if ('loc' in region) {
+        const transformParts: string[] = [];
+        if (region.yamlKey in adjustments) {
+          const { offset, rotationDegrees } = adjustments[region.yamlKey as keyof typeof adjustments];
+          let finalTranslate = [0, 0];
+          if (rotationDegrees !== null) {
+            // effectively move the transform origin without affecting anything else
+            finalTranslate[0] -= 4;
+            finalTranslate[1] -= 16;
+            transformParts.push(`translate(calc(4px * var(--ap-scale, 4)), calc(16px * var(--ap-scale, 4))) rotate(${rotationDegrees}deg)`);
+          }
+          if (offset !== null) {
+            finalTranslate[0] += offset[0];
+            finalTranslate[1] += offset[1];
+          }
+          transformParts.push(`translate(calc(${finalTranslate[0]}px * var(--ap-scale, 4)), calc(${finalTranslate[1]}px * var(--ap-scale, 4)))`);
+        }
         landmarks.push({
           landmark: r,
           loc: region.loc,
           yamlKey: region.yamlKey,
           coords: allLocations[region.loc].coords,
           spriteIndex: LANDMARKS[region.yamlKey].sprite_index,
+          questMarkerTransform: transformParts.length === 0 ? 'none' : transformParts.join(' '),
         });
       }
       else {
@@ -397,6 +433,7 @@ interface LandmarkProps extends LocationProps {
   landmark: number;
   yamlKey: LandmarkYamlKey;
   spriteIndex: number;
+  questMarkerTransform: string;
 }
 
 interface CurrentTooltipOriginProps {
