@@ -1,7 +1,7 @@
-import { type DestroyRef, signal, type Signal } from '@angular/core';
+import { computed, type DestroyRef, signal, type Signal } from '@angular/core';
 import BitArray from '@bitarray/typedarray';
-import { Client, type ConnectionOptions, type MessageNode, type Player } from 'archipelago.js';
-import { List } from 'immutable';
+import { Client, type ConnectionOptions, Hint, type Item, type MessageNode, type Player } from 'archipelago.js';
+import { List, Repeat } from 'immutable';
 import type { ConnectScreenState } from './connect-screen/connect-screen-state';
 import { BAKED_DEFINITIONS_BY_VICTORY_LANDMARK, VICTORY_LOCATION_NAME_LOOKUP } from './data/resolved-definitions';
 import type {
@@ -50,6 +50,9 @@ export async function initializeClient(initializeClientOptions: InitializeClient
   // we have our own message log, so disable its own:
   client.options.maximumMessages = 0;
   const messageLog = createReactiveMessageLog(client, destroyRef);
+
+  // we also have our own hint stuff.
+  const reactiveHints = createReactiveHints(client, destroyRef);
 
   let options: ConnectionOptions = {
     slotData: true,
@@ -135,15 +138,37 @@ export async function initializeClient(initializeClientOptions: InitializeClient
   const items = await client.scout(defs.allLocations.map(l => locationNetworkNameLookup[l.name]));
   const locationIsProgression = new BitArray(defs.allLocations.length);
   const locationIsTrap = new BitArray(defs.allLocations.length);
+  const superSpoilerData = Array.from<unknown, Item | null>({ length: defs.allLocations.length }, () => null);
   for (const item of items) {
+    const loc = defs.locationNameLookup.get(item.locationName) ?? -1;
+    superSpoilerData[loc] = item;
     if (item.progression) {
-      locationIsProgression[defs.locationNameLookup.get(item.locationName) ?? -1] = 1;
+      locationIsProgression[loc] = 1;
     }
 
     if (item.trap) {
-      locationIsTrap[defs.locationNameLookup.get(item.locationName) ?? -1] = 1;
+      locationIsTrap[loc] = 1;
     }
   }
+
+  // don't make it TOO easy to get the full, unadulterated spoiler data. at any given point, we can
+  // only display the full details of things that have been either sent or hinted.
+  let prevKnownSpoilerData = List<Item | null>(Repeat(null, defs.allLocations.length));
+  let prevKnownHints = List<Hint>();
+  const knownSpoilerData = computed(() => prevKnownSpoilerData = prevKnownSpoilerData.withMutations((s) => {
+    const hints = reactiveHints();
+    for (const [h, hint] of hints.entries()) {
+      if (h < prevKnownHints.size) {
+        continue;
+      }
+
+      const loc = defs.locationNameLookup.get(hint.item.locationName);
+      if (loc !== undefined) {
+        s.set(loc, hint.item);
+      }
+    }
+    prevKnownHints = hints;
+  }));
 
   return {
     connectScreenState,
@@ -151,6 +176,7 @@ export async function initializeClient(initializeClientOptions: InitializeClient
     pkg,
     messageLog,
     slotData,
+    knownSpoilerData,
     locationIsProgression,
     locationIsTrap,
     storedData,
@@ -179,6 +205,27 @@ export type Message =
   | ServerChatMessage
   | OtherMessage
   ;
+
+function createReactiveHints(client: Client, destroyRef?: DestroyRef): Signal<List<Hint>> {
+  const hints = signal(List<Hint>(client.items.hints));
+  function onHint(hint: Hint) {
+    hints.update(hints => hints.push(hint));
+  }
+  function onHints(newHints: readonly Hint[]) {
+    hints.update(hints => hints.push(...newHints));
+  }
+  client.items.on('hintsInitialized', onHints);
+  client.items.on('hintReceived', onHint);
+  client.items.on('hintFound', onHint);
+  if (destroyRef) {
+    destroyRef.onDestroy(() => {
+      client.items.off('hintsInitialized', onHints);
+      client.items.off('hintReceived', onHint);
+      client.items.off('hintFound', onHint);
+    });
+  }
+  return hints.asReadonly();
+}
 
 function createReactiveMessageLog(client: Client, destroyRef?: DestroyRef): Signal<List<Readonly<Message>>> {
   const specificMessagesAlreadyLogged = new Set<readonly MessageNode[]>();
