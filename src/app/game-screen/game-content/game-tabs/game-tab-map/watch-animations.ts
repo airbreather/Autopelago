@@ -1,29 +1,29 @@
 import { Dialog } from '@angular/cdk/dialog';
-import { DestroyRef, effect, type Injector, signal, untracked } from '@angular/core';
+import { DestroyRef, effect, inject, Injector, signal, untracked } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
-import type { GameStore } from '../../../../store/autopelago-store';
-import type { GameScreenStore } from '../../../../store/game-screen-store';
+import { GameStore } from '../../../../store/autopelago-store';
+import { GameScreenStore } from '../../../../store/game-screen-store';
 import { PerformanceInsensitiveAnimatableState } from '../../status-display/performance-insensitive-animatable-state';
 import { UWin } from './u-win';
 
 interface WatchAnimationsParams {
-  gameStore: InstanceType<typeof GameStore>;
-  gameScreenStore: InstanceType<typeof GameScreenStore>;
   outerDiv: HTMLDivElement;
   dashedPath: SVGPathElement;
   playerTokenContainer: HTMLDivElement;
   landmarkContainers: readonly HTMLDivElement[];
   questContainers: readonly HTMLDivElement[];
   fillerSquares: readonly HTMLDivElement[];
-  performanceInsensitiveAnimatableState: PerformanceInsensitiveAnimatableState;
-  injector: Injector;
 }
 
 export function watchAnimations(
-  { gameStore, gameScreenStore, outerDiv, dashedPath, playerTokenContainer, landmarkContainers, questContainers, fillerSquares, performanceInsensitiveAnimatableState, injector }: WatchAnimationsParams,
+  { outerDiv, dashedPath, playerTokenContainer, landmarkContainers, questContainers, fillerSquares }: WatchAnimationsParams,
 ) {
-  const destroyRef = injector.get(DestroyRef);
-  const dialog = injector.get(Dialog);
+  const gameStore = inject(GameStore);
+  const gameScreenStore = inject(GameScreenStore);
+  const performanceInsensitiveAnimatableState = inject(PerformanceInsensitiveAnimatableState);
+  const injector = inject(Injector);
+  const destroyRef = inject(DestroyRef);
+  const dialog = inject(Dialog);
   const landmarkShake = outerDiv.animate([
     { ['--ap-frame-offset']: 0, easing: 'steps(1)' },
     { ['--ap-frame-offset']: 1, easing: 'steps(1)' },
@@ -34,7 +34,6 @@ export function watchAnimations(
   }, { duration: 1000, iterations: Infinity });
 
   let currentMovementAnimation: Animation | null = null;
-
   let prevAnimation = Promise.resolve();
 
   const landmarkContainersLookup = new Map<number, HTMLDivElement>();
@@ -62,13 +61,13 @@ export function watchAnimations(
 
       const questContainer = questContainersLookup.get(loc);
       if (questContainer !== undefined) {
-        questContainer.style.setProperty('display', 'none');
+        questContainer.style.display = 'none';
         questContainersLookup.delete(loc);
       }
 
       const fillerSquare = fillerSquaresLookup.get(loc);
       if (fillerSquare !== undefined) {
-        fillerSquare.style.setProperty('background-color', 'grey');
+        fillerSquare.style.backgroundColor = 'grey';
         fillerSquaresLookup.delete(loc);
       }
     }
@@ -95,6 +94,46 @@ export function watchAnimations(
       }
     }, { injector });
     const apparentCurrentLocation = signal(0);
+    let wasShowingPath = false;
+    effect(() => {
+      if (!gameScreenStore.showingPath()) {
+        if (wasShowingPath) {
+          dashedPath.style.display = 'none';
+          wasShowingPath = false;
+        }
+
+        return;
+      }
+
+      const targetLocationRoute = performanceInsensitiveAnimatableState.targetLocationRoute();
+      const { allLocations } = gameStore.defs();
+      const currentLocation = apparentCurrentLocation();
+      let foundCurrentLocation = false;
+      const newData: string[] = [];
+      for (let i = 0; i < targetLocationRoute.length; i++) {
+        const loc = targetLocationRoute[i];
+        const [x, y] = allLocations[loc].coords;
+        if (loc === currentLocation) {
+          if (i === targetLocationRoute.length - 1) {
+            // just a dot, that's not very interesting.
+            break;
+          }
+          foundCurrentLocation = true;
+          newData.push(`M${x.toFixed(2)},${y.toFixed(2)}`);
+        }
+        else if (foundCurrentLocation) {
+          newData.push(`L${x.toFixed(2)},${y.toFixed(2)}`);
+        }
+      }
+      if (!foundCurrentLocation) {
+        dashedPath.style.display = 'none';
+        wasShowingPath = false;
+        return;
+      }
+      dashedPath.style.display = '';
+      dashedPath.setAttribute('d', newData.join(' '));
+      wasShowingPath = true;
+    }, { injector });
     effect(() => {
       const { allLocations, regionForLandmarkLocation } = gameStore.defs();
       // this captures the full snapshot at this time, but applySnapshot only handles some of it.

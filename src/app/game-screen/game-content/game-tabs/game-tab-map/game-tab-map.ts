@@ -13,6 +13,7 @@ import {
   inject,
   Injector,
   resource,
+  runInInjectionContext,
   signal,
   viewChild,
   viewChildren,
@@ -54,7 +55,14 @@ import { watchAnimations } from './watch-animations';
         }
       </div>
       <svg class="dashed-path" viewBox="0 0 300 450" preserveAspectRatio="none">
-        <path #dashedPath stroke="red" stroke-width="1" stroke-dasharray="4" d="" />
+        <path #dashedPath fill="none" stroke="red" stroke-width="1" stroke-dasharray="4" d="">
+          <animate
+            id="animate-stroke-dashoffset"
+            attributeName="stroke-dashoffset"
+            values="8;0"
+            dur="1s"
+            repeatCount="indefinite" />
+        </path>
       </svg>
       <div class="organize landmarks">
         @for (lm of allLandmarks(); track lm.loc) {
@@ -338,17 +346,15 @@ export class GameTabMap {
         return;
       }
 
-      watchAnimations({
-        gameStore: this.#store,
-        gameScreenStore: this.#gameScreenStore,
-        outerDiv,
-        dashedPath,
-        playerTokenContainer,
-        landmarkContainers,
-        questContainers,
-        fillerSquares,
-        performanceInsensitiveAnimatableState: this.#performanceInsensitiveAnimatableState,
-        injector: this.#injector,
+      runInInjectionContext(this.#injector, () => {
+        watchAnimations({
+          outerDiv,
+          dashedPath,
+          playerTokenContainer,
+          landmarkContainers,
+          questContainers,
+          fillerSquares,
+        });
       });
       initAnimationWatcherEffect.destroy();
     });
