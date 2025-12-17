@@ -18,10 +18,6 @@ export interface CheckLocationsAction {
   locations: readonly number[];
 }
 
-export interface CompletedGoalAction {
-  type: 'completed-goal';
-}
-
 export interface UWinAction {
   type: 'u-win';
 }
@@ -29,7 +25,6 @@ export interface UWinAction {
 export type AnimatableAction =
   | MovementAction
   | CheckLocationsAction
-  | CompletedGoalAction
   | UWinAction
   ;
 

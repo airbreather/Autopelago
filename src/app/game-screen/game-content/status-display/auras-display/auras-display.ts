@@ -1,7 +1,7 @@
 import { ChangeDetectionStrategy, Component, computed, ElementRef, inject, viewChild } from '@angular/core';
 
-import { GameStore } from '../../../../store/autopelago-store';
 import { resizeText } from '../../../../utils/resize-text';
+import { PerformanceInsensitiveAnimatableState } from '../performance-insensitive-animatable-state';
 
 @Component({
   selector: 'app-auras-display',
@@ -170,7 +170,7 @@ import { resizeText } from '../../../../utils/resize-text';
   `,
 })
 export class AurasDisplay {
-  readonly #gameStore = inject(GameStore);
+  readonly #gameStore = inject(PerformanceInsensitiveAnimatableState);
 
   readonly outerElement = viewChild.required<ElementRef<HTMLElement>>('outer');
   readonly ratCountElement = viewChild.required<ElementRef<HTMLElement>>('ratCountElement');
@@ -178,16 +178,16 @@ export class AurasDisplay {
   protected readonly ratCount = this.#gameStore.ratCount;
   protected readonly ratCountText = computed(() => `RATS: ${this.ratCount().toString()}`);
 
-  protected readonly food = this.#gameStore.foodFactor;
-  protected readonly energy = this.#gameStore.energyFactor;
-  protected readonly luck = this.#gameStore.luckFactor;
+  protected readonly food = this.#gameStore.food;
+  protected readonly energy = this.#gameStore.energy;
+  protected readonly luck = this.#gameStore.luck;
 
-  protected readonly distraction = this.#gameStore.distractionCounter;
-  protected readonly startled = this.#gameStore.startledCounter;
-  protected readonly smart = this.#gameStore.targetLocationChosenBecauseSmart;
-  protected readonly conspiratorial = this.#gameStore.targetLocationChosenBecauseConspiratorial;
-  protected readonly stylish = this.#gameStore.styleFactor;
-  protected readonly confidence = this.#gameStore.hasConfidence;
+  protected readonly distraction = this.#gameStore.distraction;
+  protected readonly startled = this.#gameStore.startled;
+  protected readonly smart = this.#gameStore.smart;
+  protected readonly conspiratorial = this.#gameStore.conspiratorial;
+  protected readonly stylish = this.#gameStore.stylish;
+  protected readonly confidence = this.#gameStore.confidence;
 
   protected readonly foodFillPercentage = computed(() => {
     const value = Math.max(-20, Math.min(20, this.food()));

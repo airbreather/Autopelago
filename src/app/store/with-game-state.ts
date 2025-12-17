@@ -287,10 +287,10 @@ export function withGameState() {
         return route[Math.min(route.indexOf(store.currentLocation()) + 1, route.length - 1)];
       });
       const targetLocationChosenBecauseSmart = computed(() => {
-        return targetLocationReason() === 'aura-driven' && store.locationIsProgression()[targetLocation()];
+        return !!(targetLocationReason() === 'aura-driven' && store.locationIsProgression()[targetLocation()]);
       });
       const targetLocationChosenBecauseConspiratorial = computed(() => {
-        return targetLocationReason() === 'aura-driven' && store.locationIsTrap()[targetLocation()];
+        return !!(targetLocationReason() === 'aura-driven' && store.locationIsTrap()[targetLocation()]);
       });
       const canEventuallyAdvance = computed(() => {
         return !(

@@ -2,6 +2,7 @@ import { Component, computed, inject, input } from '@angular/core';
 import type { AutopelagoRequirement } from '../../../../data/resolved-definitions';
 import { buildRequirementIsSatisfied } from '../../../../game/location-routing';
 import { GameStore } from '../../../../store/autopelago-store';
+import { PerformanceInsensitiveAnimatableState } from '../../status-display/performance-insensitive-animatable-state';
 
 @Component({
   selector: 'app-requirement-display',
@@ -52,6 +53,7 @@ import { GameStore } from '../../../../store/autopelago-store';
 })
 export class RequirementDisplay {
   readonly #store = inject(GameStore);
+  readonly #anim = inject(PerformanceInsensitiveAnimatableState);
   readonly requirement = input.required<AutopelagoRequirement>();
 
   protected readonly itemNames = computed(() => {
@@ -61,7 +63,7 @@ export class RequirementDisplay {
   });
 
   protected readonly isSatisfied = computed(() => {
-    const isSatisfied = buildRequirementIsSatisfied(this.#store.requirementRelevantItemCountLookup(), this.#store.allLocationsAreChecked());
+    const isSatisfied = buildRequirementIsSatisfied(this.#anim.receivedItemCountLookup(), this.#anim.allLocationsAreChecked());
     return isSatisfied(this.requirement());
   });
 }

@@ -8,28 +8,29 @@ import {
   ChangeDetectionStrategy,
   Component,
   computed,
-  DestroyRef,
   effect,
   ElementRef,
   inject,
   Injector,
+  resource,
+  runInInjectionContext,
   signal,
-  untracked,
   viewChild,
+  viewChildren,
 } from '@angular/core';
 import BitArray from '@bitarray/typedarray';
 
-import { Application, Ticker } from 'pixi.js';
 import Queue from 'yocto-queue';
-import { type Vec2 } from '../../../../data/locations';
+import { LANDMARKS, type LandmarkYamlKey, type Vec2 } from '../../../../data/locations';
 import { VICTORY_LOCATION_CROP_LOOKUP } from '../../../../data/resolved-definitions';
 import { GameStore } from '../../../../store/autopelago-store';
 import { GameScreenStore } from '../../../../store/game-screen-store';
 import { createEmptyTooltipContext, TooltipBehavior, type TooltipOriginProps } from '../../../../tooltip-behavior';
 import { elementSizeSignal } from '../../../../utils/element-size';
+import { PerformanceInsensitiveAnimatableState } from '../../status-display/performance-insensitive-animatable-state';
 import { LandmarkTooltip } from './landmark-tooltip';
-import { createLivePixiObjects } from './live-pixi-objects';
 import { PlayerTooltip } from './player-tooltip';
+import { watchAnimations } from './watch-animations';
 
 @Component({
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -44,17 +45,53 @@ import { PlayerTooltip } from './player-tooltip';
   template: `
     <div #outer class="outer">
       <img class="map-img" alt="map" [ngSrc]="mapUrl()" width="300" height="450" priority />
-      <canvas #pixiCanvas class="pixi-canvas" width="300" height="450">
-      </canvas>
-      @for (lm of allLandmarks(); track $index) {
-        <div #hoverBox class="hover-box" [tabindex]="$index + 999"
-             [style.--ap-left-base.px]="lm.coords[0]" [style.--ap-top-base.px]="lm.coords[1]"
-             appTooltip [tooltipContext]="tooltipContext" (tooltipOriginChange)="setTooltipOrigin(lm.landmark, $event, true)">
-        </div>
-      }
-      <div #playerTokenHoverBox class="hover-box" tabindex="998" [style.z-index]="999"
+      <div class="organize fillers">
+        @for (f of allFillers(); track f.loc) {
+          <div
+            #fillerSquare class="hover-box filler" [tabindex]="$index + 1999"
+            [style.--ap-left-base.px]="f.coords[0]" [style.--ap-top-base.px]="f.coords[1]"
+            [attr.data-location-id]="f.loc">
+          </div>
+        }
+      </div>
+      <svg class="dashed-path" viewBox="0 0 300 450" preserveAspectRatio="none">
+        <path #dashedPath fill="none" stroke="red" stroke-width="1" stroke-dasharray="3 1" d="">
+          <animate
+            id="animate-stroke-dashoffset"
+            attributeName="stroke-dashoffset"
+            values="4;0"
+            dur="1s"
+            repeatCount="indefinite" />
+        </path>
+      </svg>
+      <div class="organize landmarks">
+        @for (lm of allLandmarks(); track lm.loc) {
+          <div
+            #landmarkContainer class="hover-box landmark" [tabindex]="$index + 999"
+            [attr.data-location-id]="lm.loc" [style.--ap-checked-offset]="lm.yamlKey === 'moon_comma_the' ? 0 : 'unset'"
+            [style.--ap-left-base.px]="lm.coords[0]" [style.--ap-top-base.px]="lm.coords[1]"
+            appTooltip [tooltipContext]="tooltipContext" (tooltipOriginChange)="setTooltipOrigin(lm.landmark, $event, true)">
+            <!--suppress CheckImageSize -->
+            <img width="64" height="64" [alt]="lm.yamlKey" src="/assets/images/locations.webp"
+                 [style.--ap-sprite-index]="lm.spriteIndex">
+          </div>
+          @if (lm.yamlKey !== 'moon_comma_the') {
+            <div
+              #questContainer class="hover-box landmark-quest"
+              [attr.data-location-id]="lm.loc"
+              [style.--ap-left-base.px]="lm.coords[0]" [style.--ap-top-base.px]="lm.coords[1]"
+              appTooltip [tooltipContext]="tooltipContext" (tooltipOriginChange)="setTooltipOrigin(lm.landmark, $event, true)">
+              <!--suppress CheckImageSize -->
+              <img width="64" height="64" [alt]="lm.yamlKey" src="/assets/images/locations.webp"
+                   [style.--ap-sprite-index]="0">
+            </div>
+          }
+        }
+      </div>
+      <div #playerTokenContainer class="hover-box player" tabindex="998" [style.z-index]="999"
            appTooltip [tooltipContext]="tooltipContext" (tooltipOriginChange)="setTooltipOrigin(null, $event, true)"
            (click)="toggleShowingPath()" (keyup.enter)="toggleShowingPath()" (keyup.space)="toggleShowingPath()">
+        <img #playerToken width="64" height="64" alt="player" [src]="playerImageSource.value()">
       </div>
       <div #pauseButtonContainer class="pause-button-container"
            [style.margin-top]="'-' + pauseButtonContainer.clientHeight + 'px'">
@@ -71,9 +108,7 @@ import { PlayerTooltip } from './player-tooltip';
       [cdkConnectedOverlayOpen]="tooltipOrigin() !== null"
       [cdkConnectedOverlayUsePopover]="'inline'"
       [cdkConnectedOverlayPositionStrategy]="tooltipPositionStrategy()"
-      [cdkConnectedOverlayScrollStrategy]="tooltipScrollStrategy()"
-      (attach)="onOverlayAttached()"
-      (detach)="onOverlayDetached()">
+      [cdkConnectedOverlayScrollStrategy]="tooltipScrollStrategy()">
       @if (tooltipOrigin(); as origin) {
         @if (origin.landmark; as landmark) {
           <app-landmark-tooltip [landmarkKey]="landmark" />
@@ -96,6 +131,29 @@ import { PlayerTooltip } from './player-tooltip';
       height: 100%;
     }
 
+    .dashed-path {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+    }
+
+    .organize {
+      display: contents;
+    }
+
+    .landmarks {
+      --ap-checked-offset: 2;
+      --ap-blocked-offset: 2;
+    }
+
+    .fillers {
+      div {
+        background-color: yellow;
+      }
+    }
+
     .pause-button-container {
       position: sticky;
       margin-bottom: 0;
@@ -105,21 +163,54 @@ import { PlayerTooltip } from './player-tooltip';
       width: fit-content;
     }
 
-    .pixi-canvas {
-      position: absolute;
-      top: 0;
-      left: 0;
-      width: 100%;
-      height: 100%;
+    .landmark {
+      scale: calc(var(--ap-scale, 4) / 4);
+      left: calc((var(--ap-left-base, 8px) - 8px) * var(--ap-scale, 4));
+      top: calc((var(--ap-top-base, 8px) - 8px) * var(--ap-scale, 4));
+      img {
+        object-fit: none;
+        object-position: calc(-65px * (var(--ap-frame-offset, 0) + var(--ap-checked-offset, 0))) calc(-65px * var(--ap-sprite-index, 0));
+        filter: drop-shadow(calc(var(--ap-scale, 4) * 0.8px) calc(var(--ap-scale, 4) * .8px) calc(var(--ap-scale, 4) * 0.5px) black);
+      }
+    }
+
+    .landmark-quest {
+      scale: calc(var(--ap-scale, 4) / 4 * 0.75);
+      left: calc((var(--ap-left-base, 8px) - 6px) * var(--ap-scale, 4));
+      top: calc((var(--ap-top-base, 8px) - 21px) * var(--ap-scale, 4));
+      img {
+        object-fit: none;
+        object-position: calc(-65px * (var(--ap-frame-offset, 0) + var(--ap-blocked-offset, 0))) 0;
+        filter: drop-shadow(calc(var(--ap-scale, 4) * 0.8px) calc(var(--ap-scale, 4) * .8px) calc(var(--ap-scale, 4) * 0.5px) black);
+      }
+    }
+
+    .filler {
+      scale: var(--ap-scale, 4);
+      width: 1.6px;
+      height: 1.6px;
+      border-radius: 0;
+      filter: drop-shadow(calc(var(--ap-scale, 4) * 0.1px) calc(var(--ap-scale, 4) * 0.1px) calc(var(--ap-scale, 4) * 0.1px) black);
+      left: calc((var(--ap-left-base, 8px) - 0.8px) * var(--ap-scale, 4));
+      top: calc((var(--ap-top-base, 8px) - 0.8px) * var(--ap-scale, 4));
+    }
+
+    .player {
+      scale: calc(var(--ap-scale, 4) / 4);
+      left: calc((var(--ap-left-base, 8px) - 8px) * var(--ap-scale, 4));
+      top: calc((var(--ap-top-base, 8px) - 8px) * var(--ap-scale, 4));
+      will-change: left, top;
+      img {
+        transform-origin: center;
+        filter: drop-shadow(calc(var(--ap-scale, 4) * 0.8px) calc(var(--ap-scale, 4) * .8px) calc(var(--ap-scale, 4) * 0.5px) black);
+        transform: rotate(calc(var(--ap-wiggle-amount, 0) * 10deg + var(--ap-neutral-angle, 0rad))) scaleX(var(--ap-scale-x, 1));
+      }
     }
 
     .hover-box {
       position: absolute;
       pointer-events: initial;
-      width: calc(16px * var(--ap-scale, 1));
-      height: calc(16px * var(--ap-scale, 1));
-      left: calc((var(--ap-left-base, 8px) - 8px) * var(--ap-scale, 1));
-      top: calc((var(--ap-top-base, 8px) - 8px) * var(--ap-scale, 1));
+      transform-origin: left top;
     }
   `,
 })
@@ -127,12 +218,18 @@ export class GameTabMap {
   readonly #injector = inject(Injector);
   readonly #store = inject(GameStore);
   readonly #gameScreenStore = inject(GameScreenStore);
+  readonly #performanceInsensitiveAnimatableState = inject(PerformanceInsensitiveAnimatableState);
   protected readonly toggleShowingPath = this.#gameScreenStore.toggleShowingPath;
   protected readonly running = this.#store.running;
 
-  readonly allLandmarks = computed(() => {
+  readonly #allLocations = computed<AllLocationProps | null>(() => {
+    if (this.#store.game() === null) {
+      // not initialized yet. don't waste time rendering.
+      return null;
+    }
     const { allLocations, allRegions, startRegion, moonCommaThe } = this.#store.defs();
-    const result: LandmarkProps[] = [];
+    const fillers: LocationProps[] = [];
+    const landmarks: LandmarkProps[] = [];
     const visited = new BitArray(allRegions.length);
     const q = new Queue<number>();
     function tryEnqueue(r: number) {
@@ -141,21 +238,35 @@ export class GameTabMap {
         q.enqueue(r);
       }
     }
-    q.enqueue(startRegion);
+    tryEnqueue(startRegion);
     for (let r = q.dequeue(); r !== undefined; r = q.dequeue()) {
       const region = allRegions[r];
-      if (r === moonCommaThe?.region && !this.#store.hasCompletedGoal()) {
+      if (r === moonCommaThe?.region && !this.#performanceInsensitiveAnimatableState.hasCompletedGoal()) {
         continue;
       }
       if ('loc' in region) {
-        result.push({ landmark: r, coords: allLocations[region.loc].coords });
+        landmarks.push({
+          landmark: r,
+          loc: region.loc,
+          yamlKey: region.yamlKey,
+          coords: allLocations[region.loc].coords,
+          spriteIndex: LANDMARKS[region.yamlKey].sprite_index,
+        });
+      }
+      else {
+        for (const loc of region.locs) {
+          fillers.push({ loc, coords: allLocations[loc].coords });
+        }
       }
       for (const [nxt] of region.connected.all) {
         tryEnqueue(nxt);
       }
     }
-    return result;
+    return { fillers, landmarks };
   });
+
+  readonly allFillers = computed(() => this.#allLocations()?.fillers ?? []);
+  readonly allLandmarks = computed(() => this.#allLocations()?.landmarks ?? []);
 
   // all tooltips here should use the same context so that the user can quickly switch between them
   // without having to sit through the whole delay.
@@ -176,11 +287,25 @@ export class GameTabMap {
     return createRepositionScrollStrategy(this.#injector);
   });
 
-  protected readonly pixiCanvas = viewChild.required<ElementRef<HTMLCanvasElement>>('pixiCanvas');
   protected readonly outerDiv = viewChild.required<ElementRef<HTMLDivElement>>('outer');
-  protected readonly playerTokenHoverBox = viewChild.required<ElementRef<HTMLDivElement>>('playerTokenHoverBox');
+  protected readonly dashedPath = viewChild.required<ElementRef<SVGPathElement>>('dashedPath');
   protected readonly overlay = viewChild.required(CdkConnectedOverlay);
+  protected readonly fillerSquares = viewChildren<ElementRef<HTMLDivElement>>('fillerSquare');
+  protected readonly landmarkContainers = viewChildren<ElementRef<HTMLDivElement>>('landmarkContainer');
+  protected readonly questContainers = viewChildren<ElementRef<HTMLDivElement>>('questContainer');
+  protected readonly playerTokenContainer = viewChild.required<ElementRef<HTMLDivElement>>('playerTokenContainer');
   #overlayIsAttached = false;
+
+  readonly playerImageSource = resource({
+    params: () => this.#store.playerTokenValue(),
+    loader: async ({ params: playerToken }) => {
+      if (playerToken === null) {
+        return null;
+      }
+      const blob = await playerToken.canvas.convertToBlob();
+      return URL.createObjectURL(blob);
+    },
+  });
 
   protected readonly mapUrl = computed(() => {
     switch (this.#store.victoryLocationYamlKey()) {
@@ -196,137 +321,44 @@ export class GameTabMap {
   });
 
   constructor() {
-    const app = new Application();
-    app.ticker = new Ticker();
-    inject(DestroyRef).onDestroy(() => {
-      const ticker = app.ticker;
-      ticker.stop();
-      app.destroy(
-        {
-          removeView: true,
-          releaseGlobalResources: true,
-        },
-        {
-          children: true,
-          style: true,
-          context: true,
-          // these are cached, which PixiJS warns about if we go out and in again:
-          textureSource: false,
-          texture: false,
-        });
-      appIsInitialized.set(false);
-    });
-    effect(() => {
-      if (this.#store.running()) {
-        app.ticker.start();
-      }
-      else {
-        app.ticker.stop();
-      }
-    });
-
-    // these resources (and signal) need to be created in our injection context, and they have their
-    // own asynchronous initialization (though the signal is only pseudo-asynchronous, since it gets
-    // initialized during the first microtask tick after we're done).
-    const {
-      playerTokenResource,
-      landmarksResource,
-      fillerMarkersSignal,
-    } = createLivePixiObjects(app.ticker);
-
-    // app.init is async, and nothing can be done with the app until it's initialized, so let's do
-    // just everything up to app.init and then open up the floodgates for everything afterward by
-    // giving them the initialized app.
-    const appIsInitialized = signal(false);
-    effect(() => {
-      const canvas = this.pixiCanvas().nativeElement;
-      const outerDiv = this.outerDiv().nativeElement;
-
-      const victoryLocationYamlKey = this.#store.victoryLocationYamlKey();
-      canvas.height = VICTORY_LOCATION_CROP_LOOKUP[victoryLocationYamlKey];
-      void app.init({
-        canvas,
-        resizeTo: outerDiv,
-        backgroundAlpha: 0,
-        antialias: false,
-        autoStart: false,
-      }).then(() => {
-        appIsInitialized.set(true);
-      });
-    });
-
-    // add stuff to the app stage, but only once it's initialized. for the sake of simplicity, DON'T
-    // observe any signals in this effect that will change after everything has been initialized. I
-    // really don't want to bother removing and recreating stuff for no reason.
-    effect(() => {
-      if (!appIsInitialized()) {
-        return;
-      }
-
-      const playerToken = playerTokenResource.value();
-      const landmarks = landmarksResource.value();
-      if (!(playerToken && landmarks)) {
-        return;
-      }
-
-      const fillerMarkers = fillerMarkersSignal();
-      app.stage.addChild(fillerMarkers.container);
-      app.stage.addChild(playerToken.pathGfx);
-      app.stage.addChild(landmarks.container);
-      app.stage.addChild(playerToken.targetX);
-      app.stage.addChild(playerToken.sprite);
-      app.resize();
-      app.render();
-      if (untracked(() => this.#store.running())) {
-        app.ticker.start();
-      }
-      else {
-        app.ticker.stop();
-      }
-    });
-
     // whenever the outer div resizes, we also need to resize the app to match.
     const outerDivSize = elementSizeSignal(this.outerDiv);
     effect(() => {
-      if (!appIsInitialized()) {
-        return;
-      }
-
       const victoryLocationYamlKey = this.#store.victoryLocationYamlKey();
       const { clientHeight } = outerDivSize();
       const scale = clientHeight / VICTORY_LOCATION_CROP_LOOKUP[victoryLocationYamlKey];
-      app.stage.scale = scale;
-      app.resize();
       this.outerDiv().nativeElement.style.setProperty('--ap-scale', scale.toString());
       if (this.#overlayIsAttached) {
         this.overlay().overlayRef.updatePosition();
       }
     });
 
-    const setupRatHoverBoxEffect = effect(() => {
-      if (!appIsInitialized()) {
-        return;
-      }
-
-      const playerToken = playerTokenResource.value();
-      if (playerToken === null) {
-        return;
-      }
-
-      const playerTokenHoverBox = this.playerTokenHoverBox().nativeElement;
+    const initAnimationWatcherEffect = effect(() => {
+      const outerDiv = this.outerDiv().nativeElement;
+      const dashedPath = this.dashedPath().nativeElement;
       const overlay = this.overlay();
-      const playerPosition = playerToken.position;
-      setTimeout(() => {
-        effect(() => {
-          const [x, y] = playerPosition();
-          playerTokenHoverBox.style.setProperty('--ap-left-base', `${x.toString()}px`);
-          playerTokenHoverBox.style.setProperty('--ap-top-base', `${y.toString()}px`);
-          if (this.#overlayIsAttached) {
-            overlay.overlayRef.updatePosition();
-          }
-        }, { injector: this.#injector });
+      const playerTokenContainer = this.playerTokenContainer().nativeElement;
+      const landmarkContainers = this.landmarkContainers().map(l => l.nativeElement);
+      const questContainers = this.questContainers().map(l => l.nativeElement);
+      const fillerSquares = this.fillerSquares().map(l => l.nativeElement);
+
+      if (landmarkContainers.length === 0 || questContainers.length === 0 || fillerSquares.length === 0) {
+        // still waiting to know how many landmarks / fillers there are.
+        return;
+      }
+
+      runInInjectionContext(this.#injector, () => {
+        watchAnimations({
+          outerDiv,
+          dashedPath,
+          overlay,
+          playerTokenContainer,
+          landmarkContainers,
+          questContainers,
+          fillerSquares,
+        });
       });
-      setupRatHoverBoxEffect.destroy();
+      initAnimationWatcherEffect.destroy();
     });
   }
 
@@ -344,20 +376,22 @@ export class GameTabMap {
         : { landmark, ...props };
     });
   }
-
-  protected onOverlayAttached() {
-    this.#overlayIsAttached = true;
-  }
-
-  protected onOverlayDetached() {
-    this.#overlayIsAttached = false;
-    this.#tooltipOrigin()?.notifyDetached();
-  }
 }
 
-interface LandmarkProps {
-  landmark: number;
+interface AllLocationProps {
+  fillers: readonly LocationProps[];
+  landmarks: readonly LandmarkProps[];
+}
+
+interface LocationProps {
+  loc: number;
   coords: Vec2;
+}
+
+interface LandmarkProps extends LocationProps {
+  landmark: number;
+  yamlKey: LandmarkYamlKey;
+  spriteIndex: number;
 }
 
 interface CurrentTooltipOriginProps {
