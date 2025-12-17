@@ -20,20 +20,20 @@ import type { AutopelagoClientAndData } from '../../../../data/slot-data';
               -->
               @switch (messageNode.type) {
                 @case ('entrance') {
-                  <span class="entrance-message-part">{{ messageNode.text }}</span>
+                  <span class="entrance-text">{{ messageNode.text }}</span>
                 }
                 @case ('player') {
-                  <span class="player-message-part" [class.own-player-message]="'player' in messageNode ? messageNode.player.name === ownName() : null">{{ messageNode.text }}</span>
+                  <span class="important-message-part player-text" [class.own-player-text]="'player' in messageNode ? messageNode.player.name === ownName() : null">{{ messageNode.text }}</span>
                 }
                 @case ('item') {
-                  <span class="item-message-part"
+                  <span class="important-message-part item-text"
                         [class.progression]="'item' in messageNode ? messageNode.item.progression : null"
                         [class.filler]="'item' in messageNode ? messageNode.item.filler : null"
                         [class.useful]="'item' in messageNode ? messageNode.item.useful : null"
                         [class.trap]="'item' in messageNode ? messageNode.item.trap : null">{{ messageNode.text }}</span>
                 }
                 @case ('location') {
-                  <span class="location-message-part">{{ messageNode.text }}</span>
+                  <span class="location-text">{{ messageNode.text }}</span>
                 }
                 @case ('color') {
                   <!--
@@ -89,48 +89,8 @@ import type { AutopelagoClientAndData } from '../../../../data/slot-data';
       font-weight: bold;
     }
 
-    .player-message-part {
+    .important-message-part {
       font-weight: bold;
-      color: #FAFAD2;
-      &.own-player-message {
-        color: #EE00EE;
-      }
-    }
-
-    .location-message-part {
-      color: #00FF7F;
-    }
-
-    .entrance-message-part {
-      color: #6495ED;
-    }
-
-    .item-message-part {
-      font-weight: bold;
-      &.filler {
-        color: rgb(6, 217, 217);
-      }
-      &.progression {
-        color: rgb(168, 147, 228);
-      }
-      &.useful {
-        color: rgb(98, 122, 198);
-      }
-      &.progression.useful {
-        color: rgb(255, 223, 0);
-      }
-      &.trap {
-        color: rgb(211, 113, 102);
-      }
-      &.progression.trap {
-        color: rgb(255, 172, 28);
-      }
-      &.useful.trap {
-        color: rgb(155, 89, 182);
-      }
-      &.progression.useful.trap {
-        color: rgb(128, 255, 128);
-      }
     }
 
     .message-send-form {

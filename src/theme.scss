@@ -60,3 +60,18 @@ $toggle-button-background-checked: $accent;
 $toggle-button-foreground-checked: $chrome-white;
 $toggle-button-background-checked-pointer-over: $accent-dark-1;
 $toggle-button-foreground-checked-pointer-over: $chrome-white;
+
+// item colors, taken straight from Yacht Dice
+// https://github.com/spinerak/YachtDiceAP/blob/8ec53a79f524278f797e540a2b3383b3ebdd4e3d/index.html#L4475-L4491
+$item-filler: rgb(6, 217, 217);
+$item-progression: rgb(168, 147, 228);
+$item-useful: rgb(98, 122, 198);
+$item-progression-and-useful: rgb(255, 223, 0);
+$item-trap: rgb(211, 113, 102);
+$item-progression-and-trap: rgb(255, 172, 28);
+$item-useful-and-trap: rgb(155, 89, 182);
+$item-progression-and-useful-and-trap: rgb(128, 255, 128);
+$player-text: #FAFAD2;
+$own-player-text: #EE00EE;
+$location-text: #00FF7F;
+$entrance-text: #6495ED;
