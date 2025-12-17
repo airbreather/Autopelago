@@ -168,9 +168,9 @@ import { watchAnimations } from './watch-animations';
     }
 
     .landmark {
-      scale: calc(var(--ap-scale, 4) / 4);
-      left: calc((var(--ap-left-base, 8px) - 8px) * var(--ap-scale, 4));
-      top: calc((var(--ap-top-base, 8px) - 8px) * var(--ap-scale, 4));
+      scale: calc(var(--ap-scale, 4) / 4 * 0.75);
+      left: calc((var(--ap-left-base, 8px) - 6px) * var(--ap-scale, 4));
+      top: calc((var(--ap-top-base, 8px) - 6px) * var(--ap-scale, 4));
       img {
         object-fit: none;
         object-position: calc(-65px * (var(--ap-frame-offset, 0) + var(--ap-checked-offset, 0))) calc(-65px * var(--ap-sprite-index, 0));

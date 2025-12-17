@@ -42,7 +42,7 @@ export const LANDMARKS = {
   homeless_mummy: { sprite_index: 24, coords: [84, 402] },
   frozen_assets: { sprite_index: 25, coords: [54, 435] },
   alien_vending_machine: { sprite_index: 26, coords: [114, 428] },
-  stalled_rocket_get_out_and_push: { sprite_index: 27, coords: [113, 334] },
+  stalled_rocket_get_out_and_push: { sprite_index: 27, coords: [113, 333] },
   seal_of_fortune: { sprite_index: 28, coords: [149, 381] },
   space_opera: { sprite_index: 29, coords: [183, 346] },
   minotaur_labyrinth: { sprite_index: 30, coords: [194, 399] },
