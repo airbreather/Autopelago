@@ -219,8 +219,8 @@ import { watchAnimations } from './watch-animations';
       transform-origin: left top;
 
       &.hyper-focus {
-        outline: 2px dotted red;
-        outline-offset: 1px;
+        outline: 6px dashed red;
+        outline-offset: 6px;
       }
     }
   `,

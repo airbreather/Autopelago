@@ -12,7 +12,7 @@ import { RequirementDisplay } from './requirement-display';
   ],
   template: `
     <div class="outer">
-      <h1 class="box header">{{ location().name }}</h1>
+      <h1 class="box header">{{ location().name }}<span class="hyper-focus-help">{{ isHyperFocusLocation() ? '*' : '' }}</span></h1>
       @if (landmarkRegion(); as region) {
         <div class="box main-content">
           <div class="image-and-requirement">
@@ -23,6 +23,10 @@ import { RequirementDisplay } from './requirement-display';
           </div>
           <div class="flavor-text" [hidden]="!location().flavorText">“{{ location().flavorText }}”</div>
         </div>
+      }
+
+      @if (isHyperFocusLocation()) {
+        <div class="box hyper-focus"><span class="hyper-focus-help">*</span> The rat will try as hard as it can to get here.</div>
       }
     </div>
   `,
@@ -64,11 +68,21 @@ import { RequirementDisplay } from './requirement-display';
       margin-top: 10px;
       font-size: 8pt;
     }
+
+    .hyper-focus {
+      font-size: 8pt;
+      white-space: nowrap;
+    }
+
+    .hyper-focus-help {
+      color: red;
+    }
   `,
 })
 export class LocationTooltip {
   readonly #store = inject(GameStore);
   readonly locationKey = input.required<number>();
+  protected readonly isHyperFocusLocation = computed(() => this.#store.hyperFocusLocation() === this.locationKey());
   protected readonly location = computed(() => this.#store.defs().allLocations[this.locationKey()]);
   protected readonly landmarkRegion = computed(() => {
     const { allRegions, regionForLandmarkLocation } = this.#store.defs();

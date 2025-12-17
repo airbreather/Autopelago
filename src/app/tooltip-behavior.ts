@@ -63,6 +63,10 @@ export class TooltipBehavior {
       return;
     }
 
+    if (fromFocus && ctx._tooltipIsOpenBecauseOfFocus !== this) {
+      return;
+    }
+
     if (!Number.isNaN(ctx._prevFocusTimeout)) {
       clearTimeout(ctx._prevFocusTimeout);
       ctx._prevFocusTimeout = NaN;
@@ -101,7 +105,7 @@ export class TooltipBehavior {
   };
 
   #emitAttached(fromFocus: boolean, ctx: TooltipContext) {
-    ctx._tooltipIsOpenBecauseOfFocus = fromFocus;
+    ctx._tooltipIsOpenBecauseOfFocus = fromFocus ? this : null;
     ctx._tooltipIsOpenBecauseOfMouse = !fromFocus;
     this.tooltipOriginChange.emit({
       element: this.#el.nativeElement,
@@ -110,7 +114,7 @@ export class TooltipBehavior {
   }
 
   #emitDetached(ctx: TooltipContext) {
-    ctx._tooltipIsOpenBecauseOfFocus = false;
+    ctx._tooltipIsOpenBecauseOfFocus = null;
     ctx._tooltipIsOpenBecauseOfMouse = false;
     this.tooltipOriginChange.emit(null);
   }
@@ -120,7 +124,7 @@ export function createEmptyTooltipContext(): TooltipContext {
   return {
     _prevFocusTimeout: NaN,
     _prevBlurTimeout: NaN,
-    _tooltipIsOpenBecauseOfFocus: false,
+    _tooltipIsOpenBecauseOfFocus: null,
     _tooltipIsOpenBecauseOfMouse: false,
   };
 }
@@ -128,7 +132,7 @@ export function createEmptyTooltipContext(): TooltipContext {
 export interface TooltipContext {
   _prevFocusTimeout: number;
   _prevBlurTimeout: number;
-  _tooltipIsOpenBecauseOfFocus: boolean;
+  _tooltipIsOpenBecauseOfFocus: TooltipBehavior | null;
   _tooltipIsOpenBecauseOfMouse: boolean;
 }
 
