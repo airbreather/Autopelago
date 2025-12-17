@@ -93,6 +93,10 @@ interface PlayerPixelTones {
         white-space: nowrap;
         padding-left: 24px;
         padding-right: 24px;
+
+        // this is what it settles on at the time of writing, so prevent a flicker by setting it to
+        // that right away. worst-case if this changes, we'll just have some flickering again.
+        font-size: 16.5px;
       }
       .close-button {
         grid-column: 1;
