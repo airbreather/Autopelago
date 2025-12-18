@@ -1,6 +1,6 @@
 import { NgOptimizedImage } from '@angular/common';
 import { Component, computed, inject, input } from '@angular/core';
-import { Player } from '@airbreather/archipelago.js';
+import { Hint, Player } from '@airbreather/archipelago.js';
 import type { AutopelagoLandmarkRegion } from '../../../../data/resolved-definitions';
 import { GameStore } from '../../../../store/autopelago-store';
 import { RequirementDisplay } from './requirement-display';
@@ -33,13 +33,21 @@ import { RequirementDisplay } from './requirement-display';
         </div>
       }
 
-      @if (hinted(); as hintedItem) {
+      @if (hint(); as hint) {
+        @let hintedItem = hint.item;
         <div class="box hint">
-          <span class="player-text" [class.own-player-text]="isSelf(hintedItem.sender)">{{ hintedItem.sender }}</span>'s
+          <span class="player-text" [class.own-player-text]="isSelf(hintedItem.receiver)">{{ hintedItem.receiver }}</span>'s
           <span class="item-text" [class.progression]="hintedItem.progression" [class.filler]="hintedItem.filler"
                 [class.useful]="hintedItem.useful" [class.trap]="hintedItem.trap">
             {{ hintedItem }}
-          </span> is here.
+          </span> is here (<span
+            class="hint-text"
+            [class.unspecified]="hint.status === HINT_STATUS_UNSPECIFIED"
+            [class.no-priority]="hint.status === HINT_STATUS_NO_PRIORITY"
+            [class.avoid]="hint.status === HINT_STATUS_AVOID"
+            [class.priority]="hint.status === HINT_STATUS_PRIORITY"
+            [class.found]="hint.status === HINT_STATUS_FOUND"
+        >{{ hintStatusText() }}</span>).
         </div>
       }
     </div>
@@ -102,7 +110,23 @@ export class LocationTooltip {
   readonly locationKey = input.required<number>();
   protected readonly isHyperFocusLocation = computed(() => this.#store.hyperFocusLocation() === this.locationKey());
   protected readonly location = computed(() => this.#store.defs().allLocations[this.locationKey()]);
-  protected readonly hinted = computed(() => this.#store.game()?.hintedLocations().get(this.locationKey()) ?? null);
+  protected readonly hint = computed(() => this.#store.game()?.hintedLocations().get(this.locationKey()) ?? null);
+  protected readonly HINT_STATUS_UNSPECIFIED: Hint['status'] = 0;
+  protected readonly HINT_STATUS_NO_PRIORITY: Hint['status'] = 10;
+  protected readonly HINT_STATUS_AVOID: Hint['status'] = 20;
+  protected readonly HINT_STATUS_PRIORITY: Hint['status'] = 30;
+  protected readonly HINT_STATUS_FOUND: Hint['status'] = 40;
+  protected readonly hintStatusText = computed(() => {
+    // https://github.com/ArchipelagoMW/Archipelago/blob/0.6.5/kvui.py#L1195-L1201
+    switch (this.hint()?.status) {
+      case this.HINT_STATUS_FOUND: return 'Found';
+      case this.HINT_STATUS_UNSPECIFIED: return 'Unspecified';
+      case this.HINT_STATUS_NO_PRIORITY: return 'No Priority';
+      case this.HINT_STATUS_AVOID: return 'Avoid';
+      case this.HINT_STATUS_PRIORITY: return 'Priority';
+      default: return null;
+    }
+  });
 
   protected readonly landmarkRegion = computed(() => {
     const { allRegions, regionForLandmarkLocation } = this.#store.defs();

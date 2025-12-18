@@ -1,6 +1,6 @@
+import { Client, type ConnectionOptions, Hint, type MessageNode, type Player } from '@airbreather/archipelago.js';
 import { computed, type DestroyRef, signal, type Signal } from '@angular/core';
 import BitArray from '@bitarray/typedarray';
-import { Client, type ConnectionOptions, Hint, type Item, type MessageNode, type Player } from '@airbreather/archipelago.js';
 import { List, Repeat } from 'immutable';
 import type { ConnectScreenState } from './connect-screen/connect-screen-state';
 import { BAKED_DEFINITIONS_BY_VICTORY_LANDMARK, VICTORY_LOCATION_NAME_LOOKUP } from './data/resolved-definitions';
@@ -149,12 +149,12 @@ export async function initializeClient(initializeClientOptions: InitializeClient
     }
   }
 
-  let prevHintedLocations = List<Item | null>(Repeat(null, defs.allLocations.length));
+  let prevHintedLocations = List<Hint | null>(Repeat(null, defs.allLocations.length));
   const hintedLocations = computed(() => prevHintedLocations = prevHintedLocations.withMutations((hl) => {
     const { team: myTeam, slot: mySlot } = client.players.self;
     for (const hint of reactiveHints()) {
       if (hint.item.sender.slot === mySlot && hint.item.sender.team === myTeam) {
-        hl.set(locationNetworkIdToLocation[hint.item.locationId], hint.item);
+        hl.set(locationNetworkIdToLocation[hint.item.locationId], hint);
       }
     }
   }));
@@ -200,17 +200,22 @@ function createReactiveHints(client: Client, destroyRef?: DestroyRef): Signal<Li
   function onHint(hint: Hint) {
     hints.update(hints => hints.push(hint));
   }
+  function onHintUpdated(hint: Hint) {
+    hints.update(hints => hints.update(hints.findIndex(h => h.uniqueKey === hint.uniqueKey), hint, () => hint));
+  }
   function onHints(newHints: readonly Hint[]) {
     hints.update(hints => hints.push(...newHints));
   }
   client.items.on('hintsInitialized', onHints);
   client.items.on('hintReceived', onHint);
   client.items.on('hintFound', onHint);
+  client.items.on('hintUpdated', onHintUpdated);
   if (destroyRef) {
     destroyRef.onDestroy(() => {
       client.items.off('hintsInitialized', onHints);
       client.items.off('hintReceived', onHint);
       client.items.off('hintFound', onHint);
+      client.items.on('hintUpdated', onHintUpdated);
     });
   }
   return hints.asReadonly();

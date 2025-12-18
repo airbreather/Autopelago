@@ -1,6 +1,6 @@
-﻿import type { Signal } from '@angular/core';
+﻿import type { Client, Hint, JSONRecord, PackageMetadata } from '@airbreather/archipelago.js';
+import type { Signal } from '@angular/core';
 import type BitArray from '@bitarray/typedarray';
-import type { Client, Item, JSONRecord, PackageMetadata } from '@airbreather/archipelago.js';
 import { List } from 'immutable';
 import type { Message } from '../archipelago-client';
 import type { ConnectScreenState } from '../connect-screen/connect-screen-state';
@@ -17,7 +17,7 @@ export interface AutopelagoClientAndData {
   locationIsProgression: Readonly<BitArray>;
   locationIsTrap: Readonly<BitArray>;
   messageLog: Signal<List<Message>>;
-  hintedLocations: Signal<List<Item | null>>;
+  hintedLocations: Signal<List<Hint | null>>;
   slotData: AutopelagoSlotData;
   storedData: AutopelagoStoredData;
   storedDataKey: string;

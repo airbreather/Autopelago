@@ -137,3 +137,18 @@ input[type='submit'],input[type='image'],button {
 .entrance-text {
   color: theme.$entrance-text
 }
+.hint-text.found {
+  color: theme.$hint-status-found-text;
+}
+.hint-text.unspecified {
+  color: theme.$hint-status-unspecified-text;
+}
+.hint-text.no-priority {
+  color: theme.$hint-status-no-priority-text;
+}
+.hint-text.avoid {
+  color: theme.$hint-status-avoid-text;
+}
+.hint-text.priority {
+  color: theme.$hint-status-priority-text;
+}
