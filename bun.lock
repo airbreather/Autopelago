@@ -52,7 +52,7 @@
   "packages": {
     "@acemir/cssom": ["@acemir/cssom@0.9.29", "", {}, "sha512-G90x0VW+9nW4dFajtjCoT+NM0scAfH9Mb08IcjgFHYbfiL/lU04dTF9JuVOi3/OH+DJCQdcIseSXkdCB9Ky6JA=="],
 
-    "@airbreather/archipelago.js": ["@airbreather/archipelago.js@2.0.5-airbreather", "https://npm.pkg.github.com/download/@airbreather/archipelago.js/2.0.5-airbreather/fbcf44765466875c77af3a70c1f13f5a6fe9c26c", {}, "sha512-AXtO3AFayLsA6aX2+6tq9gBH5JrRB8MIjUUnqAfSnxkU6s62Yv7DTLdxRyzXH2AWR7cuJARYPKZGfTdgA8eUkQ=="],
+    "@airbreather/archipelago.js": ["@airbreather/archipelago.js@2.0.5-airbreather", "", {}, "sha512-AXtO3AFayLsA6aX2+6tq9gBH5JrRB8MIjUUnqAfSnxkU6s62Yv7DTLdxRyzXH2AWR7cuJARYPKZGfTdgA8eUkQ=="],
 
     "@algolia/abtesting": ["@algolia/abtesting@1.6.1", "", { "dependencies": { "@algolia/client-common": "5.40.1", "@algolia/requester-browser-xhr": "5.40.1", "@algolia/requester-fetch": "5.40.1", "@algolia/requester-node-http": "5.40.1" } }, "sha512-wV/gNRkzb7sI9vs1OneG129hwe3Q5zPj7zigz3Ps7M5Lpo2hSorrOnXNodHEOV+yXE/ks4Pd+G3CDFIjFTWhMQ=="],
 
