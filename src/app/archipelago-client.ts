@@ -1,7 +1,7 @@
-import { type DestroyRef, signal, type Signal } from '@angular/core';
+import { computed, type DestroyRef, signal, type Signal } from '@angular/core';
 import BitArray from '@bitarray/typedarray';
-import { Client, type ConnectionOptions, type MessageNode, type Player } from 'archipelago.js';
-import { List } from 'immutable';
+import { Client, type ConnectionOptions, Hint, type Item, type MessageNode, type Player } from '@airbreather/archipelago.js';
+import { List, Repeat } from 'immutable';
 import type { ConnectScreenState } from './connect-screen/connect-screen-state';
 import { BAKED_DEFINITIONS_BY_VICTORY_LANDMARK, VICTORY_LOCATION_NAME_LOOKUP } from './data/resolved-definitions';
 import type {
@@ -10,7 +10,12 @@ import type {
   AutopelagoStoredData,
   UserRequestedLocation,
 } from './data/slot-data';
-import { trySetArrayProp, trySetBooleanProp, trySetNumberProp } from './utils/hardened-state-propagation';
+import {
+  trySetArrayProp,
+  trySetBooleanProp,
+  trySetNullableNumberProp,
+  trySetNumberProp,
+} from './utils/hardened-state-propagation';
 
 export interface InitializeClientOptions {
   connectScreenState: ConnectScreenState;
@@ -45,6 +50,9 @@ export async function initializeClient(initializeClientOptions: InitializeClient
   // we have our own message log, so disable its own:
   client.options.maximumMessages = 0;
   const messageLog = createReactiveMessageLog(client, destroyRef);
+
+  // we also have our own hint stuff.
+  const reactiveHints = createReactiveHints(client, destroyRef);
 
   let options: ConnectionOptions = {
     slotData: true,
@@ -94,6 +102,7 @@ export async function initializeClient(initializeClientOptions: InitializeClient
     trySetBooleanProp(retrievedStoredData, 'sluggishCarryover', validatedStoredDataParts);
     trySetNumberProp(retrievedStoredData, 'processedReceivedItemCount', validatedStoredDataParts, n => n >= 0);
     trySetNumberProp(retrievedStoredData, 'currentLocation', validatedStoredDataParts, n => n >= 0 && n < defs.allLocations.length);
+    trySetNullableNumberProp(retrievedStoredData, 'hyperFocusLocation', validatedStoredDataParts, n => n >= 0 && n < defs.allLocations.length);
     trySetArrayProp(retrievedStoredData, 'auraDrivenLocations', validatedStoredDataParts, n => typeof n === 'number' && n >= 0 && n < defs.allLocations.length);
     trySetArrayProp(retrievedStoredData, 'userRequestedLocations', validatedStoredDataParts, n =>
       typeof n === 'object'
@@ -126,6 +135,7 @@ export async function initializeClient(initializeClientOptions: InitializeClient
   }
 
   const locationNetworkNameLookup = pkg.locationTable;
+  const locationNetworkIdToLocation: Readonly<Record<number, number>> = Object.fromEntries(defs.allLocations.map((l, id) => [locationNetworkNameLookup[l.name], id] as const));
   const items = await client.scout(defs.allLocations.map(l => locationNetworkNameLookup[l.name]));
   const locationIsProgression = new BitArray(defs.allLocations.length);
   const locationIsTrap = new BitArray(defs.allLocations.length);
@@ -139,12 +149,23 @@ export async function initializeClient(initializeClientOptions: InitializeClient
     }
   }
 
+  let prevHintedLocations = List<Item | null>(Repeat(null, defs.allLocations.length));
+  const hintedLocations = computed(() => prevHintedLocations = prevHintedLocations.withMutations((hl) => {
+    const { team: myTeam, slot: mySlot } = client.players.self;
+    for (const hint of reactiveHints()) {
+      if (hint.item.sender.slot === mySlot && hint.item.sender.team === myTeam) {
+        hl.set(locationNetworkIdToLocation[hint.item.locationId], hint.item);
+      }
+    }
+  }));
+
   return {
     connectScreenState,
     client,
     pkg,
     messageLog,
     slotData,
+    hintedLocations,
     locationIsProgression,
     locationIsTrap,
     storedData,
@@ -173,6 +194,27 @@ export type Message =
   | ServerChatMessage
   | OtherMessage
   ;
+
+function createReactiveHints(client: Client, destroyRef?: DestroyRef): Signal<List<Hint>> {
+  const hints = signal(List<Hint>(client.items.hints));
+  function onHint(hint: Hint) {
+    hints.update(hints => hints.push(hint));
+  }
+  function onHints(newHints: readonly Hint[]) {
+    hints.update(hints => hints.push(...newHints));
+  }
+  client.items.on('hintsInitialized', onHints);
+  client.items.on('hintReceived', onHint);
+  client.items.on('hintFound', onHint);
+  if (destroyRef) {
+    destroyRef.onDestroy(() => {
+      client.items.off('hintsInitialized', onHints);
+      client.items.off('hintReceived', onHint);
+      client.items.off('hintFound', onHint);
+    });
+  }
+  return hints.asReadonly();
+}
 
 function createReactiveMessageLog(client: Client, destroyRef?: DestroyRef): Signal<List<Readonly<Message>>> {
   const specificMessagesAlreadyLogged = new Set<readonly MessageNode[]>();

@@ -5,6 +5,7 @@
     "": {
       "name": "autopelago",
       "dependencies": {
+        "@airbreather/archipelago.js": "2.0.5-airbreather",
         "@angular-architects/ngrx-toolkit": "^20.5.0",
         "@angular/animations": "^21.0.5",
         "@angular/cdk": "21.0.3",
@@ -19,7 +20,6 @@
         "@ctrl/tinycolor": "^4.2.0",
         "@ngrx/signals": "^20.1.0",
         "angular-split": "^20.0.0",
-        "archipelago.js": "^2.0.4",
         "immutable": "^5.1.4",
         "ngx-toastr": "^19.1.0",
         "normalize.css": "^8.0.1",
@@ -51,6 +51,8 @@
   },
   "packages": {
     "@acemir/cssom": ["@acemir/cssom@0.9.29", "", {}, "sha512-G90x0VW+9nW4dFajtjCoT+NM0scAfH9Mb08IcjgFHYbfiL/lU04dTF9JuVOi3/OH+DJCQdcIseSXkdCB9Ky6JA=="],
+
+    "@airbreather/archipelago.js": ["@airbreather/archipelago.js@2.0.5-airbreather", "", {}, "sha512-AXtO3AFayLsA6aX2+6tq9gBH5JrRB8MIjUUnqAfSnxkU6s62Yv7DTLdxRyzXH2AWR7cuJARYPKZGfTdgA8eUkQ=="],
 
     "@algolia/abtesting": ["@algolia/abtesting@1.6.1", "", { "dependencies": { "@algolia/client-common": "5.40.1", "@algolia/requester-browser-xhr": "5.40.1", "@algolia/requester-fetch": "5.40.1", "@algolia/requester-node-http": "5.40.1" } }, "sha512-wV/gNRkzb7sI9vs1OneG129hwe3Q5zPj7zigz3Ps7M5Lpo2hSorrOnXNodHEOV+yXE/ks4Pd+G3CDFIjFTWhMQ=="],
 
@@ -613,8 +615,6 @@
     "ansi-regex": ["ansi-regex@6.2.2", "", {}, "sha512-Bq3SmSpyFHaWjPk8If9yc6svM8c56dB5BAtW4Qbw5jHTwwXXcTLoRMkpDJp6VL0XzlWaCHTXrkFURMYmD0sLqg=="],
 
     "ansi-styles": ["ansi-styles@4.3.0", "", { "dependencies": { "color-convert": "^2.0.1" } }, "sha512-zbB9rCJAT1rbjiVDb2hqKFHNYLxgtk8NURxZ3IZwD3F6NtxbXZQCnnSi1Lkx+IDohdPlFp222wVALIheZJQSEg=="],
-
-    "archipelago.js": ["archipelago.js@2.0.4", "", {}, "sha512-Ysb3c+v2DD3tznY49886NJX5vUoPaQckzY2EHVEpBk2uWjIYq52YuXRWBVVlRE0N+VsKuQ4Ihf+bIjrQ9fwucA=="],
 
     "argparse": ["argparse@2.0.1", "", {}, "sha512-8+9WqebbFzpX9OR+Wa6O29asIogeRMzcGtAINdpMHHyAg10f05aSFVBbcEqGf/PXw1EjAZ+q2/bEBg3DvurK3Q=="],
 

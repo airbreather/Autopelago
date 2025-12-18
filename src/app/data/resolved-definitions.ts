@@ -1,5 +1,5 @@
 import BitArray from '@bitarray/typedarray';
-import { itemClassifications } from 'archipelago.js';
+import { itemClassifications } from '@airbreather/archipelago.js';
 import Queue from 'yocto-queue';
 import {
   MapByCaseInsensitiveString,

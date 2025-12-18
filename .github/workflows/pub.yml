@@ -1,6 +1,7 @@
 name: Publish
 
 on:
+  push:
   release:
     types:
       - published
@@ -35,19 +36,23 @@ jobs:
       - name: Build for GitHub Pages
         run: bun run release --base-href 'https://autopelago.app/'
 
-      - name: Upload release zip for self-hosting
+      - if: ${{ github.event_name == 'release' }}
+        name: Upload release zip for self-hosting
         uses: softprops/action-gh-release@v2
         with:
           files: dist.zip
 
-      - name: Configure GitHub Pages
+      - if: ${{ github.event_name == 'release' }}
+        name: Configure GitHub Pages
         uses: actions/configure-pages@v5
 
-      - name: Upload artifact
+      - if: ${{ github.event_name == 'release' }}
+        name: Upload artifact
         uses: actions/upload-pages-artifact@v3
         with:
           path: dist/
 
-      - name: Deploy to GitHub Pages
+      - if: ${{ github.event_name == 'release' }}
+        name: Deploy to GitHub Pages
         id: deployment
         uses: actions/deploy-pages@v4

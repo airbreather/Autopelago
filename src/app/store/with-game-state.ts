@@ -1,7 +1,7 @@
 import { computed, effect } from '@angular/core';
 import BitArray from '@bitarray/typedarray';
 import { patchState, signalStoreFeature, withComputed, withHooks, withMethods, withState } from '@ngrx/signals';
-import { itemClassifications, PlayersManager } from 'archipelago.js';
+import { itemClassifications, PlayersManager } from '@airbreather/archipelago.js';
 import { List, Set as ImmutableSet } from 'immutable';
 import rand from 'pure-rand';
 import Queue from 'yocto-queue';
@@ -115,6 +115,7 @@ const initialState: DefiningGameState = {
   sluggishCarryover: false,
   processedReceivedItemCount: NaN,
   currentLocation: -1,
+  hyperFocusLocation: null,
   auraDrivenLocations: List<number>(),
   userRequestedLocations: List<Readonly<UserRequestedLocation>>(),
   previousTargetLocationEvidence: {
@@ -231,6 +232,9 @@ export function withGameState() {
           regionIsLandmarkWithRequirementUnsatisfied,
         };
       }, { equal: regionLocksEqual });
+      const _regionIsHardLocked = computed(() => {
+        return regionLocks().regionIsHardLocked;
+      }, { equal: bitArraysEqual });
       const _clearedOrClearableLandmarks = computed<readonly number[]>(() => {
         const { regionIsHardLocked, regionIsLandmarkWithRequirementSatisfied } = regionLocks();
         const result: number[] = [];
@@ -248,12 +252,23 @@ export function withGameState() {
           relevantItemCount: requirementRelevantItemCountLookup(),
           locationIsChecked: locationIsChecked(),
           isStartled: isStartled(),
+          hyperFocusLocation: store.hyperFocusLocation(),
           userRequestedLocations: store.userRequestedLocations(),
           auraDrivenLocations: store.auraDrivenLocations(),
         }), { equal: arraysEqual });
       const targetLocationEvidence = computed<TargetLocationEvidence>(() => {
         if (isStartled()) {
           return { isStartled: true } satisfies TargetLocationEvidence;
+        }
+
+        const hyperFocusLocation = store.hyperFocusLocation();
+        if (hyperFocusLocation !== null) {
+          if (_regionIsHardLocked()[defs().allLocations[hyperFocusLocation].regionLocationKey[0]]) {
+            return {
+              isStartled: false,
+              reachableHyperFocusLocation: hyperFocusLocation,
+            } satisfies TargetLocationEvidence;
+          }
         }
 
         const firstAuraDrivenLocation = store.auraDrivenLocations().first() ?? null;
@@ -311,6 +326,7 @@ export function withGameState() {
         sluggishCarryover: store.sluggishCarryover(),
         processedReceivedItemCount: store.processedReceivedItemCount(),
         currentLocation: store.currentLocation(),
+        hyperFocusLocation: store.hyperFocusLocation(),
         auraDrivenLocations: store.auraDrivenLocations().toJS(),
         userRequestedLocations: store.userRequestedLocations().toJS().map(l => ({
           location: l.location,
@@ -485,6 +501,9 @@ export function withGameState() {
       }
       return {
         addUserRequestedLocation,
+        setOrClearHyperFocus(location: number) {
+          patchState(store, ({ hyperFocusLocation }) => ({ hyperFocusLocation: hyperFocusLocation === location ? null : location }));
+        },
         receiveItems(items: Iterable<number>) {
           const { allItems, allLocations } = store.defs();
           if (!store.canEventuallyAdvance()) {
@@ -971,17 +990,15 @@ export function withGameState() {
               }
 
               if (result.currentLocation === targetLocation) {
-                switch (store.targetLocationReason()) {
-                  case 'user-requested':
-                    result.userRequestedLocations = prev.userRequestedLocations.filter(l => l.location !== targetLocation);
-                    break;
-
-                  case 'aura-driven':
-                    // this is sometimes redundant with the effect in onInit, but I think that it's
-                    // also required here because microtasks aren't scheduled until after we return.
-                    result.auraDrivenLocations = prev.auraDrivenLocations.filter(l => l !== targetLocation);
-                    break;
+                if (prev.hyperFocusLocation === targetLocation) {
+                  result.hyperFocusLocation = null;
                 }
+
+                result.userRequestedLocations = prev.userRequestedLocations.filter(l => l.location !== targetLocation);
+
+                // this is sometimes redundant with the effect in onInit, but I think that it's
+                // also required here because microtasks aren't scheduled until after we return.
+                result.auraDrivenLocations = prev.auraDrivenLocations.filter(l => l !== targetLocation);
               }
 
               return result;

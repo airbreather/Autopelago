@@ -2,7 +2,7 @@ import { withResource } from '@angular-architects/ngrx-toolkit';
 import { effect, resource } from '@angular/core';
 
 import { patchState, signalStore, withHooks, withMethods, withState } from '@ngrx/signals';
-import type { SayPacket } from 'archipelago.js';
+import type { SayPacket } from '@airbreather/archipelago.js';
 import { List, Set as ImmutableSet } from 'immutable';
 import {
   BAKED_DEFINITIONS_BY_VICTORY_LANDMARK,
@@ -64,6 +64,7 @@ export const GameStore = signalStore(
         messagesForRemindBK: toWeighted(slotData.msg_remind_bk),
         messagesForExitBK: toWeighted(slotData.msg_exit_bk),
         messagesForCompletedGoal: toWeighted(slotData.msg_completed_goal),
+        hyperFocusLocation: 'hyperFocusLocation' in storedData ? storedData.hyperFocusLocation : null,
         auraDrivenLocations: List(storedData.auraDrivenLocations),
         userRequestedLocations: List(storedData.userRequestedLocations),
         receivedItems: List<number>(),

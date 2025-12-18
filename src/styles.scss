@@ -16,6 +16,9 @@
   box-sizing: border-box;
   color: theme.$text-control-foreground;
   font-family: var(--font-family, 'PublicPixel'), monospace, sans-serif;
+  &:focus-visible {
+    --ap-focus-visible: 1;
+  }
 }
 
 body {
@@ -96,4 +99,41 @@ input[type='submit'],input[type='image'],button {
 .return-button {
   font-size: 30px;
   text-wrap: nowrap;
+}
+
+.item-text.filler {
+  color: theme.$item-filler;
+}
+.item-text.progression {
+  color: theme.$item-progression;
+}
+.item-text.useful {
+  color: theme.$item-useful;
+}
+.item-text.progression.useful {
+  color: theme.$item-progression-and-useful;
+}
+.item-text.trap {
+  color: theme.$item-trap;
+}
+.item-text.progression.trap {
+  color: theme.$item-progression-and-trap;
+}
+.item-text.useful.trap {
+  color: theme.$item-useful-and-trap;
+}
+.item-text.progression.useful.trap {
+  color: theme.$item-progression-and-useful-and-trap;
+}
+.player-text:not(.own-player-text) {
+  color: theme.$player-text;
+}
+.own-player-text {
+  color: theme.$own-player-text;
+}
+.location-text {
+  color: theme.$location-text;
+}
+.entrance-text {
+  color: theme.$entrance-text
 }

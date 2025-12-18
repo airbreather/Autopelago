@@ -26,6 +26,13 @@ export function watchAnimations(
   const injector = inject(Injector);
   const destroyRef = inject(DestroyRef);
   const dialog = inject(Dialog);
+
+  // get the initial state
+  performanceInsensitiveAnimatableState.apparentCurrentLocation.set(gameStore.currentLocation());
+  performanceInsensitiveAnimatableState.applySnapshot(
+    performanceInsensitiveAnimatableState.getSnapshot({ gameStore, consumeOutgoingAnimatableActions: false }),
+  );
+
   const landmarkShake = outerDiv.animate([
     { ['--ap-frame-offset']: 0, easing: 'steps(1)' },
     { ['--ap-frame-offset']: 1, easing: 'steps(1)' },
@@ -138,7 +145,7 @@ export function watchAnimations(
     effect(() => {
       const { allLocations, regionForLandmarkLocation } = gameStore.defs();
       // this captures the full snapshot at this time, but applySnapshot only handles some of it.
-      const snapshot = performanceInsensitiveAnimatableState.getSnapshot(gameStore);
+      const snapshot = performanceInsensitiveAnimatableState.getSnapshot({ gameStore, consumeOutgoingAnimatableActions: true });
       for (const anim of snapshot.outgoingAnimatableActions) {
         switch (anim.type) {
           case 'move': {
@@ -175,6 +182,12 @@ export function watchAnimations(
               catch {
                 // doesn't matter.
               }
+              /*
+              eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
+              --
+              I would LOVE to remove the condition, but this property was declared incorrectly. not
+              only CAN it be nullish, but it IS nullish. quite often, in fact.
+              */
               overlay.overlayRef?.updatePosition();
               currentMovementAnimation = null;
             })();

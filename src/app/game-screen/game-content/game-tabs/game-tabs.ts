@@ -25,7 +25,7 @@ import { GameTabMap } from './game-tab-map/game-tab-map';
       <div class="top">
         <app-game-tab-map [class.current-tab]="currentTab() === 'map'" [hidden]="currentTab() !== 'map'" cdk-scrollable />
         <app-game-tab-arcade [class.current-tab]="currentTab() === 'arcade'" [hidden]="currentTab() !== 'arcade'" cdk-scrollable />
-        <app-game-tab-chat [class.current-tab]="currentTab() === 'chat'" [hidden]="currentTab() !== 'chat'" [game]="game()" cdk-scrollable />
+        <app-game-tab-chat [class.current-tab]="currentTab() === 'chat'" [hidden]="currentTab() !== 'chat'" cdk-scrollable />
         <app-game-tab-app-build-info [class.current-tab]="currentTab() === 'app-build-info'" [hidden]="currentTab() !== 'app-build-info'" cdk-scrollable />
       </div>
       <div class="bottom">

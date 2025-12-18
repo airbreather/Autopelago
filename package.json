@@ -38,6 +38,7 @@
   },
   "private": true,
   "dependencies": {
+    "@airbreather/archipelago.js": "2.0.5-airbreather",
     "@angular-architects/ngrx-toolkit": "^20.5.0",
     "@angular/animations": "^21.0.5",
     "@angular/cdk": "21.0.3",
@@ -52,7 +53,6 @@
     "@ctrl/tinycolor": "^4.2.0",
     "@ngrx/signals": "^20.1.0",
     "angular-split": "^20.0.0",
-    "archipelago.js": "^2.0.4",
     "immutable": "^5.1.4",
     "ngx-toastr": "^19.1.0",
     "normalize.css": "^8.0.1",

@@ -16,7 +16,7 @@ import {
   type VictoryLocationYamlKey,
 } from '../data/resolved-definitions';
 import type { DefiningGameState } from '../game/defining-state';
-import { type Mutable, stricterObjectFromEntries, strictObjectEntries } from '../utils/types';
+import { stricterObjectFromEntries, strictObjectEntries } from '../utils/types';
 import { withGameState } from './with-game-state';
 
 const singleAuraItems = stricterObjectFromEntries(
@@ -574,7 +574,7 @@ describe('withGameState', () => {
     const locationsBeforePrawnStars = getLocs(allRegions[allRegions[allLocations[locationNameLookup.get('Prawn Stars') ?? NaN].regionLocationKey[0]].connected.backward[0]]);
     const startRegionLocs = getLocs(allRegions[startRegion]);
     const initialGameState = initialGameStateFor('captured_goldfish') as Required<DefiningGameState>;
-    const spoilerData: Mutable<Readonly<BitArray>> = aura === 'conspiratorial'
+    const spoilerData: BitArray = aura === 'conspiratorial'
       ? initialGameState.locationIsTrap
       : initialGameState.locationIsProgression;
     spoilerData[startLocation] = 1;
@@ -888,6 +888,35 @@ describe('withGameState', () => {
     }
 
     expect(store.checkedLocations()).toContain(bowlingBallDoor);
+  });
+
+  test('hyper-focus should override aura-driven and user-requested', () => {
+    const { startLocation, allRegions, startRegion } = BAKED_DEFINITIONS_BY_VICTORY_LANDMARK.captured_goldfish;
+    const startRegionLocs = getLocs(allRegions[startRegion]);
+    const initialGameState = initialGameStateFor('captured_goldfish');
+    const userRequestedLocation = startRegionLocs.at(-1) ?? NaN;
+    const auraDrivenLocation = startRegionLocs.at(-2) ?? NaN;
+    (initialGameState.locationIsTrap as BitArray)[auraDrivenLocation] = 1;
+    const store = getStoreWith({
+      ...initialGameState,
+      prng: prngs.unlucky.prng,
+    });
+
+    store.addUserRequestedLocation(0, userRequestedLocation);
+    expect(store.targetLocation()).toStrictEqual(userRequestedLocation);
+    store.receiveItems([singleAuraItems.conspiratorial]);
+    expect(store.targetLocation()).toStrictEqual(auraDrivenLocation);
+    store.setOrClearHyperFocus(startLocation);
+    expect(store.targetLocation()).toStrictEqual(startLocation);
+    store.setOrClearHyperFocus(startLocation);
+    expect(store.targetLocation()).toStrictEqual(auraDrivenLocation);
+    store.setOrClearHyperFocus(startLocation);
+    store.advance();
+    expect(store.targetLocation()).toStrictEqual(startLocation);
+    patchState(unprotected(store), { prng: prngs.lucky.prng });
+    store.advance();
+    expect(store.hyperFocusLocation()).toBeNull();
+    expect(store.targetLocation()).toStrictEqual(auraDrivenLocation);
   });
 });
 

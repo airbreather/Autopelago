@@ -28,7 +28,7 @@ import { GameScreenStore } from '../../../../store/game-screen-store';
 import { createEmptyTooltipContext, TooltipBehavior, type TooltipOriginProps } from '../../../../tooltip-behavior';
 import { elementSizeSignal } from '../../../../utils/element-size';
 import { PerformanceInsensitiveAnimatableState } from '../../status-display/performance-insensitive-animatable-state';
-import { LandmarkTooltip } from './landmark-tooltip';
+import { LocationTooltip } from './location-tooltip';
 import { PlayerTooltip } from './player-tooltip';
 import { watchAnimations } from './watch-animations';
 
@@ -38,7 +38,7 @@ import { watchAnimations } from './watch-animations';
   imports: [
     CdkConnectedOverlay,
     NgOptimizedImage,
-    LandmarkTooltip,
+    LocationTooltip,
     PlayerTooltip,
     TooltipBehavior,
   ],
@@ -50,7 +50,10 @@ import { watchAnimations } from './watch-animations';
           <div
             #fillerSquare class="hover-box filler" [tabindex]="$index + 1999"
             [style.--ap-left-base.px]="f.coords[0]" [style.--ap-top-base.px]="f.coords[1]"
-            [attr.data-location-id]="f.loc">
+            [attr.data-location-id]="f.loc"
+            [class.hyper-focus]="hyperFocusLocation() === f.loc"
+            appTooltip [tooltipContext]="tooltipContext" (tooltipOriginChange)="setTooltipOrigin(f.loc, $event, true)"
+            (click)="setOrClearHyperFocus(f.loc)" (keyup.enter)="setOrClearHyperFocus(f.loc)" (keyup.space)="setOrClearHyperFocus(f.loc)">
           </div>
         }
       </div>
@@ -70,19 +73,34 @@ import { watchAnimations } from './watch-animations';
             #landmarkContainer class="hover-box landmark" [tabindex]="$index + 999"
             [attr.data-location-id]="lm.loc" [style.--ap-checked-offset]="lm.yamlKey === 'moon_comma_the' ? 0 : 'unset'"
             [style.--ap-left-base.px]="lm.coords[0]" [style.--ap-top-base.px]="lm.coords[1]"
-            appTooltip [tooltipContext]="tooltipContext" (tooltipOriginChange)="setTooltipOrigin(lm.landmark, $event, true)">
+            [class.hyper-focus]="hyperFocusLocation() === lm.loc"
+            appTooltip [tooltipContext]="tooltipContext" (tooltipOriginChange)="setTooltipOrigin(lm.loc, $event, true)"
+            (click)="setOrClearHyperFocus(lm.loc)" (keyup.enter)="setOrClearHyperFocus(lm.loc)" (keyup.space)="setOrClearHyperFocus(lm.loc)">
             <!--suppress CheckImageSize -->
             <img width="64" height="64" [alt]="lm.yamlKey" src="/assets/images/locations.webp"
                  [style.--ap-sprite-index]="lm.spriteIndex">
           </div>
           @if (lm.yamlKey !== 'moon_comma_the') {
+            <!--
+            eslint-disable-next-line
+              @angular-eslint/template/interactive-supports-focus,
+              @angular-eslint/template/click-events-have-key-events
+            --
+            the intended way to interact is via the landmark containers themselves, which totally
+            support tab focusing. the mouse is allowed to interact with the quest markers for one
+            specific reason: the player token sometimes covers up the landmark, so this is the ONLY
+            way to get at that landmark with the mouse. the keyboard has no such limitation, so this
+            is preferable to adding duplicate things in the tab order.
+            -->
             <div
               #questContainer class="hover-box landmark-quest"
               [attr.data-location-id]="lm.loc"
               [style.--ap-left-base.px]="lm.coords[0]" [style.--ap-top-base.px]="lm.coords[1]"
-              appTooltip [tooltipContext]="tooltipContext" (tooltipOriginChange)="setTooltipOrigin(lm.landmark, $event, true)">
+              [style.transform]="lm.questMarkerTransform"
+              appTooltip [tooltipContext]="tooltipContext" (tooltipOriginChange)="setTooltipOrigin(lm.loc, $event, true)"
+              (click)="setOrClearHyperFocus(lm.loc)">
               <!--suppress CheckImageSize -->
-              <img width="64" height="64" [alt]="lm.yamlKey" src="/assets/images/locations.webp"
+              <img width="16" height="48" [alt]="lm.yamlKey" src="/assets/images/locations.webp"
                    [style.--ap-sprite-index]="0">
             </div>
           }
@@ -110,8 +128,8 @@ import { watchAnimations } from './watch-animations';
       [cdkConnectedOverlayPositionStrategy]="tooltipPositionStrategy()"
       [cdkConnectedOverlayScrollStrategy]="tooltipScrollStrategy()">
       @if (tooltipOrigin(); as origin) {
-        @if (origin.landmark; as landmark) {
-          <app-landmark-tooltip [landmarkKey]="landmark" />
+        @if (origin.location; as location) {
+          <app-location-tooltip [locationKey]="location" />
         }
         @else {
           <app-player-tooltip />
@@ -164,9 +182,9 @@ import { watchAnimations } from './watch-animations';
     }
 
     .landmark {
-      scale: calc(var(--ap-scale, 4) / 4);
-      left: calc((var(--ap-left-base, 8px) - 8px) * var(--ap-scale, 4));
-      top: calc((var(--ap-top-base, 8px) - 8px) * var(--ap-scale, 4));
+      scale: calc(var(--ap-scale, 4) / 4 * 0.75);
+      left: calc((var(--ap-left-base, 8px) - 6px) * var(--ap-scale, 4));
+      top: calc((var(--ap-top-base, 8px) - 6px) * var(--ap-scale, 4));
       img {
         object-fit: none;
         object-position: calc(-65px * (var(--ap-frame-offset, 0) + var(--ap-checked-offset, 0))) calc(-65px * var(--ap-sprite-index, 0));
@@ -176,21 +194,20 @@ import { watchAnimations } from './watch-animations';
 
     .landmark-quest {
       scale: calc(var(--ap-scale, 4) / 4 * 0.75);
-      left: calc((var(--ap-left-base, 8px) - 6px) * var(--ap-scale, 4));
-      top: calc((var(--ap-top-base, 8px) - 21px) * var(--ap-scale, 4));
+      left: calc((var(--ap-left-base, 8px) - 6px) * var(--ap-scale, 4) + 32px);
+      top: calc((var(--ap-top-base, 8px) - 18px) * var(--ap-scale, 4) - 4px);
       img {
         object-fit: none;
-        object-position: calc(-65px * (var(--ap-frame-offset, 0) + var(--ap-blocked-offset, 0))) 0;
+        object-position: calc(-65px * (var(--ap-frame-offset, 0) + var(--ap-blocked-offset, 0)) - 24px) -4px;
         filter: drop-shadow(calc(var(--ap-scale, 4) * 0.8px) calc(var(--ap-scale, 4) * .8px) calc(var(--ap-scale, 4) * 0.5px) black);
       }
     }
 
     .filler {
-      scale: var(--ap-scale, 4);
-      width: 1.6px;
-      height: 1.6px;
+      width: calc(1.6px * var(--ap-scale, 4));
+      height: calc(1.6px * var(--ap-scale, 4));
       border-radius: 0;
-      filter: drop-shadow(calc(var(--ap-scale, 4) * 0.1px) calc(var(--ap-scale, 4) * 0.1px) calc(var(--ap-scale, 4) * 0.1px) black);
+      filter: drop-shadow(calc(var(--ap-scale, 4) * 0.5px) calc(var(--ap-scale, 4) * 0.5px) calc(var(--ap-scale, 4) * 0.5px) black);
       left: calc((var(--ap-left-base, 8px) - 0.8px) * var(--ap-scale, 4));
       top: calc((var(--ap-top-base, 8px) - 0.8px) * var(--ap-scale, 4));
     }
@@ -211,6 +228,11 @@ import { watchAnimations } from './watch-animations';
       position: absolute;
       pointer-events: initial;
       transform-origin: left top;
+
+      &.hyper-focus {
+        outline: 6px dashed red;
+        outline-offset: 6px;
+      }
     }
   `,
 })
@@ -220,6 +242,8 @@ export class GameTabMap {
   readonly #gameScreenStore = inject(GameScreenStore);
   readonly #performanceInsensitiveAnimatableState = inject(PerformanceInsensitiveAnimatableState);
   protected readonly toggleShowingPath = this.#gameScreenStore.toggleShowingPath;
+  protected readonly hyperFocusLocation = this.#store.hyperFocusLocation;
+  protected readonly setOrClearHyperFocus = this.#store.setOrClearHyperFocus;
   protected readonly running = this.#store.running;
 
   readonly #allLocations = computed<AllLocationProps | null>(() => {
@@ -227,6 +251,28 @@ export class GameTabMap {
       // not initialized yet. don't waste time rendering.
       return null;
     }
+    const questMarkerAdjustments = {
+      makeshift_rocket_ship: {
+        offset: [0, -7],
+        rotationDegrees: null,
+      },
+      overweight_boulder: {
+        offset: null,
+        rotationDegrees: -30,
+      },
+      captured_goldfish: {
+        offset: null,
+        rotationDegrees: -30,
+      },
+      copyright_mouse: {
+        offset: null,
+        rotationDegrees: -30,
+      },
+      homeless_mummy: {
+        offset: null,
+        rotationDegrees: 10,
+      },
+    } as const satisfies Partial<Record<LandmarkYamlKey, unknown>>;
     const { allLocations, allRegions, startRegion, moonCommaThe } = this.#store.defs();
     const fillers: LocationProps[] = [];
     const landmarks: LandmarkProps[] = [];
@@ -245,12 +291,29 @@ export class GameTabMap {
         continue;
       }
       if ('loc' in region) {
+        const transformParts: string[] = [];
+        if (region.yamlKey in questMarkerAdjustments) {
+          const { offset, rotationDegrees } = questMarkerAdjustments[region.yamlKey as keyof typeof questMarkerAdjustments];
+          const finalTranslate = [0, 0];
+          if (rotationDegrees !== null) {
+            // effectively move the transform origin without affecting anything else
+            finalTranslate[0] -= 4;
+            finalTranslate[1] -= 16;
+            transformParts.push(`translate(calc(4px * var(--ap-scale, 4)), calc(16px * var(--ap-scale, 4))) rotate(${rotationDegrees.toString()}deg)`);
+          }
+          if (offset !== null) {
+            finalTranslate[0] += offset[0];
+            finalTranslate[1] += offset[1];
+          }
+          transformParts.push(`translate(calc(${finalTranslate[0].toString()}px * var(--ap-scale, 4)), calc(${finalTranslate[1].toString()}px * var(--ap-scale, 4)))`);
+        }
         landmarks.push({
           landmark: r,
           loc: region.loc,
           yamlKey: region.yamlKey,
           coords: allLocations[region.loc].coords,
           spriteIndex: LANDMARKS[region.yamlKey].sprite_index,
+          questMarkerTransform: transformParts.length === 0 ? 'none' : transformParts.join(' '),
         });
       }
       else {
@@ -366,14 +429,14 @@ export class GameTabMap {
     this.#store.togglePause();
   }
 
-  protected setTooltipOrigin(landmark: number | null, props: TooltipOriginProps | null, fromDirective: boolean) {
+  protected setTooltipOrigin(location: number | null, props: TooltipOriginProps | null, fromDirective: boolean) {
     this.#tooltipOrigin.update((prev) => {
       if (prev !== null && !fromDirective) {
         prev.notifyDetached();
       }
       return props === null
         ? null
-        : { landmark, ...props };
+        : { location, ...props };
     });
   }
 }
@@ -392,10 +455,11 @@ interface LandmarkProps extends LocationProps {
   landmark: number;
   yamlKey: LandmarkYamlKey;
   spriteIndex: number;
+  questMarkerTransform: string;
 }
 
 interface CurrentTooltipOriginProps {
-  landmark: number | null;
+  location: number | null;
   element: HTMLElement;
   notifyDetached: () => void;
 }

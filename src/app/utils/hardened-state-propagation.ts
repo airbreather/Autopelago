@@ -26,6 +26,20 @@ export function trySetNumberProp<TKey extends string | number | symbol>(source: 
   }
 }
 
+export function trySetNullableNumberProp<TKey extends string | number | symbol>(source: Partial<Record<TKey, unknown>>, key: TKey, target: Partial<Record<TKey, number | null>>, isValid?: (n: number) => boolean) {
+  if (key in source) {
+    if (typeof source[key] === 'number') {
+      if (isValid?.(source[key]) !== false) {
+        target[key] = source[key];
+      }
+    }
+    else if (source[key] === null) {
+      // call trySetNumberProp instead if null is invalid. no need to make isValid support null.
+      target[key] = null;
+    }
+  }
+}
+
 export function trySetStringProp<TKey extends string | number | symbol>(source: Partial<Record<TKey, unknown>>, key: TKey, target: Partial<Record<TKey, string>>, isValid?: (s: string) => boolean) {
   if (key in source && typeof source[key] === 'string' && isValid?.(source[key]) !== false) {
     target[key] = source[key];
