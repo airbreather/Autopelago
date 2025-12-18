@@ -1,6 +1,6 @@
 import { computed, type DestroyRef, signal, type Signal } from '@angular/core';
 import BitArray from '@bitarray/typedarray';
-import { Client, type ConnectionOptions, Hint, type Item, type MessageNode, type Player } from 'archipelago.js';
+import { Client, type ConnectionOptions, Hint, type Item, type MessageNode, type Player } from '@airbreather/archipelago.js';
 import { List, Repeat } from 'immutable';
 import type { ConnectScreenState } from './connect-screen/connect-screen-state';
 import { BAKED_DEFINITIONS_BY_VICTORY_LANDMARK, VICTORY_LOCATION_NAME_LOOKUP } from './data/resolved-definitions';

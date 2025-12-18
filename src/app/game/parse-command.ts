@@ -1,4 +1,4 @@
-import type { Player, PlayersManager } from 'archipelago.js';
+import type { Player, PlayersManager } from '@airbreather/archipelago.js';
 import type { PlayerChatMessage, ServerChatMessage } from '../archipelago-client';
 
 export function parseCommand(msg: PlayerChatMessage | ServerChatMessage, players: PlayersManager): Command | null {

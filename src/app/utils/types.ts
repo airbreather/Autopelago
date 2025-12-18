@@ -1,4 +1,4 @@
-import type { JSONSerializable } from 'archipelago.js';
+import type { JSONSerializable } from '@airbreather/archipelago.js';
 import { List } from 'immutable';
 
 export type EnumVal<T extends object> = T[keyof T];

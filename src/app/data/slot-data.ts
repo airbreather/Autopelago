@@ -1,6 +1,6 @@
 ﻿import type { Signal } from '@angular/core';
 import type BitArray from '@bitarray/typedarray';
-import type { Client, Item, JSONRecord, PackageMetadata } from 'archipelago.js';
+import type { Client, Item, JSONRecord, PackageMetadata } from '@airbreather/archipelago.js';
 import { List } from 'immutable';
 import type { Message } from '../archipelago-client';
 import type { ConnectScreenState } from '../connect-screen/connect-screen-state';

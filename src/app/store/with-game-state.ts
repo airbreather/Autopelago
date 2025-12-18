@@ -1,7 +1,7 @@
 import { computed, effect } from '@angular/core';
 import BitArray from '@bitarray/typedarray';
 import { patchState, signalStoreFeature, withComputed, withHooks, withMethods, withState } from '@ngrx/signals';
-import { itemClassifications, PlayersManager } from 'archipelago.js';
+import { itemClassifications, PlayersManager } from '@airbreather/archipelago.js';
 import { List, Set as ImmutableSet } from 'immutable';
 import rand from 'pure-rand';
 import Queue from 'yocto-queue';
