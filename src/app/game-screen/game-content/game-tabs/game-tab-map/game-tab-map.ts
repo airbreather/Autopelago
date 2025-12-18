@@ -251,7 +251,7 @@ export class GameTabMap {
       // not initialized yet. don't waste time rendering.
       return null;
     }
-    const adjustments = {
+    const questMarkerAdjustments = {
       makeshift_rocket_ship: {
         offset: [0, -7],
         rotationDegrees: null,
@@ -292,8 +292,8 @@ export class GameTabMap {
       }
       if ('loc' in region) {
         const transformParts: string[] = [];
-        if (region.yamlKey in adjustments) {
-          const { offset, rotationDegrees } = adjustments[region.yamlKey as keyof typeof adjustments];
+        if (region.yamlKey in questMarkerAdjustments) {
+          const { offset, rotationDegrees } = questMarkerAdjustments[region.yamlKey as keyof typeof questMarkerAdjustments];
           const finalTranslate = [0, 0];
           if (rotationDegrees !== null) {
             // effectively move the transform origin without affecting anything else

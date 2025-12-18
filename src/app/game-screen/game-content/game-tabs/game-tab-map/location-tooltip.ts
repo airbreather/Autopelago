@@ -28,8 +28,8 @@ import { RequirementDisplay } from './requirement-display';
       }
 
       @if (isHyperFocusLocation()) {
-        <div class="box hyper-focus"><span class="hyper-focus-help">*</span> The rat will try as hard as it can to get
-          here.
+        <div class="box hyper-focus">
+          <span class="hyper-focus-help">*</span>The rat will try as hard as it can to get here.
         </div>
       }
 
