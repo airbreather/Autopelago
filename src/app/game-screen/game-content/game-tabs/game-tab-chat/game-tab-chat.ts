@@ -1,6 +1,6 @@
-import { ChangeDetectionStrategy, Component, effect, input, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
 import { Player } from 'archipelago.js';
-import type { AutopelagoClientAndData } from '../../../../data/slot-data';
+import { GameStore } from '../../../../store/autopelago-store';
 
 @Component({
   selector: 'app-game-tab-chat',
@@ -10,7 +10,7 @@ import type { AutopelagoClientAndData } from '../../../../data/slot-data';
     <div class="outer">
       <div class="filler"></div>
       <div class="messages">
-        @for (message of game().messageLog().reverse(); track $index) {
+        @for (message of messages(); track $index) {
           <p class="message">
             [<time [dateTime]="message.ts.toISOString()">{{ dateFormatter.format(message.ts) }}</time>]
             @for (messageNode of message.nodes; track $index) {
@@ -23,14 +23,12 @@ import type { AutopelagoClientAndData } from '../../../../data/slot-data';
                   <span class="entrance-text">{{ messageNode.text }}</span>
                 }
                 @case ('player') {
-                  <span class="important-message-part player-text" [class.own-player-text]="'player' in messageNode ? messageNode.player.name === ownName() : null">{{ messageNode.text }}</span>
+                  <span class="important-message-part player-text" [class.own-player-text]="isSelf(messageNode.player)">{{ messageNode.text }}</span>
                 }
                 @case ('item') {
                   <span class="important-message-part item-text"
-                        [class.progression]="'item' in messageNode ? messageNode.item.progression : null"
-                        [class.filler]="'item' in messageNode ? messageNode.item.filler : null"
-                        [class.useful]="'item' in messageNode ? messageNode.item.useful : null"
-                        [class.trap]="'item' in messageNode ? messageNode.item.trap : null">{{ messageNode.text }}</span>
+                        [class.progression]="messageNode.item.progression" [class.filler]="messageNode.item.filler"
+                        [class.useful]="messageNode.item.useful" [class.trap]="messageNode.item.trap">{{ messageNode.text }}</span>
                 }
                 @case ('location') {
                   <span class="location-text">{{ messageNode.text }}</span>
@@ -40,7 +38,7 @@ import type { AutopelagoClientAndData } from '../../../../data/slot-data';
                     not really correct, but technically the only color nodes the server returns is "green" or "red"
                     so it's fine enough for an example.
                   -->
-                  <span [style.color]="'color' in messageNode ? messageNode.color : null">{{ messageNode.text }}</span>
+                  <span [style.color]="messageNode.color">{{ messageNode.text }}</span>
                 }
                 @default {
                   <span [class.server-message]="message.type === 'serverChat'">{{ messageNode.text }}</span>
@@ -110,24 +108,13 @@ import type { AutopelagoClientAndData } from '../../../../data/slot-data';
   `,
 })
 export class GameTabChat {
-  readonly game = input.required<AutopelagoClientAndData>();
-  protected readonly ownName = signal<string>('');
+  readonly #store = inject(GameStore);
+  protected readonly messages = computed(() => this.#store.game()?.messageLog().reverse() ?? []);
+
   readonly dateFormatter = new Intl.DateTimeFormat(navigator.languages, { dateStyle: 'short', timeStyle: 'medium' });
   protected readonly messageToSend = signal('');
   readonly #sendingMessage = signal(false);
   protected readonly sendingMessage = this.#sendingMessage.asReadonly();
-
-  constructor() {
-    effect((onCleanup) => {
-      const { client } = this.game();
-      this.ownName.set(client.players.self.toString());
-      const onAliasUpdated = (player: Player) => {
-        this.ownName.set(player.toString());
-      };
-      client.players.on('aliasUpdated', onAliasUpdated);
-      onCleanup(() => client.players.off('aliasUpdated', onAliasUpdated));
-    });
-  }
 
   protected async onSend(event: SubmitEvent) {
     event.preventDefault();
@@ -136,9 +123,14 @@ export class GameTabChat {
       return;
     }
 
+    const game = this.#store.game();
+    if (game === null) {
+      return;
+    }
+
     this.#sendingMessage.set(true);
     try {
-      await this.game().client.messages.say(messageToSend);
+      await game.client.messages.say(messageToSend);
       if (this.messageToSend() === messageToSend) {
         this.messageToSend.set('');
       }
@@ -146,5 +138,15 @@ export class GameTabChat {
     finally {
       this.#sendingMessage.set(false);
     }
+  }
+
+  protected isSelf(player: Player) {
+    const game = this.#store.game();
+    if (game === null) {
+      return false;
+    }
+
+    const { team, slot } = game.client.players.self;
+    return player.team === team && player.slot === slot;
   }
 }

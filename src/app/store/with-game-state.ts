@@ -1,7 +1,7 @@
 import { computed, effect } from '@angular/core';
 import BitArray from '@bitarray/typedarray';
 import { patchState, signalStoreFeature, withComputed, withHooks, withMethods, withState } from '@ngrx/signals';
-import { type Item, itemClassifications, PlayersManager } from 'archipelago.js';
+import { itemClassifications, PlayersManager } from 'archipelago.js';
 import { List, Set as ImmutableSet } from 'immutable';
 import rand from 'pure-rand';
 import Queue from 'yocto-queue';
@@ -96,7 +96,6 @@ const initialState: DefiningGameState = {
   victoryLocationYamlKey: 'snakes_on_a_planet',
   enabledBuffs: new Set(),
   enabledTraps: new Set(),
-  knownSpoilerData: List<Item | null>(),
   locationIsProgression: new BitArray(0),
   locationIsTrap: new BitArray(0),
   messagesForChangedTarget: [],

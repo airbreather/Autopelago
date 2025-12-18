@@ -135,39 +135,28 @@ export async function initializeClient(initializeClientOptions: InitializeClient
   }
 
   const locationNetworkNameLookup = pkg.locationTable;
+  const locationNetworkIdToLocation: Readonly<Record<number, number>> = Object.fromEntries(defs.allLocations.map((l, id) => [locationNetworkNameLookup[l.name], id] as const));
   const items = await client.scout(defs.allLocations.map(l => locationNetworkNameLookup[l.name]));
   const locationIsProgression = new BitArray(defs.allLocations.length);
   const locationIsTrap = new BitArray(defs.allLocations.length);
-  const superSpoilerData = Array.from<unknown, Item | null>({ length: defs.allLocations.length }, () => null);
   for (const item of items) {
-    const loc = defs.locationNameLookup.get(item.locationName) ?? -1;
-    superSpoilerData[loc] = item;
     if (item.progression) {
-      locationIsProgression[loc] = 1;
+      locationIsProgression[defs.locationNameLookup.get(item.locationName) ?? -1] = 1;
     }
 
     if (item.trap) {
-      locationIsTrap[loc] = 1;
+      locationIsTrap[defs.locationNameLookup.get(item.locationName) ?? -1] = 1;
     }
   }
 
-  // don't make it TOO easy to get the full, unadulterated spoiler data. at any given point, we can
-  // only display the full details of things that have been either sent or hinted.
-  let prevKnownSpoilerData = List<Item | null>(Repeat(null, defs.allLocations.length));
-  let prevKnownHints = List<Hint>();
-  const knownSpoilerData = computed(() => prevKnownSpoilerData = prevKnownSpoilerData.withMutations((s) => {
-    const hints = reactiveHints();
-    for (const [h, hint] of hints.entries()) {
-      if (h < prevKnownHints.size) {
-        continue;
-      }
-
-      const loc = defs.locationNameLookup.get(hint.item.locationName);
-      if (loc !== undefined) {
-        s.set(loc, hint.item);
+  let prevHintedLocations = List<Item | null>(Repeat(null, defs.allLocations.length));
+  const hintedLocations = computed(() => prevHintedLocations = prevHintedLocations.withMutations((hl) => {
+    const { team: myTeam, slot: mySlot } = client.players.self;
+    for (const hint of reactiveHints()) {
+      if (hint.item.sender.slot === mySlot && hint.item.sender.team === myTeam) {
+        hl.set(locationNetworkIdToLocation[hint.item.locationId], hint.item);
       }
     }
-    prevKnownHints = hints;
   }));
 
   return {
@@ -176,7 +165,7 @@ export async function initializeClient(initializeClientOptions: InitializeClient
     pkg,
     messageLog,
     slotData,
-    knownSpoilerData,
+    hintedLocations,
     locationIsProgression,
     locationIsTrap,
     storedData,

@@ -1,5 +1,4 @@
 import type BitArray from '@bitarray/typedarray';
-import type { Item } from 'archipelago.js';
 import { List, Set as ImmutableSet } from 'immutable';
 import rand from 'pure-rand';
 
@@ -37,7 +36,6 @@ export interface DefiningGameState {
   readonly enabledTraps: ReadonlySet<AutopelagoTrap>;
   readonly locationIsProgression: Readonly<BitArray>;
   readonly locationIsTrap: Readonly<BitArray>;
-  readonly knownSpoilerData: List<Item | null>;
   readonly messagesForChangedTarget: readonly Weighted<string>[];
   readonly messagesForEnterGoMode: readonly Weighted<string>[];
   readonly messagesForEnterBK: readonly Weighted<string>[];

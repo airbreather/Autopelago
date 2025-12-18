@@ -17,7 +17,7 @@ export interface AutopelagoClientAndData {
   locationIsProgression: Readonly<BitArray>;
   locationIsTrap: Readonly<BitArray>;
   messageLog: Signal<List<Message>>;
-  knownSpoilerData: Signal<List<(Item | null)>>;
+  hintedLocations: Signal<List<Item | null>>;
   slotData: AutopelagoSlotData;
   storedData: AutopelagoStoredData;
   storedDataKey: string;

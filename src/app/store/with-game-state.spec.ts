@@ -5,7 +5,6 @@ import { TestBed } from '@angular/core/testing';
 import BitArray from '@bitarray/typedarray';
 import { getState, patchState, signalStore, withHooks } from '@ngrx/signals';
 import { unprotected } from '@ngrx/signals/testing';
-import type { Item } from 'archipelago.js';
 import { List, Range, Set as ImmutableSet } from 'immutable';
 import rand from 'pure-rand';
 import { describe, expect, test } from 'vitest';
@@ -949,7 +948,6 @@ function initialGameStateFor(victoryLocationYamlKey: VictoryLocationYamlKey): Pa
     enabledTraps: new Set(['conspiratorial', 'distracted', 'sluggish', 'startled', 'unlucky', 'upset_tummy']),
     locationIsProgression: new BitArray(defs.allLocations.length),
     locationIsTrap: new BitArray(defs.allLocations.length),
-    knownSpoilerData: List<Item | null>(Array.from({ length: defs.allLocations.length }, () => null)),
     foodFactor: 0,
     luckFactor: 0,
     energyFactor: 0,
