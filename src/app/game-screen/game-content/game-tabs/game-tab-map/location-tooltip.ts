@@ -1,6 +1,6 @@
+import { Hint, Player } from '@airbreather/archipelago.js';
 import { NgOptimizedImage } from '@angular/common';
 import { Component, computed, inject, input } from '@angular/core';
-import { Hint, Player } from '@airbreather/archipelago.js';
 import type { AutopelagoLandmarkRegion } from '../../../../data/resolved-definitions';
 import { GameStore } from '../../../../store/autopelago-store';
 import { RequirementDisplay } from './requirement-display';

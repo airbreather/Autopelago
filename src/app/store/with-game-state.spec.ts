@@ -918,6 +918,27 @@ describe('withGameState', () => {
     expect(store.hyperFocusLocation()).toBeNull();
     expect(store.targetLocation()).toStrictEqual(auraDrivenLocation);
   });
+
+  test('reaching unchecked focused location with no remaining actions should not remove its focus (regression test for #134)', () => {
+    const { startLocation, allRegions, startRegion } = BAKED_DEFINITIONS_BY_VICTORY_LANDMARK.captured_goldfish;
+    const startRegionLocs = getLocs(allRegions[startRegion]);
+    const userRequestedLocation = startRegionLocs.at(6) ?? NaN;
+    const store = getStoreWith({
+      ...initialGameStateFor('captured_goldfish'),
+      prng: prngs.unlucky.prng,
+    });
+
+    // target a location that we can only reach by spending all our actions (and so we can't make an
+    // attempt for it the same turn that we reach it).
+    store.addUserRequestedLocation(0, userRequestedLocation);
+    store.addUserRequestedLocation(0, startLocation);
+    store.advance();
+    expect.soft(store.targetLocation()).toStrictEqual(userRequestedLocation);
+    expect.soft(store.prng().getState()).toStrictEqual(prngs.unlucky.prng.getState());
+    store.advance();
+    expect.soft(store.checkedLocations().size).toStrictEqual(0);
+    expect.soft(store.targetLocation()).toStrictEqual(userRequestedLocation);
+  });
 });
 
 function getStoreWith(initialData: Partial<DefiningGameState>): InstanceType<typeof TestingStore> {

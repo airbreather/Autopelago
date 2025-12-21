@@ -1,5 +1,5 @@
-import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
 import { Player } from '@airbreather/archipelago.js';
+import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
 import { GameStore } from '../../../../store/autopelago-store';
 
 @Component({

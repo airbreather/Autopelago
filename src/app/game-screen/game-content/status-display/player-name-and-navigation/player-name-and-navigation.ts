@@ -1,3 +1,4 @@
+import type { Player } from '@airbreather/archipelago.js';
 import {
   ChangeDetectionStrategy,
   Component,
@@ -12,7 +13,6 @@ import {
 import { Title } from '@angular/platform-browser';
 
 import { RouterLink } from '@angular/router';
-import type { Player } from '@airbreather/archipelago.js';
 import versionInfo from '../../../../../version-info.json';
 import type { AutopelagoClientAndData } from '../../../../data/slot-data';
 

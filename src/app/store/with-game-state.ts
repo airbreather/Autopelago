@@ -1,7 +1,7 @@
+import { itemClassifications, PlayersManager } from '@airbreather/archipelago.js';
 import { computed, effect } from '@angular/core';
 import BitArray from '@bitarray/typedarray';
 import { patchState, signalStoreFeature, withComputed, withHooks, withMethods, withState } from '@ngrx/signals';
-import { itemClassifications, PlayersManager } from '@airbreather/archipelago.js';
 import { List, Set as ImmutableSet } from 'immutable';
 import rand from 'pure-rand';
 import Queue from 'yocto-queue';
@@ -929,7 +929,8 @@ export function withGameState() {
                 }
               }
 
-              if (result.currentLocation === moonCommaThe?.location || (!moved && prev.startledCounter === 0 && !store.locationIsChecked()[result.currentLocation])) {
+              let currentLocationIsChecked = !!store.locationIsChecked()[result.currentLocation];
+              if (result.currentLocation === moonCommaThe?.location || (!moved && prev.startledCounter === 0 && !currentLocationIsChecked)) {
                 let unlucky = false;
                 let lucky = false;
                 let stylish = false;
@@ -973,23 +974,23 @@ export function withGameState() {
                   isFirstCheck = false;
                 }
 
-                if (!success) {
-                  return result;
+                if (success) {
+                  result.outgoingCheckedLocations = prev.outgoingCheckedLocations.push(result.currentLocation);
+                  result.checkedLocations = prev.checkedLocations.add(result.currentLocation);
+                  if (!('outgoingAnimatableActions' in result)) {
+                    result.outgoingAnimatableActions = prev.outgoingAnimatableActions;
+                  }
+                  // only push exactly one at a time, even if we will be checking multiple locations
+                  // during this advance() call. the action type allows for multiple because that's
+                  // what happens when the server dumps a bunch on us.
+                  result.outgoingAnimatableActions = result.outgoingAnimatableActions.push({ type: 'check-locations', locations: [result.currentLocation] });
+                  result.mercyFactor = 0;
+                  bumpMercyModifierForNextTime = false;
+                  currentLocationIsChecked = true;
                 }
-                result.outgoingCheckedLocations = prev.outgoingCheckedLocations.push(result.currentLocation);
-                result.checkedLocations = prev.checkedLocations.add(result.currentLocation);
-                if (!('outgoingAnimatableActions' in result)) {
-                  result.outgoingAnimatableActions = prev.outgoingAnimatableActions;
-                }
-                // only push exactly one at a time, even if we will be checking multiple locations
-                // during this advance() call. the action type allows for multiple because that's
-                // what happens when the server dumps a bunch on us.
-                result.outgoingAnimatableActions = result.outgoingAnimatableActions.push({ type: 'check-locations', locations: [result.currentLocation] });
-                result.mercyFactor = 0;
-                bumpMercyModifierForNextTime = false;
               }
 
-              if (result.currentLocation === targetLocation) {
+              if (result.currentLocation === targetLocation && currentLocationIsChecked) {
                 if (prev.hyperFocusLocation === targetLocation) {
                   result.hyperFocusLocation = null;
                 }

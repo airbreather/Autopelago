@@ -1,8 +1,8 @@
+import type { SayPacket } from '@airbreather/archipelago.js';
 import { withResource } from '@angular-architects/ngrx-toolkit';
 import { effect, resource } from '@angular/core';
 
 import { patchState, signalStore, withHooks, withMethods, withState } from '@ngrx/signals';
-import type { SayPacket } from '@airbreather/archipelago.js';
 import { List, Set as ImmutableSet } from 'immutable';
 import {
   BAKED_DEFINITIONS_BY_VICTORY_LANDMARK,
