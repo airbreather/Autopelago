@@ -15,10 +15,12 @@ interface WatchAnimationsParams {
   landmarkContainers: readonly HTMLDivElement[];
   questContainers: readonly HTMLDivElement[];
   fillerSquares: readonly HTMLDivElement[];
+  enableTileAnimations: boolean;
+  enableRatAnimations: boolean;
 }
 
 export function watchAnimations(
-  { outerDiv, dashedPath, overlay, playerTokenContainer, landmarkContainers, questContainers, fillerSquares }: WatchAnimationsParams,
+  { outerDiv, dashedPath, overlay, playerTokenContainer, landmarkContainers, questContainers, fillerSquares, enableTileAnimations, enableRatAnimations }: WatchAnimationsParams,
 ) {
   const gameStore = inject(GameStore);
   const gameScreenStore = inject(GameScreenStore);
@@ -33,14 +35,24 @@ export function watchAnimations(
     performanceInsensitiveAnimatableState.getSnapshot({ gameStore, consumeOutgoingAnimatableActions: false }),
   );
 
-  const landmarkShake = outerDiv.animate([
-    { ['--ap-frame-offset']: 0, easing: 'steps(1)' },
-    { ['--ap-frame-offset']: 1, easing: 'steps(1)' },
-    { ['--ap-frame-offset']: 0, easing: 'steps(1)' },
-  ], { duration: 1000, iterations: Infinity });
-  const playerWiggle = playerTokenContainer.animate({
-    ['--ap-wiggle-amount']: [0, 1, 0, -1, 0],
-  }, { duration: 1000, iterations: Infinity });
+  const landmarkShake = enableTileAnimations
+    ? outerDiv.animate([
+        { ['--ap-frame-offset']: 0, easing: 'steps(1)' },
+        { ['--ap-frame-offset']: 1, easing: 'steps(1)' },
+        { ['--ap-frame-offset']: 0, easing: 'steps(1)' },
+      ], { duration: 1000, iterations: Infinity })
+    : null;
+  const playerWiggle = enableRatAnimations
+    ? playerTokenContainer.animate({
+        ['--ap-wiggle-amount']: [0, 1, 0, -1, 0],
+      }, { duration: 1000, iterations: Infinity })
+    : null;
+
+  if (!enableRatAnimations) {
+    for (const animateElement of dashedPath.getElementsByTagName('animate')) {
+      animateElement.remove();
+    }
+  }
 
   let currentMovementAnimation: Animation | null = null;
   let prevAnimation = Promise.resolve();
@@ -92,13 +104,13 @@ export function watchAnimations(
     }, { injector });
     effect(() => {
       if (gameStore.running()) {
-        playerWiggle.play();
-        landmarkShake.play();
+        playerWiggle?.play();
+        landmarkShake?.play();
         currentMovementAnimation?.play();
       }
       else {
-        playerWiggle.pause();
-        landmarkShake.pause();
+        playerWiggle?.pause();
+        landmarkShake?.pause();
         currentMovementAnimation?.pause();
       }
     }, { injector });
@@ -173,7 +185,7 @@ export function watchAnimations(
               currentMovementAnimation = playerTokenContainer.animate({
                 ['--ap-left-base']: [tx.toString() + 'px'],
                 ['--ap-top-base']: [ty.toString() + 'px'],
-              }, { fill: 'forwards', duration: 100 });
+              }, { fill: 'forwards', duration: enableRatAnimations ? 100 : 0 });
               try {
                 await currentMovementAnimation.finished;
                 currentMovementAnimation.commitStyles();

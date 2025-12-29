@@ -397,6 +397,7 @@ export class GameTabMap {
     });
 
     const initAnimationWatcherEffect = effect(() => {
+      const game = this.#store.game();
       const outerDiv = this.outerDiv().nativeElement;
       const dashedPath = this.dashedPath().nativeElement;
       const overlay = this.overlay();
@@ -405,7 +406,7 @@ export class GameTabMap {
       const questContainers = this.questContainers().map(l => l.nativeElement);
       const fillerSquares = this.fillerSquares().map(l => l.nativeElement);
 
-      if (landmarkContainers.length === 0 || questContainers.length === 0 || fillerSquares.length === 0) {
+      if (game === null || landmarkContainers.length === 0 || questContainers.length === 0 || fillerSquares.length === 0) {
         // still waiting to know how many landmarks / fillers there are.
         return;
       }
@@ -419,6 +420,8 @@ export class GameTabMap {
           landmarkContainers,
           questContainers,
           fillerSquares,
+          enableTileAnimations: game.connectScreenState.enableTileAnimations,
+          enableRatAnimations: game.connectScreenState.enableRatAnimations,
         });
       });
       initAnimationWatcherEffect.destroy();
