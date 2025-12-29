@@ -10,7 +10,7 @@ import { Component, inject } from '@angular/core';
   template: `
     <div class="outer">
       <div class="uwin-and-flag">
-        <span>u win.</span><img alt="moon_comma_the" ngSrc="/assets/images/locations/moon_comma_the.webp" width="64" height="64">
+        <span>u win.</span><img alt="moon_comma_the" ngSrc="/assets/images/moon_comma_the.webp" width="64" height="64">
       </div>
       <button (click)="dialogRef.close()">Back to Map</button>
     </div>
