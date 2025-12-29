@@ -1,16 +1,12 @@
 import { DialogRef } from '@angular/cdk/dialog';
-import { NgOptimizedImage } from '@angular/common';
 import { Component, inject } from '@angular/core';
 
 @Component({
   selector: 'app-u-win',
-  imports: [
-    NgOptimizedImage,
-  ],
   template: `
     <div class="outer">
       <div class="uwin-and-flag">
-        <span>u win.</span><img alt="moon_comma_the" ngSrc="/assets/images/moon_comma_the.webp" width="64" height="64">
+        <span>u win.</span><!--suppress CheckImageSize --><img alt="moon_comma_the" src="/assets/images/locations.webp" width="64" height="64">
       </div>
       <button (click)="dialogRef.close()">Back to Map</button>
     </div>
@@ -33,6 +29,11 @@ import { Component, inject } from '@angular/core';
       font-size: 40pt;
       pointer-events: none;
       user-select: none;
+    }
+
+    img {
+      object-fit: none;
+      object-position: calc(-65px * var(--ap-frame-offset, 0)) calc(-65px * 33);
     }
   `,
 })

@@ -398,7 +398,6 @@ export class GameTabMap {
 
     const initAnimationWatcherEffect = effect(() => {
       const game = this.#store.game();
-      const outerDiv = this.outerDiv().nativeElement;
       const dashedPath = this.dashedPath().nativeElement;
       const overlay = this.overlay();
       const playerTokenContainer = this.playerTokenContainer().nativeElement;
@@ -413,7 +412,6 @@ export class GameTabMap {
 
       runInInjectionContext(this.#injector, () => {
         watchAnimations({
-          outerDiv,
           dashedPath,
           overlay,
           playerTokenContainer,

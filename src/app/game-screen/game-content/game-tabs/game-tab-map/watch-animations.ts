@@ -8,7 +8,6 @@ import { PerformanceInsensitiveAnimatableState } from '../../status-display/perf
 import { UWin } from './u-win';
 
 interface WatchAnimationsParams {
-  outerDiv: HTMLDivElement;
   dashedPath: SVGPathElement;
   overlay: CdkConnectedOverlay;
   playerTokenContainer: HTMLDivElement;
@@ -20,7 +19,7 @@ interface WatchAnimationsParams {
 }
 
 export function watchAnimations(
-  { outerDiv, dashedPath, overlay, playerTokenContainer, landmarkContainers, questContainers, fillerSquares, enableTileAnimations, enableRatAnimations }: WatchAnimationsParams,
+  { dashedPath, overlay, playerTokenContainer, landmarkContainers, questContainers, fillerSquares, enableTileAnimations, enableRatAnimations }: WatchAnimationsParams,
 ) {
   const gameStore = inject(GameStore);
   const gameScreenStore = inject(GameScreenStore);
@@ -35,13 +34,21 @@ export function watchAnimations(
     performanceInsensitiveAnimatableState.getSnapshot({ gameStore, consumeOutgoingAnimatableActions: false }),
   );
 
+  // animate it all the way up at the body level so that it gets inherited by the dialog container.
+  // this means that we need to destroy the animation when it goes out of scope.
+  const bodyElement = document.getElementsByClassName('insanely-high-target-for-animated-properties-that-also-need-to-be-inherited-on-dialogs')[0] as HTMLElement;
   const landmarkShake = enableTileAnimations
-    ? outerDiv.animate([
+    ? bodyElement.animate([
         { ['--ap-frame-offset']: 0, easing: 'steps(1)' },
         { ['--ap-frame-offset']: 1, easing: 'steps(1)' },
         { ['--ap-frame-offset']: 0, easing: 'steps(1)' },
       ], { duration: 1000, iterations: Infinity })
     : null;
+  if (landmarkShake !== null) {
+    destroyRef.onDestroy(() => {
+      landmarkShake.cancel();
+    });
+  }
   const playerWiggle = enableRatAnimations
     ? playerTokenContainer.animate({
         ['--ap-wiggle-amount']: [0, 1, 0, -1, 0],
