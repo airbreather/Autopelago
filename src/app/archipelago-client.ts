@@ -215,7 +215,7 @@ function createReactiveHints(client: Client, destroyRef?: DestroyRef): Signal<Li
       client.items.off('hintsInitialized', onHints);
       client.items.off('hintReceived', onHint);
       client.items.off('hintFound', onHint);
-      client.items.on('hintUpdated', onHintUpdated);
+      client.items.off('hintUpdated', onHintUpdated);
     });
   }
   return hints.asReadonly();
