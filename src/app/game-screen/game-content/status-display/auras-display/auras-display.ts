@@ -1,4 +1,5 @@
 import { ChangeDetectionStrategy, Component, computed, ElementRef, inject, viewChild } from '@angular/core';
+import { GameStore } from '../../../../store/autopelago-store';
 
 import { resizeText } from '../../../../utils/resize-text';
 import { PerformanceInsensitiveAnimatableState } from '../performance-insensitive-animatable-state';
@@ -8,7 +9,7 @@ import { PerformanceInsensitiveAnimatableState } from '../performance-insensitiv
   imports: [],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
-    <details #outer class="outer" open>
+    <details #outer class="outer" [class.enable-animations]="enableRatAnimations()" open>
       <summary #ratCountElement class="rat-count">{{ ratCountText() }}</summary>
       <div class="bulk-auras">
         <span class="bar-label">Food</span>
@@ -63,6 +64,10 @@ import { PerformanceInsensitiveAnimatableState } from '../performance-insensitiv
       margin-left: 5px;
       margin-right: 5px;
       container-type: inline-size;
+
+      &.enable-animations {
+        --ap-bar-transition: width 0.3s ease;
+      }
     }
 
     .rat-count {
@@ -110,7 +115,7 @@ import { PerformanceInsensitiveAnimatableState } from '../performance-insensitiv
       position: absolute;
       top: 0;
       height: 100%;
-      transition: width 0.3s ease;
+      transition: var(--ap-bar-transition);
       z-index: 1;
     }
 
@@ -170,24 +175,26 @@ import { PerformanceInsensitiveAnimatableState } from '../performance-insensitiv
   `,
 })
 export class AurasDisplay {
-  readonly #gameStore = inject(PerformanceInsensitiveAnimatableState);
+  readonly #gameStore = inject(GameStore);
+  readonly enableRatAnimations = computed(() => this.#gameStore.game()?.connectScreenState.enableRatAnimations === true);
+  readonly #animatableStateStore = inject(PerformanceInsensitiveAnimatableState);
 
   readonly outerElement = viewChild.required<ElementRef<HTMLElement>>('outer');
   readonly ratCountElement = viewChild.required<ElementRef<HTMLElement>>('ratCountElement');
 
-  protected readonly ratCount = this.#gameStore.ratCount;
+  protected readonly ratCount = this.#animatableStateStore.ratCount;
   protected readonly ratCountText = computed(() => `RATS: ${this.ratCount().toString()}`);
 
-  protected readonly food = this.#gameStore.food;
-  protected readonly energy = this.#gameStore.energy;
-  protected readonly luck = this.#gameStore.luck;
+  protected readonly food = this.#animatableStateStore.food;
+  protected readonly energy = this.#animatableStateStore.energy;
+  protected readonly luck = this.#animatableStateStore.luck;
 
-  protected readonly distraction = this.#gameStore.distraction;
-  protected readonly startled = this.#gameStore.startled;
-  protected readonly smart = this.#gameStore.smart;
-  protected readonly conspiratorial = this.#gameStore.conspiratorial;
-  protected readonly stylish = this.#gameStore.stylish;
-  protected readonly confidence = this.#gameStore.confidence;
+  protected readonly distraction = this.#animatableStateStore.distraction;
+  protected readonly startled = this.#animatableStateStore.startled;
+  protected readonly smart = this.#animatableStateStore.smart;
+  protected readonly conspiratorial = this.#animatableStateStore.conspiratorial;
+  protected readonly stylish = this.#animatableStateStore.stylish;
+  protected readonly confidence = this.#animatableStateStore.confidence;
 
   protected readonly foodFillPercentage = computed(() => {
     const value = Math.max(-20, Math.min(20, this.food()));

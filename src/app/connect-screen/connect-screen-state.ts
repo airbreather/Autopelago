@@ -78,6 +78,8 @@ export interface ConnectScreenState {
   playerColor: ColorInput;
 }
 
+const prefersReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
 export const CONNECT_SCREEN_STATE_DEFAULTS: ConnectScreenState = {
   slot: '',
   host: 'archipelago.gg',
@@ -85,8 +87,8 @@ export const CONNECT_SCREEN_STATE_DEFAULTS: ConnectScreenState = {
   password: '',
   minTimeSeconds: 20,
   maxTimeSeconds: 30,
-  enableTileAnimations: true,
-  enableRatAnimations: true,
+  enableTileAnimations: !prefersReducedMotion,
+  enableRatAnimations: !prefersReducedMotion,
   sendChatMessages: true,
   whenTargetChanges: true,
   whenBecomingBlocked: true,

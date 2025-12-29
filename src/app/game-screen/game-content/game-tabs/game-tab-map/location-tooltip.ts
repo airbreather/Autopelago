@@ -1,6 +1,6 @@
 import { Hint, Player } from '@airbreather/archipelago.js';
-import { NgOptimizedImage } from '@angular/common';
 import { Component, computed, inject, input } from '@angular/core';
+import { LANDMARKS } from '../../../../data/locations';
 import type { AutopelagoLandmarkRegion } from '../../../../data/resolved-definitions';
 import { GameStore } from '../../../../store/autopelago-store';
 import { RequirementDisplay } from './requirement-display';
@@ -9,7 +9,6 @@ import { RequirementDisplay } from './requirement-display';
   selector: 'app-location-tooltip',
   imports: [
     RequirementDisplay,
-    NgOptimizedImage,
   ],
   template: `
     <div class="outer">
@@ -18,9 +17,11 @@ import { RequirementDisplay } from './requirement-display';
       @if (landmarkRegion(); as region) {
         <div class="box main-content">
           <div class="image-and-requirement">
+            <!--suppress CheckImageSize -->
             <img class="landmark-image" [alt]="region.yamlKey"
                  width="64" height="64"
-                 [ngSrc]="'assets/images/locations/' + region.yamlKey + '.webp'">
+                 [style.--ap-sprite-index]="spriteIndex()"
+                 src="/assets/images/locations.webp">
             <app-requirement-display class="requirement-display" [requirement]="region.requirement"/>
           </div>
           <div class="flavor-text" [hidden]="!location().flavorText">“{{ location().flavorText }}”</div>
@@ -81,6 +82,11 @@ import { RequirementDisplay } from './requirement-display';
       align-items: start;
     }
 
+    .landmark-image {
+      object-fit: none;
+      object-position: calc(-65px * var(--ap-frame-offset, 0)) calc(-65px * var(--ap-sprite-index, 0));
+    }
+
     .requirement-display {
       margin-left: 5px;
       white-space: nowrap;
@@ -135,6 +141,8 @@ export class LocationTooltip {
       ? null
       : allRegions[regionKeyIfLandmark] as AutopelagoLandmarkRegion;
   });
+
+  protected readonly spriteIndex = computed(() => LANDMARKS[this.landmarkRegion()?.yamlKey ?? 'snakes_on_a_planet'].sprite_index);
 
   protected isSelf(player: Player) {
     const game = this.#store.game();

@@ -397,7 +397,7 @@ export class GameTabMap {
     });
 
     const initAnimationWatcherEffect = effect(() => {
-      const outerDiv = this.outerDiv().nativeElement;
+      const game = this.#store.game();
       const dashedPath = this.dashedPath().nativeElement;
       const overlay = this.overlay();
       const playerTokenContainer = this.playerTokenContainer().nativeElement;
@@ -405,20 +405,21 @@ export class GameTabMap {
       const questContainers = this.questContainers().map(l => l.nativeElement);
       const fillerSquares = this.fillerSquares().map(l => l.nativeElement);
 
-      if (landmarkContainers.length === 0 || questContainers.length === 0 || fillerSquares.length === 0) {
+      if (game === null || landmarkContainers.length === 0 || questContainers.length === 0 || fillerSquares.length === 0) {
         // still waiting to know how many landmarks / fillers there are.
         return;
       }
 
       runInInjectionContext(this.#injector, () => {
         watchAnimations({
-          outerDiv,
           dashedPath,
           overlay,
           playerTokenContainer,
           landmarkContainers,
           questContainers,
           fillerSquares,
+          enableTileAnimations: game.connectScreenState.enableTileAnimations,
+          enableRatAnimations: game.connectScreenState.enableRatAnimations,
         });
       });
       initAnimationWatcherEffect.destroy();
