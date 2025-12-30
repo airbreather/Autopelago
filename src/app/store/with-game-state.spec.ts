@@ -19,10 +19,20 @@ import type { DefiningGameState } from '../game/defining-state';
 import { stricterObjectFromEntries, strictObjectEntries } from '../utils/types';
 import { withGameState } from './with-game-state';
 
+const allAuras =
+  ['well_fed', 'upset_tummy', 'lucky', 'unlucky', 'energized', 'sluggish', 'distracted', 'stylish', 'startled', 'smart', 'conspiratorial', 'confident'] as const;
 const singleAuraItems = stricterObjectFromEntries(
-  (['well_fed', 'upset_tummy', 'lucky', 'unlucky', 'energized', 'sluggish', 'distracted', 'stylish', 'startled', 'smart', 'conspiratorial', 'confident'] as const)
-    .map(aura => ([aura, BAKED_DEFINITIONS_FULL.allItems.findIndex(i => i.aurasGranted.length === 1 && i.aurasGranted[0] === aura)])),
+  allAuras
+    .map((aura, i) => ([aura, i + BAKED_DEFINITIONS_FULL.progressionItems.length])),
 ) satisfies Record<AutopelagoAura, number>;
+// historic test cases used to rely on baked-in items. reproduce the subset of them that they used.
+const oldBakedItemsWithAuras = [
+  ['Rat Poison', ['upset_tummy', 'upset_tummy', 'upset_tummy', 'unlucky', 'startled', 'startled', 'startled', 'sluggish']],
+  ['Bag of Powdered Sugar', ['well_fed', 'energized', 'energized', 'energized']],
+  ['Weapons-grade Folding Chair', ['confident']],
+  ['Itchy Iron Wool Sweater', ['stylish', 'distracted', 'sluggish']],
+] as const;
+const oldBakedItemsWithAurasLookup = stricterObjectFromEntries(oldBakedItemsWithAuras.map(([itemName], i) => [itemName, i + allAuras.length + BAKED_DEFINITIONS_FULL.progressionItems.length]));
 
 describe('self', () => {
   test.each(strictObjectEntries(prngs))('rolls for %s continue to match what they used to', (_name, { rolls, prng }) => {
@@ -747,12 +757,11 @@ describe('withGameState', () => {
   });
 
   test('received items should apply auras', () => {
-    const { itemNameLookup } = BAKED_DEFINITIONS_BY_VICTORY_LANDMARK.captured_goldfish;
     const store = getStoreWith({
       ...initialGameStateFor('captured_goldfish'),
     });
 
-    store.receiveItems([
+    store.receiveItems(([
       // upset_tummy, upset_tummy, upset_tummy, unlucky, startled, startled, startled, sluggish
       'Rat Poison',
 
@@ -767,7 +776,7 @@ describe('withGameState', () => {
 
       // confidence
       'Weapons-grade Folding Chair',
-    ].map(name => itemNameLookup.get(name) ?? NaN));
+    ] as const).map(name => oldBakedItemsWithAurasLookup[name]));
 
     expect.soft(store.foodFactor()).toStrictEqual(-10);
     expect.soft(store.luckFactor()).toStrictEqual(-1);
@@ -812,7 +821,7 @@ describe('withGameState', () => {
         restaurant,
         bowlingBallDoor,
         capturedGoldfish,
-        ...regionLocsByYamlKey.Menu, // "Before Basketball"
+        ...regionLocsByYamlKey.before_basketball,
         ...regionLocsByYamlKey.before_prawn_stars,
         ...regionLocsByYamlKey.before_angry_turtles,
         ...regionLocsByYamlKey.after_restaurant,
@@ -962,11 +971,21 @@ function getStoreWith(initialData: Partial<DefiningGameState>): InstanceType<typ
 
 function initialGameStateFor(victoryLocationYamlKey: VictoryLocationYamlKey): Partial<DefiningGameState> {
   const defs = BAKED_DEFINITIONS_BY_VICTORY_LANDMARK[victoryLocationYamlKey];
+  const progressionItemLookup = Object.fromEntries(defs.progressionItems.map(item => [item.key, item.key]));
+  const ratCountsByItemId = Object.fromEntries(defs.progressionItems.filter(item => item.ratCount > 0).map(item => [item.key, item.ratCount]));
+  const aurasByItemId: Partial<Record<number, readonly AutopelagoAura[]>> = {};
+  for (const [aura, itemId] of strictObjectEntries(singleAuraItems)) {
+    aurasByItemId[itemId] = [aura];
+  }
+  for (const [itemName, auras] of oldBakedItemsWithAuras) {
+    aurasByItemId[oldBakedItemsWithAurasLookup[itemName]] = auras;
+  }
   return {
     lactoseIntolerant: false,
     victoryLocationYamlKey,
-    enabledBuffs: new Set(['confident', 'energized', 'lucky', 'smart', 'stylish', 'well_fed']),
-    enabledTraps: new Set(['conspiratorial', 'distracted', 'sluggish', 'startled', 'unlucky', 'upset_tummy']),
+    progressionItemLookup,
+    aurasByItemId,
+    ratCountsByItemId,
     locationIsProgression: new BitArray(defs.allLocations.length),
     locationIsTrap: new BitArray(defs.allLocations.length),
     foodFactor: 0,
