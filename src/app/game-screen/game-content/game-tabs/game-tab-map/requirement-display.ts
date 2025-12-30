@@ -57,13 +57,13 @@ export class RequirementDisplay {
   readonly requirement = input.required<AutopelagoRequirement>();
 
   protected readonly itemNames = computed(() => {
-    const { allItems } = this.#store.defs();
+    const { progressionItems } = this.#store.defs();
     const lactoseIntolerant = this.#store.lactoseIntolerant();
-    return allItems.map(i => lactoseIntolerant ? i.lactoseIntolerantName : i.lactoseName);
+    return progressionItems.map(i => lactoseIntolerant ? i.lactoseIntolerantName : i.lactoseName);
   });
 
   protected readonly isSatisfied = computed(() => {
-    const isSatisfied = buildRequirementIsSatisfied(this.#anim.receivedItemCountLookup(), this.#anim.allLocationsAreChecked());
+    const isSatisfied = buildRequirementIsSatisfied(this.#anim.requirementRelevantReceivedItemsSet(), this.#anim.ratCount(), this.#anim.allLocationsAreChecked());
     return isSatisfied(this.requirement());
   });
 }

@@ -134,6 +134,13 @@ export async function initializeClient(initializeClientOptions: InitializeClient
     throw new Error('Autopelago package not found');
   }
 
+  const itemNetworkNameLookup = pkg.itemTable;
+  const progressionItemLookup: Partial<Record<number, number>> = {};
+  for (const [i, item] of defs.progressionItems.entries()) {
+    progressionItemLookup[itemNetworkNameLookup[item.lactoseName]] = i;
+    progressionItemLookup[itemNetworkNameLookup[item.lactoseIntolerantName]] = i;
+  }
+
   const locationNetworkNameLookup = pkg.locationTable;
   const locationNetworkIdToLocation: Readonly<Record<number, number>> = Object.fromEntries(defs.allLocations.map((l, id) => [locationNetworkNameLookup[l.name], id] as const));
   const items = await client.scout(defs.allLocations.map(l => locationNetworkNameLookup[l.name]));
@@ -158,7 +165,6 @@ export async function initializeClient(initializeClientOptions: InitializeClient
       }
     }
   }));
-
   return {
     connectScreenState,
     client,
@@ -166,6 +172,7 @@ export async function initializeClient(initializeClientOptions: InitializeClient
     messageLog,
     slotData,
     hintedLocations,
+    progressionItemLookup,
     locationIsProgression,
     locationIsTrap,
     storedData,

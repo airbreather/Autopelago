@@ -112,12 +112,12 @@ export class ProgressionItemStatus {
       const lactoseIntolerant = this.#gameStore.lactoseIntolerant();
       return PROGRESSION_ITEMS_BY_VICTORY_LOCATION[victoryLocationYamlKey].map((itemYamlKey, index) => {
         const item = BAKED_DEFINITIONS_FULL.progressionItemsByYamlKey.get(itemYamlKey) ?? -1;
-        const collected = computed(() => this.#performanceInsensitiveAnimatableState.receivedItemCountLookup()[item] > 0);
+        const collected = computed(() => this.#performanceInsensitiveAnimatableState.requirementRelevantReceivedItemsSet().has(item));
         return {
           name: lactoseIntolerant
-            ? BAKED_DEFINITIONS_FULL.allItems[item].lactoseIntolerantName
-            : BAKED_DEFINITIONS_FULL.allItems[item].lactoseName,
-          flavorText: BAKED_DEFINITIONS_FULL.allItems[item].flavorText,
+            ? BAKED_DEFINITIONS_FULL.progressionItems[item].lactoseIntolerantName
+            : BAKED_DEFINITIONS_FULL.progressionItems[item].lactoseName,
+          flavorText: BAKED_DEFINITIONS_FULL.progressionItems[item].flavorText,
           collected,
           offsetX: computed(() => collected() ? 0 : 65),
           offsetY: index * 65,

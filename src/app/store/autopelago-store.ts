@@ -4,11 +4,7 @@ import { effect, resource } from '@angular/core';
 
 import { patchState, signalStore, withHooks, withMethods, withState } from '@ngrx/signals';
 import { List, Set as ImmutableSet } from 'immutable';
-import {
-  BAKED_DEFINITIONS_BY_VICTORY_LANDMARK,
-  BAKED_DEFINITIONS_FULL,
-  VICTORY_LOCATION_NAME_LOOKUP,
-} from '../data/resolved-definitions';
+import { BAKED_DEFINITIONS_BY_VICTORY_LANDMARK, VICTORY_LOCATION_NAME_LOOKUP } from '../data/resolved-definitions';
 import type { AutopelagoClientAndData } from '../data/slot-data';
 import { targetLocationEvidenceFromJSONSerializable } from '../game/target-location-evidence';
 import { makePlayerToken } from '../utils/make-player-token';
@@ -39,25 +35,25 @@ export const GameStore = signalStore(
   })),
   withMethods(store => ({
     init(game: AutopelagoClientAndData) {
-      const { connectScreenState, client, pkg, slotData, storedData, locationIsProgression, locationIsTrap } = game;
+      const { connectScreenState, client, pkg, slotData, storedData, progressionItemLookup, locationIsProgression, locationIsTrap } = game;
 
       const victoryLocationYamlKey = VICTORY_LOCATION_NAME_LOOKUP[slotData.victory_location_name];
 
-      const locationNameLookup = BAKED_DEFINITIONS_BY_VICTORY_LANDMARK[victoryLocationYamlKey].locationNameLookup;
+      const { allLocations, locationNameLookup, moonCommaThe } = BAKED_DEFINITIONS_BY_VICTORY_LANDMARK[victoryLocationYamlKey];
       const checkedLocations = client.room.checkedLocations.map(l => locationNameLookup.get(pkg.reverseLocationTable[l]) ?? -1);
-      const defs = BAKED_DEFINITIONS_BY_VICTORY_LANDMARK[victoryLocationYamlKey];
-      if (defs.moonCommaThe !== null && checkedLocations.length >= (defs.allLocations.length - 1)) {
-        checkedLocations.push(defs.moonCommaThe.location);
+      if (moonCommaThe !== null && checkedLocations.length >= (allLocations.length - 1)) {
+        checkedLocations.push(moonCommaThe.location);
       }
       patchState(store, {
         ...storedData,
         game,
         lactoseIntolerant: slotData.lactose_intolerant,
         victoryLocationYamlKey,
+        progressionItemLookup,
         locationIsProgression,
         locationIsTrap,
-        enabledBuffs: new Set(slotData.enabled_buffs),
-        enabledTraps: new Set(slotData.enabled_traps),
+        aurasByItemId: slotData.auras_by_item_id,
+        ratCountsByItemId: slotData.rat_counts_by_item_id,
         messagesForChangedTarget: toWeighted(slotData.msg_changed_target),
         messagesForEnterGoMode: toWeighted(slotData.msg_enter_go_mode),
         messagesForEnterBK: toWeighted(slotData.msg_enter_bk),
@@ -72,25 +68,9 @@ export const GameStore = signalStore(
         previousTargetLocationEvidence: targetLocationEvidenceFromJSONSerializable(storedData.previousTargetLocationEvidence),
         outgoingAnimatableActions: List(),
       });
-      const itemsJustReceived: number[] = [];
-      for (const item of client.items.received) {
-        const itemKey = BAKED_DEFINITIONS_FULL.itemNameLookup.get(item.name);
-        if (typeof itemKey === 'number') {
-          itemsJustReceived.push(itemKey);
-        }
-      }
-
-      store.receiveItems(itemsJustReceived);
+      store.receiveItems(client.items.received.map(i => i.id));
       client.items.on('itemsReceived', (items) => {
-        const itemsJustReceived: number[] = [];
-        for (const item of items) {
-          const itemKey = BAKED_DEFINITIONS_FULL.itemNameLookup.get(item.name);
-          if (typeof itemKey === 'number') {
-            itemsJustReceived.push(itemKey);
-          }
-        }
-
-        store.receiveItems(itemsJustReceived);
+        store.receiveItems(items.map(i => i.id));
       });
 
       client.room.on('locationsChecked', (locations) => {

@@ -30,3 +30,18 @@ export function bitArraysEqual(a: Readonly<BitArray>, b: Readonly<BitArray>) {
   }
   return true;
 }
+
+export function setsEqual<T>(a: ReadonlySet<T>, b: ReadonlySet<T>) {
+  if (a === b) {
+    return true;
+  }
+  if (a.size !== b.size) {
+    return false;
+  }
+  for (const item of a) {
+    if (!b.has(item)) {
+      return false;
+    }
+  }
+  return true;
+}

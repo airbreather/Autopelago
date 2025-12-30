@@ -1,5 +1,4 @@
 import { Injectable, signal } from '@angular/core';
-import { BAKED_DEFINITIONS_FULL } from '../../../data/resolved-definitions';
 import type { GameStore } from '../../../store/autopelago-store';
 
 interface GetSnapshotOptions {
@@ -21,7 +20,7 @@ export class PerformanceInsensitiveAnimatableState {
   readonly stylish = signal(0);
   readonly confidence = signal(false);
 
-  readonly receivedItemCountLookup = signal<readonly number[]>(Array.from({ length: BAKED_DEFINITIONS_FULL.allItems.length }, () => 0));
+  readonly requirementRelevantReceivedItemsSet = signal<ReadonlySet<number>>(new Set<number>());
   readonly allLocationsAreChecked = signal(false);
   readonly hasCompletedGoal = signal(false);
 
@@ -44,7 +43,7 @@ export class PerformanceInsensitiveAnimatableState {
       outgoingAnimatableActions: consumeOutgoingAnimatableActions
         ? gameStore.consumeOutgoingAnimatableActions()
         : gameStore.outgoingAnimatableActions(),
-      receivedItemCountLookup: gameStore.receivedItemCountLookup(),
+      requirementRelevantReceivedItemsSet: gameStore.requirementRelevantReceivedItemsSet(),
       regionIsLandmarkWithRequirementSatisfied: gameStore.regionLocks().regionIsLandmarkWithRequirementSatisfied,
       allLocationsAreChecked: gameStore.allLocationsAreChecked(),
       hasCompletedGoal: gameStore.hasCompletedGoal(),
@@ -54,7 +53,7 @@ export class PerformanceInsensitiveAnimatableState {
   }
 
   applySnapshot(snapshot: ReturnType<this['getSnapshot']>) {
-    const { ratCount, food, energy, luck, distraction, startled, smart, conspiratorial, stylish, confidence, receivedItemCountLookup, allLocationsAreChecked, hasCompletedGoal, targetLocation, targetLocationRoute } = snapshot;
+    const { ratCount, food, energy, luck, distraction, startled, smart, conspiratorial, stylish, confidence, requirementRelevantReceivedItemsSet, allLocationsAreChecked, hasCompletedGoal, targetLocation, targetLocationRoute } = snapshot;
     this.ratCount.set(ratCount);
     this.food.set(food);
     this.energy.set(energy);
@@ -65,7 +64,7 @@ export class PerformanceInsensitiveAnimatableState {
     this.conspiratorial.set(conspiratorial);
     this.stylish.set(stylish);
     this.confidence.set(confidence);
-    this.receivedItemCountLookup.set(receivedItemCountLookup);
+    this.requirementRelevantReceivedItemsSet.set(requirementRelevantReceivedItemsSet);
     this.allLocationsAreChecked.set(allLocationsAreChecked);
     this.hasCompletedGoal.set(hasCompletedGoal);
     this.targetLocation.set(targetLocation);

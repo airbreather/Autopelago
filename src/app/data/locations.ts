@@ -61,7 +61,7 @@ export interface Filler {
 
 export type FillerRegionYamlKey = keyof typeof baked.regions.fillers;
 export const FILLER_REGION_KEYS = [
-  'Menu',
+  'before_basketball',
   'before_prawn_stars',
   'before_angry_turtles',
   'before_pirate_bake_sale',
@@ -100,7 +100,7 @@ export const FILLER_REGION_KEYS = [
 ] as const satisfies FillerRegionYamlKey[];
 
 const FILLER_DEFINING_COORDS = {
-  Menu: [[0, 77], [57, 77]],
+  before_basketball: [[0, 77], [57, 77]],
   before_prawn_stars: [[61, 74], [90, 74], [90, 34], [101, 34]],
   before_angry_turtles: [[61, 80], [90, 80], [90, 120], [101, 120]],
   before_pirate_bake_sale: [[105, 34], [164, 34]],
@@ -149,14 +149,14 @@ export function isRegionYamlKey(yamlKey: string): yamlKey is RegionYamlKey {
 
 const PREPARED_FILLERS = stricterObjectFromEntries(
   strictObjectEntries(FILLER_DEFINING_COORDS)
-    .map(([yamlKey, definingCoords]) => [yamlKey, convertDefiningPoints(yamlKey === 'Menu', definingCoords)]),
+    .map(([yamlKey, definingCoords]) => [yamlKey, convertDefiningPoints(yamlKey === 'before_basketball', definingCoords)]),
 );
 
 export function fillerRegionCoords(counts: Partial<Record<FillerRegionYamlKey, number>>): Readonly<Partial<Record<FillerRegionYamlKey, Filler>>> {
   const result: Partial<Record<FillerRegionYamlKey, Filler>> = {};
   for (const [yamlKey, { targetPoints, targetPointsPrj }] of strictObjectEntries(PREPARED_FILLERS)) {
     const transforms = [[0, 0], [0, 0], [0, 0], [0, 0]] as [number, number][];
-    if (yamlKey === 'Menu') {
+    if (yamlKey === 'before_basketball') {
       transforms[0][1] = 3;
       transforms[2][1] = -3;
     }

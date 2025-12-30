@@ -2,7 +2,7 @@ import type BitArray from '@bitarray/typedarray';
 import { List, Set as ImmutableSet } from 'immutable';
 import rand from 'pure-rand';
 
-import type { AutopelagoBuff, AutopelagoTrap, VictoryLocationYamlKey } from '../data/resolved-definitions';
+import type { AutopelagoAura, VictoryLocationYamlKey } from '../data/resolved-definitions';
 import type { UserRequestedLocation } from '../data/slot-data';
 import type { Weighted } from '../utils/weighted-sampler';
 import type { TargetLocationEvidence } from './target-location-evidence';
@@ -32,8 +32,9 @@ export interface DefiningGameState {
   // values that don't change throughout the entire run:
   readonly lactoseIntolerant: boolean;
   readonly victoryLocationYamlKey: VictoryLocationYamlKey;
-  readonly enabledBuffs: ReadonlySet<AutopelagoBuff>;
-  readonly enabledTraps: ReadonlySet<AutopelagoTrap>;
+  readonly progressionItemLookup: Readonly<Partial<Record<number, number>>>;
+  readonly aurasByItemId: Readonly<Partial<Record<number, readonly AutopelagoAura[]>>>;
+  readonly ratCountsByItemId: Readonly<Partial<Record<number, number>>>;
   readonly locationIsProgression: Readonly<BitArray>;
   readonly locationIsTrap: Readonly<BitArray>;
   readonly messagesForChangedTarget: readonly Weighted<string>[];

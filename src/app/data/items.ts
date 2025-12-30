@@ -57,4 +57,4 @@ export const PROGRESSION_ITEMS_BY_VICTORY_LOCATION = {
   captured_goldfish: PROGRESSION_ITEMS_UP_TO_CAPTURED_GOLDFISH,
   secret_cache: PROGRESSION_ITEMS_UP_TO_SECRET_CACHE,
   snakes_on_a_planet: PROGRESSION_ITEMS_FULL,
-} as const satisfies Record<VictoryLocationYamlKey, readonly (keyof (typeof baked.items) | keyof (typeof baked.items.rats))[]>;
+} as const satisfies Record<VictoryLocationYamlKey, readonly (keyof (typeof baked.items))[]>;

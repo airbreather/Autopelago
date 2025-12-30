@@ -1,4 +1,4 @@
-import { itemClassifications, PlayersManager } from '@airbreather/archipelago.js';
+import { PlayersManager } from '@airbreather/archipelago.js';
 import { computed, effect } from '@angular/core';
 import BitArray from '@bitarray/typedarray';
 import { patchState, signalStoreFeature, withComputed, withHooks, withMethods, withState } from '@ngrx/signals';
@@ -6,7 +6,7 @@ import { List, Set as ImmutableSet } from 'immutable';
 import rand from 'pure-rand';
 import Queue from 'yocto-queue';
 import type { Message } from '../archipelago-client';
-import { type AutopelagoAura, BAKED_DEFINITIONS_BY_VICTORY_LANDMARK } from '../data/resolved-definitions';
+import { BAKED_DEFINITIONS_BY_VICTORY_LANDMARK } from '../data/resolved-definitions';
 import type { AutopelagoStoredData, UserRequestedLocation } from '../data/slot-data';
 import type { AnimatableAction, DefiningGameState } from '../game/defining-state';
 import {
@@ -23,7 +23,7 @@ import {
   targetLocationEvidenceEquals,
   targetLocationEvidenceToJSONSerializable,
 } from '../game/target-location-evidence';
-import { arraysEqual, bitArraysEqual } from '../utils/equal-helpers';
+import { arraysEqual, bitArraysEqual, setsEqual } from '../utils/equal-helpers';
 import type { Mutable } from '../utils/types';
 import { createWeightedSampler } from '../utils/weighted-sampler';
 
@@ -94,8 +94,9 @@ interface RegionLocks {
 const initialState: DefiningGameState = {
   lactoseIntolerant: false,
   victoryLocationYamlKey: 'snakes_on_a_planet',
-  enabledBuffs: new Set(),
-  enabledTraps: new Set(),
+  progressionItemLookup: { },
+  aurasByItemId: { },
+  ratCountsByItemId: { },
   locationIsProgression: new BitArray(0),
   locationIsTrap: new BitArray(0),
   messagesForChangedTarget: [],
@@ -139,7 +140,6 @@ export function withGameState() {
     withComputed((store) => {
       const defs = computed(() => BAKED_DEFINITIONS_BY_VICTORY_LANDMARK[store.victoryLocationYamlKey()]);
       const isStartled = computed(() => store.startledCounter() > 0);
-      const enabledAuras = computed<ReadonlySet<AutopelagoAura>>(() => new Set([...store.enabledBuffs(), ...store.enabledTraps()]));
       const locationIsChecked = computed<Readonly<BitArray>>(() => {
         const { allLocations } = defs();
         const locationIsChecked = new BitArray(allLocations.length);
@@ -150,19 +150,19 @@ export function withGameState() {
       });
       const hasCompletedGoal = computed(() => !!locationIsChecked()[victoryLocation()]);
       const allLocationsAreChecked = computed(() => hasCompletedGoal() && store.checkedLocations().size === defs().allLocations.length);
-      const receivedItemCountLookup = computed<readonly number[]>(() => {
-        const { allItems } = defs();
-        const result = Array<number>(allItems.length).fill(0);
-        for (const i of store.receivedItems()) {
-          ++result[i];
-        }
-        return result;
-      });
+      const requirementRelevantReceivedItemsSet = computed<ReadonlySet<number>>(() => {
+        const progressionItemLookup = store.progressionItemLookup();
+        return new Set(store.receivedItems()
+          .filter(i => i in progressionItemLookup)
+          .map(i => progressionItemLookup[i] ?? NaN));
+      }, { equal: setsEqual });
       const ratCount = computed<number>(() => {
-        const { allItems } = defs();
+        const ratCounts = store.ratCountsByItemId();
         let ratCount = 0;
         for (const item of store.receivedItems()) {
-          ratCount += allItems[item].ratCount;
+          if (item in ratCounts) {
+            ratCount += ratCounts[item] ?? 0;
+          }
         }
         return ratCount;
       });
@@ -175,21 +175,9 @@ export function withGameState() {
         }
         return victoryLocation;
       });
-      const requirementRelevantItemCountLookup = computed<readonly number[]>(() => {
-        const { allItems } = defs();
-        const result = Array<number>(allItems.length).fill(0);
-        for (const i of store.receivedItems()) {
-          const item = allItems[i];
-          if (item.ratCount > 0 || ((item.flags & itemClassifications.progression) === itemClassifications.progression)) {
-            ++result[i];
-          }
-        }
-
-        return result;
-      }, { equal: arraysEqual });
       const regionLocks = computed<RegionLocks>(() => {
         const { allRegions, startRegion } = defs();
-        const isSatisfied = buildRequirementIsSatisfied(requirementRelevantItemCountLookup(), allLocationsAreChecked());
+        const isSatisfied = buildRequirementIsSatisfied(requirementRelevantReceivedItemsSet(), ratCount(), allLocationsAreChecked());
         const regionIsHardLocked = new BitArray(allRegions.length);
         const regionIsLandmarkWithRequirementSatisfied = new BitArray(allRegions.length);
         const regionIsLandmarkWithRequirementUnsatisfied = new BitArray(allRegions.length);
@@ -249,7 +237,8 @@ export function withGameState() {
         determineDesirability({
           defs: defs(),
           victoryLocation: victoryLocation(),
-          relevantItemCount: requirementRelevantItemCountLookup(),
+          requirementRelevantReceivedItemsSet: requirementRelevantReceivedItemsSet(),
+          ratCount: ratCount(),
           locationIsChecked: locationIsChecked(),
           isStartled: isStartled(),
           hyperFocusLocation: store.hyperFocusLocation(),
@@ -346,14 +335,12 @@ export function withGameState() {
       return {
         defs,
         isStartled,
-        enabledAuras,
         locationIsChecked,
         hasCompletedGoal,
         allLocationsAreChecked,
-        receivedItemCountLookup,
+        requirementRelevantReceivedItemsSet,
         ratCount,
         victoryLocation,
-        requirementRelevantItemCountLookup,
         regionLocks,
         _clearedOrClearableLandmarks,
         _desirability,
@@ -505,7 +492,7 @@ export function withGameState() {
           patchState(store, ({ hyperFocusLocation }) => ({ hyperFocusLocation: hyperFocusLocation === location ? null : location }));
         },
         receiveItems(items: Iterable<number>) {
-          const { allItems, allLocations } = store.defs();
+          const { allLocations } = store.defs();
           if (!store.canEventuallyAdvance()) {
             patchState(store, ({ receivedItems }) => {
               receivedItems = receivedItems.push(...items);
@@ -517,7 +504,6 @@ export function withGameState() {
             return;
           }
 
-          const enabledAuras = store.enabledAuras();
           patchState(store, (prev) => {
             const result = {
               foodFactor: prev.foodFactor,
@@ -574,18 +560,17 @@ export function withGameState() {
                   }
 
                   for (const item of items) {
-                    const itemFull = allItems[item];
                     r.push(item);
                     if (r.size <= result.processedReceivedItemCount) {
                       continue;
                     }
 
+                    const auras = item in prev.aurasByItemId
+                      ? prev.aurasByItemId[item] ?? []
+                      : [];
                     let subtractConfidence = false;
                     let addConfidence = false;
-                    for (const aura of itemFull.aurasGranted) {
-                      if (!enabledAuras.has(aura)) {
-                        continue;
-                      }
+                    for (const aura of auras) {
                       switch (aura) {
                         case 'well_fed':
                           result.foodFactor += 5;
