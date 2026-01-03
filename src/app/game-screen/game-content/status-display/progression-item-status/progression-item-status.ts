@@ -27,9 +27,13 @@ import { RequestHint } from './request-hint';
              appTooltip [tooltipContext]="tooltipContext" (tooltipOriginChange)="setTooltipOrigin($index, item.id, $event, true)">
           <!--suppress AngularNgOptimizedImage -->
           <img class="item"
-               src="/assets/images/items.webp"
+               [class.rats]="item.id === 'rats'"
+               [src]="item.id === 'rats' ? '/assets/images/players/pack_rat.webp' : '/assets/images/items.webp'"
                [alt]="item.name"
-               [style.object-position]="-item.offsetX() + 'px ' + -item.offsetY + 'px'">
+               [style.--ap-object-position]="-item.offsetX() + 'px ' + -item.offsetY + 'px'">
+          @if (item.id === 'rats') {
+            <span class="rat-count-corner">{{ ratCount() }}</span>
+          }
         </div>
       }
     </div>
@@ -43,7 +47,35 @@ import { RequestHint } from './request-hint';
       <div class="tooltip">
         <h1 class="box header">{{item.name}}</h1>
         <div class="box flavor-text" [hidden]="!item.flavorText">“{{item.flavorText}}”</div>
-        @if (hintForTooltipItem(); as hint) {
+        @if (item.id === 'rats') {
+          @if (ratHints().size > 0) {
+            <div class="box hint rat-hint">
+              Hints:
+              <ul>
+                @for (hint of ratHints(); track $index) {
+                  <li>
+                    <span class="item-text" [class.progression]="hint.item.progression" [class.filler]="hint.item.filler"
+                          [class.useful]="hint.item.useful" [class.trap]="hint.item.trap">
+                      {{ hint.item.name }}
+                    </span>
+                    at
+                    <span class="location-text">{{ hint.item.locationName }}</span>
+                    in
+                    <span class="player-text" [class.own-player-text]="isSelf(hint.item.sender)">{{ hint.item.sender }}</span>'s world (<span
+                      class="hint-text"
+                      [class.unspecified]="hint.status === HINT_STATUS_UNSPECIFIED"
+                      [class.no-priority]="hint.status === HINT_STATUS_NO_PRIORITY"
+                      [class.avoid]="hint.status === HINT_STATUS_AVOID"
+                      [class.priority]="hint.status === HINT_STATUS_PRIORITY"
+                      [class.found]="hint.status === HINT_STATUS_FOUND"
+                    >{{ statusText(hint) }}</span>).
+                  </li>
+                }
+              </ul>
+            </div>
+          }
+        }
+        @else if (hintForTooltipItem(); as hint) {
           <div class="box hint">
             At
             <span class="location-text">{{ hint.item.locationName }}</span>
@@ -55,7 +87,7 @@ import { RequestHint } from './request-hint';
               [class.avoid]="hint.status === HINT_STATUS_AVOID"
               [class.priority]="hint.status === HINT_STATUS_PRIORITY"
               [class.found]="hint.status === HINT_STATUS_FOUND"
-            >{{ hintStatusText() }}</span>).
+            >{{ statusText(hint) }}</span>).
           </div>
         }
       </div>
@@ -71,6 +103,7 @@ import { RequestHint } from './request-hint';
     .item-container {
       margin: 5px;
       padding: 5px;
+      display: inline-grid;
 
       border: 2px solid black;
       border-radius: 8px;
@@ -81,9 +114,21 @@ import { RequestHint } from './request-hint';
     }
 
     .item {
-      object-fit: none;
+      grid-row: 1;
+      grid-column: 1;
       width: 64px;
       height: 64px;
+      &:not(.rats) {
+        object-fit: none;
+        object-position: var(--ap-object-position);
+      }
+    }
+
+    .rat-count-corner {
+      grid-row: 1;
+      grid-column: 1;
+      align-self: end;
+      justify-self: end;
     }
 
     .box {
@@ -113,6 +158,10 @@ import { RequestHint } from './request-hint';
       .hint {
         font-size: 8pt;
       }
+
+      .rat-hint {
+        white-space: nowrap;
+      }
     }
   `,
 })
@@ -121,6 +170,7 @@ export class ProgressionItemStatus {
   readonly #dialog = inject(Dialog);
   readonly #gameStore = inject(GameStore);
   readonly #performanceInsensitiveAnimatableState = inject(PerformanceInsensitiveAnimatableState);
+  protected readonly ratCount = this.#performanceInsensitiveAnimatableState.ratCount.asReadonly();
   protected readonly items: Signal<readonly ItemModel[]>;
   readonly #tooltipOrigin = signal<CurrentTooltipOriginProps | null>(null);
   protected readonly tooltipOrigin = this.#tooltipOrigin.asReadonly();
@@ -128,10 +178,11 @@ export class ProgressionItemStatus {
   // without having to sit through the whole delay.
   protected readonly tooltipContext = createEmptyTooltipContext();
   readonly #hintedItems = computed(() => this.#gameStore.game()?.hintedItems() ?? List(Repeat(null, BAKED_DEFINITIONS_FULL.allItems.length)));
+  protected readonly ratHints = computed(() => this.#gameStore.game()?.ratHints() ?? List<Hint>());
   protected readonly hintForTooltipItem = computed(() => {
     const item = this.tooltipOrigin()?.item ?? null;
     const hintedItems = [...this.#hintedItems()];
-    return item === null
+    return item === null || item === 'rats'
       ? null
       : hintedItems[item] ?? null;
   });
@@ -141,27 +192,24 @@ export class ProgressionItemStatus {
   protected readonly HINT_STATUS_AVOID: Hint['status'] = 20;
   protected readonly HINT_STATUS_PRIORITY: Hint['status'] = 30;
   protected readonly HINT_STATUS_FOUND: Hint['status'] = 40;
-  protected readonly hintStatusText = computed(() => {
-    // https://github.com/ArchipelagoMW/Archipelago/blob/0.6.5/kvui.py#L1195-L1201
-    switch (this.hintForTooltipItem()?.status) {
-      case this.HINT_STATUS_FOUND: return 'Found';
-      case this.HINT_STATUS_UNSPECIFIED: return 'Unspecified';
-      case this.HINT_STATUS_NO_PRIORITY: return 'No Priority';
-      case this.HINT_STATUS_AVOID: return 'Avoid';
-      case this.HINT_STATUS_PRIORITY: return 'Priority';
-      default: return null;
-    }
-  });
 
   constructor() {
     this.items = computed(() => {
       const victoryLocationYamlKey = this.#gameStore.victoryLocationYamlKey();
       const lactoseIntolerant = this.#gameStore.lactoseIntolerant();
-      return PROGRESSION_ITEMS_BY_VICTORY_LOCATION[victoryLocationYamlKey].map((itemYamlKey, index) => {
+      return [{
+        index: 0,
+        id: 'rats',
+        collected: computed(() => this.ratCount() > 0),
+        name: 'Rats',
+        flavorText: null,
+        offsetX: computed(() => 0),
+        offsetY: BAKED_DEFINITIONS_FULL.progressionItemsByYamlKey.size * 65,
+      }, ...PROGRESSION_ITEMS_BY_VICTORY_LOCATION[victoryLocationYamlKey].map((itemYamlKey, index) => {
         const item = BAKED_DEFINITIONS_FULL.progressionItemsByYamlKey.get(itemYamlKey) ?? -1;
         const collected = computed(() => this.#performanceInsensitiveAnimatableState.receivedItemCountLookup()[item] > 0);
         return {
-          index,
+          index: index + 1,
           id: item,
           name: lactoseIntolerant
             ? BAKED_DEFINITIONS_FULL.allItems[item].lactoseIntolerantName
@@ -171,11 +219,11 @@ export class ProgressionItemStatus {
           offsetX: computed(() => collected() ? 0 : 65),
           offsetY: index * 65,
         };
-      });
+      })];
     });
   }
 
-  protected setTooltipOrigin(index: number, item: number, props: TooltipOriginProps | null, fromDirective: boolean) {
+  protected setTooltipOrigin(index: number, item: number | 'rats', props: TooltipOriginProps | null, fromDirective: boolean) {
     this.#tooltipOrigin.update((prev) => {
       if (prev !== null && !fromDirective) {
         prev.notifyDetached();
@@ -220,11 +268,23 @@ export class ProgressionItemStatus {
     const { team, slot } = game.client.players.self;
     return player.team === team && player.slot === slot;
   }
+
+  protected statusText(hint: Hint) {
+    // https://github.com/ArchipelagoMW/Archipelago/blob/0.6.5/kvui.py#L1195-L1201
+    switch (hint.status) {
+      case this.HINT_STATUS_FOUND: return 'Found';
+      case this.HINT_STATUS_UNSPECIFIED: return 'Unspecified';
+      case this.HINT_STATUS_NO_PRIORITY: return 'No Priority';
+      case this.HINT_STATUS_AVOID: return 'Avoid';
+      case this.HINT_STATUS_PRIORITY: return 'Priority';
+      default: return null;
+    }
+  }
 }
 
 interface ItemModel {
   index: number;
-  id: number;
+  id: number | 'rats';
   name: string;
   flavorText: string | null;
   collected: Signal<boolean>;
@@ -234,7 +294,7 @@ interface ItemModel {
 
 interface CurrentTooltipOriginProps {
   index: number;
-  item: number;
+  item: number | 'rats';
   element: HTMLElement;
   notifyDetached: () => void;
 }
