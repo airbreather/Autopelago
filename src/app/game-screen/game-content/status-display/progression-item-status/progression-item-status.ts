@@ -43,54 +43,60 @@ import { RequestHint } from './request-hint';
       [cdkConnectedOverlayOpen]="tooltipOrigin() !== null"
       [cdkConnectedOverlayUsePopover]="'inline'"
       (detach)="setTooltipOrigin(0, 0, null, false)">
-      @let item = items()[tooltipOrigin()!.index];
-      <div class="tooltip">
-        <h1 class="box header">{{item.name}}</h1>
-        <div class="box flavor-text" [hidden]="!item.flavorText">“{{item.flavorText}}”</div>
-        @if (item.id === 'rats') {
-          @if (ratHints().size > 0) {
-            <div class="box hint rat-hint">
-              Hints:
-              <ul>
-                @for (hint of ratHints(); track $index) {
-                  <li>
-                    <span class="item-text" [class.progression]="hint.item.progression" [class.filler]="hint.item.filler"
-                          [class.useful]="hint.item.useful" [class.trap]="hint.item.trap">
-                      {{ hint.item.name }}
-                    </span>
-                    at
-                    <span class="location-text">{{ hint.item.locationName }}</span>
-                    in
-                    <span class="player-text" [class.own-player-text]="isSelf(hint.item.sender)">{{ hint.item.sender }}</span>'s world (<span
-                      class="hint-text"
-                      [class.unspecified]="hint.status === HINT_STATUS_UNSPECIFIED"
-                      [class.no-priority]="hint.status === HINT_STATUS_NO_PRIORITY"
-                      [class.avoid]="hint.status === HINT_STATUS_AVOID"
-                      [class.priority]="hint.status === HINT_STATUS_PRIORITY"
-                      [class.found]="hint.status === HINT_STATUS_FOUND"
-                    >{{ statusText(hint) }}</span>).
-                  </li>
-                }
-              </ul>
+      @if (tooltipOrigin(); as origin) {
+        @let item = items()[origin.index];
+        <div
+          class="tooltip"
+          (mouseenter)="tooltipContext.notifyMouseEnterTooltip(origin.uid)"
+          (mouseleave)="tooltipContext.notifyMouseLeaveTooltip(origin.uid)"
+        >
+          <h1 class="box header">{{item.name}}</h1>
+          <div class="box flavor-text" [hidden]="!item.flavorText">“{{item.flavorText}}”</div>
+          @if (item.id === 'rats') {
+            @if (ratHints().size > 0) {
+              <div class="box hint rat-hint">
+                Hints:
+                <ul>
+                  @for (hint of ratHints(); track $index) {
+                    <li>
+                      <span class="item-text" [class.progression]="hint.item.progression" [class.filler]="hint.item.filler"
+                            [class.useful]="hint.item.useful" [class.trap]="hint.item.trap">
+                        {{ hint.item.name }}
+                      </span>
+                      at
+                      <span class="location-text">{{ hint.item.locationName }}</span>
+                      in
+                      <span class="player-text" [class.own-player-text]="isSelf(hint.item.sender)">{{ hint.item.sender }}</span>'s world (<span
+                        class="hint-text"
+                        [class.unspecified]="hint.status === HINT_STATUS_UNSPECIFIED"
+                        [class.no-priority]="hint.status === HINT_STATUS_NO_PRIORITY"
+                        [class.avoid]="hint.status === HINT_STATUS_AVOID"
+                        [class.priority]="hint.status === HINT_STATUS_PRIORITY"
+                        [class.found]="hint.status === HINT_STATUS_FOUND"
+                      >{{ statusText(hint) }}</span>).
+                    </li>
+                  }
+                </ul>
+              </div>
+            }
+          }
+          @else if (hintForTooltipItem(); as hint) {
+            <div class="box hint">
+              At
+              <span class="location-text">{{ hint.item.locationName }}</span>
+              in
+              <span class="player-text" [class.own-player-text]="isSelf(hint.item.sender)">{{ hint.item.sender }}</span>'s world (<span
+                class="hint-text"
+                [class.unspecified]="hint.status === HINT_STATUS_UNSPECIFIED"
+                [class.no-priority]="hint.status === HINT_STATUS_NO_PRIORITY"
+                [class.avoid]="hint.status === HINT_STATUS_AVOID"
+                [class.priority]="hint.status === HINT_STATUS_PRIORITY"
+                [class.found]="hint.status === HINT_STATUS_FOUND"
+              >{{ statusText(hint) }}</span>).
             </div>
           }
-        }
-        @else if (hintForTooltipItem(); as hint) {
-          <div class="box hint">
-            At
-            <span class="location-text">{{ hint.item.locationName }}</span>
-            in
-            <span class="player-text" [class.own-player-text]="isSelf(hint.item.sender)">{{ hint.item.sender }}</span>'s world (<span
-              class="hint-text"
-              [class.unspecified]="hint.status === HINT_STATUS_UNSPECIFIED"
-              [class.no-priority]="hint.status === HINT_STATUS_NO_PRIORITY"
-              [class.avoid]="hint.status === HINT_STATUS_AVOID"
-              [class.priority]="hint.status === HINT_STATUS_PRIORITY"
-              [class.found]="hint.status === HINT_STATUS_FOUND"
-            >{{ statusText(hint) }}</span>).
-          </div>
-        }
-      </div>
+        </div>
+      }
     </ng-template>
   `,
   styles: `
@@ -143,6 +149,7 @@ import { RequestHint } from './request-hint';
       gap: 10px;
       padding: 4px;
       background-color: theme.$region-color;
+      pointer-events: initial;
 
       .header {
         margin: 0;
@@ -293,6 +300,7 @@ interface ItemModel {
 }
 
 interface CurrentTooltipOriginProps {
+  uid: symbol;
   index: number;
   item: number | 'rats';
   element: HTMLElement;
