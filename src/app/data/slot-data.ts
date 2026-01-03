@@ -18,6 +18,7 @@ export interface AutopelagoClientAndData {
   locationIsTrap: Readonly<BitArray>;
   messageLog: Signal<List<Message>>;
   hintedLocations: Signal<List<Hint | null>>;
+  hintedItems: Signal<List<Hint | null>>;
   slotData: AutopelagoSlotData;
   storedData: AutopelagoStoredData;
   storedDataKey: string;

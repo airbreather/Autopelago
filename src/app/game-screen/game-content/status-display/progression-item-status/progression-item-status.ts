@@ -1,6 +1,8 @@
+import { Hint, Player } from '@airbreather/archipelago.js';
 import { Dialog } from '@angular/cdk/dialog';
 import { CdkConnectedOverlay, createFlexibleConnectedPositionStrategy } from '@angular/cdk/overlay';
 import { ChangeDetectionStrategy, Component, computed, inject, Injector, signal, type Signal } from '@angular/core';
+import { List, Repeat } from 'immutable';
 import { PROGRESSION_ITEMS_BY_VICTORY_LOCATION } from '../../../../data/items';
 import { BAKED_DEFINITIONS_FULL } from '../../../../data/resolved-definitions';
 import { GameStore } from '../../../../store/autopelago-store';
@@ -22,7 +24,7 @@ import { RequestHint } from './request-hint';
         <div #thisContainer class="item-container" [class.collected]="item.collected()"
              [tabindex]="$index + 500" (click)="onClickItem(item, thisContainer)"
              (keyup.enter)="onClickItem(item, thisContainer)" (keyup.space)="onClickItem(item, thisContainer)"
-             appTooltip [tooltipContext]="tooltipContext" (tooltipOriginChange)="setTooltipOrigin($index, $event, true)">
+             appTooltip [tooltipContext]="tooltipContext" (tooltipOriginChange)="setTooltipOrigin($index, item.id, $event, true)">
           <!--suppress AngularNgOptimizedImage -->
           <img class="item"
                src="/assets/images/items.webp"
@@ -36,11 +38,26 @@ import { RequestHint } from './request-hint';
       [cdkConnectedOverlayOrigin]="tooltipOrigin()?.element ?? outer"
       [cdkConnectedOverlayOpen]="tooltipOrigin() !== null"
       [cdkConnectedOverlayUsePopover]="'inline'"
-      (detach)="setTooltipOrigin(0, null, false)">
-      @let item = items()[tooltipOrigin()!.item];
-      <div class="box tooltip">
-        <h1 class="header">{{item.name}}</h1>
-        <div class="flavor-text" [hidden]="!item.flavorText">“{{item.flavorText}}”</div>
+      (detach)="setTooltipOrigin(0, 0, null, false)">
+      @let item = items()[tooltipOrigin()!.index];
+      <div class="tooltip">
+        <h1 class="box header">{{item.name}}</h1>
+        <div class="box flavor-text" [hidden]="!item.flavorText">“{{item.flavorText}}”</div>
+        @if (hintForTooltipItem(); as hint) {
+          <div class="box hint">
+            At
+            <span class="location-text">{{ hint.item.locationName }}</span>
+            in
+            <span class="player-text" [class.own-player-text]="isSelf(hint.item.sender)">{{ hint.item.sender }}</span>'s world (<span
+              class="hint-text"
+              [class.unspecified]="hint.status === HINT_STATUS_UNSPECIFIED"
+              [class.no-priority]="hint.status === HINT_STATUS_NO_PRIORITY"
+              [class.avoid]="hint.status === HINT_STATUS_AVOID"
+              [class.priority]="hint.status === HINT_STATUS_PRIORITY"
+              [class.found]="hint.status === HINT_STATUS_FOUND"
+            >{{ hintStatusText() }}</span>).
+          </div>
+        }
       </div>
     </ng-template>
   `,
@@ -76,20 +93,25 @@ import { RequestHint } from './request-hint';
 
     .tooltip {
       display: grid;
-      grid-template-columns: max-content;
+      grid-template-columns: min-content;
       grid-auto-rows: auto;
       gap: 10px;
+      padding: 4px;
       background-color: theme.$region-color;
 
       .header {
         margin: 0;
         font-size: 14pt;
+        min-width: 300px;
         white-space: nowrap;
       }
 
       .flavor-text {
         font-size: 8pt;
-        max-width: 430px;
+      }
+
+      .hint {
+        font-size: 8pt;
       }
     }
   `,
@@ -105,6 +127,31 @@ export class ProgressionItemStatus {
   // all tooltips here should use the same context, so that the user can quickly switch between them
   // without having to sit through the whole delay.
   protected readonly tooltipContext = createEmptyTooltipContext();
+  readonly #hintedItems = computed(() => this.#gameStore.game()?.hintedItems() ?? List(Repeat(null, BAKED_DEFINITIONS_FULL.allItems.length)));
+  protected readonly hintForTooltipItem = computed(() => {
+    const item = this.tooltipOrigin()?.item ?? null;
+    const hintedItems = [...this.#hintedItems()];
+    return item === null
+      ? null
+      : hintedItems[item] ?? null;
+  });
+
+  protected readonly HINT_STATUS_UNSPECIFIED: Hint['status'] = 0;
+  protected readonly HINT_STATUS_NO_PRIORITY: Hint['status'] = 10;
+  protected readonly HINT_STATUS_AVOID: Hint['status'] = 20;
+  protected readonly HINT_STATUS_PRIORITY: Hint['status'] = 30;
+  protected readonly HINT_STATUS_FOUND: Hint['status'] = 40;
+  protected readonly hintStatusText = computed(() => {
+    // https://github.com/ArchipelagoMW/Archipelago/blob/0.6.5/kvui.py#L1195-L1201
+    switch (this.hintForTooltipItem()?.status) {
+      case this.HINT_STATUS_FOUND: return 'Found';
+      case this.HINT_STATUS_UNSPECIFIED: return 'Unspecified';
+      case this.HINT_STATUS_NO_PRIORITY: return 'No Priority';
+      case this.HINT_STATUS_AVOID: return 'Avoid';
+      case this.HINT_STATUS_PRIORITY: return 'Priority';
+      default: return null;
+    }
+  });
 
   constructor() {
     this.items = computed(() => {
@@ -114,6 +161,8 @@ export class ProgressionItemStatus {
         const item = BAKED_DEFINITIONS_FULL.progressionItemsByYamlKey.get(itemYamlKey) ?? -1;
         const collected = computed(() => this.#performanceInsensitiveAnimatableState.receivedItemCountLookup()[item] > 0);
         return {
+          index,
+          id: item,
           name: lactoseIntolerant
             ? BAKED_DEFINITIONS_FULL.allItems[item].lactoseIntolerantName
             : BAKED_DEFINITIONS_FULL.allItems[item].lactoseName,
@@ -126,14 +175,14 @@ export class ProgressionItemStatus {
     });
   }
 
-  protected setTooltipOrigin(item: number, props: TooltipOriginProps | null, fromDirective: boolean) {
+  protected setTooltipOrigin(index: number, item: number, props: TooltipOriginProps | null, fromDirective: boolean) {
     this.#tooltipOrigin.update((prev) => {
       if (prev !== null && !fromDirective) {
         prev.notifyDetached();
       }
       return props === null
         ? null
-        : { item, ...props };
+        : { index, item, ...props };
     });
   }
 
@@ -161,9 +210,21 @@ export class ProgressionItemStatus {
         }
       });
   }
+
+  protected isSelf(player: Player) {
+    const game = this.#gameStore.game();
+    if (game === null) {
+      return false;
+    }
+
+    const { team, slot } = game.client.players.self;
+    return player.team === team && player.slot === slot;
+  }
 }
 
 interface ItemModel {
+  index: number;
+  id: number;
   name: string;
   flavorText: string | null;
   collected: Signal<boolean>;
@@ -172,6 +233,7 @@ interface ItemModel {
 }
 
 interface CurrentTooltipOriginProps {
+  index: number;
   item: number;
   element: HTMLElement;
   notifyDetached: () => void;

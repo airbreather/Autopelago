@@ -3,7 +3,11 @@ import { computed, type DestroyRef, signal, type Signal } from '@angular/core';
 import BitArray from '@bitarray/typedarray';
 import { List, Repeat } from 'immutable';
 import type { ConnectScreenState } from './connect-screen/connect-screen-state';
-import { BAKED_DEFINITIONS_BY_VICTORY_LANDMARK, VICTORY_LOCATION_NAME_LOOKUP } from './data/resolved-definitions';
+import {
+  type AutopelagoItem,
+  BAKED_DEFINITIONS_BY_VICTORY_LANDMARK,
+  VICTORY_LOCATION_NAME_LOOKUP,
+} from './data/resolved-definitions';
 import type {
   AutopelagoClientAndData,
   AutopelagoSlotData,
@@ -159,6 +163,27 @@ export async function initializeClient(initializeClientOptions: InitializeClient
     }
   }));
 
+  const itemName = (i: AutopelagoItem) => {
+    return slotData.lactose_intolerant
+      ? i.lactoseIntolerantName
+      : i.lactoseName;
+  };
+  const itemNetworkNameLookup = pkg.itemTable;
+  const itemNetworkIdToItem: Partial<Record<number, number>> = { };
+  for (const item of defs.progressionItemsByYamlKey.values()) {
+    itemNetworkIdToItem[itemNetworkNameLookup[itemName(defs.allItems[item])]] = item;
+  }
+
+  let prevHintedItems = List<Hint | null>(Repeat(null, defs.allItems.length));
+  const hintedItems = computed(() => prevHintedItems = prevHintedItems.withMutations((hi) => {
+    const { team: myTeam, slot: mySlot } = client.players.self;
+    for (const hint of reactiveHints()) {
+      if (hint.item.id in itemNetworkIdToItem && hint.item.receiver.slot === mySlot && hint.item.receiver.team === myTeam) {
+        hi.set(itemNetworkIdToItem[hint.item.id] ?? NaN, hint);
+      }
+    }
+  }));
+
   return {
     connectScreenState,
     client,
@@ -166,6 +191,7 @@ export async function initializeClient(initializeClientOptions: InitializeClient
     messageLog,
     slotData,
     hintedLocations,
+    hintedItems,
     locationIsProgression,
     locationIsTrap,
     storedData,
