@@ -46,7 +46,7 @@ import { RequestHint } from './request-hint';
         @if (hintForTooltipItem(); as hint) {
           <div class="box hint">
             At
-            <span class="player-text">{{ hint.item.locationName }}</span>
+            <span class="location-text">{{ hint.item.locationName }}</span>
             in
             <span class="player-text" [class.own-player-text]="isSelf(hint.item.sender)">{{ hint.item.sender }}</span>'s world (<span
             class="hint-text"
