@@ -49,13 +49,13 @@ import { RequestHint } from './request-hint';
             <span class="location-text">{{ hint.item.locationName }}</span>
             in
             <span class="player-text" [class.own-player-text]="isSelf(hint.item.sender)">{{ hint.item.sender }}</span>'s world (<span
-            class="hint-text"
-            [class.unspecified]="hint.status === HINT_STATUS_UNSPECIFIED"
-            [class.no-priority]="hint.status === HINT_STATUS_NO_PRIORITY"
-            [class.avoid]="hint.status === HINT_STATUS_AVOID"
-            [class.priority]="hint.status === HINT_STATUS_PRIORITY"
-            [class.found]="hint.status === HINT_STATUS_FOUND"
-          >{{ hintStatusText() }}</span>).
+              class="hint-text"
+              [class.unspecified]="hint.status === HINT_STATUS_UNSPECIFIED"
+              [class.no-priority]="hint.status === HINT_STATUS_NO_PRIORITY"
+              [class.avoid]="hint.status === HINT_STATUS_AVOID"
+              [class.priority]="hint.status === HINT_STATUS_PRIORITY"
+              [class.found]="hint.status === HINT_STATUS_FOUND"
+            >{{ hintStatusText() }}</span>).
           </div>
         }
       </div>
