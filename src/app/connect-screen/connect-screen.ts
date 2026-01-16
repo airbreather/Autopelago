@@ -13,7 +13,7 @@ import {
   viewChild,
 } from '@angular/core';
 
-import { disabled, Field, form, max, min, required } from '@angular/forms/signals';
+import { disabled, form, FormField, max, min, required } from '@angular/forms/signals';
 import { Title } from '@angular/platform-browser';
 import { Router } from '@angular/router';
 import { TinyColor } from '@ctrl/tinycolor';
@@ -42,7 +42,7 @@ const STORAGE_KEY = 'autopelago-connect-screen-state';
   selector: 'app-connect-screen',
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [
-    Field,
+    FormField,
   ],
   template: `
     <img #player1Image alt="player1Image" src="/assets/images/players/pack_rat.webp" hidden>
@@ -54,7 +54,7 @@ const STORAGE_KEY = 'autopelago-connect-screen-state';
         <div class="slot-and-personalize">
           <input id="slot"
                  type="text"
-                 [field]="form.slot"/>
+                 [formField]="form.slot"/>
           <div class="spinner-and-button">
             <div class="spinner" [hidden]="loadedInitialImages()"></div>
             <button id="personalize"
@@ -71,59 +71,59 @@ const STORAGE_KEY = 'autopelago-connect-screen-state';
         <input #hostTextBox
                id="host"
                type="text"
-               [field]="form.host"/>
+               [formField]="form.host"/>
         <label for="port">Port:</label>
         <input id="port"
                type="number"
-               [field]="form.port"/>
+               [formField]="form.port"/>
         <label for="password">Password:</label>
         <input id="password"
                type="password"
-               [field]="form.password"/>
+               [formField]="form.password"/>
         <fieldset class="inputs" [style.grid-column]="'span 2'">
           <legend>Time Between Steps (sec.)</legend>
           <label for="minTimeSeconds">Minimum:</label>
           <input id="minTimeSeconds"
                  type="number"
                  step="any"
-                 [field]="form.minTimeSeconds"/>
+                 [formField]="form.minTimeSeconds"/>
           <label for="maxTimeSeconds">Maximum:</label>
           <input id="maxTimeSeconds"
                  type="number"
                  step="any"
-                 [field]="form.maxTimeSeconds"/>
+                 [formField]="form.maxTimeSeconds"/>
         </fieldset>
       </div>
       <div class="inputs">
         <input id="enableTileAnimations"
                type="checkbox"
-               [field]="form.enableTileAnimations"/>
+               [formField]="form.enableTileAnimations"/>
         <label for="enableTileAnimations">Enable tile animations</label>
 
         <input id="enableRatAnimations"
                type="checkbox"
-               [field]="form.enableRatAnimations"/>
+               [formField]="form.enableRatAnimations"/>
         <label for="enableRatAnimations">Enable rat animations</label>
 
         <input id="sendChatMessages"
                type="checkbox"
-               [field]="form.sendChatMessages"/>
+               [formField]="form.sendChatMessages"/>
         <label for="sendChatMessages">Send chat messages...</label>
       </div>
       <div class="inputs indent-chat-message-details">
         <input id="whenTargetChanges"
                type="checkbox"
-               [field]="form.whenTargetChanges"/>
+               [formField]="form.whenTargetChanges"/>
         <label for="whenTargetChanges">when target changes</label>
 
         <input id="whenBecomingBlocked"
                type="checkbox"
-               [field]="form.whenBecomingBlocked"/>
+               [formField]="form.whenBecomingBlocked"/>
         <label for="whenBecomingBlocked">when becoming blocked</label>
 
         <input id="whenStillBlocked"
                type="checkbox"
-               [field]="form.whenStillBlocked"/>
+               [formField]="form.whenStillBlocked"/>
         <label for="whenStillBlocked">when STILL blocked</label>
 
         <div class="indent-report-interval">
@@ -131,18 +131,18 @@ const STORAGE_KEY = 'autopelago-connect-screen-state';
           <input id="whenStillBlockedIntervalMinutes"
                  class="short-number"
                  type="number"
-                 [field]="form.whenStillBlockedIntervalMinutes"/>
+                 [formField]="form.whenStillBlockedIntervalMinutes"/>
           <label for="whenStillBlockedIntervalMinutes"> minutes</label>
         </div>
 
         <input id="whenBecomingUnblocked"
                type="checkbox"
-               [field]="form.whenBecomingUnblocked"/>
+               [formField]="form.whenBecomingUnblocked"/>
         <label for="whenBecomingUnblocked">when becoming unblocked</label>
 
         <input id="forOneTimeEvents"
                type="checkbox"
-               [field]="form.forOneTimeEvents"/>
+               [formField]="form.forOneTimeEvents"/>
         <label for="forOneTimeEvents">for one-time events</label>
       </div>
       <input class="submit-button"
