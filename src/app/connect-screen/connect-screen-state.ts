@@ -118,6 +118,7 @@ export function queryParamsFromConnectScreenState(s: Readonly<ConnectScreenState
     [QUERY_PARAM_NAME_MAP.whenBecomingUnblocked]: s.whenBecomingUnblocked ? 1 : 0,
     [QUERY_PARAM_NAME_MAP.forOneTimeEvents]: s.forOneTimeEvents ? 1 : 0,
     [QUERY_PARAM_NAME_MAP.playerIcon]: s.playerIcon,
+    // eslint-disable-next-line @typescript-eslint/no-base-to-string -- handle after release
     [QUERY_PARAM_NAME_MAP.playerColor]: typeof s.playerColor === 'string' ? s.playerColor : new TinyColor(s.playerColor).toString(),
   };
 }
