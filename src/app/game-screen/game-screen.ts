@@ -33,11 +33,10 @@ import { GameContent } from './game-content/game-content';
   template: `
     <div #outer class="outer">
       @if (gameOrNullIfLoading(); as loadedGame) {
-        <app-game-content [game]="loadedGame" />
-      }
-      @else {
-        <div class="disconnected">
-          <h1>{{connectingMessage()}}</h1>
+        <app-game-content [game]="loadedGame"/>
+      } @else {
+        <div class="not-connected">
+          <h1>{{ notConnectedMessage() }}</h1>
           <button class="return-button" routerLink="/">Back to Main Menu</button>
         </div>
       }
@@ -49,7 +48,7 @@ import { GameContent } from './game-content/game-content';
       height: 100vh;
     }
 
-    .disconnected {
+    .not-connected {
       width: 100%;
       height: 100%;
       display: flex;
@@ -63,8 +62,14 @@ export class GameScreen {
   readonly #destroyRef = inject(DestroyRef);
   readonly #toast = inject(ToastrService);
   #activeToast: ActiveToast<unknown> | null = null;
+  #wasEverConnected = signal(false);
   readonly connectScreenState = input.required<ConnectScreenState>();
-  protected readonly connectingMessage = signal('Connecting...');
+  protected readonly notConnectedMessage = computed(() =>
+    this.#wasEverConnected()
+      ? 'Disconnected from server.'
+      : 'Connecting...',
+  );
+
   protected readonly game = resource({
     params: () => ({
       connectScreenState: this.connectScreenState(),
@@ -117,7 +122,7 @@ export class GameScreen {
       }
     });
     effect(() => {
-      if (this.game.isLoading()) {
+      if (this.#wasEverConnected() || this.game.isLoading()) {
         return;
       }
 
@@ -127,6 +132,7 @@ export class GameScreen {
           prevTimeout = NaN;
           nextTimeoutDuration = 500;
         }
+        this.#wasEverConnected.set(true);
         return;
       }
 
@@ -139,11 +145,9 @@ export class GameScreen {
         return;
       }
 
-      this.connectingMessage.set('Disconnected! Trying to reconnect...');
       const { client } = game;
       client.socket.on('disconnected', () => {
         this.game.value.set(undefined);
-        this.game.reload();
       });
     });
   }
