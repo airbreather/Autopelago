@@ -1,5 +1,5 @@
 import { CdkOverlayOrigin } from '@angular/cdk/overlay';
-import { Directive, ElementRef, inject, input, output } from '@angular/core';
+import { Directive, effect, ElementRef, inject, input, output } from '@angular/core';
 
 @Directive({
   selector: '[appTooltip]',
@@ -14,12 +14,31 @@ import { Directive, ElementRef, inject, input, output } from '@angular/core';
   ],
 })
 export class TooltipBehavior {
+  readonly #uid = Symbol();
   readonly #el = inject<ElementRef<HTMLElement>>(ElementRef);
 
   readonly tooltipContext = input<TooltipContext>(createEmptyTooltipContext());
   readonly tooltipOriginChange = output<TooltipOriginProps | null>();
 
   readonly delay = input(400);
+
+  constructor() {
+    const enter = () => {
+      this.onFocus(false);
+    };
+    const leave = () => {
+      this.onBlur(false);
+    };
+    effect((onCleanup) => {
+      const ctx = this.tooltipContext();
+      ctx._notifyMouseEnterTooltipCallbacks.set(this.#uid, enter);
+      ctx._notifyMouseLeaveTooltipCallbacks.set(this.#uid, leave);
+      onCleanup(() => {
+        ctx._notifyMouseEnterTooltipCallbacks.delete(this.#uid);
+        ctx._notifyMouseLeaveTooltipCallbacks.delete(this.#uid);
+      });
+    });
+  }
 
   protected onFocus(fromFocus: boolean) {
     const ctx = this.tooltipContext();
@@ -108,6 +127,7 @@ export class TooltipBehavior {
     ctx._tooltipIsOpenBecauseOfFocus = fromFocus ? this : null;
     ctx._tooltipIsOpenBecauseOfMouse = !fromFocus;
     this.tooltipOriginChange.emit({
+      uid: this.#uid,
       element: this.#el.nativeElement,
       notifyDetached: this.#detachTooltip,
     });
@@ -121,11 +141,21 @@ export class TooltipBehavior {
 }
 
 export function createEmptyTooltipContext(): TooltipContext {
+  const _notifyMouseEnterTooltipCallbacks = new Map<symbol, (this: void) => void>();
+  const _notifyMouseLeaveTooltipCallbacks = new Map<symbol, (this: void) => void>();
   return {
     _prevFocusTimeout: NaN,
     _prevBlurTimeout: NaN,
     _tooltipIsOpenBecauseOfFocus: null,
     _tooltipIsOpenBecauseOfMouse: false,
+    _notifyMouseEnterTooltipCallbacks,
+    _notifyMouseLeaveTooltipCallbacks,
+    notifyMouseEnterTooltip(uid: symbol) {
+      _notifyMouseEnterTooltipCallbacks.get(uid)?.();
+    },
+    notifyMouseLeaveTooltip(uid: symbol) {
+      _notifyMouseLeaveTooltipCallbacks.get(uid)?.();
+    },
   };
 }
 
@@ -134,9 +164,14 @@ export interface TooltipContext {
   _prevBlurTimeout: number;
   _tooltipIsOpenBecauseOfFocus: TooltipBehavior | null;
   _tooltipIsOpenBecauseOfMouse: boolean;
+  _notifyMouseEnterTooltipCallbacks: Map<symbol, (this: void) => void>;
+  _notifyMouseLeaveTooltipCallbacks: Map<symbol, (this: void) => void>;
+  notifyMouseEnterTooltip(uid: symbol): void;
+  notifyMouseLeaveTooltip(uid: symbol): void;
 }
 
 export interface TooltipOriginProps {
+  uid: symbol;
   element: HTMLElement;
   notifyDetached: () => void;
 }

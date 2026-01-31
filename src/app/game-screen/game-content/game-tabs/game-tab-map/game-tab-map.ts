@@ -129,10 +129,17 @@ import { watchAnimations } from './watch-animations';
       [cdkConnectedOverlayScrollStrategy]="tooltipScrollStrategy()">
       @if (tooltipOrigin(); as origin) {
         @if (origin.location; as location) {
-          <app-location-tooltip [locationKey]="location" />
+          <app-location-tooltip
+            [locationKey]="location"
+            (mouseenter)="tooltipContext.notifyMouseEnterTooltip(origin.uid)"
+            (mouseleave)="tooltipContext.notifyMouseLeaveTooltip(origin.uid)"
+          />
         }
         @else {
-          <app-player-tooltip />
+          <app-player-tooltip
+            (mouseenter)="tooltipContext.notifyMouseEnterTooltip(origin.uid)"
+            (mouseleave)="tooltipContext.notifyMouseLeaveTooltip(origin.uid)"
+          />
         }
       }
     </ng-template>
@@ -468,6 +475,7 @@ interface LandmarkProps extends LocationProps {
 }
 
 interface CurrentTooltipOriginProps {
+  uid: symbol;
   location: number | null;
   element: HTMLElement;
   notifyDetached: () => void;

@@ -184,6 +184,32 @@ export async function initializeClient(initializeClientOptions: InitializeClient
     }
   }));
 
+  let prevRatHints = List<Hint>();
+  const itemNetworkIdToRatItem: Partial<Record<number, number>> = { };
+  for (const [id, item] of defs.allItems.entries()) {
+    if (item.ratCount === 0) {
+      continue;
+    }
+
+    itemNetworkIdToRatItem[itemNetworkNameLookup[itemName(item)]] = id;
+  }
+  const ratHints = computed(() => prevRatHints = prevRatHints.withMutations((rh) => {
+    const { team: myTeam, slot: mySlot } = client.players.self;
+    let seenCount = 0;
+    for (const hint of reactiveHints()) {
+      if (hint.item.id in itemNetworkIdToRatItem && hint.item.receiver.slot === mySlot && hint.item.receiver.team === myTeam) {
+        if (seenCount < rh.size) {
+          rh.set(seenCount, hint);
+        }
+        else {
+          rh.push(hint);
+        }
+
+        ++seenCount;
+      }
+    }
+  }));
+
   return {
     connectScreenState,
     client,
@@ -192,6 +218,7 @@ export async function initializeClient(initializeClientOptions: InitializeClient
     slotData,
     hintedLocations,
     hintedItems,
+    ratHints,
     locationIsProgression,
     locationIsTrap,
     storedData,
@@ -224,10 +251,12 @@ export type Message =
 function createReactiveHints(client: Client, destroyRef?: DestroyRef): Signal<List<Hint>> {
   const hints = signal(List<Hint>(client.items.hints));
   function onHint(hint: Hint) {
-    hints.update(hints => hints.push(hint));
-  }
-  function onHintUpdated(hint: Hint) {
-    hints.update(hints => hints.update(hints.findIndex(h => h.uniqueKey === hint.uniqueKey), hint, () => hint));
+    hints.update((hints) => {
+      const hintIndex = hints.findIndex(h => h.uniqueKey === hint.uniqueKey);
+      return hintIndex < 0
+        ? hints.push(hint)
+        : hints.set(hintIndex, hint);
+    });
   }
   function onHints(newHints: readonly Hint[]) {
     hints.update(hints => hints.push(...newHints));
@@ -235,13 +264,13 @@ function createReactiveHints(client: Client, destroyRef?: DestroyRef): Signal<Li
   client.items.on('hintsInitialized', onHints);
   client.items.on('hintReceived', onHint);
   client.items.on('hintFound', onHint);
-  client.items.on('hintUpdated', onHintUpdated);
+  client.items.on('hintUpdated', onHint);
   if (destroyRef) {
     destroyRef.onDestroy(() => {
       client.items.off('hintsInitialized', onHints);
       client.items.off('hintReceived', onHint);
       client.items.off('hintFound', onHint);
-      client.items.off('hintUpdated', onHintUpdated);
+      client.items.off('hintUpdated', onHint);
     });
   }
   return hints.asReadonly();
