@@ -6,6 +6,9 @@
   "browserslist": [
     "baseline widely available on 2025-10-20"
   ],
+  "overrides": {
+    "browserslist": "^4.28.1"
+  },
   "scripts": {
     "ng": "ng",
     "bake-data": "yq . AutopelagoDefinitions.yml --output-format json --indent 0 > src/app/data/baked.json",
