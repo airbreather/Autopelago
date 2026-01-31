@@ -57,7 +57,7 @@ import { watchAnimations } from './watch-animations';
           </div>
         }
       </div>
-      <svg class="dashed-path" viewBox="0 0 300 450" preserveAspectRatio="none">
+      <svg #dashedPathSvg class="dashed-path" viewBox="0 0 300 450" preserveAspectRatio="none">
         <path #dashedPath fill="none" stroke="red" stroke-width="1" stroke-dasharray="3 1" d="">
           <animate
             id="animate-stroke-dashoffset"
@@ -352,6 +352,7 @@ export class GameTabMap {
 
   protected readonly outerDiv = viewChild.required<ElementRef<HTMLDivElement>>('outer');
   protected readonly dashedPath = viewChild.required<ElementRef<SVGPathElement>>('dashedPath');
+  protected readonly dashedPathSvg = viewChild.required<ElementRef<SVGSVGElement>>('dashedPathSvg');
   protected readonly overlay = viewChild.required(CdkConnectedOverlay);
   protected readonly fillerSquares = viewChildren<ElementRef<HTMLDivElement>>('fillerSquare');
   protected readonly landmarkContainers = viewChildren<ElementRef<HTMLDivElement>>('landmarkContainer');
@@ -423,6 +424,13 @@ export class GameTabMap {
         });
       });
       initAnimationWatcherEffect.destroy();
+    });
+
+    effect(() => {
+      // #142: the viewbox actually needs to be based on the victory location.
+      const dashedPathSvg = this.dashedPathSvg().nativeElement;
+      const victoryLocationYamlKey = this.#store.victoryLocationYamlKey();
+      dashedPathSvg.setAttribute('viewBox', `0 0 300 ${VICTORY_LOCATION_CROP_LOOKUP[victoryLocationYamlKey].toString()}`);
     });
   }
 
