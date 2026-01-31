@@ -36,7 +36,7 @@ export const GameStore = signalStore(
         return await makePlayerToken(playerIcon, playerColor);
       },
     }),
-  })),
+  }), { errorHandling: 'native' }), // errors are unexpected in cases where ANYTHING can work.
   withMethods(store => ({
     init(game: AutopelagoClientAndData) {
       const { connectScreenState, client, pkg, slotData, storedData, locationIsProgression, locationIsTrap } = game;
