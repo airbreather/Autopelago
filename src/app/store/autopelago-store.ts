@@ -1,8 +1,8 @@
-import type { SayPacket } from '@airbreather/archipelago.js';
+import { type ClientStatus, clientStatuses, type Player, type SayPacket } from '@airbreather/archipelago.js';
 import { withResource } from '@angular-architects/ngrx-toolkit';
-import { effect, resource } from '@angular/core';
+import { computed, effect, resource } from '@angular/core';
 
-import { patchState, signalStore, withHooks, withMethods, withState } from '@ngrx/signals';
+import { patchState, signalStore, withComputed, withHooks, withMethods, withState } from '@ngrx/signals';
 import { List, Set as ImmutableSet } from 'immutable';
 import {
   BAKED_DEFINITIONS_BY_VICTORY_LANDMARK,
@@ -16,6 +16,7 @@ import { toWeighted } from '../utils/weighted-sampler';
 import { withCleverTimer } from './with-clever-timer';
 import { withGameState } from './with-game-state';
 
+const ONLINE_AND_NOT_GOALED_STATUSES = new Set<ClientStatus>([clientStatuses.connected, clientStatuses.ready, clientStatuses.playing]);
 export const GameStore = signalStore(
   withCleverTimer(),
   withGameState(),
@@ -125,6 +126,66 @@ export const GameStore = signalStore(
       });
     },
   })),
+  withComputed((store) => {
+    const bestEffortRandomPlayers = computed(() => {
+      const game = store.game();
+      if (game === null) {
+        return List<Player>();
+      }
+
+      const otherRealPlayers = game.playersWithStatus().filter(p => !p.isSelf && p.player.slot !== 0);
+      if (otherRealPlayers.isEmpty()) {
+        // solo game.
+        return List([game.client.players.self]);
+      }
+
+      // "definitely online" as opposed to those who have goaled so we can't tell the difference.
+      const definitelyOnlinePlayers = otherRealPlayers.filter(p => p.status !== null && ONLINE_AND_NOT_GOALED_STATUSES.has(p.status));
+      return definitelyOnlinePlayers.isEmpty()
+        ? otherRealPlayers.map(p => p.player)
+        : definitelyOnlinePlayers.map(p => p.player);
+    });
+    function _messageTemplate(message: string) {
+      if (!message.includes('{RANDOM_PLAYER}')) {
+        return message;
+      }
+
+      const randomPlayers = bestEffortRandomPlayers();
+      if (randomPlayers.isEmpty()) {
+        // don't spend too long thinking about a good answer here. it's only possible EXTREMELY
+        // early during initialization, and there shouldn't be any reason to call us during those
+        // points anyway, so it really doesn't matter.
+        return message;
+      }
+
+      return message.replaceAll('{RANDOM_PLAYER}', () => {
+        const idx = Math.floor(Math.random() * randomPlayers.size);
+        const otherPlayer = randomPlayers.get(idx);
+        if (!otherPlayer) {
+          throw new Error('list.size is inconsistent with list.get(i). this is a bug in immutable.js');
+        }
+        return otherPlayer.alias;
+      });
+    }
+    function _wrapMessageTemplate<T extends unknown[]>(f: ((...args: T) => string) | null) {
+      return f === null
+        ? null
+        : (...args: T) => _messageTemplate(f(...args));
+    }
+    return {
+      sampleMessageFull: computed(() => {
+        const sampleMessage = store.sampleMessage();
+        return {
+          forChangedTarget: _wrapMessageTemplate(sampleMessage.forChangedTarget),
+          forEnterGoMode: _wrapMessageTemplate(sampleMessage.forEnterGoMode),
+          forEnterBK: _wrapMessageTemplate(sampleMessage.forEnterBK),
+          forRemindBK: _wrapMessageTemplate(sampleMessage.forRemindBK),
+          forExitBK: _wrapMessageTemplate(sampleMessage.forExitBK),
+          forCompletedGoal: _wrapMessageTemplate(sampleMessage.forCompletedGoal),
+        } satisfies typeof sampleMessage;
+      }),
+    };
+  }),
   withHooks({
     onInit(store) {
       effect(() => {
@@ -148,7 +209,7 @@ export const GameStore = signalStore(
           return;
         }
 
-        const sampleMessage = store.sampleMessage().forCompletedGoal;
+        const sampleMessage = store.sampleMessageFull().forCompletedGoal;
         if (sampleMessage === null) {
           return;
         }
@@ -207,7 +268,7 @@ export const GameStore = signalStore(
         }
 
         const { allLocations } = store.defs();
-        const sampleMessage = store.sampleMessage().forChangedTarget;
+        const sampleMessage = store.sampleMessageFull().forChangedTarget;
         if (sampleMessage === null) {
           return;
         }
@@ -258,7 +319,7 @@ export const GameStore = signalStore(
           return;
         }
 
-        const sampleMessage = store.sampleMessage().forEnterGoMode;
+        const sampleMessage = store.sampleMessageFull().forEnterGoMode;
         if (sampleMessage === null) {
           return;
         }
@@ -273,7 +334,7 @@ export const GameStore = signalStore(
           return;
         }
 
-        const { forEnterBK, forRemindBK, forExitBK } = store.sampleMessage();
+        const { forEnterBK, forRemindBK, forExitBK } = store.sampleMessageFull();
         if (forEnterBK === null || forRemindBK === null || forExitBK === null) {
           return;
         }
