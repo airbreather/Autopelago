@@ -12,6 +12,7 @@ import {
 import type { AutopelagoClientAndData } from '../data/slot-data';
 import { targetLocationEvidenceFromJSONSerializable } from '../game/target-location-evidence';
 import { makePlayerToken } from '../utils/make-player-token';
+import { shuffle } from '../utils/shuffle';
 import { toWeighted } from '../utils/weighted-sampler';
 import { withCleverTimer } from './with-clever-timer';
 import { withGameState } from './with-game-state';
@@ -158,13 +159,17 @@ export const GameStore = signalStore(
         return message;
       }
 
+      // list each player at least once before repeating any.
+      let currentRandomPlayerBag: Player[] = [];
       return message.replaceAll('{RANDOM_PLAYER}', () => {
-        const idx = Math.floor(Math.random() * randomPlayers.size);
-        const otherPlayer = randomPlayers.get(idx);
-        if (!otherPlayer) {
-          throw new Error('list.size is inconsistent with list.get(i). this is a bug in immutable.js');
+        if (currentRandomPlayerBag.length === 0) {
+          currentRandomPlayerBag = shuffle([...randomPlayers]);
         }
-        return otherPlayer.alias;
+        const player = currentRandomPlayerBag.pop();
+        if (player === undefined) {
+          throw new Error('pop should have returned something here. this is a programming error');
+        }
+        return player.alias;
       });
     }
     function _wrapMessageTemplate<T extends unknown[]>(f: ((...args: T) => string) | null) {
