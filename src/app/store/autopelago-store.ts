@@ -246,19 +246,26 @@ export const GameStore = signalStore(
           store.processMessage(message, players);
           ++processedMessageCount;
         }
+      });
 
-        patchState(store, ({ outgoingMessages }) => {
-          if (outgoingMessages.size > 0) {
-            client.socket.send(...outgoingMessages.map(msg => ({
-              cmd: 'Say',
-              text: msg,
-            } satisfies SayPacket)));
-          }
+      effect(() => {
+        const game = store.game();
+        if (!game) {
+          return;
+        }
 
-          return {
-            outgoingMessages: outgoingMessages.clear(),
-            processedMessageCount,
-          };
+        const client = game.client;
+        const outgoingMessages = store.outgoingMessages();
+        if (outgoingMessages.size === 0) {
+          return;
+        }
+
+        client.socket.send(...outgoingMessages.map(msg => ({
+          cmd: 'Say',
+          text: msg,
+        } satisfies SayPacket)));
+        patchState(store, {
+          outgoingMessages: outgoingMessages.clear(),
         });
       });
       effect(() => {
