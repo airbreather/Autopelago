@@ -235,10 +235,6 @@ export const GameStore = signalStore(
           return;
         }
 
-        if (!store.canEventuallyAdvance()) {
-          return;
-        }
-
         const client = game.client;
         const players = client.players;
         let processedMessageCount = store.processedMessageCount();
