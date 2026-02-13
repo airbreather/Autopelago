@@ -65,9 +65,6 @@ export async function initializeClient(initializeClientOptions: InitializeClient
   client.options.maximumMessages = 0;
   const messageLog = createReactiveMessageLog(client, destroyRef);
 
-  // we also do our own thing to monitor player status
-  const playersWithStatus = createReactivePlayerList(client);
-
   // we also have our own hint stuff.
   const reactiveHints = createReactiveHints(client, destroyRef);
 
@@ -92,6 +89,9 @@ export async function initializeClient(initializeClientOptions: InitializeClient
     'Autopelago',
     options,
   );
+
+  // we also do our own thing to monitor player status, but this has to happen later.
+  const playersWithStatus = createReactivePlayerList(client);
 
   const victoryLocationYamlKey = VICTORY_LOCATION_NAME_LOOKUP[slotData.victory_location_name];
   const defs = BAKED_DEFINITIONS_BY_VICTORY_LANDMARK[victoryLocationYamlKey];
