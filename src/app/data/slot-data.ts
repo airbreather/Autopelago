@@ -1,8 +1,8 @@
 ﻿import type { Client, Hint, JSONRecord, PackageMetadata } from '@airbreather/archipelago.js';
 import type { Signal } from '@angular/core';
 import type BitArray from '@bitarray/typedarray';
-import { List } from 'immutable';
-import type { Message } from '../archipelago-client';
+import type { List } from 'immutable';
+import type { Message, PlayerAndStatus } from '../archipelago-client';
 import type { ConnectScreenState } from '../connect-screen/connect-screen-state';
 import type { TargetLocationEvidence } from '../game/target-location-evidence';
 import type { ToJSONSerializable } from '../utils/types';
@@ -17,6 +17,7 @@ export interface AutopelagoClientAndData {
   locationIsProgression: Readonly<BitArray>;
   locationIsTrap: Readonly<BitArray>;
   messageLog: Signal<List<Message>>;
+  playersWithStatus: Signal<List<Readonly<PlayerAndStatus>>>;
   hintedLocations: Signal<List<Hint | null>>;
   hintedItems: Signal<List<Hint | null>>;
   ratHints: Signal<List<Hint>>;

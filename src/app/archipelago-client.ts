@@ -1,4 +1,14 @@
-import { Client, type ConnectionOptions, Hint, type MessageNode, type Player } from '@airbreather/archipelago.js';
+import {
+  Client,
+  type ClientStatus,
+  clientStatuses,
+  type ConnectionOptions,
+  type DataChangeCallback,
+  Hint,
+  type JSONSerializable,
+  type MessageNode,
+  type Player,
+} from '@airbreather/archipelago.js';
 import { computed, type DestroyRef, signal, type Signal } from '@angular/core';
 import BitArray from '@bitarray/typedarray';
 import { List, Repeat } from 'immutable';
@@ -79,6 +89,9 @@ export async function initializeClient(initializeClientOptions: InitializeClient
     'Autopelago',
     options,
   );
+
+  // we also do our own thing to monitor player status, but this has to happen later.
+  const playersWithStatus = createReactivePlayerList(client);
 
   const victoryLocationYamlKey = VICTORY_LOCATION_NAME_LOOKUP[slotData.victory_location_name];
   const defs = BAKED_DEFINITIONS_BY_VICTORY_LANDMARK[victoryLocationYamlKey];
@@ -215,6 +228,7 @@ export async function initializeClient(initializeClientOptions: InitializeClient
     client,
     pkg,
     messageLog,
+    playersWithStatus,
     slotData,
     hintedLocations,
     hintedItems,
@@ -329,4 +343,45 @@ function createReactiveMessageLog(client: Client, destroyRef?: DestroyRef): Sign
   }
 
   return messageLog.asReadonly();
+}
+
+export interface PlayerAndStatus {
+  player: Player;
+  isSelf: boolean;
+  status: ClientStatus | null;
+  statusRaw: JSONSerializable;
+}
+
+const validPlayerStatuses = new Set(Object.values(clientStatuses));
+function isValidClientStatus(val: JSONSerializable): val is ClientStatus {
+  return typeof val === 'number' && validPlayerStatuses.has(val as ClientStatus);
+}
+
+function createReactivePlayerList(client: Client): Signal<List<Readonly<PlayerAndStatus>>> {
+  const allPlayers = client.players.teams[client.players.self.team];
+  const playerList = signal(List<PlayerAndStatus>(allPlayers.map(player => ({
+    player,
+    isSelf: player.slot === client.players.self.slot,
+    status: null,
+    statusRaw: null,
+  }))));
+  const onClientStatusUpdated: DataChangeCallback = (key: string, value: JSONSerializable) => {
+    const slot = Number(/^_read_client_status_\d+_(?<slot>\d+)$/.exec(key)?.groups?.['slot']);
+    if (!slot) {
+      return;
+    }
+
+    playerList.update(players => players.set(slot, {
+      player: allPlayers[slot],
+      isSelf: allPlayers[slot].slot === client.players.self.slot,
+      status: isValidClientStatus(value) ? value : null,
+      statusRaw: value,
+    }));
+  };
+
+  // there's no way to unsubscribe our callbacks, so I think this is the only such "reactive" thing
+  // that would stack up if you keep subscribing and then unsubscribing a single instance of Client.
+  // not an immediate problem, but it's annoying enough that I took note (airbreather 2026-02-11).
+  void client.storage.notify(allPlayers.map(player => `_read_client_status_${player.team.toString()}_${player.slot.toString()}`), onClientStatusUpdated);
+  return playerList.asReadonly();
 }
