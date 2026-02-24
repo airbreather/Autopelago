@@ -247,6 +247,7 @@ export const GameStore = signalStore(
           store.processMessage(message, players);
           ++processedMessageCount;
         }
+        patchState(store, { processedMessageCount });
       });
 
       effect(() => {
