@@ -3,7 +3,9 @@ import { computed, effect } from '@angular/core';
 import BitArray from '@bitarray/typedarray';
 import { patchState, signalStoreFeature, withComputed, withHooks, withMethods, withState } from '@ngrx/signals';
 import { List, Set as ImmutableSet } from 'immutable';
-import rand from 'pure-rand';
+import { uniformInt } from 'pure-rand/distribution/uniformInt';
+import { xoroshiro128plus } from 'pure-rand/generator/xoroshiro128plus';
+import { purify } from 'pure-rand/utils/purify';
 import Queue from 'yocto-queue';
 import type { Message } from '../archipelago-client';
 import { type AutopelagoAura, BAKED_DEFINITIONS_BY_VICTORY_LANDMARK } from '../data/resolved-definitions';
@@ -26,6 +28,8 @@ import {
 import { arraysEqual, bitArraysEqual } from '../utils/equal-helpers';
 import type { Mutable } from '../utils/types';
 import { createWeightedSampler } from '../utils/weighted-sampler';
+
+const pureUniformInt = purify(uniformInt);
 
 function regionLocksEqual(a: RegionLocks, b: RegionLocks) {
   if (a === b) {
@@ -126,7 +130,7 @@ const initialState: DefiningGameState = {
   },
   receivedItems: List<number>(),
   checkedLocations: ImmutableSet<number>(),
-  prng: rand.xoroshiro128plus(42),
+  prng: xoroshiro128plus(42),
   outgoingCheckedLocations: List<number>(),
   outgoingAnimatableActions: List<AnimatableAction>(),
   outgoingMessages: List<string>(),
@@ -957,7 +961,7 @@ export function withGameState() {
                 }
                 if (!success) {
                   let d20: number;
-                  [d20, result.prng] = rand.uniformIntDistribution(1, 20, prev.prng);
+                  [d20, result.prng] = pureUniformInt(prev.prng, 1, 20);
                   const roll = modifyRoll({
                     d20,
                     ratCount: store.ratCount(),

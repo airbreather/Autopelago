@@ -6,7 +6,11 @@ import BitArray from '@bitarray/typedarray';
 import { getState, patchState, signalStore, withHooks } from '@ngrx/signals';
 import { unprotected } from '@ngrx/signals/testing';
 import { List, Range, Set as ImmutableSet } from 'immutable';
-import rand from 'pure-rand';
+import { uniformInt } from 'pure-rand/distribution/uniformInt';
+import { xoroshiro128plusFromState } from 'pure-rand/generator/xoroshiro128plus';
+import { xoroshiro128plus } from 'pure-rand/generator/xoroshiro128plus';
+import type { RandomGenerator } from 'pure-rand/types/RandomGenerator';
+import { purify } from 'pure-rand/utils/purify';
 import { describe, expect, test } from 'vitest';
 import {
   type AutopelagoAura,
@@ -19,6 +23,8 @@ import type { DefiningGameState } from '../game/defining-state';
 import { stricterObjectFromEntries, strictObjectEntries } from '../utils/types';
 import { withGameState } from './with-game-state';
 
+const pureUniformInt = purify(uniformInt);
+
 const singleAuraItems = stricterObjectFromEntries(
   (['well_fed', 'upset_tummy', 'lucky', 'unlucky', 'energized', 'sluggish', 'distracted', 'stylish', 'startled', 'smart', 'conspiratorial', 'confident'] as const)
     .map(aura => ([aura, BAKED_DEFINITIONS_FULL.allItems.findIndex(i => i.aurasGranted.length === 1 && i.aurasGranted[0] === aura)])),
@@ -28,7 +34,7 @@ describe('self', () => {
   test.each(strictObjectEntries(prngs))('rolls for %s continue to match what they used to', (_name, { rolls, prng }) => {
     prng = prng.clone();
     for (const roll of rolls) {
-      expect(rand.unsafeUniformIntDistribution(1, 20, prng)).toStrictEqual(roll);
+      expect(uniformInt(prng, 1, 20)).toStrictEqual(roll);
     }
   });
 });
@@ -53,9 +59,9 @@ describe('withGameState', () => {
 
     // we're on the first location. we should fail three times and then yield.
     const expectedPrng = prngs._8_13_18_9_13.prng.clone();
-    rand.unsafeUniformIntDistribution(1, 20, expectedPrng);
-    rand.unsafeUniformIntDistribution(1, 20, expectedPrng);
-    rand.unsafeUniformIntDistribution(1, 20, expectedPrng);
+    uniformInt(expectedPrng, 1, 20);
+    uniformInt(expectedPrng, 1, 20);
+    uniformInt(expectedPrng, 1, 20);
 
     store.advance();
 
@@ -65,8 +71,8 @@ describe('withGameState', () => {
 
     // the next attempt should succeed despite rolling the same as the previous step because the
     // cumulative penalty has worn off and the mercy modifier adds +1.
-    rand.unsafeUniformIntDistribution(1, 20, expectedPrng);
-    rand.unsafeUniformIntDistribution(1, 20, expectedPrng);
+    uniformInt(expectedPrng, 1, 20);
+    uniformInt(expectedPrng, 1, 20);
 
     store.advance();
 
@@ -645,9 +651,9 @@ describe('withGameState', () => {
     // enforce it to the extent that its PRNG state must literally look exactly like it would look
     // after rolling 3 times from where we forced it to start. no learned helplessness or anything.
     const expectedPrng = prngs.unlucky.prng.clone();
-    rand.unsafeUniformIntDistribution(1, 20, expectedPrng);
-    rand.unsafeUniformIntDistribution(1, 20, expectedPrng);
-    rand.unsafeUniformIntDistribution(1, 20, expectedPrng);
+    uniformInt(expectedPrng, 1, 20);
+    uniformInt(expectedPrng, 1, 20);
+    uniformInt(expectedPrng, 1, 20);
     expect(store.prng().getState()).toStrictEqual(expectedPrng.getState());
   });
 
@@ -986,39 +992,39 @@ function initialGameStateFor(victoryLocationYamlKey: VictoryLocationYamlKey): Pa
 const prngs = {
   lucky: {
     rolls: Array<number>(8).fill(20),
-    prng: rand.xoroshiro128plus.fromState([-1771948076, -285776121, 74720295, -1842210148]),
+    prng: xoroshiro128plusFromState([-1771948076, -285776121, 74720295, -1842210148]),
   },
   unlucky: {
     rolls: Array<number>(8).fill(1),
-    prng: rand.xoroshiro128plus.fromState([110412471, 1130388068, -1591035982, 1997136400]),
+    prng: xoroshiro128plusFromState([110412471, 1130388068, -1591035982, 1997136400]),
   },
   _8_13_18_9_13: {
     rolls: [8, 13, 18, 9, 13],
-    prng: rand.xoroshiro128plus.fromState([-1796786197, 968774573, 301784831, 2049717482]),
+    prng: xoroshiro128plusFromState([-1796786197, 968774573, 301784831, 2049717482]),
   },
   _13_18_20_12_13: {
     rolls: [13, 18, 20, 12, 13],
-    prng: rand.xoroshiro128plus.fromState([1464423090, -986313637, 1654351542, -859231019]),
+    prng: xoroshiro128plusFromState([1464423090, -986313637, 1654351542, -859231019]),
   },
   _20_20_1_20_20_20_20_1: {
     rolls: [20, 20, 1, 20, 20, 20, 20, 1],
-    prng: rand.xoroshiro128plus.fromState([721066624, -315573484, -1770911155, -50848825]),
+    prng: xoroshiro128plusFromState([721066624, -315573484, -1770911155, -50848825]),
   },
   _6_11: {
     rolls: [6, 11],
-    prng: rand.xoroshiro128plus.fromState([-1170094942, -569190855, 990179148, -182617468]),
+    prng: xoroshiro128plusFromState([-1170094942, -569190855, 990179148, -182617468]),
   },
 } as const;
 
 // noinspection JSUnusedLocalSymbols
-function _prngThatWillRoll(vals: readonly number[]): rand.RandomGenerator {
+function _prngThatWillRoll(vals: readonly number[]): RandomGenerator {
   const candidates = Array.from(vals).fill(0);
   let maxMatch = 0;
   let match = 0;
-  let result = rand.xoroshiro128plus(1);
+  let result: RandomGenerator = xoroshiro128plus(1);
   let prng = result;
   while (match < candidates.length) {
-    [candidates[match], prng] = rand.uniformIntDistribution(1, 20, prng);
+    [candidates[match], prng] = pureUniformInt(prng, 1, 20);
     if (candidates[match] === vals[match]) {
       ++match;
       if (match > maxMatch) {

@@ -1,6 +1,6 @@
 import type BitArray from '@bitarray/typedarray';
 import { List, Set as ImmutableSet } from 'immutable';
-import rand from 'pure-rand';
+import type { RandomGenerator } from 'pure-rand/types/RandomGenerator';
 
 import type { AutopelagoBuff, AutopelagoTrap, VictoryLocationYamlKey } from '../data/resolved-definitions';
 import type { UserRequestedLocation } from '../data/slot-data';
@@ -66,7 +66,7 @@ export interface DefiningGameState {
 
   // other values that still affect how we transition to the next state, but which can reasonably be
   // dropped
-  readonly prng: rand.RandomGenerator;
+  readonly prng: RandomGenerator;
 
   // other values used to indicate autonomous actions that haven't been observed yet:
   outgoingCheckedLocations: List<number>;
