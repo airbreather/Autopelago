@@ -59,6 +59,7 @@ import { GameTabMap } from './game-tab-map/game-tab-map';
           display: block;
           height: 100%;
           overflow-y: auto;
+          overflow-x: hidden;
         }
       }
 
