@@ -184,7 +184,7 @@ export class ProgressionItemStatus {
   // all tooltips here should use the same context, so that the user can quickly switch between them
   // without having to sit through the whole delay.
   protected readonly tooltipContext = createEmptyTooltipContext();
-  readonly #hintedItems = computed(() => this.#gameStore.game()?.hintedItems() ?? List(Repeat(null, BAKED_DEFINITIONS_FULL.allItems.length)));
+  readonly #hintedItems = computed(() => this.#gameStore.game()?.hintedItems() ?? List(Repeat(null, BAKED_DEFINITIONS_FULL.bakedItems.length)));
   protected readonly ratHints = computed(() => this.#gameStore.game()?.ratHints() ?? List<Hint>());
   protected readonly hintForTooltipItem = computed(() => {
     const item = this.tooltipOrigin()?.item ?? null;
@@ -219,9 +219,9 @@ export class ProgressionItemStatus {
           index: index + 1,
           id: item,
           name: lactoseIntolerant
-            ? BAKED_DEFINITIONS_FULL.allItems[item].lactoseIntolerantName
-            : BAKED_DEFINITIONS_FULL.allItems[item].lactoseName,
-          flavorText: BAKED_DEFINITIONS_FULL.allItems[item].flavorText,
+            ? BAKED_DEFINITIONS_FULL.bakedItems[item].lactoseIntolerantName
+            : BAKED_DEFINITIONS_FULL.bakedItems[item].lactoseName,
+          flavorText: BAKED_DEFINITIONS_FULL.bakedItems[item].flavorText,
           collected,
           offsetX: computed(() => collected() ? 0 : 65),
           offsetY: index * 65,

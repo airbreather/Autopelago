@@ -23,7 +23,7 @@ async function getImage(playerIcon: PlayerIcon) {
 
 export async function makePlayerToken(playerIcon: PlayerIcon, playerColor: ColorInput) {
   const cnv = new OffscreenCanvas(64, 64);
-  const t2d = cnv.getContext('2d');
+  const t2d = cnv.getContext('2d', { willReadFrequently: true });
   if (t2d === null) {
     throw new Error('Failed to get 2d context');
   }

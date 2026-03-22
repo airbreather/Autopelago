@@ -182,35 +182,40 @@ export async function initializeClient(initializeClientOptions: InitializeClient
       : i.lactoseName;
   };
   const itemNetworkNameLookup = pkg.itemTable;
-  const itemNetworkIdToItem: Partial<Record<number, number>> = { };
+  const bakedItemNetworkIdToItem: Partial<Record<number, number>> = { };
   for (const item of defs.progressionItemsByYamlKey.values()) {
-    itemNetworkIdToItem[itemNetworkNameLookup[itemName(defs.allItems[item])]] = item;
+    bakedItemNetworkIdToItem[itemNetworkNameLookup[itemName(defs.bakedItems[item])]] = item;
   }
 
-  let prevHintedItems = List<Hint | null>(Repeat(null, defs.allItems.length));
+  let prevHintedItems = List<Hint | null>(Repeat(null, defs.bakedItems.length));
   const hintedItems = computed(() => prevHintedItems = prevHintedItems.withMutations((hi) => {
     const { team: myTeam, slot: mySlot } = client.players.self;
     for (const hint of reactiveHints()) {
-      if (hint.item.id in itemNetworkIdToItem && hint.item.receiver.slot === mySlot && hint.item.receiver.team === myTeam) {
-        hi.set(itemNetworkIdToItem[hint.item.id] ?? NaN, hint);
+      if (hint.item.id in bakedItemNetworkIdToItem && hint.item.receiver.slot === mySlot && hint.item.receiver.team === myTeam) {
+        hi.set(bakedItemNetworkIdToItem[hint.item.id] ?? NaN, hint);
       }
     }
   }));
 
   let prevRatHints = List<Hint>();
-  const itemNetworkIdToRatItem: Partial<Record<number, number>> = { };
-  for (const [id, item] of defs.allItems.entries()) {
-    if (item.ratCount === 0) {
-      continue;
+  const ratItemNetworkIds = new Set<number>();
+  if (slotData.version_stamp === '0.10.0') {
+    for (const [_, item] of defs.bakedItems.entries()) {
+      if (item.ratCount > 0) {
+        ratItemNetworkIds.add(itemNetworkNameLookup[itemName(item)]);
+      }
     }
-
-    itemNetworkIdToRatItem[itemNetworkNameLookup[itemName(item)]] = id;
+  }
+  else {
+    for (const id of Object.keys(slotData.rat_counts_by_item_id)) {
+      ratItemNetworkIds.add(Number(id));
+    }
   }
   const ratHints = computed(() => prevRatHints = prevRatHints.withMutations((rh) => {
     const { team: myTeam, slot: mySlot } = client.players.self;
     let seenCount = 0;
     for (const hint of reactiveHints()) {
-      if (hint.item.id in itemNetworkIdToRatItem && hint.item.receiver.slot === mySlot && hint.item.receiver.team === myTeam) {
+      if (ratItemNetworkIds.has(hint.item.id) && hint.item.receiver.slot === mySlot && hint.item.receiver.team === myTeam) {
         if (seenCount < rh.size) {
           rh.set(seenCount, hint);
         }

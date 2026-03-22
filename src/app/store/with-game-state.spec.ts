@@ -27,7 +27,7 @@ const pureUniformInt = purify(uniformInt);
 
 const singleAuraItems = stricterObjectFromEntries(
   (['well_fed', 'upset_tummy', 'lucky', 'unlucky', 'energized', 'sluggish', 'distracted', 'stylish', 'startled', 'smart', 'conspiratorial', 'confident'] as const)
-    .map(aura => ([aura, BAKED_DEFINITIONS_FULL.allItems.findIndex(i => i.aurasGranted.length === 1 && i.aurasGranted[0] === aura)])),
+    .map(aura => ([aura, BAKED_DEFINITIONS_FULL.bakedItems.findIndex(i => i.aurasGranted.length === 1 && i.aurasGranted[0] === aura)])),
 ) satisfies Record<AutopelagoAura, number>;
 
 describe('self', () => {
@@ -818,7 +818,7 @@ describe('withGameState', () => {
         restaurant,
         bowlingBallDoor,
         capturedGoldfish,
-        ...regionLocsByYamlKey.Menu, // "Before Basketball"
+        ...regionLocsByYamlKey.before_basketball,
         ...regionLocsByYamlKey.before_prawn_stars,
         ...regionLocsByYamlKey.before_angry_turtles,
         ...regionLocsByYamlKey.after_restaurant,
@@ -971,8 +971,7 @@ function initialGameStateFor(victoryLocationYamlKey: VictoryLocationYamlKey): Pa
   return {
     lactoseIntolerant: false,
     victoryLocationYamlKey,
-    enabledBuffs: new Set(['confident', 'energized', 'lucky', 'smart', 'stylish', 'well_fed']),
-    enabledTraps: new Set(['conspiratorial', 'distracted', 'sluggish', 'startled', 'unlucky', 'upset_tummy']),
+    allItems: defs.bakedItems,
     locationIsProgression: new BitArray(defs.allLocations.length),
     locationIsTrap: new BitArray(defs.allLocations.length),
     foodFactor: 0,

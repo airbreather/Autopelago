@@ -5,6 +5,8 @@ import { computed, effect, resource } from '@angular/core';
 import { patchState, signalStore, withComputed, withHooks, withMethods, withState } from '@ngrx/signals';
 import { List, Set as ImmutableSet } from 'immutable';
 import {
+  type AutopelagoAura,
+  type AutopelagoItem,
   BAKED_DEFINITIONS_BY_VICTORY_LANDMARK,
   BAKED_DEFINITIONS_FULL,
   VICTORY_LOCATION_NAME_LOOKUP,
@@ -13,6 +15,7 @@ import type { AutopelagoClientAndData } from '../data/slot-data';
 import { targetLocationEvidenceFromJSONSerializable } from '../game/target-location-evidence';
 import { makePlayerToken } from '../utils/make-player-token';
 import { shuffle } from '../utils/shuffle';
+import { strictObjectEntries } from '../utils/types';
 import { toWeighted } from '../utils/weighted-sampler';
 import { withCleverTimer } from './with-clever-timer';
 import { withGameState } from './with-game-state';
@@ -51,6 +54,57 @@ export const GameStore = signalStore(
       if (defs.moonCommaThe !== null && checkedLocations.length >= (defs.allLocations.length - 1)) {
         checkedLocations.push(defs.moonCommaThe.location);
       }
+      let allItems: Readonly<AutopelagoItem>[];
+      const archipelagoItemIdToAutopelagoItemKey = new Map<number, number>();
+      if (slotData.version_stamp == '0.10.0') {
+        // prior to 1.0.0, the client and APWorld needed to agree on all items that existed and what
+        // they did, and the client would just ignore certain auras according to the config. we need
+        // to be able to work with such worlds as well (this is just the tradeoff we have to make to
+        // support only the live version at any moment). to that end, this is the one place where we
+        // construct a live-alike version of everything using what we would previously have to infer
+        const enabledAuras = new Set<AutopelagoAura>([...slotData.enabled_buffs, ...slotData.enabled_traps]);
+        allItems = defs.bakedItems.map(i => ({
+          ...i,
+          aurasGranted: i.aurasGranted.filter(a => enabledAuras.has(a)),
+        }));
+        for (const [itemName, item] of strictObjectEntries(pkg.itemTable)) {
+          archipelagoItemIdToAutopelagoItemKey.set(item, defs.itemNameLookup.get(itemName) ?? NaN);
+        }
+      }
+      else {
+        // we got item details from the server. TODO: there's a bigger change that should make this
+        // feel more natural, but I need to get SOMETHING done and not spin on this forever. keeping
+        // largely the same ArchipelagoItem interface helps limit the churn.
+        allItems = [];
+        for (const item of defs.bakedItems) {
+          if (item.isForCompatOnly) {
+            // we have all the data we need for these items in slotData. ignore baked copies.
+            continue;
+          }
+          for (const name of [item.lactoseName, item.lactoseIntolerantName]) {
+            archipelagoItemIdToAutopelagoItemKey.set(pkg.itemTable[name], allItems.length);
+          }
+          allItems.push(item);
+        }
+        for (const [_, item] of strictObjectEntries(pkg.itemTable)) {
+          if (archipelagoItemIdToAutopelagoItemKey.has(item)) {
+            // this is a well-known item that we've already processed above.
+            continue;
+          }
+          archipelagoItemIdToAutopelagoItemKey.set(item, allItems.length);
+          const aurasGranted = slotData.auras_by_item_id[item] ?? [];
+          const ratCount = slotData.rat_counts_by_item_id[item] ?? 0;
+          allItems.push({
+            key: allItems.length,
+            isLogicallyRelevant: ratCount > 0,
+            lactoseName: 'item names are not used for these.',
+            lactoseIntolerantName: 'item names are not used for these.',
+            aurasGranted,
+            flavorText: 'flavor text is not used for these.',
+            ratCount,
+          });
+        }
+      }
       patchState(store, {
         ...storedData,
         game,
@@ -58,8 +112,7 @@ export const GameStore = signalStore(
         victoryLocationYamlKey,
         locationIsProgression,
         locationIsTrap,
-        enabledBuffs: new Set(slotData.enabled_buffs),
-        enabledTraps: new Set(slotData.enabled_traps),
+        allItems,
         messagesForChangedTarget: toWeighted(slotData.msg_changed_target),
         messagesForEnterGoMode: toWeighted(slotData.msg_enter_go_mode),
         messagesForEnterBK: toWeighted(slotData.msg_enter_bk),
@@ -86,9 +139,9 @@ export const GameStore = signalStore(
       client.items.on('itemsReceived', (items) => {
         const itemsJustReceived: number[] = [];
         for (const item of items) {
-          const itemKey = BAKED_DEFINITIONS_FULL.itemNameLookup.get(item.name);
-          if (typeof itemKey === 'number') {
-            itemsJustReceived.push(itemKey);
+          const autopelagoItemKey = archipelagoItemIdToAutopelagoItemKey.get(item.id);
+          if (typeof autopelagoItemKey === 'number') {
+            itemsJustReceived.push(autopelagoItemKey);
           }
         }
 

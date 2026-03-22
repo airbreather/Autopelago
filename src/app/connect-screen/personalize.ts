@@ -178,9 +178,9 @@ export class Personalize {
   protected readonly player1Canvas = viewChild.required<ElementRef<HTMLCanvasElement>>('player1Canvas');
   protected readonly player2Canvas = viewChild.required<ElementRef<HTMLCanvasElement>>('player2Canvas');
   protected readonly player4Canvas = viewChild.required<ElementRef<HTMLCanvasElement>>('player4Canvas');
-  readonly #player1CanvasContext = computed(() => this.player1Canvas().nativeElement.getContext('2d'));
-  readonly #player2CanvasContext = computed(() => this.player2Canvas().nativeElement.getContext('2d'));
-  readonly #player4CanvasContext = computed(() => this.player4Canvas().nativeElement.getContext('2d'));
+  readonly #player1CanvasContext = computed(() => this.player1Canvas().nativeElement.getContext('2d', { willReadFrequently: true }));
+  readonly #player2CanvasContext = computed(() => this.player2Canvas().nativeElement.getContext('2d', { willReadFrequently: true }));
+  readonly #player4CanvasContext = computed(() => this.player4Canvas().nativeElement.getContext('2d', { willReadFrequently: true }));
 
   protected readonly selectedPlayer1 = computed(() => this.#data.playerIcon() === 1);
   protected readonly selectedPlayer2 = computed(() => this.#data.playerIcon() === 2);

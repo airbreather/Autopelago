@@ -2,7 +2,7 @@ import type BitArray from '@bitarray/typedarray';
 import { List, Set as ImmutableSet } from 'immutable';
 import type { RandomGenerator } from 'pure-rand/types/RandomGenerator';
 
-import type { AutopelagoBuff, AutopelagoTrap, VictoryLocationYamlKey } from '../data/resolved-definitions';
+import type { AutopelagoItem, VictoryLocationYamlKey } from '../data/resolved-definitions';
 import type { UserRequestedLocation } from '../data/slot-data';
 import type { Weighted } from '../utils/weighted-sampler';
 import type { TargetLocationEvidence } from './target-location-evidence';
@@ -32,8 +32,7 @@ export interface DefiningGameState {
   // values that don't change throughout the entire run:
   readonly lactoseIntolerant: boolean;
   readonly victoryLocationYamlKey: VictoryLocationYamlKey;
-  readonly enabledBuffs: ReadonlySet<AutopelagoBuff>;
-  readonly enabledTraps: ReadonlySet<AutopelagoTrap>;
+  readonly allItems: readonly Readonly<AutopelagoItem>[];
   readonly locationIsProgression: Readonly<BitArray>;
   readonly locationIsTrap: Readonly<BitArray>;
   readonly messagesForChangedTarget: readonly Weighted<string>[];

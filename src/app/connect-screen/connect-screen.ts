@@ -352,7 +352,7 @@ export class ConnectScreen {
 
     const initialImageDraw = effect(() => {
       const playerImages = this.#playerImagesResource.value();
-      const canvas = this.personalizeButtonCanvas().nativeElement.getContext('2d');
+      const canvas = this.personalizeButtonCanvas().nativeElement.getContext('2d', { willReadFrequently: true });
       if (playerImages === null || canvas === null) {
         return;
       }

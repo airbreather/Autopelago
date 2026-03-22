@@ -21,7 +21,7 @@ export class PerformanceInsensitiveAnimatableState {
   readonly stylish = signal(0);
   readonly confidence = signal(false);
 
-  readonly receivedItemCountLookup = signal<readonly number[]>(Array.from({ length: BAKED_DEFINITIONS_FULL.allItems.length }, () => 0));
+  readonly receivedItemCountLookup = signal<readonly number[]>(Array.from({ length: BAKED_DEFINITIONS_FULL.bakedItems.length }, () => 0));
   readonly allLocationsAreChecked = signal(false);
   readonly hasCompletedGoal = signal(false);
 

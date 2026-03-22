@@ -1,4 +1,3 @@
-import { itemClassifications } from '@airbreather/archipelago.js';
 import BitArray from '@bitarray/typedarray';
 import Queue from 'yocto-queue';
 import {
@@ -44,13 +43,13 @@ export type AutopelagoAura =
 
 export interface AutopelagoItem {
   key: number;
+  isLogicallyRelevant: boolean;
   lactoseName: string;
   lactoseIntolerantName: string;
-  flags: number;
   aurasGranted: readonly AutopelagoAura[];
-  associatedGame: string | null;
   flavorText: string | null;
   ratCount: number;
+  isForCompatOnly?: true;
 }
 
 interface Connected {
@@ -152,7 +151,7 @@ export const BAKED_DEFINITIONS_BY_VICTORY_LANDMARK = {
 } as const;
 
 export interface AutopelagoDefinitions {
-  allItems: readonly Readonly<AutopelagoItem>[];
+  bakedItems: readonly Readonly<AutopelagoItem>[];
   progressionItemsByYamlKey: ReadonlyMap<string, number>;
   victoryLocationsByYamlKey: ReadonlyMap<VictoryLocationYamlKey, number>;
   itemsWithNonzeroRatCounts: readonly number[];
@@ -196,7 +195,7 @@ function toConnected(forward: readonly number[], backward: readonly number[]): C
 function resolveMainDefinitions(
   yamlFile: typeof baked,
 ): AutopelagoDefinitions {
-  const allItems: AutopelagoItem[] = [];
+  const bakedItems: AutopelagoItem[] = [];
   const progressionItemsByYamlKey = new Map<string, number>();
   function getItemNames(name: string | readonly [string, string]): readonly [string, string] {
     return typeof name === 'string'
@@ -233,55 +232,36 @@ function resolveMainDefinitions(
 
   // Process keyed items (progression items)
   for (const [key, item] of strictObjectEntries(yamlFile.items)) {
-    if (key === 'rats' || key === 'useful_nonprogression' || key === 'trap' || key === 'filler') {
+    if (key === 'useful_nonprogression' || key === 'trap' || key === 'filler') {
       continue;
     }
 
-    const itemIndex = allItems.length;
+    const itemIndex = bakedItems.length;
     progressionItemsByYamlKey.set(key, itemIndex);
     const [lactoseName, lactoseIntolerantName] = getItemNames(item.name);
-    allItems.push({
+    bakedItems.push({
       key: itemIndex,
+      isLogicallyRelevant: true,
       lactoseName,
       lactoseIntolerantName,
-      flags: itemClassifications.progression, // All keyed items are progression
       aurasGranted: 'auras_granted' in item ? item.auras_granted as AutopelagoAura[] : [],
-      associatedGame: null,
       flavorText: 'flavor_text' in item ? item.flavor_text : null,
       ratCount: 'rat_count' in item ? item.rat_count : 0,
     });
   }
 
-  // Process rats (automatically get rat_count = 1)
-  for (const [key, item] of strictObjectEntries(yamlFile.items.rats)) {
-    const itemIndex = allItems.length;
-    progressionItemsByYamlKey.set(key, itemIndex);
-
-    const [lactoseName, lactoseIntolerantName] = getItemNames(item.name);
-    allItems.push({
-      key: itemIndex,
-      lactoseName,
-      lactoseIntolerantName,
-      flags: itemClassifications.progression,
-      aurasGranted: 'auras_granted' in item ? item.auras_granted as AutopelagoAura[] : [],
-      associatedGame: null,
-      flavorText: 'flavor_text' in item ? item.flavor_text : null,
-      ratCount: 1,
-    });
-  }
-
   // Helper function to process bulk items
-  function processBulkItem(bulkItem: YamlBulkItem, flags: number, associatedGame: string | null): void {
+  function processBulkItem(bulkItem: YamlBulkItem): void {
     if (stricterIsArray(bulkItem)) {
       // [name, aurasGranted] format
       const [lactoseName, lactoseIntolerantName] = getItemNames(bulkItem[0] as string | readonly [string, string]);
-      allItems.push({
-        key: allItems.length,
+      bakedItems.push({
+        key: bakedItems.length,
+        isForCompatOnly: true,
+        isLogicallyRelevant: false,
         lactoseName,
         lactoseIntolerantName,
-        flags,
         aurasGranted: bulkItem[1] as readonly AutopelagoAura[],
-        associatedGame,
         flavorText: null,
         ratCount: 0,
       });
@@ -289,48 +269,49 @@ function resolveMainDefinitions(
     else {
       // YamlKeyedItem format
       const [lactoseName, lactoseIntolerantName] = getItemNames(bulkItem.name as string | readonly [string, string]);
-      allItems.push({
-        key: allItems.length,
+      const ratCount = 'rat_count' in bulkItem ? bulkItem.rat_count : 0;
+      bakedItems.push({
+        key: bakedItems.length,
+        isForCompatOnly: true,
+        isLogicallyRelevant: ratCount > 0,
         lactoseName,
         lactoseIntolerantName,
-        flags,
         aurasGranted: 'auras_granted' in bulkItem ? bulkItem.auras_granted as readonly AutopelagoAura[] : [],
-        associatedGame,
         flavorText: 'flavor_text' in bulkItem ? bulkItem.flavor_text : null,
-        ratCount: 'rat_count' in bulkItem ? bulkItem.rat_count : 0,
+        ratCount,
       });
     }
   }
 
   // Helper function to process bulk item or game specific group
-  function processBulkItemOrGameSpecific(item: YamlBulkItemOrGameSpecificItemGroup, flags: number): void {
+  function processBulkItemOrGameSpecific(item: YamlBulkItemOrGameSpecificItemGroup): void {
     if ('game_specific' in item) {
-      for (const [game, items] of strictObjectEntries(item.game_specific)) {
+      for (const [_, items] of strictObjectEntries(item.game_specific)) {
         for (const bulkItem of items) {
-          processBulkItem(bulkItem, flags, game);
+          processBulkItem(bulkItem);
         }
       }
     }
     else {
-      processBulkItem(item, flags, null);
+      processBulkItem(item);
     }
   }
 
-  // Process non-progression items
+  // Process non-progression items (used only for compat with APWorlds prior to 1.0.0)
   for (const item of yamlFile.items.useful_nonprogression) {
-    processBulkItemOrGameSpecific(item, itemClassifications.useful);
+    processBulkItemOrGameSpecific(item);
   }
 
   for (const item of yamlFile.items.trap) {
-    processBulkItemOrGameSpecific(item, itemClassifications.trap);
+    processBulkItemOrGameSpecific(item);
   }
 
   for (const item of yamlFile.items.filler) {
-    processBulkItemOrGameSpecific(item, itemClassifications.none);
+    processBulkItemOrGameSpecific(item);
   }
 
   // Calculate items with nonzero rat counts
-  const itemsWithNonzeroRatCounts = allItems
+  const itemsWithNonzeroRatCounts = bakedItems
     .map((item, index) => ({ item, index }))
     .filter(({ item }) => item.ratCount > 0)
     .map(({ index }) => index);
@@ -656,21 +637,21 @@ function resolveMainDefinitions(
   }
 
   // Find start region and location
-  const startRegionIndex = regionYamlKeyLookup.get('Menu');
+  const startRegionIndex = regionYamlKeyLookup.get('before_basketball');
   if (startRegionIndex === undefined) {
-    throw new Error('Menu region not found');
+    throw new Error('before_basketball region not found');
   }
 
   const startRegion = allRegions[startRegionIndex];
   if (!('locs' in startRegion)) {
-    throw new Error('Menu region is not a filler');
+    throw new Error('before_basketball region is not a filler');
   }
 
   const startLocationIndex = startRegion.locs[0];
 
   // build name lookups
   const itemNameLookup = new Map<string, number>();
-  for (const [itemIndex, item] of allItems.entries()) {
+  for (const [itemIndex, item] of bakedItems.entries()) {
     itemNameLookup.set(item.lactoseName, itemIndex);
     itemNameLookup.set(item.lactoseIntolerantName, itemIndex);
   }
@@ -697,7 +678,7 @@ function resolveMainDefinitions(
   }
 
   return {
-    allItems,
+    bakedItems,
     progressionItemsByYamlKey,
     victoryLocationsByYamlKey,
     itemsWithNonzeroRatCounts,
