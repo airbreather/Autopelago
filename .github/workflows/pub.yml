@@ -16,7 +16,7 @@ jobs:
       pages: write
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Get Bun
         uses: oven-sh/setup-bun@v2
@@ -30,17 +30,20 @@ jobs:
       - name: Run tests
         run: bun run test
 
-      - name: Build for self-hosting
+      - name: Build
         run: bun run release
 
       - name: Create release zip
         run: zip -r dist.zip dist/
 
-      - name: Build for GitHub Pages
-        run: bun run release --base-href 'https://autopelago.app/'
+      - name: Upload to workflow artifact
+        uses: actions/upload-artifact@v7
+        with:
+          path: dist.zip
+          archive: false
 
       - if: ${{ github.event_name == 'release' }}
-        name: Upload release zip for self-hosting
+        name: Upload to GitHub release
         uses: softprops/action-gh-release@v2
         with:
           files: dist.zip
@@ -50,7 +53,7 @@ jobs:
         uses: actions/configure-pages@v5
 
       - if: ${{ github.event_name == 'release' }}
-        name: Upload artifact
+        name: Upload artifact to GitHub Pages
         uses: actions/upload-pages-artifact@v3
         with:
           path: dist/

@@ -3,9 +3,9 @@ import type { PlayerIcon } from '../connect-screen/connect-screen-state';
 import { applyPixelColors, getPixelTones } from './color-helpers';
 
 const PLAYER_TOKEN_PATHS = {
-  1: '/assets/images/players/pack_rat.webp',
-  2: '/assets/images/players/player2.webp',
-  4: '/assets/images/players/player4.webp',
+  1: 'assets/images/players/pack_rat.webp',
+  2: 'assets/images/players/player2.webp',
+  4: 'assets/images/players/player4.webp',
 } as const satisfies Record<PlayerIcon, string>;
 
 const PLAYER_TOKEN_LOADING = {

@@ -45,9 +45,9 @@ const STORAGE_KEY = 'autopelago-connect-screen-state';
     FormField,
   ],
   template: `
-    <img #player1Image alt="player1Image" src="/assets/images/players/pack_rat.webp" hidden>
-    <img #player2Image alt="player2Image" src="/assets/images/players/player2.webp" hidden>
-    <img #player4Image alt="player4Image" src="/assets/images/players/player4.webp" hidden>
+    <img #player1Image alt="player1Image" src="assets/images/players/pack_rat.webp" hidden>
+    <img #player2Image alt="player2Image" src="assets/images/players/player2.webp" hidden>
+    <img #player4Image alt="player4Image" src="assets/images/players/player4.webp" hidden>
     <form #allInputs class="root" (submit)="onConnect($event)">
       <div class="inputs">
         <label for="slot">Slot:</label>

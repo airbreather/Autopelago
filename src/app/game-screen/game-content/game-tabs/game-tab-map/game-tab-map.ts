@@ -77,7 +77,7 @@ import { watchAnimations } from './watch-animations';
             appTooltip [tooltipContext]="tooltipContext" (tooltipOriginChange)="setTooltipOrigin(lm.loc, $event, true)"
             (click)="setOrClearHyperFocus(lm.loc)" (keyup.enter)="setOrClearHyperFocus(lm.loc)" (keyup.space)="setOrClearHyperFocus(lm.loc)">
             <!--suppress CheckImageSize -->
-            <img width="64" height="64" [alt]="lm.yamlKey" src="/assets/images/locations.webp"
+            <img width="64" height="64" [alt]="lm.yamlKey" src="assets/images/locations.webp"
                  [style.--ap-sprite-index]="lm.spriteIndex">
           </div>
           @if (lm.yamlKey !== 'moon_comma_the') {
@@ -100,7 +100,7 @@ import { watchAnimations } from './watch-animations';
               appTooltip [tooltipContext]="tooltipContext" (tooltipOriginChange)="setTooltipOrigin(lm.loc, $event, true)"
               (click)="setOrClearHyperFocus(lm.loc)">
               <!--suppress CheckImageSize -->
-              <img width="16" height="48" [alt]="lm.yamlKey" src="/assets/images/locations.webp"
+              <img width="16" height="48" [alt]="lm.yamlKey" src="assets/images/locations.webp"
                    [style.--ap-sprite-index]="0">
             </div>
           }

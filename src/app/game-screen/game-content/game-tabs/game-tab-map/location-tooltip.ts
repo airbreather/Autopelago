@@ -21,7 +21,7 @@ import { RequirementDisplay } from './requirement-display';
             <img class="landmark-image" [alt]="region.yamlKey"
                  width="64" height="64"
                  [style.--ap-sprite-index]="spriteIndex()"
-                 src="/assets/images/locations.webp">
+                 src="assets/images/locations.webp">
             <app-requirement-display class="requirement-display" [requirement]="region.requirement"/>
           </div>
           <div class="flavor-text" [hidden]="!location().flavorText">“{{ location().flavorText }}”</div>

@@ -28,7 +28,7 @@ import { RequestHint } from './request-hint';
           <!--suppress AngularNgOptimizedImage -->
           <img class="item"
                [class.rats]="item.id === 'rats'"
-               [src]="item.id === 'rats' ? '/assets/images/players/pack_rat.webp' : '/assets/images/items.webp'"
+               [src]="item.id === 'rats' ? 'assets/images/players/pack_rat.webp' : 'assets/images/items.webp'"
                [alt]="item.name"
                [style.--ap-object-position]="-item.offsetX() + 'px ' + -item.offsetY + 'px'">
           @if (item.id === 'rats') {

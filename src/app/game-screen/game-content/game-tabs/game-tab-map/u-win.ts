@@ -6,7 +6,7 @@ import { Component, inject } from '@angular/core';
   template: `
     <div class="outer">
       <div class="uwin-and-flag">
-        <span>u win.</span><!--suppress CheckImageSize --><img alt="moon_comma_the" src="/assets/images/locations.webp" width="64" height="64">
+        <span>u win.</span><!--suppress CheckImageSize --><img alt="moon_comma_the" src="assets/images/locations.webp" width="64" height="64">
       </div>
       <button (click)="dialogRef.close()">Back to Map</button>
     </div>

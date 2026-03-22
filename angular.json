@@ -59,6 +59,9 @@
               "base": "dist",
               "browser": ""
             },
+            "externalDependencies": [
+              "assets/PublicPixel-rv0pA.woff2"
+            ],
             "assets": [
               {
                 "glob": "**/*",
