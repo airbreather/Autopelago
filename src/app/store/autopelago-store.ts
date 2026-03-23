@@ -97,6 +97,7 @@ export const GameStore = signalStore(
         game,
         lactoseIntolerant: slotData.lactose_intolerant,
         victoryLocationYamlKey,
+        uniqueItemsByNetworkId,
         aurasGrantedByItemNetworkId,
         ratCountByItemNetworkId,
         locationIsProgression,
@@ -116,8 +117,8 @@ export const GameStore = signalStore(
         outgoingAnimatableActions: List(),
       });
       store.receiveItems(client.items.received.map(i => i.id));
-      client.items.on('itemsReceived', () => {
-        store.receiveItems(client.items.received.map(i => i.id));
+      client.items.on('itemsReceived', (items) => {
+        store.receiveItems(items.map(i => i.id));
       });
 
       client.room.on('locationsChecked', (locations) => {
