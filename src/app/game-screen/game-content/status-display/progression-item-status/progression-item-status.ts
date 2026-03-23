@@ -2,8 +2,8 @@ import { Hint, Player } from '@airbreather/archipelago.js';
 import { Dialog } from '@angular/cdk/dialog';
 import { CdkConnectedOverlay, createFlexibleConnectedPositionStrategy } from '@angular/cdk/overlay';
 import { ChangeDetectionStrategy, Component, computed, inject, Injector, signal, type Signal } from '@angular/core';
-import { List, Repeat } from 'immutable';
-import { PROGRESSION_ITEMS_BY_VICTORY_LOCATION } from '../../../../data/items';
+import { List } from 'immutable';
+import { type AutopelagoUniqueItemKey, PROGRESSION_ITEMS_BY_VICTORY_LOCATION } from '../../../../data/items';
 import { BAKED_DEFINITIONS_FULL } from '../../../../data/resolved-definitions';
 import { GameStore } from '../../../../store/autopelago-store';
 import { createEmptyTooltipContext, TooltipBehavior, type TooltipOriginProps } from '../../../../tooltip-behavior';
@@ -42,7 +42,7 @@ import { RequestHint } from './request-hint';
       [cdkConnectedOverlayOrigin]="tooltipOrigin()?.element ?? outer"
       [cdkConnectedOverlayOpen]="tooltipOrigin() !== null"
       [cdkConnectedOverlayUsePopover]="'inline'"
-      (detach)="setTooltipOrigin(0, 0, null, false)">
+      (detach)="setTooltipOrigin(0, 'rats', null, false)">
       @if (tooltipOrigin(); as origin) {
         @let item = items()[origin.index];
         <div
@@ -184,14 +184,36 @@ export class ProgressionItemStatus {
   // all tooltips here should use the same context, so that the user can quickly switch between them
   // without having to sit through the whole delay.
   protected readonly tooltipContext = createEmptyTooltipContext();
-  readonly #hintedItems = computed(() => this.#gameStore.game()?.hintedItems() ?? List(Repeat(null, BAKED_DEFINITIONS_FULL.bakedItems.length)));
-  protected readonly ratHints = computed(() => this.#gameStore.game()?.ratHints() ?? List<Hint>());
+  readonly #hintedItems = computed<ReadonlyMap<AutopelagoUniqueItemKey, Hint>>(() => {
+    const result = new Map<AutopelagoUniqueItemKey, Hint>();
+    const game = this.#gameStore.game();
+    if (!game) {
+      return result;
+    }
+    const lookup = this.#gameStore.uniqueItemsByNetworkId();
+    for (const hint of game.hints()) {
+      const item = lookup.get(hint.item.id);
+      if (item) {
+        result.set(item, hint);
+      }
+    }
+    return result;
+  });
+
+  protected readonly ratHints = computed<List<Hint>>(() => {
+    const game = this.#gameStore.game();
+    if (!game) {
+      return List<Hint>();
+    }
+    const ratCountLookup = this.#gameStore.ratCountByItemNetworkId();
+    return game.hints().filter(hint => ratCountLookup.has(hint.item.id));
+  });
+
   protected readonly hintForTooltipItem = computed(() => {
     const item = this.tooltipOrigin()?.item ?? null;
-    const hintedItems = [...this.#hintedItems()];
     return item === null || item === 'rats'
       ? null
-      : hintedItems[item] ?? null;
+      : this.#hintedItems().get(item) ?? null;
   });
 
   protected readonly HINT_STATUS_UNSPECIFIED: Hint['status'] = 0;
@@ -203,7 +225,6 @@ export class ProgressionItemStatus {
   constructor() {
     this.items = computed(() => {
       const victoryLocationYamlKey = this.#gameStore.victoryLocationYamlKey();
-      const lactoseIntolerant = this.#gameStore.lactoseIntolerant();
       return [{
         index: 0,
         id: 'rats',
@@ -211,17 +232,18 @@ export class ProgressionItemStatus {
         name: 'Rats',
         flavorText: null,
         offsetX: computed(() => 0),
-        offsetY: BAKED_DEFINITIONS_FULL.progressionItemsByYamlKey.size * 65,
+        offsetY: BAKED_DEFINITIONS_FULL.uniqueItemsByYamlKey.size * 65,
       }, ...PROGRESSION_ITEMS_BY_VICTORY_LOCATION[victoryLocationYamlKey].map((itemYamlKey, index) => {
-        const item = BAKED_DEFINITIONS_FULL.progressionItemsByYamlKey.get(itemYamlKey) ?? -1;
-        const collected = computed(() => this.#performanceInsensitiveAnimatableState.receivedItemCountLookup()[item] > 0);
+        const collected = computed(() => this.#performanceInsensitiveAnimatableState.receivedUniqueItems().has(itemYamlKey));
+        const item = BAKED_DEFINITIONS_FULL.uniqueItemsByYamlKey.get(itemYamlKey);
+        if (!item) {
+          throw new Error(`Could not find item with yaml key ${itemYamlKey}`);
+        }
         return {
           index: index + 1,
-          id: item,
-          name: lactoseIntolerant
-            ? BAKED_DEFINITIONS_FULL.bakedItems[item].lactoseIntolerantName
-            : BAKED_DEFINITIONS_FULL.bakedItems[item].lactoseName,
-          flavorText: BAKED_DEFINITIONS_FULL.bakedItems[item].flavorText,
+          id: itemYamlKey,
+          name: item.name,
+          flavorText: item.flavorText,
           collected,
           offsetX: computed(() => collected() ? 0 : 65),
           offsetY: index * 65,
@@ -230,7 +252,7 @@ export class ProgressionItemStatus {
     });
   }
 
-  protected setTooltipOrigin(index: number, item: number | 'rats', props: TooltipOriginProps | null, fromDirective: boolean) {
+  protected setTooltipOrigin(index: number, item: AutopelagoUniqueItemKey | 'rats', props: TooltipOriginProps | null, fromDirective: boolean) {
     this.#tooltipOrigin.update((prev) => {
       if (prev !== null && !fromDirective) {
         prev.notifyDetached();
@@ -291,7 +313,7 @@ export class ProgressionItemStatus {
 
 interface ItemModel {
   index: number;
-  id: number | 'rats';
+  id: AutopelagoUniqueItemKey | 'rats';
   name: string;
   flavorText: string | null;
   collected: Signal<boolean>;
@@ -302,7 +324,7 @@ interface ItemModel {
 interface CurrentTooltipOriginProps {
   uid: symbol;
   index: number;
-  item: number | 'rats';
+  item: AutopelagoUniqueItemKey | 'rats';
   element: HTMLElement;
   notifyDetached: () => void;
 }

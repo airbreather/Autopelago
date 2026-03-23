@@ -5,9 +5,10 @@ import {
   type ReadonlyMapByCaseInsensitiveString,
 } from '../utils/map-by-case-insensitive-string';
 
-import { stricterIsArray, strictObjectEntries } from '../utils/types';
+import { strictObjectEntries } from '../utils/types';
 
 import * as baked from './baked.json';
+import { type AutopelagoUniqueItemKey, isUniqueItemKey } from './items';
 import {
   fillerRegionCoords,
   type FillerRegionYamlKey,
@@ -41,15 +42,10 @@ export type AutopelagoAura =
   | AutopelagoTrap
   ;
 
-export interface AutopelagoItem {
-  key: number;
-  isLogicallyRelevant: boolean;
-  lactoseName: string;
-  lactoseIntolerantName: string;
-  aurasGranted: readonly AutopelagoAura[];
-  flavorText: string | null;
-  ratCount: number;
-  isForCompatOnly?: true;
+export interface AutopelagoUniqueItem {
+  yamlKey: AutopelagoUniqueItemKey;
+  name: string;
+  flavorText: string;
 }
 
 interface Connected {
@@ -66,7 +62,7 @@ export interface AutopelagoLocation {
   flavorText: string | null;
   abilityCheckDC: number;
   connected: Readonly<Connected>;
-  unrandomizedProgressionItemYamlKey: string | null;
+  unrandomizedProgressionItemYamlKey: AutopelagoUniqueItemKey | null;
 }
 
 export interface AutopelagoRegionBase {
@@ -103,7 +99,7 @@ export interface AutopelagoRatCountRequirement {
 }
 
 export interface AutopelagoItemRequirement {
-  item: number;
+  item: AutopelagoUniqueItemKey;
 }
 
 export interface AutopelagoCompositeRequirement {
@@ -151,35 +147,22 @@ export const BAKED_DEFINITIONS_BY_VICTORY_LANDMARK = {
 } as const;
 
 export interface AutopelagoDefinitions {
-  bakedItems: readonly Readonly<AutopelagoItem>[];
-  progressionItemsByYamlKey: ReadonlyMap<string, number>;
+  uniqueItemsByYamlKey: ReadonlyMap<AutopelagoUniqueItemKey, Readonly<AutopelagoUniqueItem>>;
+  bakedAurasGrantedByItemForCompatOnly: ReadonlyMap<string, readonly AutopelagoAura[]>;
+  bakedRatCountByItemForCompatOnly: ReadonlyMap<string, number>;
   victoryLocationsByYamlKey: ReadonlyMap<VictoryLocationYamlKey, number>;
-  itemsWithNonzeroRatCounts: readonly number[];
-  itemNameLookup: ReadonlyMap<string, number>;
-
   allLocations: readonly Readonly<AutopelagoLocation>[];
   allRegions: readonly Readonly<AutopelagoRegion>[];
   regionForLandmarkLocation: readonly number[];
   startRegion: number;
   startLocation: number;
+  uniqueItemNameLookup: ReadonlyMapByCaseInsensitiveString<AutopelagoUniqueItemKey, 'en'>;
   locationNameLookup: ReadonlyMapByCaseInsensitiveString<number, 'en'>;
   moonCommaThe: { region: number; location: number } | null;
 }
 
 type YamlRequirement =
   typeof baked.regions.landmarks[keyof typeof baked.regions.landmarks]['requires'];
-type YamlBulkItemLevels =
-  | 'useful_nonprogression'
-  | 'trap'
-  | 'filler'
-  ;
-type GameSpecificBulkItemCategory =
-  Extract<typeof baked.items[YamlBulkItemLevels][number], Readonly<Record<'game_specific', unknown>>>['game_specific'];
-type YamlBulkItemLookups =
-  | Pick<typeof baked.items, YamlBulkItemLevels>[YamlBulkItemLevels]
-  | GameSpecificBulkItemCategory[keyof GameSpecificBulkItemCategory];
-type YamlBulkItemOrGameSpecificItemGroup = YamlBulkItemLookups[number];
-type YamlBulkItem = Exclude<YamlBulkItemOrGameSpecificItemGroup, Readonly<Record<'game_specific', unknown>>>;
 
 function toConnected(forward: readonly number[], backward: readonly number[]): Connected {
   return {
@@ -195,13 +178,8 @@ function toConnected(forward: readonly number[], backward: readonly number[]): C
 function resolveMainDefinitions(
   yamlFile: typeof baked,
 ): AutopelagoDefinitions {
-  const bakedItems: AutopelagoItem[] = [];
-  const progressionItemsByYamlKey = new Map<string, number>();
-  function getItemNames(name: string | readonly [string, string]): readonly [string, string] {
-    return typeof name === 'string'
-      ? [name, name]
-      : name;
-  }
+  const uniqueItemsByYamlKey = new Map<AutopelagoUniqueItemKey, AutopelagoUniqueItem>();
+  const uniqueItemNameLookup = new MapByCaseInsensitiveString<AutopelagoUniqueItemKey>('en');
 
   // Helper function to convert YamlRequirement to AutopelagoRequirement
   function convertRequirement(req: YamlRequirement): AutopelagoRequirement {
@@ -209,11 +187,10 @@ function resolveMainDefinitions(
       return { ratCount: req.rat_count };
     }
     if ('item' in req) {
-      const itemIndex = progressionItemsByYamlKey.get(req.item);
-      if (itemIndex === undefined) {
-        throw new Error(`Unknown item reference: ${req.item}`);
+      if (!isUniqueItemKey(req.item)) {
+        throw new Error(`Item ${req.item} is not defined in unique items`);
       }
-      return { item: itemIndex };
+      return { item: req.item };
     }
     if ('any' in req) {
       return {
@@ -230,91 +207,19 @@ function resolveMainDefinitions(
     throw new Error('Invalid requirement type');
   }
 
-  // Process keyed items (progression items)
+  // Process unique items
   for (const [key, item] of strictObjectEntries(yamlFile.items)) {
-    if (key === 'useful_nonprogression' || key === 'trap' || key === 'filler') {
-      continue;
-    }
-
-    const itemIndex = bakedItems.length;
-    progressionItemsByYamlKey.set(key, itemIndex);
-    const [lactoseName, lactoseIntolerantName] = getItemNames(item.name);
-    bakedItems.push({
-      key: itemIndex,
-      isLogicallyRelevant: true,
-      lactoseName,
-      lactoseIntolerantName,
-      aurasGranted: 'auras_granted' in item ? item.auras_granted as AutopelagoAura[] : [],
-      flavorText: 'flavor_text' in item ? item.flavor_text : null,
-      ratCount: 'rat_count' in item ? item.rat_count : 0,
+    uniqueItemsByYamlKey.set(key, {
+      yamlKey: key,
+      name: item.name,
+      flavorText: item.flavor_text,
     });
+    uniqueItemNameLookup.set(item.name, key);
   }
 
-  // Helper function to process bulk items
-  function processBulkItem(bulkItem: YamlBulkItem): void {
-    if (stricterIsArray(bulkItem)) {
-      // [name, aurasGranted] format
-      const [lactoseName, lactoseIntolerantName] = getItemNames(bulkItem[0] as string | readonly [string, string]);
-      bakedItems.push({
-        key: bakedItems.length,
-        isForCompatOnly: true,
-        isLogicallyRelevant: false,
-        lactoseName,
-        lactoseIntolerantName,
-        aurasGranted: bulkItem[1] as readonly AutopelagoAura[],
-        flavorText: null,
-        ratCount: 0,
-      });
-    }
-    else {
-      // YamlKeyedItem format
-      const [lactoseName, lactoseIntolerantName] = getItemNames(bulkItem.name as string | readonly [string, string]);
-      const ratCount = 'rat_count' in bulkItem ? bulkItem.rat_count : 0;
-      bakedItems.push({
-        key: bakedItems.length,
-        isForCompatOnly: true,
-        isLogicallyRelevant: ratCount > 0,
-        lactoseName,
-        lactoseIntolerantName,
-        aurasGranted: 'auras_granted' in bulkItem ? bulkItem.auras_granted as readonly AutopelagoAura[] : [],
-        flavorText: 'flavor_text' in bulkItem ? bulkItem.flavor_text : null,
-        ratCount,
-      });
-    }
-  }
-
-  // Helper function to process bulk item or game specific group
-  function processBulkItemOrGameSpecific(item: YamlBulkItemOrGameSpecificItemGroup): void {
-    if ('game_specific' in item) {
-      for (const [_, items] of strictObjectEntries(item.game_specific)) {
-        for (const bulkItem of items) {
-          processBulkItem(bulkItem);
-        }
-      }
-    }
-    else {
-      processBulkItem(item);
-    }
-  }
-
-  // Process non-progression items (used only for compat with APWorlds prior to 1.0.0)
-  for (const item of yamlFile.items.useful_nonprogression) {
-    processBulkItemOrGameSpecific(item);
-  }
-
-  for (const item of yamlFile.items.trap) {
-    processBulkItemOrGameSpecific(item);
-  }
-
-  for (const item of yamlFile.items.filler) {
-    processBulkItemOrGameSpecific(item);
-  }
-
-  // Calculate items with nonzero rat counts
-  const itemsWithNonzeroRatCounts = bakedItems
-    .map((item, index) => ({ item, index }))
-    .filter(({ item }) => item.ratCount > 0)
-    .map(({ index }) => index);
+  // Process baked item effects (pre-1.0.0 compat)
+  const bakedAurasGrantedByItemForCompatOnly = new Map(strictObjectEntries(yamlFile.compat.auras_for_item)) as Map<string, readonly AutopelagoAura[]>;
+  const bakedRatCountByItemForCompatOnly = new Map(strictObjectEntries(yamlFile.compat.rat_count_for_item));
 
   // Now process regions and locations
   const allRegions: AutopelagoRegion[] = [];
@@ -324,6 +229,9 @@ function resolveMainDefinitions(
 
   // Process landmarks first
   for (const [landmarkKey, landmark] of strictObjectEntries(yamlFile.regions.landmarks)) {
+    if (!isUniqueItemKey(landmark.unrandomized_item)) {
+      throw new Error(`Landmark ${landmarkKey} has invalid unrandomized item`);
+    }
     const regionIndex = allRegions.length;
     regionYamlKeyLookup.set(landmarkKey, regionIndex);
 
@@ -370,16 +278,22 @@ function resolveMainDefinitions(
 
     // Calculate number of locations based on unrandomized items
     const unrandomizedItems = filler.unrandomized_items;
-    const progressionItemYamlKeys: (string | null)[] = [];
+    const progressionItemYamlKeys: (AutopelagoUniqueItemKey | null)[] = [];
 
     if ('key' in unrandomizedItems) {
       for (const keyItem of unrandomizedItems.key) {
         if (typeof keyItem === 'object') {
+          if (!isUniqueItemKey(keyItem.item)) {
+            throw new Error(`Filler ${fillerKey} has invalid unrandomized key item`);
+          }
           for (let i = 0; i < keyItem.count; i++) {
             progressionItemYamlKeys.push(keyItem.item);
           }
         }
         else {
+          if (!isUniqueItemKey(keyItem)) {
+            throw new Error(`Filler ${fillerKey} has invalid unrandomized key item`);
+          }
           progressionItemYamlKeys.push(keyItem);
         }
       }
@@ -649,13 +563,6 @@ function resolveMainDefinitions(
 
   const startLocationIndex = startRegion.locs[0];
 
-  // build name lookups
-  const itemNameLookup = new Map<string, number>();
-  for (const [itemIndex, item] of bakedItems.entries()) {
-    itemNameLookup.set(item.lactoseName, itemIndex);
-    itemNameLookup.set(item.lactoseIntolerantName, itemIndex);
-  }
-
   const locationNameLookup = new MapByCaseInsensitiveString<number>('en');
   for (const [locationIndex, location] of allLocations.entries()) {
     locationNameLookup.set(location.name, locationIndex);
@@ -678,16 +585,16 @@ function resolveMainDefinitions(
   }
 
   return {
-    bakedItems,
-    progressionItemsByYamlKey,
+    uniqueItemsByYamlKey,
+    bakedAurasGrantedByItemForCompatOnly,
+    bakedRatCountByItemForCompatOnly,
     victoryLocationsByYamlKey,
-    itemsWithNonzeroRatCounts,
     allLocations,
     allRegions,
     regionForLandmarkLocation,
     startRegion: startRegionIndex,
     startLocation: startLocationIndex,
-    itemNameLookup,
+    uniqueItemNameLookup,
     locationNameLookup,
     moonCommaThe: null,
   };

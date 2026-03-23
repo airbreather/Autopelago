@@ -14,7 +14,6 @@ import BitArray from '@bitarray/typedarray';
 import { List, Repeat } from 'immutable';
 import type { ConnectScreenState } from './connect-screen/connect-screen-state';
 import {
-  type AutopelagoItem,
   BAKED_DEFINITIONS_BY_VICTORY_LANDMARK,
   VICTORY_LOCATION_NAME_LOOKUP,
 } from './data/resolved-definitions';
@@ -176,58 +175,6 @@ export async function initializeClient(initializeClientOptions: InitializeClient
     }
   }));
 
-  const itemName = (i: AutopelagoItem) => {
-    return slotData.lactose_intolerant
-      ? i.lactoseIntolerantName
-      : i.lactoseName;
-  };
-  const itemNetworkNameLookup = pkg.itemTable;
-  const bakedItemNetworkIdToItem: Partial<Record<number, number>> = { };
-  for (const item of defs.progressionItemsByYamlKey.values()) {
-    bakedItemNetworkIdToItem[itemNetworkNameLookup[itemName(defs.bakedItems[item])]] = item;
-  }
-
-  let prevHintedItems = List<Hint | null>(Repeat(null, defs.bakedItems.length));
-  const hintedItems = computed(() => prevHintedItems = prevHintedItems.withMutations((hi) => {
-    const { team: myTeam, slot: mySlot } = client.players.self;
-    for (const hint of reactiveHints()) {
-      if (hint.item.id in bakedItemNetworkIdToItem && hint.item.receiver.slot === mySlot && hint.item.receiver.team === myTeam) {
-        hi.set(bakedItemNetworkIdToItem[hint.item.id] ?? NaN, hint);
-      }
-    }
-  }));
-
-  let prevRatHints = List<Hint>();
-  const ratItemNetworkIds = new Set<number>();
-  if (slotData.version_stamp === '0.10.0') {
-    for (const [_, item] of defs.bakedItems.entries()) {
-      if (item.ratCount > 0) {
-        ratItemNetworkIds.add(itemNetworkNameLookup[itemName(item)]);
-      }
-    }
-  }
-  else {
-    for (const id of Object.keys(slotData.rat_counts_by_item_id)) {
-      ratItemNetworkIds.add(Number(id));
-    }
-  }
-  const ratHints = computed(() => prevRatHints = prevRatHints.withMutations((rh) => {
-    const { team: myTeam, slot: mySlot } = client.players.self;
-    let seenCount = 0;
-    for (const hint of reactiveHints()) {
-      if (ratItemNetworkIds.has(hint.item.id) && hint.item.receiver.slot === mySlot && hint.item.receiver.team === myTeam) {
-        if (seenCount < rh.size) {
-          rh.set(seenCount, hint);
-        }
-        else {
-          rh.push(hint);
-        }
-
-        ++seenCount;
-      }
-    }
-  }));
-
   return {
     connectScreenState,
     client,
@@ -236,8 +183,7 @@ export async function initializeClient(initializeClientOptions: InitializeClient
     playersWithStatus,
     slotData,
     hintedLocations,
-    hintedItems,
-    ratHints,
+    hints: reactiveHints,
     locationIsProgression,
     locationIsTrap,
     storedData,

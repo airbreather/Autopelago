@@ -1,7 +1,7 @@
 import { Component, computed, inject, input } from '@angular/core';
-import type { AutopelagoRequirement } from '../../../../data/resolved-definitions';
+import type { AutopelagoUniqueItemKey } from '../../../../data/items';
+import { type AutopelagoRequirement, BAKED_DEFINITIONS_FULL } from '../../../../data/resolved-definitions';
 import { buildRequirementIsSatisfied } from '../../../../game/location-routing';
-import { GameStore } from '../../../../store/autopelago-store';
 import { PerformanceInsensitiveAnimatableState } from '../../status-display/performance-insensitive-animatable-state';
 
 @Component({
@@ -15,7 +15,7 @@ import { PerformanceInsensitiveAnimatableState } from '../../status-display/perf
         <span>{{r.ratCount}} rats</span>
       }
       @else if ('item' in r) {
-        <span>{{itemNames()[r.item]}}</span>
+        <span>{{itemName(r.item)}}</span>
       }
       @else if ('fullClear' in r) {
       }
@@ -52,19 +52,16 @@ import { PerformanceInsensitiveAnimatableState } from '../../status-display/perf
   `,
 })
 export class RequirementDisplay {
-  readonly #store = inject(GameStore);
   readonly #anim = inject(PerformanceInsensitiveAnimatableState);
   readonly requirement = input.required<AutopelagoRequirement>();
 
-  protected readonly itemNames = computed(() => {
-    const allItems = this.#store.allItems();
-    const lactoseIntolerant = this.#store.lactoseIntolerant();
-    return allItems.map(i => lactoseIntolerant ? i.lactoseIntolerantName : i.lactoseName);
-  });
-
   protected readonly isSatisfied = computed(() => {
-    const allItems = this.#store.allItems();
-    const isSatisfied = buildRequirementIsSatisfied(allItems, this.#anim.receivedItemCountLookup(), this.#anim.allLocationsAreChecked());
+    const isSatisfied = buildRequirementIsSatisfied(this.#anim.receivedUniqueItems(), this.#anim.ratCount(), this.#anim.allLocationsAreChecked());
     return isSatisfied(this.requirement());
   });
+
+  protected itemName(key: AutopelagoUniqueItemKey) {
+    const baked = BAKED_DEFINITIONS_FULL.uniqueItemsByYamlKey.get(key);
+    return baked?.name ?? 'Unknown Item';
+  }
 }

@@ -1,6 +1,8 @@
 ﻿import * as baked from './baked.json';
 import type { VictoryLocationYamlKey } from './resolved-definitions';
 
+export type AutopelagoUniqueItemKey = keyof typeof baked.items;
+
 export const PROGRESSION_ITEMS_UP_TO_CAPTURED_GOLDFISH = [
   'pizza_rat',
   'ninja_rat',
@@ -57,4 +59,8 @@ export const PROGRESSION_ITEMS_BY_VICTORY_LOCATION = {
   captured_goldfish: PROGRESSION_ITEMS_UP_TO_CAPTURED_GOLDFISH,
   secret_cache: PROGRESSION_ITEMS_UP_TO_SECRET_CACHE,
   snakes_on_a_planet: PROGRESSION_ITEMS_FULL,
-} as const satisfies Record<VictoryLocationYamlKey, readonly (keyof typeof baked.items)[]>;
+} as const satisfies Record<VictoryLocationYamlKey, readonly AutopelagoUniqueItemKey[]>;
+
+export function isUniqueItemKey(key: string): key is AutopelagoUniqueItemKey {
+  return key in baked.items;
+}

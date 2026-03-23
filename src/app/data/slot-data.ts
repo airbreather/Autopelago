@@ -19,8 +19,7 @@ export interface AutopelagoClientAndData {
   messageLog: Signal<List<Message>>;
   playersWithStatus: Signal<List<Readonly<PlayerAndStatus>>>;
   hintedLocations: Signal<List<Hint | null>>;
-  hintedItems: Signal<List<Hint | null>>;
-  ratHints: Signal<List<Hint>>;
+  hints: Signal<List<Hint>>;
   slotData: AutopelagoSlotData;
   storedData: AutopelagoStoredData;
   storedDataKey: string;
