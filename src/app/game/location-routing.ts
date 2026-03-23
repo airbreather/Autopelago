@@ -1,22 +1,15 @@
 import BitArray from '@bitarray/typedarray';
 import Queue from 'yocto-queue';
 
-import {
-  type AutopelagoDefinitions,
-  type AutopelagoRegion,
-  type AutopelagoRequirement,
-  BAKED_DEFINITIONS_FULL,
-} from '../data/resolved-definitions';
+import type { AutopelagoUniqueItemKey } from '../data/items';
+import type { AutopelagoDefinitions, AutopelagoRegion, AutopelagoRequirement } from '../data/resolved-definitions';
 import type { UserRequestedLocation } from '../data/slot-data';
 import { arraysEqual } from '../utils/equal-helpers';
 
-export function buildRequirementIsSatisfied(relevantItemCount: readonly number[], allLocationsAreChecked: boolean): (req: AutopelagoRequirement) => boolean {
-  const allItems = BAKED_DEFINITIONS_FULL.allItems;
-  const ratCount = relevantItemCount.reduce((acc, val, i) => acc + (val * allItems[i].ratCount), 0);
-
+export function buildRequirementIsSatisfied(receivedUniqueItems: ReadonlySet<Readonly<AutopelagoUniqueItemKey>>, ratCount: number, allLocationsAreChecked: boolean): (req: AutopelagoRequirement) => boolean {
   function isSatisfied(req: AutopelagoRequirement): boolean {
     if ('item' in req) {
-      return relevantItemCount[req.item] >= 1;
+      return receivedUniqueItems.has(req.item);
     }
 
     if ('ratCount' in req) {
@@ -37,7 +30,8 @@ export function buildRequirementIsSatisfied(relevantItemCount: readonly number[]
 export interface DetermineDesirabilityOptions {
   defs: Readonly<AutopelagoDefinitions>;
   victoryLocation: number;
-  relevantItemCount: readonly number[];
+  receivedUniqueItems: ReadonlySet<AutopelagoUniqueItemKey>;
+  ratCount: number;
   locationIsChecked: Readonly<BitArray>;
   isStartled: boolean;
   hyperFocusLocation: number | null;
@@ -81,14 +75,15 @@ export function determineDesirability(options: Readonly<DetermineDesirabilityOpt
       moonCommaThe,
     },
     victoryLocation,
-    relevantItemCount,
+    receivedUniqueItems,
+    ratCount,
     locationIsChecked,
     isStartled,
     hyperFocusLocation,
     userRequestedLocations,
     auraDrivenLocations,
   } = options;
-  const isSatisfied = buildRequirementIsSatisfied(relevantItemCount, !!(moonCommaThe !== null && locationIsChecked[moonCommaThe.location]));
+  const isSatisfied = buildRequirementIsSatisfied(receivedUniqueItems, ratCount, !!(moonCommaThe !== null && locationIsChecked[moonCommaThe.location]));
 
   // be VERY careful about the ordering of how we fill this array. earlier blocks get overwritten by
   // later blocks that should take precedence.

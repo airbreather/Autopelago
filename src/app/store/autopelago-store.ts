@@ -4,15 +4,17 @@ import { computed, effect, resource } from '@angular/core';
 
 import { patchState, signalStore, withComputed, withHooks, withMethods, withState } from '@ngrx/signals';
 import { List, Set as ImmutableSet } from 'immutable';
+import type { AutopelagoUniqueItemKey } from '../data/items';
 import {
+  type AutopelagoAura,
   BAKED_DEFINITIONS_BY_VICTORY_LANDMARK,
-  BAKED_DEFINITIONS_FULL,
   VICTORY_LOCATION_NAME_LOOKUP,
 } from '../data/resolved-definitions';
 import type { AutopelagoClientAndData } from '../data/slot-data';
 import { targetLocationEvidenceFromJSONSerializable } from '../game/target-location-evidence';
 import { makePlayerToken } from '../utils/make-player-token';
 import { shuffle } from '../utils/shuffle';
+import { strictObjectEntries } from '../utils/types';
 import { toWeighted } from '../utils/weighted-sampler';
 import { withCleverTimer } from './with-clever-timer';
 import { withGameState } from './with-game-state';
@@ -51,15 +53,55 @@ export const GameStore = signalStore(
       if (defs.moonCommaThe !== null && checkedLocations.length >= (defs.allLocations.length - 1)) {
         checkedLocations.push(defs.moonCommaThe.location);
       }
+      const uniqueItemsByNetworkId = new Map<number, AutopelagoUniqueItemKey>();
+      for (const [name, networkId] of strictObjectEntries(pkg.itemTable)) {
+        const uniqueItemKey = defs.uniqueItemNameLookup.get(name);
+        if (typeof uniqueItemKey === 'string') {
+          uniqueItemsByNetworkId.set(networkId, uniqueItemKey);
+        }
+      }
+      let aurasGrantedByItemNetworkId: Map<number, readonly AutopelagoAura[]>;
+      let ratCountByItemNetworkId: Map<number, number>;
+      if (slotData.version_stamp == '0.10.0') {
+        // prior to 1.0.0, the client and APWorld needed to agree on all items that existed and what
+        // they did, and the client would just ignore certain auras according to the config. we need
+        // to be able to work with such worlds as well (this is just the tradeoff we have to make to
+        // support only the live version at any moment). to that end, this is the one place where we
+        // construct a live-alike version of everything using what we would previously have to infer
+        const enabledAuras = new Set<AutopelagoAura>([...slotData.enabled_buffs, ...slotData.enabled_traps]);
+        aurasGrantedByItemNetworkId = new Map<number, readonly AutopelagoAura[]>();
+        ratCountByItemNetworkId = new Map<number, number>();
+        for (const [name, networkId] of strictObjectEntries(pkg.itemTable)) {
+          const uniqueItemKey = defs.uniqueItemNameLookup.get(name);
+          if (typeof uniqueItemKey === 'string') {
+            uniqueItemsByNetworkId.set(networkId, uniqueItemKey);
+          }
+          const aurasGranted = defs.bakedAurasGrantedByItemForCompatOnly.get(name);
+          if (aurasGranted) {
+            aurasGrantedByItemNetworkId.set(networkId, aurasGranted.filter(a => enabledAuras.has(a)));
+          }
+          const ratCount = defs.bakedRatCountByItemForCompatOnly.get(name);
+          if (typeof ratCount === 'number') {
+            ratCountByItemNetworkId.set(networkId, ratCount);
+          }
+        }
+      }
+      else {
+        aurasGrantedByItemNetworkId = new Map(strictObjectEntries(slotData.auras_by_item_id)
+          .map(([networkId, aurasGranted]) => [Number(networkId), aurasGranted]));
+        ratCountByItemNetworkId = new Map(strictObjectEntries(slotData.rat_counts_by_item_id)
+          .map(([networkId, ratCount]) => [Number(networkId), ratCount]));
+      }
       patchState(store, {
         ...storedData,
         game,
         lactoseIntolerant: slotData.lactose_intolerant,
         victoryLocationYamlKey,
+        uniqueItemsByNetworkId,
+        aurasGrantedByItemNetworkId,
+        ratCountByItemNetworkId,
         locationIsProgression,
         locationIsTrap,
-        enabledBuffs: new Set(slotData.enabled_buffs),
-        enabledTraps: new Set(slotData.enabled_traps),
         messagesForChangedTarget: toWeighted(slotData.msg_changed_target),
         messagesForEnterGoMode: toWeighted(slotData.msg_enter_go_mode),
         messagesForEnterBK: toWeighted(slotData.msg_enter_bk),
@@ -69,30 +111,14 @@ export const GameStore = signalStore(
         hyperFocusLocation: 'hyperFocusLocation' in storedData ? storedData.hyperFocusLocation : null,
         auraDrivenLocations: List(storedData.auraDrivenLocations),
         userRequestedLocations: List(storedData.userRequestedLocations),
-        receivedItems: List<number>(),
+        receivedItemNetworkIds: List<number>(),
         checkedLocations: ImmutableSet(checkedLocations),
         previousTargetLocationEvidence: targetLocationEvidenceFromJSONSerializable(storedData.previousTargetLocationEvidence),
         outgoingAnimatableActions: List(),
       });
-      const itemsJustReceived: number[] = [];
-      for (const item of client.items.received) {
-        const itemKey = BAKED_DEFINITIONS_FULL.itemNameLookup.get(item.name);
-        if (typeof itemKey === 'number') {
-          itemsJustReceived.push(itemKey);
-        }
-      }
-
-      store.receiveItems(itemsJustReceived);
+      store.receiveItems(client.items.received.map(i => i.id));
       client.items.on('itemsReceived', (items) => {
-        const itemsJustReceived: number[] = [];
-        for (const item of items) {
-          const itemKey = BAKED_DEFINITIONS_FULL.itemNameLookup.get(item.name);
-          if (typeof itemKey === 'number') {
-            itemsJustReceived.push(itemKey);
-          }
-        }
-
-        store.receiveItems(itemsJustReceived);
+        store.receiveItems(items.map(i => i.id));
       });
 
       client.room.on('locationsChecked', (locations) => {

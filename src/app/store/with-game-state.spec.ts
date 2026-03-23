@@ -12,6 +12,7 @@ import { xoroshiro128plus } from 'pure-rand/generator/xoroshiro128plus';
 import type { RandomGenerator } from 'pure-rand/types/RandomGenerator';
 import { purify } from 'pure-rand/utils/purify';
 import { describe, expect, test } from 'vitest';
+import type { AutopelagoUniqueItemKey } from '../data/items';
 import {
   type AutopelagoAura,
   BAKED_DEFINITIONS_BY_VICTORY_LANDMARK,
@@ -25,10 +26,11 @@ import { withGameState } from './with-game-state';
 
 const pureUniformInt = purify(uniformInt);
 
-const singleAuraItems = stricterObjectFromEntries(
-  (['well_fed', 'upset_tummy', 'lucky', 'unlucky', 'energized', 'sluggish', 'distracted', 'stylish', 'startled', 'smart', 'conspiratorial', 'confident'] as const)
-    .map(aura => ([aura, BAKED_DEFINITIONS_FULL.allItems.findIndex(i => i.aurasGranted.length === 1 && i.aurasGranted[0] === aura)])),
-) satisfies Record<AutopelagoAura, number>;
+const ALL_AURAS = ['well_fed', 'upset_tummy', 'lucky', 'unlucky', 'energized', 'sluggish', 'distracted', 'stylish', 'startled', 'smart', 'conspiratorial', 'confident'] as const;
+const networkIdLookup = stricterObjectFromEntries([
+  ...BAKED_DEFINITIONS_FULL.uniqueItemsByYamlKey.keys(),
+  ...ALL_AURAS,
+].map((yamlKey, networkId) => [yamlKey, networkId])) satisfies Record<AutopelagoAura | AutopelagoUniqueItemKey, number>;
 
 describe('self', () => {
   test.each(strictObjectEntries(prngs))('rolls for %s continue to match what they used to', (_name, { rolls, prng }) => {
@@ -94,10 +96,9 @@ describe('withGameState', () => {
     const {
       allRegions,
       allLocations,
-      itemNameLookup,
       locationNameLookup,
     } = BAKED_DEFINITIONS_BY_VICTORY_LANDMARK.snakes_on_a_planet;
-    const packRat = itemNameLookup.get('Pack Rat') ?? NaN;
+    const { pack_rat } = networkIdLookup;
     const basketball = locationNameLookup.get('Basketball') ?? NaN;
     const immediatelyBeforeBasketball = allLocations[basketball].connected.backward[0];
     const beforeBasketball = allRegions[allLocations[basketball].regionLocationKey[0]].connected.backward[0];
@@ -105,7 +106,7 @@ describe('withGameState', () => {
     const store = getStoreWith({
       ...initialGameStateFor('snakes_on_a_planet'),
       checkedLocations: ImmutableSet(getLocs(allRegions[beforeBasketball])),
-      receivedItems: List(Array<number>(ratCount).fill(packRat)),
+      receivedItemNetworkIds: List(Array<number>(ratCount).fill(pack_rat)),
       currentLocation: immediatelyBeforeBasketball,
       prng: prngs.lucky.prng,
     });
@@ -119,12 +120,9 @@ describe('withGameState', () => {
     const {
       allRegions,
       allLocations,
-      itemNameLookup,
       locationNameLookup,
     } = BAKED_DEFINITIONS_BY_VICTORY_LANDMARK.snakes_on_a_planet;
-    const packRat = itemNameLookup.get('Pack Rat') ?? NaN;
-    const pizzaRat = itemNameLookup.get('Pizza Rat') ?? NaN;
-    const premiumCanOfPrawnFood = itemNameLookup.get('Premium Can of Prawn Food') ?? NaN;
+    const { pack_rat, pizza_rat, premium_can_of_prawn_food } = networkIdLookup;
     const basketball = locationNameLookup.get('Basketball') ?? NaN;
     const prawnStars = locationNameLookup.get('Prawn Stars') ?? NaN;
     const angryTurtles = locationNameLookup.get('Angry Turtles') ?? NaN;
@@ -135,7 +133,7 @@ describe('withGameState', () => {
     const store = getStoreWith({
       ...initialGameStateFor('snakes_on_a_planet'),
       checkedLocations: ImmutableSet(getLocs(allRegions[beforeBasketball])),
-      receivedItems: List(Array<number>(5).fill(packRat)).push(unblockFirst === 'Angry Turtles' ? pizzaRat : premiumCanOfPrawnFood),
+      receivedItemNetworkIds: List(Array<number>(5).fill(pack_rat)).push(unblockFirst === 'Angry Turtles' ? pizza_rat : premium_can_of_prawn_food),
       currentLocation: basketball,
       prng: prngs.lucky.prng,
     });
@@ -147,7 +145,7 @@ describe('withGameState', () => {
     expect(allLocations[store.targetLocation()].regionLocationKey).toBeOneOf([[beforePrawnStars, 1], [beforeAngryTurtles, 1]]);
   });
   test.for(['captured_goldfish', 'secret_cache', 'snakes_on_a_planet'] as const)('game should be winnable (%s)', (victoryLocationYamlKey) => {
-    const { allLocations, progressionItemsByYamlKey } = BAKED_DEFINITIONS_BY_VICTORY_LANDMARK[victoryLocationYamlKey];
+    const { allLocations } = BAKED_DEFINITIONS_BY_VICTORY_LANDMARK[victoryLocationYamlKey];
     const store = getStoreWith(initialGameStateFor(victoryLocationYamlKey));
     let advancesSoFar = 0;
     const newReceivedItems: number[] = [];
@@ -173,7 +171,7 @@ describe('withGameState', () => {
       for (const newCheckedLocation of outgoingCheckedLocations) {
         const location = allLocations[newCheckedLocation];
         if (location.unrandomizedProgressionItemYamlKey !== null) {
-          newReceivedItems.push(progressionItemsByYamlKey.get(location.unrandomizedProgressionItemYamlKey) ?? NaN);
+          newReceivedItems.push(networkIdLookup[location.unrandomizedProgressionItemYamlKey]);
         }
       }
 
@@ -190,7 +188,7 @@ describe('withGameState', () => {
     const store = getStoreWith({
       ...initialGameStateFor('captured_goldfish'),
     });
-    store.receiveItems(Range(0, effectCount).map(() => singleAuraItems.lucky));
+    store.receiveItems(Range(0, effectCount).map(() => networkIdLookup.lucky));
     for (let i = 0; i < 3; i++) {
       // lucky should force it, so all rolls should be low
       patchState(unprotected(store), { prng: prngs.unlucky.prng });
@@ -206,7 +204,7 @@ describe('withGameState', () => {
       ...initialGameStateFor('captured_goldfish'),
       prng: prngs._13_18_20_12_13.prng,
     });
-    store.receiveItems(Range(0, 4).map(() => singleAuraItems.unlucky));
+    store.receiveItems(Range(0, 4).map(() => networkIdLookup.unlucky));
 
     // normally, a 13 as your first roll should pass, but with Unlucky it's not enough. the 18
     // also fails because -5 from the aura and -5 from the second attempt. even a natural 20
@@ -229,10 +227,8 @@ describe('withGameState', () => {
   });
 
   test('positive energy factor should give extra movement', () => {
-    const { itemNameLookup, locationNameLookup } = BAKED_DEFINITIONS_BY_VICTORY_LANDMARK.captured_goldfish;
-    const packRat = itemNameLookup.get('Pack Rat') ?? NaN;
-    const premiumCanOfPrawnFood = itemNameLookup.get('Premium Can of Prawn Food') ?? NaN;
-    const pieRat = itemNameLookup.get('Pie Rat') ?? NaN;
+    const { locationNameLookup } = BAKED_DEFINITIONS_BY_VICTORY_LANDMARK.captured_goldfish;
+    const { energized, pack_rat, premium_can_of_prawn_food, pie_rat } = networkIdLookup;
 
     const basketball = locationNameLookup.get('Basketball') ?? NaN;
     const prawnStars = locationNameLookup.get('Prawn Stars') ?? NaN;
@@ -244,10 +240,10 @@ describe('withGameState', () => {
       userRequestedLocations: List([{ userSlot: 1, location: pirateBakeSale }]),
     });
     store.receiveItems([
-      singleAuraItems.energized,
-      ...Range(0, 5).map(() => packRat),
-      premiumCanOfPrawnFood,
-      pieRat,
+      energized,
+      ...Range(0, 5).map(() => pack_rat),
+      premium_can_of_prawn_food,
+      pie_rat,
     ]);
 
     for (let i = 0; i < 5; i++) {
@@ -313,7 +309,7 @@ describe('withGameState', () => {
     expect(allLocations[store.currentLocation()].regionLocationKey[1]).toStrictEqual(5);
     expect(allLocations[store.targetLocation()].regionLocationKey[1]).toStrictEqual(6);
 
-    store.receiveItems([singleAuraItems.well_fed]);
+    store.receiveItems([networkIdLookup.well_fed]);
 
     // 4 actions are "move, check, move, check".
     store.advance();
@@ -348,7 +344,7 @@ describe('withGameState', () => {
     expect(allLocations[store.currentLocation()].regionLocationKey[1]).toStrictEqual(3);
     expect(allLocations[store.targetLocation()].regionLocationKey[1]).toStrictEqual(4);
 
-    store.receiveItems([singleAuraItems.upset_tummy]);
+    store.receiveItems([networkIdLookup.upset_tummy]);
 
     // 2 actions are "move, check".
     store.advance();
@@ -367,12 +363,12 @@ describe('withGameState', () => {
     });
 
     // distraction should also burn through your food factor.
-    store.receiveItems([singleAuraItems.well_fed]);
+    store.receiveItems([networkIdLookup.well_fed]);
 
     // distraction counter won't go above 3.
-    store.receiveItems(Range(0, 3).map(() => singleAuraItems.distracted));
+    store.receiveItems(Range(0, 3).map(() => networkIdLookup.distracted));
     Range(0, 3).forEach(store.advance);
-    store.receiveItems(Range(0, 2).map(() => singleAuraItems.distracted));
+    store.receiveItems(Range(0, 2).map(() => networkIdLookup.distracted));
     Range(0, 2).forEach(store.advance);
 
     // 3 actions are "check, move, check"
@@ -390,7 +386,7 @@ describe('withGameState', () => {
       prng: prngs._6_11.prng,
     });
 
-    store.receiveItems(Range(0, 2).map(() => singleAuraItems.stylish));
+    store.receiveItems(Range(0, 2).map(() => networkIdLookup.stylish));
 
     // 3 actions are "check, move, check"
     store.advance();
@@ -400,14 +396,14 @@ describe('withGameState', () => {
   });
 
   test('go mode', () => {
-    const { allLocations, allRegions, progressionItemsByYamlKey, startRegion, victoryLocationsByYamlKey } = BAKED_DEFINITIONS_BY_VICTORY_LANDMARK.snakes_on_a_planet;
+    const { allLocations, allRegions, startRegion, victoryLocationsByYamlKey } = BAKED_DEFINITIONS_BY_VICTORY_LANDMARK.snakes_on_a_planet;
     const victoryLocation = victoryLocationsByYamlKey.get('snakes_on_a_planet') ?? NaN;
     const lastItemYamlKey = 'mongoose_in_a_combat_spacecraft';
     const store = getStoreWith({
       ...initialGameStateFor('snakes_on_a_planet'),
-      receivedItems: List(allLocations
+      receivedItemNetworkIds: List(allLocations
         .filter(l => l.unrandomizedProgressionItemYamlKey !== null && l.unrandomizedProgressionItemYamlKey !== lastItemYamlKey)
-        .map(l => progressionItemsByYamlKey.get(l.unrandomizedProgressionItemYamlKey ?? '') ?? NaN)),
+        .map(l => networkIdLookup[l.unrandomizedProgressionItemYamlKey ?? 'moon_shoes'])),
       prng: prngs.unlucky.prng,
     });
 
@@ -421,7 +417,7 @@ describe('withGameState', () => {
     }
 
     // now give it that last randomized item and see it shoot for the moon all the way through.
-    store.receiveItems([progressionItemsByYamlKey.get(lastItemYamlKey) ?? NaN]);
+    store.receiveItems([networkIdLookup[lastItemYamlKey]]);
 
     let advancesSoFar = 0;
     for (;;) {
@@ -438,9 +434,8 @@ describe('withGameState', () => {
   });
 
   test('user-requested locations should shift target', () => {
-    const { itemNameLookup, locationNameLookup } = BAKED_DEFINITIONS_BY_VICTORY_LANDMARK.captured_goldfish;
-    const packRat = itemNameLookup.get('Pack Rat') ?? NaN;
-    const premiumCanOfPrawnFood = itemNameLookup.get('Premium Can of Prawn Food') ?? NaN;
+    const { locationNameLookup } = BAKED_DEFINITIONS_BY_VICTORY_LANDMARK.captured_goldfish;
+    const { pack_rat, premium_can_of_prawn_food } = networkIdLookup;
 
     const basketball = locationNameLookup.get('Basketball') ?? NaN;
     const prawnStars = locationNameLookup.get('Prawn Stars') ?? NaN;
@@ -463,9 +458,9 @@ describe('withGameState', () => {
     patchState(unprotected(store), {
       ...initialState,
       checkedLocations: ImmutableSet([basketball]),
-      receivedItems: List([
-        ...Range(0, 5).map(() => packRat),
-        premiumCanOfPrawnFood,
+      receivedItemNetworkIds: List([
+        ...Range(0, 5).map(() => pack_rat),
+        premium_can_of_prawn_food,
       ]),
       prng: prngs.unlucky.prng,
     });
@@ -532,7 +527,7 @@ describe('withGameState', () => {
     // even though it's all high rolls, we shouldn't have any checks because the rat is hard-prioritizing.
     expect(store.checkedLocations()).toStrictEqual(ImmutableSet());
 
-    store.receiveItems([singleAuraItems.startled]);
+    store.receiveItems([networkIdLookup.startled]);
     expect(store.targetLocation()).toStrictEqual(startLocation);
 
     // it used all its movement to get from middleLocation to here previously, so being startled
@@ -553,8 +548,8 @@ describe('withGameState', () => {
     });
 
     store.receiveItems([
-      singleAuraItems.startled,
-      ...Range(0, 2).map(() => singleAuraItems.distracted),
+      networkIdLookup.startled,
+      ...Range(0, 2).map(() => networkIdLookup.distracted),
     ]);
 
     // first step, we're startled out of our distraction.
@@ -593,14 +588,14 @@ describe('withGameState', () => {
 
     // even though there's a target RIGHT on the other side, we still favor the nearest one that
     // we can already reach with what we currently have.
-    store.receiveItems([singleAuraItems[aura]]);
+    store.receiveItems([networkIdLookup[aura]]);
     expect(store.auraDrivenLocations()).toStrictEqual(List([startLocation]));
     expect(store.targetLocation()).toStrictEqual(startLocation);
     expect(store.targetLocationReason()).toStrictEqual('aura-driven');
 
     // if there's nothing else that we can reach, then we should NOT target the unreachable one
     // that's just out of reach. it should just fizzle.
-    store.receiveItems([singleAuraItems[aura]]);
+    store.receiveItems([networkIdLookup[aura]]);
     expect(store.auraDrivenLocations()).toStrictEqual(List([startLocation]));
     expect(store.targetLocation()).toStrictEqual(startLocation);
     expect(store.targetLocationReason()).toStrictEqual('aura-driven');
@@ -612,20 +607,20 @@ describe('withGameState', () => {
     patchState(unprotected(store), ({ checkedLocations }) => ({ checkedLocations: checkedLocations.add(startLocation) }));
     TestBed.tick(); // white-box: requirement is satisfied via an effect in onInit
     expect(store.auraDrivenLocations()).toStrictEqual(List());
-    store.receiveItems([singleAuraItems[aura]]);
+    store.receiveItems([networkIdLookup[aura]]);
     expect(store.auraDrivenLocations()).toStrictEqual(List());
   });
 
   test('user-requested locations past clearable landmarks should block the player (regression test for #45)', () => {
-    const { allLocations, allRegions, itemNameLookup, locationNameLookup, startRegion } = BAKED_DEFINITIONS_BY_VICTORY_LANDMARK.captured_goldfish;
-    const packRat = itemNameLookup.get('Pack Rat') ?? NaN;
+    const { allLocations, allRegions, locationNameLookup, startRegion } = BAKED_DEFINITIONS_BY_VICTORY_LANDMARK.captured_goldfish;
+    const { pack_rat } = networkIdLookup;
     const basketball = locationNameLookup.get('Basketball') ?? NaN;
     const locationsBeforePrawnStars = getLocs(allRegions[allRegions[allLocations[locationNameLookup.get('Prawn Stars') ?? NaN].regionLocationKey[0]].connected.backward[0]]);
     const startRegionLocs = getLocs(allRegions[startRegion]);
 
     const store = getStoreWith({
       ...initialGameStateFor('captured_goldfish'),
-      receivedItems: List(Range(0, 5).map(() => packRat)),
+      receivedItemNetworkIds: List(Range(0, 5).map(() => pack_rat)),
       currentLocation: startRegionLocs.at(-1) ?? NaN,
       userRequestedLocations: List([{ userSlot: 0, location: locationsBeforePrawnStars[1] }]),
     });
@@ -663,14 +658,14 @@ describe('withGameState', () => {
   // actions (as opposed to having the second piggyback on the one before it and not cost anything),
   // but it felt just about right to get 3 spaces of movement from one action if you're ONLY moving.
   test('long moves should be accelerated', () => {
-    const { allRegions, itemNameLookup, locationNameLookup, startRegion } = BAKED_DEFINITIONS_BY_VICTORY_LANDMARK.captured_goldfish;
-    const packRat = itemNameLookup.get('Pack Rat') ?? NaN;
+    const { allRegions, locationNameLookup, startRegion } = BAKED_DEFINITIONS_BY_VICTORY_LANDMARK.captured_goldfish;
+    const { pack_rat } = networkIdLookup;
     const basketball = locationNameLookup.get('Basketball') ?? NaN;
     const startRegionLocs = getLocs(allRegions[startRegion]);
 
     const store = getStoreWith({
       ...initialGameStateFor('captured_goldfish'),
-      receivedItems: List(Range(0, 5).map(() => packRat)),
+      receivedItemNetworkIds: List(Range(0, 5).map(() => pack_rat)),
       userRequestedLocations: List([{ userSlot: 0, location: basketball }]),
     });
 
@@ -702,12 +697,8 @@ describe('withGameState', () => {
   });
 
   test('startled should not move through locked locations', () => {
-    const { itemNameLookup, locationNameLookup, startLocation } = BAKED_DEFINITIONS_BY_VICTORY_LANDMARK.captured_goldfish;
-    const packRat = itemNameLookup.get('Pack Rat') ?? NaN;
-    const pricelessAntique = itemNameLookup.get('Priceless Antique') ?? NaN;
-    const pieRat = itemNameLookup.get('Pie Rat') ?? NaN;
-    const pizzaRat = itemNameLookup.get('Pizza Rat') ?? NaN;
-    const chefRat = itemNameLookup.get('Chef Rat') ?? NaN;
+    const { locationNameLookup, startLocation } = BAKED_DEFINITIONS_BY_VICTORY_LANDMARK.captured_goldfish;
+    const { pack_rat, priceless_antique, pie_rat, pizza_rat, chef_rat } = networkIdLookup;
 
     const basketball = locationNameLookup.get('Basketball') ?? NaN;
     const angryTurtles = locationNameLookup.get('Angry Turtles') ?? NaN;
@@ -720,12 +711,12 @@ describe('withGameState', () => {
     const store = getStoreWith({
       ...initialGameStateFor('captured_goldfish'),
       currentLocation: afterPirateBakeSale1,
-      receivedItems: List([
-        ...Range(0, 40).map(() => packRat),
-        pricelessAntique,
-        pieRat,
-        pizzaRat,
-        chefRat,
+      receivedItemNetworkIds: List([
+        ...Range(0, 40).map(() => pack_rat),
+        priceless_antique,
+        pie_rat,
+        pizza_rat,
+        chef_rat,
       ]),
       checkedLocations: ImmutableSet([
         basketball,
@@ -735,7 +726,7 @@ describe('withGameState', () => {
       ]),
     });
     for (let i = 0; i < 100; i++) {
-      store.receiveItems([singleAuraItems.startled]);
+      store.receiveItems([networkIdLookup.startled]);
       store.advance();
       if (store.currentLocation() === startLocation) {
         break;
@@ -753,27 +744,46 @@ describe('withGameState', () => {
   });
 
   test('received items should apply auras', () => {
-    const { itemNameLookup } = BAKED_DEFINITIONS_BY_VICTORY_LANDMARK.captured_goldfish;
+    const initialGameState = initialGameStateFor('captured_goldfish');
+    const aurasGrantedByItemNetworkId = new Map(initialGameState.aurasGrantedByItemNetworkId);
+    function networkIdForItemWithAuras(auras: readonly AutopelagoAura[]) {
+      const networkId = aurasGrantedByItemNetworkId.size;
+      aurasGrantedByItemNetworkId.set(networkId, auras);
+      return networkId;
+    }
+    const rat_poison = networkIdForItemWithAuras([
+      'upset_tummy', 'upset_tummy', 'upset_tummy', 'unlucky', 'startled', 'startled', 'startled', 'sluggish',
+    ]);
+    const bag_of_powdered_sugar = networkIdForItemWithAuras([
+      'well_fed', 'energized', 'energized', 'energized',
+    ]);
+    const weapons_grade_folding_chair = networkIdForItemWithAuras([
+      'confident',
+    ]);
+    const itchy_iron_wool_sweater = networkIdForItemWithAuras([
+      'stylish', 'distracted', 'sluggish',
+    ]);
     const store = getStoreWith({
-      ...initialGameStateFor('captured_goldfish'),
+      ...initialGameState,
+      aurasGrantedByItemNetworkId,
     });
 
     store.receiveItems([
       // upset_tummy, upset_tummy, upset_tummy, unlucky, startled, startled, startled, sluggish
-      'Rat Poison',
+      rat_poison,
 
       // well_fed, energized, energized, energized
-      'Bag of Powdered Sugar',
+      bag_of_powdered_sugar,
 
-      // confidence
-      'Weapons-grade Folding Chair',
+      // confident
+      weapons_grade_folding_chair,
 
       // stylish, distracted, sluggish
-      'Itchy Iron Wool Sweater',
+      itchy_iron_wool_sweater,
 
-      // confidence
-      'Weapons-grade Folding Chair',
-    ].map(name => itemNameLookup.get(name) ?? NaN));
+      // confident
+      weapons_grade_folding_chair,
+    ]);
 
     expect.soft(store.foodFactor()).toStrictEqual(-10);
     expect.soft(store.luckFactor()).toStrictEqual(-1);
@@ -785,14 +795,9 @@ describe('withGameState', () => {
   });
 
   test('regression test for #92, which was an issue with the "closest reachable unchecked" logic', () => {
-    const { allLocations, allRegions, itemNameLookup, locationNameLookup } = BAKED_DEFINITIONS_BY_VICTORY_LANDMARK.snakes_on_a_planet;
+    const { allLocations, allRegions, locationNameLookup } = BAKED_DEFINITIONS_BY_VICTORY_LANDMARK.snakes_on_a_planet;
     const regionLocsByYamlKey = stricterObjectFromEntries(allRegions.map(r => [r.yamlKey, getLocs(r)]));
-    const packRat = itemNameLookup.get('Pack Rat') ?? NaN;
-    const giantNoveltyScissors = itemNameLookup.get('Giant Novelty Scissors') ?? NaN;
-    const ninjaRat = itemNameLookup.get('Ninja Rat') ?? NaN;
-    const chefRat = itemNameLookup.get('Chef Rat') ?? NaN;
-    const computerRat = itemNameLookup.get('Computer Rat') ?? NaN;
-    const notoriousRAT = itemNameLookup.get('Notorious R.A.T.') ?? NaN;
+    const { pack_rat, giant_novelty_scissors, ninja_rat, chef_rat, computer_rat, notorious_r_a_t } = networkIdLookup;
 
     const basketball = locationNameLookup.get('Basketball') ?? NaN;
     const angryTurtles = locationNameLookup.get('Angry Turtles') ?? NaN;
@@ -804,13 +809,13 @@ describe('withGameState', () => {
     const store = getStoreWith({
       ...initialGameStateFor('snakes_on_a_planet'),
       currentLocation: beforeGoldfish2,
-      receivedItems: List([
-        giantNoveltyScissors,
-        ninjaRat,
-        chefRat,
-        computerRat,
-        notoriousRAT,
-        ...Range(0, 14).map(() => packRat),
+      receivedItemNetworkIds: List([
+        giant_novelty_scissors,
+        ninja_rat,
+        chef_rat,
+        computer_rat,
+        notorious_r_a_t,
+        ...Range(0, 14).map(() => pack_rat),
       ]),
       checkedLocations: ImmutableSet([
         basketball,
@@ -818,7 +823,7 @@ describe('withGameState', () => {
         restaurant,
         bowlingBallDoor,
         capturedGoldfish,
-        ...regionLocsByYamlKey.Menu, // "Before Basketball"
+        ...regionLocsByYamlKey.before_basketball,
         ...regionLocsByYamlKey.before_prawn_stars,
         ...regionLocsByYamlKey.before_angry_turtles,
         ...regionLocsByYamlKey.after_restaurant,
@@ -851,12 +856,8 @@ describe('withGameState', () => {
   // there's a discrepancy between the code that finds the best target location and the code that
   // finds the route to such location.
   test.each(['top', 'bottom'] as const)('edge case test for routing beyond unchecked landmarks (%s route)', (side) => {
-    const { itemNameLookup, locationNameLookup } = BAKED_DEFINITIONS_BY_VICTORY_LANDMARK.captured_goldfish;
-    const packRat = itemNameLookup.get('Pack Rat') ?? NaN;
-    const pricelessAntique = itemNameLookup.get('Priceless Antique') ?? NaN;
-    const pizzaRat = itemNameLookup.get('Pizza Rat') ?? NaN;
-    const pieRat = itemNameLookup.get('Pie Rat') ?? NaN;
-    const chefRat = itemNameLookup.get('Chef Rat') ?? NaN;
+    const { locationNameLookup } = BAKED_DEFINITIONS_BY_VICTORY_LANDMARK.captured_goldfish;
+    const { pack_rat, priceless_antique, pizza_rat, pie_rat, chef_rat } = networkIdLookup;
 
     const basketball = locationNameLookup.get('Basketball') ?? NaN;
     const prawnStars = locationNameLookup.get('Prawn Stars') ?? NaN;
@@ -872,12 +873,12 @@ describe('withGameState', () => {
     const store = getStoreWith({
       ...initialGameStateFor('captured_goldfish'),
       currentLocation: basketball,
-      receivedItems: List([
-        ...Range(0, 40).map(() => packRat),
-        pricelessAntique,
-        pizzaRat,
-        pieRat,
-        chefRat,
+      receivedItemNetworkIds: List([
+        ...Range(0, 40).map(() => pack_rat),
+        priceless_antique,
+        pizza_rat,
+        pie_rat,
+        chef_rat,
       ]),
       checkedLocations: ImmutableSet(checkedLocations),
       userRequestedLocations: List([
@@ -910,7 +911,7 @@ describe('withGameState', () => {
 
     store.addUserRequestedLocation(0, userRequestedLocation);
     expect(store.targetLocation()).toStrictEqual(userRequestedLocation);
-    store.receiveItems([singleAuraItems.conspiratorial]);
+    store.receiveItems([networkIdLookup.conspiratorial]);
     expect(store.targetLocation()).toStrictEqual(auraDrivenLocation);
     store.setOrClearHyperFocus(startLocation);
     expect(store.targetLocation()).toStrictEqual(startLocation);
@@ -971,8 +972,11 @@ function initialGameStateFor(victoryLocationYamlKey: VictoryLocationYamlKey): Pa
   return {
     lactoseIntolerant: false,
     victoryLocationYamlKey,
-    enabledBuffs: new Set(['confident', 'energized', 'lucky', 'smart', 'stylish', 'well_fed']),
-    enabledTraps: new Set(['conspiratorial', 'distracted', 'sluggish', 'startled', 'unlucky', 'upset_tummy']),
+    aurasGrantedByItemNetworkId: new Map(ALL_AURAS.map(aura => [networkIdLookup[aura], [aura]])),
+    uniqueItemsByNetworkId: new Map([...BAKED_DEFINITIONS_FULL.uniqueItemsByYamlKey.keys()].map(yamlKey => [networkIdLookup[yamlKey], yamlKey])),
+    ratCountByItemNetworkId: new Map([...BAKED_DEFINITIONS_FULL.uniqueItemsByYamlKey.entries()]
+      .map(([yamlKey, item]) => [networkIdLookup[yamlKey], BAKED_DEFINITIONS_FULL.bakedRatCountByItemForCompatOnly.get(item.name)] as const)
+      .filter((([_, ratCount]) => typeof ratCount === 'number') as ((x: unknown) => x is [number, number]))),
     locationIsProgression: new BitArray(defs.allLocations.length),
     locationIsTrap: new BitArray(defs.allLocations.length),
     foodFactor: 0,
