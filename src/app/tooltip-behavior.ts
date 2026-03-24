@@ -17,7 +17,7 @@ export class TooltipBehavior {
   readonly #uid = Symbol();
   readonly #el = inject<ElementRef<HTMLElement>>(ElementRef);
 
-  readonly tooltipContext = input<TooltipContext>(createEmptyTooltipContext());
+  readonly tooltipContext = input(createEmptyTooltipContext());
   readonly tooltipOriginChange = output<TooltipOriginProps | null>();
 
   readonly delay = input(400);
@@ -69,7 +69,7 @@ export class TooltipBehavior {
       this.#emitAttached(fromFocus, ctx);
     }
     else {
-      ctx._prevFocusTimeout = setTimeout(() => {
+      ctx._prevFocusTimeout = window.setTimeout(() => {
         this.#emitAttached(fromFocus, ctx);
         ctx._prevFocusTimeout = NaN;
       }, this.delay());
@@ -101,7 +101,7 @@ export class TooltipBehavior {
       this.#emitDetached(ctx);
     }
     else {
-      ctx._prevBlurTimeout = setTimeout(() => {
+      ctx._prevBlurTimeout = window.setTimeout(() => {
         this.#emitDetached(ctx);
         ctx._prevBlurTimeout = NaN;
       }, this.delay());

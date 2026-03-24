@@ -21,22 +21,12 @@ import versionInfo from '../../version-info.json';
 import { applyPixelColors, getPixelTones } from '../utils/color-helpers';
 import { elementSizeSignal } from '../utils/element-size';
 import {
-  trySetBooleanProp,
-  trySetColorProp,
-  trySetNumberProp,
-  trySetStringProp,
-} from '../utils/hardened-state-propagation';
-import {
-  CONNECT_SCREEN_STATE_DEFAULTS,
-  type ConnectScreenState,
-  isValidPlayerIcon,
+  loadFromStorage,
   type PlayerIcon,
   queryParamsFromConnectScreenState,
+  saveToStorage,
 } from './connect-screen-state';
 import { Personalize, type PersonalizeData, type PlayerImages } from './personalize';
-
-// Local storage key
-const STORAGE_KEY = 'autopelago-connect-screen-state';
 
 @Component({
   selector: 'app-connect-screen',
@@ -252,7 +242,7 @@ export class ConnectScreen {
 
   protected readonly loadedInitialImages = computed(() => this.#playerImagesResource.value());
   protected readonly personalizeButtonCanvas = viewChild.required<ElementRef<HTMLCanvasElement>>('personalizeButtonCanvas');
-  readonly #formModel = signal(CONNECT_SCREEN_STATE_DEFAULTS);
+  readonly #formModel = signal(loadFromStorage());
   protected readonly form = form(this.#formModel, (schemaPath) => {
     /* eslint-disable @typescript-eslint/unbound-method */
     required(schemaPath.slot);
@@ -287,44 +277,6 @@ export class ConnectScreen {
       title.setTitle(`${slotPart}Autopelago ${versionInfo.version} | A Game So Easy, It Plays Itself!`);
     });
 
-    const saved = localStorage.getItem(STORAGE_KEY);
-    if (saved) {
-      let parsed: unknown = null;
-      try {
-        parsed = JSON.parse(saved) as unknown;
-      }
-      catch {
-        console.warn('Failed to parse saved connect screen state:', saved);
-      }
-
-      if (typeof parsed !== 'object' || parsed === null) {
-        return;
-      }
-
-      const model: Partial<ConnectScreenState> = { };
-      trySetStringProp(parsed, 'slot', model);
-      trySetStringProp(parsed, 'host', model);
-      trySetNumberProp(parsed, 'port', model);
-      trySetStringProp(parsed, 'password', model);
-      trySetNumberProp(parsed, 'minTimeSeconds', model);
-      trySetNumberProp(parsed, 'maxTimeSeconds', model);
-      trySetBooleanProp(parsed, 'enableTileAnimations', model);
-      trySetBooleanProp(parsed, 'enableRatAnimations', model);
-      trySetBooleanProp(parsed, 'sendChatMessages', model);
-      trySetBooleanProp(parsed, 'whenTargetChanges', model);
-      trySetBooleanProp(parsed, 'whenBecomingBlocked', model);
-      trySetBooleanProp(parsed, 'whenStillBlocked', model);
-      trySetNumberProp(parsed, 'whenStillBlockedIntervalMinutes', model);
-      trySetBooleanProp(parsed, 'whenBecomingUnblocked', model);
-      trySetBooleanProp(parsed, 'forOneTimeEvents', model);
-      trySetNumberProp(parsed, 'playerIcon', model, n => isValidPlayerIcon(n));
-      trySetColorProp(parsed, 'playerColor', model);
-      this.#formModel.set({
-        ...CONNECT_SCREEN_STATE_DEFAULTS,
-        ...model,
-      });
-    }
-
     effect(() => {
       const portState = this.form.port();
       const hostState = this.form.host();
@@ -347,7 +299,7 @@ export class ConnectScreen {
     });
 
     effect(() => {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(this.form().value()));
+      saveToStorage(this.form().value());
     });
 
     const initialImageDraw = effect(() => {

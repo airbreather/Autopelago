@@ -9,12 +9,16 @@ import {
   resource,
   signal,
 } from '@angular/core';
-import { RouterLink } from '@angular/router';
+import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { type ActiveToast, ToastrService } from 'ngx-toastr';
 
 import { toastError } from '../app-error-handler';
 import { initializeClient } from '../archipelago-client';
-import type { ConnectScreenState } from '../connect-screen/connect-screen-state';
+import {
+  type ConnectScreenState,
+  QUERY_PARAM_NAME_MAP,
+  queryParamsFromConnectScreenState,
+} from '../connect-screen/connect-screen-state';
 import { GameStore } from '../store/autopelago-store';
 import { GameScreenStore } from '../store/game-screen-store';
 import { GameContent } from './game-content/game-content';
@@ -106,6 +110,23 @@ export class GameScreen {
   });
 
   constructor() {
+    const router = inject(Router);
+    const route = inject(ActivatedRoute);
+    if (route.snapshot.queryParamMap.has(QUERY_PARAM_NAME_MAP.password)) {
+      effect(() => {
+        // we got what we needed from our input. mask the password in query params.
+        const connectScreenState = this.connectScreenState();
+        if (connectScreenState.password) {
+          void router.navigate([], {
+            relativeTo: route,
+            replaceUrl: true,
+            queryParamsHandling: 'replace',
+            queryParams: queryParamsFromConnectScreenState(connectScreenState),
+          });
+        }
+      });
+    }
+
     let nextTimeoutDuration = 500;
     let prevTimeout = NaN;
     this.#destroyRef.onDestroy(() => {
@@ -136,7 +157,7 @@ export class GameScreen {
         return;
       }
 
-      prevTimeout = setTimeout(() => this.game.reload(), nextTimeoutDuration);
+      prevTimeout = window.setTimeout(() => this.game.reload(), nextTimeoutDuration);
       nextTimeoutDuration = Math.min(nextTimeoutDuration * 1.2, 30000);
     });
     effect(() => {

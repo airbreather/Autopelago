@@ -31,7 +31,7 @@ export function resizeText({ outer, inner, text, max, createEffectOptions }: Res
         clearTimeout(prevTimeout);
       }
 
-      prevTimeout = setTimeout(() => {
+      prevTimeout = window.setTimeout(() => {
         const i = binarySearch(sizes, outerElement.clientWidth);
         innerElement.style.fontSize = `${(i / 2).toString()}px`;
       }, 0);

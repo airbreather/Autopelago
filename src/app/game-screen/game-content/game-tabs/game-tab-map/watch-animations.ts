@@ -101,7 +101,7 @@ export function watchAnimations(
     }
   };
 
-  setTimeout(() => {
+  window.setTimeout(() => {
     effect(() => {
       const { allLocations } = gameStore.defs();
       const coords = allLocations[untracked(() => gameStore.currentLocation())].coords;

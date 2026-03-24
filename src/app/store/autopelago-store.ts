@@ -388,7 +388,7 @@ export const GameStore = signalStore(
               }));
             }
 
-            prevInterval = setInterval(() => {
+            prevInterval = window.setInterval(() => {
               if (whenStillBlocked) {
                 patchState(store, ({ outgoingMessages }) => ({
                   outgoingMessages: outgoingMessages.push(forRemindBK(Math.random())),

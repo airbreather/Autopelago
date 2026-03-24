@@ -8,7 +8,7 @@ export interface ElementSize {
 }
 
 export function elementSizeSignal(provider: Signal<ElementRef<HTMLElement>>, options?: CreateEffectOptions) {
-  const result = signal<ElementSize>({ clientWidth: 0, clientHeight: 0, scrollWidth: 0, scrollHeight: 0 });
+  const result = signal({ clientWidth: 0, clientHeight: 0, scrollWidth: 0, scrollHeight: 0 });
   effect((onCleanup) => {
     const el = provider().nativeElement;
     const obs = new ResizeObserver(() => {

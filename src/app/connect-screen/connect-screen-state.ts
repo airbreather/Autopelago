@@ -1,12 +1,65 @@
 import type { ParamMap } from '@angular/router';
 import { type ColorInput, TinyColor } from '@ctrl/tinycolor';
+import { decrypt, encrypt } from '../utils/encdec';
+import {
+  trySetBooleanProp,
+  trySetColorProp,
+  trySetNumberProp,
+  trySetStringProp,
+} from '../utils/hardened-state-propagation';
 import type { SymmetricPropertiesOf, TypeAssert } from '../utils/types';
 
-const QUERY_PARAM_NAME_MAP = {
+// Local storage key
+const STORAGE_KEY = 'autopelago-connect-screen-state';
+
+export function loadFromStorage(): ConnectScreenState {
+  const model = { ...CONNECT_SCREEN_STATE_DEFAULTS };
+  const saved = localStorage.getItem(STORAGE_KEY);
+  if (!saved) {
+    return model;
+  }
+  let parsed: unknown = null;
+  try {
+    parsed = JSON.parse(saved) as unknown;
+  }
+  catch {
+    console.warn('Failed to parse saved connect screen state:', saved);
+  }
+
+  if (typeof parsed !== 'object' || parsed === null) {
+    return model;
+  }
+
+  trySetStringProp(parsed, 'slot', model);
+  trySetStringProp(parsed, 'host', model);
+  trySetNumberProp(parsed, 'port', model);
+  trySetStringProp(parsed, 'password', model);
+  trySetNumberProp(parsed, 'minTimeSeconds', model);
+  trySetNumberProp(parsed, 'maxTimeSeconds', model);
+  trySetBooleanProp(parsed, 'enableTileAnimations', model);
+  trySetBooleanProp(parsed, 'enableRatAnimations', model);
+  trySetBooleanProp(parsed, 'sendChatMessages', model);
+  trySetBooleanProp(parsed, 'whenTargetChanges', model);
+  trySetBooleanProp(parsed, 'whenBecomingBlocked', model);
+  trySetBooleanProp(parsed, 'whenStillBlocked', model);
+  trySetNumberProp(parsed, 'whenStillBlockedIntervalMinutes', model);
+  trySetBooleanProp(parsed, 'whenBecomingUnblocked', model);
+  trySetBooleanProp(parsed, 'forOneTimeEvents', model);
+  trySetNumberProp(parsed, 'playerIcon', model, n => isValidPlayerIcon(n));
+  trySetColorProp(parsed, 'playerColor', model);
+  return model;
+}
+
+export function saveToStorage(state: Readonly<ConnectScreenState>) {
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+}
+
+export const QUERY_PARAM_NAME_MAP = {
   host: 'h',
   port: 'p',
   slot: 's',
   password: 'w',
+  encryptedPassword: 'W',
   minTimeSeconds: 't',
   maxTimeSeconds: 'T',
   enableTileAnimations: 'A',
@@ -24,6 +77,7 @@ const QUERY_PARAM_NAME_MAP = {
   p: 'port',
   s: 'slot',
   w: 'password',
+  W: 'encryptedPassword',
   t: 'minTimeSeconds',
   T: 'maxTimeSeconds',
   A: 'enableTileAnimations',
@@ -44,13 +98,13 @@ type _AssertAllPropsAreSymmetric = TypeAssert<
   SymmetricPropertiesOf<typeof QUERY_PARAM_NAME_MAP> extends typeof QUERY_PARAM_NAME_MAP ? true : false
 >;
 
-export type ConnectScreenQueryParams = {
+export type ConnectScreenQueryParams = Omit<{
   [K in keyof ConnectScreenState as typeof QUERY_PARAM_NAME_MAP[K]]: ConnectScreenState[K] extends boolean
     ? 0 | 1
     : TinyColor extends ConnectScreenState[K]
       ? string
       : ConnectScreenState[K];
-};
+} & { [QUERY_PARAM_NAME_MAP.encryptedPassword]: string }, typeof QUERY_PARAM_NAME_MAP['password']>;
 
 const VALID_PLAYER_ICONS = [1, 2, 4] as const;
 export type PlayerIcon = typeof VALID_PLAYER_ICONS[number];
@@ -76,15 +130,19 @@ export interface ConnectScreenState {
   forOneTimeEvents: boolean;
   playerIcon: PlayerIcon;
   playerColor: ColorInput;
+
+  /** never use this for anything useful, it's just there for type checker stuff. */
+  encryptedPassword: string;
 }
 
 const prefersReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
-export const CONNECT_SCREEN_STATE_DEFAULTS: ConnectScreenState = {
+export const CONNECT_SCREEN_STATE_DEFAULTS = {
   slot: '',
   host: 'archipelago.gg',
   port: 38281,
   password: '',
+  encryptedPassword: '',
   minTimeSeconds: 20,
   maxTimeSeconds: 30,
   enableTileAnimations: !prefersReducedMotion,
@@ -98,14 +156,14 @@ export const CONNECT_SCREEN_STATE_DEFAULTS: ConnectScreenState = {
   forOneTimeEvents: true,
   playerIcon: 1,
   playerColor: '#382E26',
-} as const;
+} as const satisfies ConnectScreenState;
 
 export function queryParamsFromConnectScreenState(s: Readonly<ConnectScreenState>): ConnectScreenQueryParams {
   return {
     [QUERY_PARAM_NAME_MAP.host]: s.host,
     [QUERY_PARAM_NAME_MAP.port]: s.port,
     [QUERY_PARAM_NAME_MAP.slot]: s.slot,
-    [QUERY_PARAM_NAME_MAP.password]: s.password,
+    [QUERY_PARAM_NAME_MAP.encryptedPassword]: s.password ? encrypt(s.slot, s.password) : '',
     [QUERY_PARAM_NAME_MAP.minTimeSeconds]: s.minTimeSeconds,
     [QUERY_PARAM_NAME_MAP.maxTimeSeconds]: s.maxTimeSeconds,
     [QUERY_PARAM_NAME_MAP.enableTileAnimations]: s.enableTileAnimations ? 1 : 0,
@@ -118,7 +176,6 @@ export function queryParamsFromConnectScreenState(s: Readonly<ConnectScreenState
     [QUERY_PARAM_NAME_MAP.whenBecomingUnblocked]: s.whenBecomingUnblocked ? 1 : 0,
     [QUERY_PARAM_NAME_MAP.forOneTimeEvents]: s.forOneTimeEvents ? 1 : 0,
     [QUERY_PARAM_NAME_MAP.playerIcon]: s.playerIcon,
-    // eslint-disable-next-line @typescript-eslint/no-base-to-string -- handle after release
     [QUERY_PARAM_NAME_MAP.playerColor]: typeof s.playerColor === 'string' ? s.playerColor : new TinyColor(s.playerColor).toString(),
   };
 }
@@ -131,11 +188,25 @@ export function connectScreenStateFromQueryParams(qp: ParamMap): ConnectScreenSt
     throw new Error(`Missing required query params. host (${QUERY_PARAM_NAME_MAP.host}), port (${QUERY_PARAM_NAME_MAP.port}), and slot (${QUERY_PARAM_NAME_MAP.slot}) must be provided!`);
   }
 
+  let password = qp.get(QUERY_PARAM_NAME_MAP.password);
+  if (password === null) {
+    const encryptedPassword = qp.get(QUERY_PARAM_NAME_MAP.encryptedPassword);
+    if (encryptedPassword) {
+      try {
+        password = decrypt(slot, encryptedPassword);
+      }
+      catch {
+        // we actually don't want to do anything here - they might have wiped the key from their local
+        // storage, in which case they just have to go through the 'invalid password' routine.
+      }
+    }
+    password ??= '';
+  }
   return {
     slot,
     host,
     port,
-    password: qp.get(QUERY_PARAM_NAME_MAP.password) ?? '',
+    password,
     minTimeSeconds: Number(qp.get(QUERY_PARAM_NAME_MAP.minTimeSeconds)) || CONNECT_SCREEN_STATE_DEFAULTS.minTimeSeconds,
     maxTimeSeconds: Number(qp.get(QUERY_PARAM_NAME_MAP.maxTimeSeconds)) || CONNECT_SCREEN_STATE_DEFAULTS.maxTimeSeconds,
     enableTileAnimations: readBoolean(qp, 'enableTileAnimations'),
@@ -149,6 +220,7 @@ export function connectScreenStateFromQueryParams(qp: ParamMap): ConnectScreenSt
     forOneTimeEvents: readBoolean(qp, 'forOneTimeEvents'),
     playerIcon: readPlayerIcon(qp, 'playerIcon'),
     playerColor: readColor(qp, 'playerColor'),
+    encryptedPassword: '',
   };
 }
 
