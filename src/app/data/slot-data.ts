@@ -72,7 +72,7 @@ export type AutopelagoSlotData =
   ;
 
 export function isLegacySlotData(slotData: AutopelagoSlotData): slotData is AutopelagoSlotDataV0 {
-  return slotData.version_stamp[0].startsWith('0');
+  return slotData.version_stamp.startsWith('0');
 }
 
 export interface UserRequestedLocation extends JSONRecord {
