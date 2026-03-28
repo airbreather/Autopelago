@@ -26,7 +26,7 @@ export interface AutopelagoClientAndData {
 }
 
 export interface AutopelagoSlotDataV0 extends JSONRecord {
-  version_stamp: '0.10.0'; // the first change came AFTER this stopped being observed.
+  version_stamp: `0.${number}.${number}`; // the first change came AFTER this stopped being observed.
   victory_location_name: VictoryLocationName;
   enabled_buffs: AutopelagoBuff[]; // obsolete in 1.0.0
   enabled_traps: AutopelagoTrap[]; // obsolete in 1.0.0
@@ -54,10 +54,14 @@ export interface AutopelagoSlotDataV1 extends JSONRecord {
   auras_by_item_id: ToJSONSerializable<Readonly<Record<number, readonly AutopelagoAura[]>>>;
   rat_counts_by_item_id: ToJSONSerializable<Readonly<Record<number, number>>>;
 
+  // effectively frozen as of 1.0.0, but included here so that we can distinguish 1.0.0+ from the
+  // plethora of "0.x.x" versions that came before it and would otherwise still work (though are not
+  // officially supported).
+  version_stamp: '1.0.0';
+
   // removed in 1.0.0, explicitly EXCLUDED here because JSONRecord is otherwise too permissive.
   // ironically, they actually ARE present in the object at runtime for the sake of compatibility in
   // the other direction - but the type system is more helpful if it stops us from using them.
-  version_stamp?: never;
   enabled_buffs?: never;
   enabled_traps?: never;
 }
@@ -66,6 +70,10 @@ export type AutopelagoSlotData =
   | AutopelagoSlotDataV0
   | AutopelagoSlotDataV1
   ;
+
+export function isLegacySlotData(slotData: AutopelagoSlotData): slotData is AutopelagoSlotDataV0 {
+  return slotData.version_stamp[0].startsWith('0');
+}
 
 export interface UserRequestedLocation extends JSONRecord {
   location: number;

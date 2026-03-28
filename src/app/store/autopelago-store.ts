@@ -10,7 +10,7 @@ import {
   BAKED_DEFINITIONS_BY_VICTORY_LANDMARK,
   VICTORY_LOCATION_NAME_LOOKUP,
 } from '../data/resolved-definitions';
-import type { AutopelagoClientAndData } from '../data/slot-data';
+import { type AutopelagoClientAndData, isLegacySlotData } from '../data/slot-data';
 import { targetLocationEvidenceFromJSONSerializable } from '../game/target-location-evidence';
 import { makePlayerToken } from '../utils/make-player-token';
 import { shuffle } from '../utils/shuffle';
@@ -62,7 +62,7 @@ export const GameStore = signalStore(
       }
       let aurasGrantedByItemNetworkId: Map<number, readonly AutopelagoAura[]>;
       let ratCountByItemNetworkId: Map<number, number>;
-      if (slotData.version_stamp == '0.10.0') {
+      if (isLegacySlotData(slotData)) {
         // prior to 1.0.0, the client and APWorld needed to agree on all items that existed and what
         // they did, and the client would just ignore certain auras according to the config. we need
         // to be able to work with such worlds as well (this is just the tradeoff we have to make to
