@@ -41,7 +41,11 @@ import { GameContent } from './game-content/game-content';
       } @else {
         <div class="not-connected">
           <h1>{{ notConnectedMessage() }}</h1>
-          <button class="return-button" routerLink="/">Back to Main Menu</button>
+          <button
+            class="return-button"
+            routerLink="/"
+            [queryParams]="queryParamsFromConnectScreenState()"
+          >Back to Main Menu</button>
         </div>
       }
     </div>
@@ -73,6 +77,9 @@ export class GameScreen {
       ? 'Disconnected from server.'
       : 'Connecting...',
   );
+
+  protected readonly queryParamsFromConnectScreenState = computed(() =>
+    queryParamsFromConnectScreenState(this.connectScreenState()));
 
   protected readonly game = resource({
     params: () => ({
