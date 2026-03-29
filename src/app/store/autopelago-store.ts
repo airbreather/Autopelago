@@ -128,6 +128,7 @@ export const GameStore = signalStore(
       let ratCountByItemNetworkId: Map<number, number>;
       let messagesForImpendingDoom: ReturnType<typeof toWeighted<string>> | null = null;
       let deathDelaySeconds = NaN;
+      let sendDeathLink = false;
       if (isLegacySlotData(slotData)) {
         // death link wasn't supported until 1.1.0
         client.deathLink.disableDeathLink();
@@ -162,7 +163,10 @@ export const GameStore = signalStore(
           .map(([networkId, ratCount]) => [Number(networkId), ratCount]));
 
         if (slotData.added_in_1_1_0) {
-          if (!slotData.added_in_1_1_0.death_link) {
+          if (slotData.added_in_1_1_0.death_link) {
+            sendDeathLink = true;
+          }
+          else {
             client.deathLink.disableDeathLink();
           }
           // regardless of if death link is enabled or not, the death delay timer still happens.
@@ -191,6 +195,7 @@ export const GameStore = signalStore(
         messagesForCompletedGoal: toWeighted(slotData.msg_completed_goal),
         messagesForImpendingDoom,
         deathDelaySeconds,
+        sendDeathLink,
         hyperFocusLocation: 'hyperFocusLocation' in storedData ? storedData.hyperFocusLocation : null,
         auraDrivenLocations: List(storedData.auraDrivenLocations),
         userRequestedLocations: List(storedData.userRequestedLocations),
