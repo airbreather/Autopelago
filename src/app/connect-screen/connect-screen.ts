@@ -15,12 +15,13 @@ import {
 
 import { disabled, form, FormField, max, min, required } from '@angular/forms/signals';
 import { Title } from '@angular/platform-browser';
-import { Router } from '@angular/router';
+import { ActivatedRoute, Router } from '@angular/router';
 import { TinyColor } from '@ctrl/tinycolor';
 import versionInfo from '../../version-info.json';
 import { applyPixelColors, getPixelTones } from '../utils/color-helpers';
 import { elementSizeSignal } from '../utils/element-size';
 import {
+  connectScreenStateFromQueryParams,
   loadFromStorage,
   type PlayerIcon,
   queryParamsFromConnectScreenState,
@@ -222,6 +223,7 @@ import { Personalize, type PersonalizeData, type PlayerImages } from './personal
 })
 export class ConnectScreen {
   readonly #router = inject(Router);
+  readonly #route = inject(ActivatedRoute);
   readonly #dialog = inject(Dialog);
   readonly #connecting = signal(false);
   protected readonly connecting = this.#connecting.asReadonly();
@@ -247,7 +249,11 @@ export class ConnectScreen {
 
   protected readonly loadedInitialImages = computed(() => this.#playerImagesResource.value());
   protected readonly personalizeButtonCanvas = viewChild.required<ElementRef<HTMLCanvasElement>>('personalizeButtonCanvas');
-  readonly #formModel = signal(loadFromStorage());
+  readonly #formModel = signal({
+    ...loadFromStorage(),
+    ...connectScreenStateFromQueryParams(this.#route.snapshot.queryParamMap),
+  });
+
   protected readonly form = form(this.#formModel, (schemaPath) => {
     /* eslint-disable @typescript-eslint/unbound-method */
     required(schemaPath.slot);
@@ -304,8 +310,21 @@ export class ConnectScreen {
       hostState.reset();
     });
 
+    let firstLoad = true;
     effect(() => {
-      saveToStorage(this.form().value());
+      const state = this.form().value();
+      saveToStorage(state);
+      if (firstLoad) {
+        firstLoad = false;
+      }
+      else {
+        void this.#router.navigate([], {
+          relativeTo: this.#route,
+          queryParams: queryParamsFromConnectScreenState(state),
+          queryParamsHandling: 'replace',
+          replaceUrl: true,
+        });
+      }
     });
 
     const initialImageDraw = effect(() => {

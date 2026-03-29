@@ -14,6 +14,7 @@ import { Title } from '@angular/platform-browser';
 
 import { RouterLink } from '@angular/router';
 import versionInfo from '../../../../../version-info.json';
+import { queryParamsFromConnectScreenState } from '../../../../connect-screen/connect-screen-state';
 import type { AutopelagoClientAndData } from '../../../../data/slot-data';
 
 import { resizeText } from '../../../../utils/resize-text';
@@ -28,7 +29,12 @@ import { resizeText } from '../../../../utils/resize-text';
     <div #outer class="outer">
       <div #playerNameDiv class="player-name">{{ playerName() }}</div>
       <div>
-        <button #returnButton class="return-button" routerLink="/">Back to Main Menu</button>
+        <button
+          #returnButton
+          class="return-button"
+          routerLink="/"
+          [queryParams]="queryParamsFromConnectScreenState()"
+        >Back to Main Menu</button>
       </div>
     </div>
   `,
@@ -52,6 +58,9 @@ import { resizeText } from '../../../../utils/resize-text';
 })
 export class PlayerNameAndNavigation {
   readonly game = input.required<AutopelagoClientAndData>();
+
+  protected readonly queryParamsFromConnectScreenState = computed(() =>
+    queryParamsFromConnectScreenState(this.game().connectScreenState));
 
   readonly #player = signal({ name: '', alias: '' });
   protected readonly playerName = computed(() => {
