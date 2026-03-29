@@ -7,6 +7,10 @@ import { GameScreenStore } from '../../../../store/game-screen-store';
 import { PerformanceInsensitiveAnimatableState } from '../../status-display/performance-insensitive-animatable-state';
 import { UWin } from './u-win';
 
+function noop() {
+  // empty
+}
+
 interface WatchAnimationsParams {
   dashedPath: SVGPathElement;
   overlay: CdkConnectedOverlay;
@@ -103,6 +107,7 @@ export function watchAnimations(
   };
 
   window.setTimeout(() => {
+    let immediateDeathCallback = noop;
     effect(() => {
       const { allLocations } = gameStore.defs();
       const coords = allLocations[untracked(() => gameStore.currentLocation())].coords;
@@ -254,6 +259,11 @@ export function watchAnimations(
           }
 
           case 'death': {
+            if (anim.instant) {
+              immediateDeathCallback();
+              gameStore.killPlayerBegin();
+            }
+
             const prevPrevAnimation = prevAnimation;
             const startLocation = gameStore.defs().startLocation;
             const [x, y] = gameStore.defs().allLocations[startLocation].coords;
@@ -271,7 +281,15 @@ export function watchAnimations(
                 currentAnimation.pause();
               }
               try {
-                await currentAnimation.finished;
+                const animPromise = Promise.any([
+                  currentAnimation.finished,
+                  new Promise<void>(resolve => immediateDeathCallback = resolve),
+                ]);
+                if (anim.instant) {
+                  immediateDeathCallback();
+                }
+                await animPromise;
+                immediateDeathCallback = noop;
                 currentAnimation.commitStyles();
                 currentAnimation.cancel();
                 gameStore.killPlayerEnd('{PLAYER_ALIAS} drank poison.');

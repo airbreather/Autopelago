@@ -165,6 +165,11 @@ export const GameStore = signalStore(
         if (slotData.added_in_1_1_0) {
           if (slotData.added_in_1_1_0.death_link) {
             sendDeathLink = true;
+            client.deathLink.on('deathReceived', () => {
+              patchState(store, ({ outgoingAnimatableActions }) => ({
+                outgoingAnimatableActions: outgoingAnimatableActions.push({ type: 'death', instant: true }),
+              }));
+            });
           }
           else {
             client.deathLink.disableDeathLink();

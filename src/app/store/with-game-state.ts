@@ -520,6 +520,9 @@ export function withGameState() {
       }
       return {
         addUserRequestedLocation,
+        killPlayerBegin() {
+          patchState(store, killPlayerStatePatch());
+        },
         killPlayerEnd(cause: string) {
           patchState(store, {
             impendingDoom: false,
@@ -707,7 +710,10 @@ export function withGameState() {
                             Object.assign(result, killPlayerStatePatch());
                             if (!result.impendingDoom) {
                               result.impendingDoom = true;
-                              result.outgoingAnimatableActions = result.outgoingAnimatableActions.push({ type: 'death' });
+                              result.outgoingAnimatableActions = result.outgoingAnimatableActions.push({
+                                type: 'death',
+                                instant: false,
+                              });
                             }
                             // items with a 'poison' aura also generally have other negative auras that would apply if
                             // poison weren't special (either because it's been disabled or because the client is on an

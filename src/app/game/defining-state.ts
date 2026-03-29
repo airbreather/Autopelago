@@ -21,6 +21,7 @@ export interface CheckLocationsAction {
 
 export interface DeathAction {
   type: 'death';
+  instant: boolean;
 }
 
 export interface UWinAction {
