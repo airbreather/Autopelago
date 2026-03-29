@@ -27,10 +27,14 @@ import { withGameState } from './with-game-state';
 const pureUniformInt = purify(uniformInt);
 
 const ALL_AURAS = ['well_fed', 'upset_tummy', 'lucky', 'unlucky', 'energized', 'sluggish', 'distracted', 'stylish', 'startled', 'smart', 'conspiratorial', 'confident'] as const;
-const networkIdLookup = stricterObjectFromEntries([
+const networkItemLookup = stricterObjectFromEntries([
   ...BAKED_DEFINITIONS_FULL.uniqueItemsByYamlKey.keys(),
   ...ALL_AURAS,
-].map((yamlKey, networkId) => [yamlKey, networkId])) satisfies Record<AutopelagoAura | AutopelagoUniqueItemKey, number>;
+].map((yamlKey, networkId) => [yamlKey, { id: networkId, name: yamlKey }])) satisfies Record<AutopelagoAura | AutopelagoUniqueItemKey, { id: number; name: string }>;
+const networkIdLookup = stricterObjectFromEntries(
+  strictObjectEntries(networkItemLookup)
+    .map(([yamlKey, networkItem]) => [yamlKey, networkItem.id]),
+);
 
 describe('self', () => {
   test.each(strictObjectEntries(prngs))('rolls for %s continue to match what they used to', (_name, { rolls, prng }) => {
@@ -148,7 +152,7 @@ describe('withGameState', () => {
     const { allLocations } = BAKED_DEFINITIONS_BY_VICTORY_LANDMARK[victoryLocationYamlKey];
     const store = getStoreWith(initialGameStateFor(victoryLocationYamlKey));
     let advancesSoFar = 0;
-    const newReceivedItems: number[] = [];
+    const newReceivedItems: { id: number; name: string }[] = [];
     for (;;) {
       // always roll high. these are the slowest tests by far, and with all the other tests we have
       // for specific ranges and mercy factor, there's really no benefit to being "realistic" here.
@@ -171,7 +175,7 @@ describe('withGameState', () => {
       for (const newCheckedLocation of outgoingCheckedLocations) {
         const location = allLocations[newCheckedLocation];
         if (location.unrandomizedProgressionItemYamlKey !== null) {
-          newReceivedItems.push(networkIdLookup[location.unrandomizedProgressionItemYamlKey]);
+          newReceivedItems.push(networkItemLookup[location.unrandomizedProgressionItemYamlKey]);
         }
       }
 
@@ -188,7 +192,7 @@ describe('withGameState', () => {
     const store = getStoreWith({
       ...initialGameStateFor('captured_goldfish'),
     });
-    store.receiveItems(Range(0, effectCount).map(() => networkIdLookup.lucky));
+    store.receiveItems(Range(0, effectCount).map(() => networkItemLookup.lucky));
     for (let i = 0; i < 3; i++) {
       // lucky should force it, so all rolls should be low
       patchState(unprotected(store), { prng: prngs.unlucky.prng });
@@ -204,7 +208,7 @@ describe('withGameState', () => {
       ...initialGameStateFor('captured_goldfish'),
       prng: prngs._13_18_20_12_13.prng,
     });
-    store.receiveItems(Range(0, 4).map(() => networkIdLookup.unlucky));
+    store.receiveItems(Range(0, 4).map(() => networkItemLookup.unlucky));
 
     // normally, a 13 as your first roll should pass, but with Unlucky it's not enough. the 18
     // also fails because -5 from the aura and -5 from the second attempt. even a natural 20
@@ -228,7 +232,7 @@ describe('withGameState', () => {
 
   test('positive energy factor should give extra movement', () => {
     const { locationNameLookup } = BAKED_DEFINITIONS_BY_VICTORY_LANDMARK.captured_goldfish;
-    const { energized, pack_rat, premium_can_of_prawn_food, pie_rat } = networkIdLookup;
+    const { energized, pack_rat, premium_can_of_prawn_food, pie_rat } = networkItemLookup;
 
     const basketball = locationNameLookup.get('Basketball') ?? NaN;
     const prawnStars = locationNameLookup.get('Prawn Stars') ?? NaN;
@@ -309,7 +313,7 @@ describe('withGameState', () => {
     expect(allLocations[store.currentLocation()].regionLocationKey[1]).toStrictEqual(5);
     expect(allLocations[store.targetLocation()].regionLocationKey[1]).toStrictEqual(6);
 
-    store.receiveItems([networkIdLookup.well_fed]);
+    store.receiveItems([networkItemLookup.well_fed]);
 
     // 4 actions are "move, check, move, check".
     store.advance();
@@ -344,7 +348,7 @@ describe('withGameState', () => {
     expect(allLocations[store.currentLocation()].regionLocationKey[1]).toStrictEqual(3);
     expect(allLocations[store.targetLocation()].regionLocationKey[1]).toStrictEqual(4);
 
-    store.receiveItems([networkIdLookup.upset_tummy]);
+    store.receiveItems([networkItemLookup.upset_tummy]);
 
     // 2 actions are "move, check".
     store.advance();
@@ -363,12 +367,12 @@ describe('withGameState', () => {
     });
 
     // distraction should also burn through your food factor.
-    store.receiveItems([networkIdLookup.well_fed]);
+    store.receiveItems([networkItemLookup.well_fed]);
 
     // distraction counter won't go above 3.
-    store.receiveItems(Range(0, 3).map(() => networkIdLookup.distracted));
+    store.receiveItems(Range(0, 3).map(() => networkItemLookup.distracted));
     Range(0, 3).forEach(store.advance);
-    store.receiveItems(Range(0, 2).map(() => networkIdLookup.distracted));
+    store.receiveItems(Range(0, 2).map(() => networkItemLookup.distracted));
     Range(0, 2).forEach(store.advance);
 
     // 3 actions are "check, move, check"
@@ -386,7 +390,7 @@ describe('withGameState', () => {
       prng: prngs._6_11.prng,
     });
 
-    store.receiveItems(Range(0, 2).map(() => networkIdLookup.stylish));
+    store.receiveItems(Range(0, 2).map(() => networkItemLookup.stylish));
 
     // 3 actions are "check, move, check"
     store.advance();
@@ -417,7 +421,7 @@ describe('withGameState', () => {
     }
 
     // now give it that last randomized item and see it shoot for the moon all the way through.
-    store.receiveItems([networkIdLookup[lastItemYamlKey]]);
+    store.receiveItems([networkItemLookup[lastItemYamlKey]]);
 
     let advancesSoFar = 0;
     for (;;) {
@@ -527,7 +531,7 @@ describe('withGameState', () => {
     // even though it's all high rolls, we shouldn't have any checks because the rat is hard-prioritizing.
     expect(store.checkedLocations()).toStrictEqual(ImmutableSet());
 
-    store.receiveItems([networkIdLookup.startled]);
+    store.receiveItems([networkItemLookup.startled]);
     expect(store.targetLocation()).toStrictEqual(startLocation);
 
     // it used all its movement to get from middleLocation to here previously, so being startled
@@ -548,8 +552,8 @@ describe('withGameState', () => {
     });
 
     store.receiveItems([
-      networkIdLookup.startled,
-      ...Range(0, 2).map(() => networkIdLookup.distracted),
+      networkItemLookup.startled,
+      ...Range(0, 2).map(() => networkItemLookup.distracted),
     ]);
 
     // first step, we're startled out of our distraction.
@@ -588,14 +592,14 @@ describe('withGameState', () => {
 
     // even though there's a target RIGHT on the other side, we still favor the nearest one that
     // we can already reach with what we currently have.
-    store.receiveItems([networkIdLookup[aura]]);
+    store.receiveItems([networkItemLookup[aura]]);
     expect(store.auraDrivenLocations()).toStrictEqual(List([startLocation]));
     expect(store.targetLocation()).toStrictEqual(startLocation);
     expect(store.targetLocationReason()).toStrictEqual('aura-driven');
 
     // if there's nothing else that we can reach, then we should NOT target the unreachable one
     // that's just out of reach. it should just fizzle.
-    store.receiveItems([networkIdLookup[aura]]);
+    store.receiveItems([networkItemLookup[aura]]);
     expect(store.auraDrivenLocations()).toStrictEqual(List([startLocation]));
     expect(store.targetLocation()).toStrictEqual(startLocation);
     expect(store.targetLocationReason()).toStrictEqual('aura-driven');
@@ -607,7 +611,7 @@ describe('withGameState', () => {
     patchState(unprotected(store), ({ checkedLocations }) => ({ checkedLocations: checkedLocations.add(startLocation) }));
     TestBed.tick(); // white-box: requirement is satisfied via an effect in onInit
     expect(store.auraDrivenLocations()).toStrictEqual(List());
-    store.receiveItems([networkIdLookup[aura]]);
+    store.receiveItems([networkItemLookup[aura]]);
     expect(store.auraDrivenLocations()).toStrictEqual(List());
   });
 
@@ -726,7 +730,7 @@ describe('withGameState', () => {
       ]),
     });
     for (let i = 0; i < 100; i++) {
-      store.receiveItems([networkIdLookup.startled]);
+      store.receiveItems([networkItemLookup.startled]);
       store.advance();
       if (store.currentLocation() === startLocation) {
         break;
@@ -746,21 +750,21 @@ describe('withGameState', () => {
   test('received items should apply auras', () => {
     const initialGameState = initialGameStateFor('captured_goldfish');
     const aurasGrantedByItemNetworkId = new Map(initialGameState.aurasGrantedByItemNetworkId);
-    function networkIdForItemWithAuras(auras: readonly AutopelagoAura[]) {
+    function networkItemWithAuras(auras: readonly AutopelagoAura[]) {
       const networkId = aurasGrantedByItemNetworkId.size;
       aurasGrantedByItemNetworkId.set(networkId, auras);
-      return networkId;
+      return { id: networkId, name: networkId.toString() };
     }
-    const rat_poison = networkIdForItemWithAuras([
+    const rat_poison = networkItemWithAuras([
       'upset_tummy', 'upset_tummy', 'upset_tummy', 'unlucky', 'startled', 'startled', 'startled', 'sluggish',
     ]);
-    const bag_of_powdered_sugar = networkIdForItemWithAuras([
+    const bag_of_powdered_sugar = networkItemWithAuras([
       'well_fed', 'energized', 'energized', 'energized',
     ]);
-    const weapons_grade_folding_chair = networkIdForItemWithAuras([
+    const weapons_grade_folding_chair = networkItemWithAuras([
       'confident',
     ]);
-    const itchy_iron_wool_sweater = networkIdForItemWithAuras([
+    const itchy_iron_wool_sweater = networkItemWithAuras([
       'stylish', 'distracted', 'sluggish',
     ]);
     const store = getStoreWith({
@@ -911,7 +915,7 @@ describe('withGameState', () => {
 
     store.addUserRequestedLocation(0, userRequestedLocation);
     expect(store.targetLocation()).toStrictEqual(userRequestedLocation);
-    store.receiveItems([networkIdLookup.conspiratorial]);
+    store.receiveItems([networkItemLookup.conspiratorial]);
     expect(store.targetLocation()).toStrictEqual(auraDrivenLocation);
     store.setOrClearHyperFocus(startLocation);
     expect(store.targetLocation()).toStrictEqual(startLocation);

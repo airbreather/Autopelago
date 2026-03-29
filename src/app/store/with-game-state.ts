@@ -520,7 +520,7 @@ export function withGameState() {
         setOrClearHyperFocus(location: number) {
           patchState(store, ({ hyperFocusLocation }) => ({ hyperFocusLocation: hyperFocusLocation === location ? null : location }));
         },
-        receiveItems(items: Iterable<{ id: number; name: string }>, initial: boolean) {
+        receiveItems(items: Iterable<{ id: number; name: string }>, { initial } = { initial: false }) {
           const { allLocations } = store.defs();
           if (!store.canEventuallyAdvance()) {
             patchState(store, ({ receivedItemNetworkIds }) => {

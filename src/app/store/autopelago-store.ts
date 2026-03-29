@@ -116,9 +116,9 @@ export const GameStore = signalStore(
         previousTargetLocationEvidence: targetLocationEvidenceFromJSONSerializable(storedData.previousTargetLocationEvidence),
         outgoingAnimatableActions: List(),
       });
-      store.receiveItems(client.items.received.map(i => ({ id: i.id, name: i.name })), true);
+      store.receiveItems(client.items.received.map(i => ({ id: i.id, name: i.name })), { initial: true });
       client.items.on('itemsReceived', (items) => {
-        store.receiveItems(items.map(i => ({ id: i.id, name: i.name })), false);
+        store.receiveItems(items.map(i => ({ id: i.id, name: i.name })));
       });
 
       client.room.on('locationsChecked', (locations) => {
