@@ -49,6 +49,9 @@ export interface DefiningGameState {
   readonly messagesForRemindBK: readonly Weighted<string>[];
   readonly messagesForExitBK: readonly Weighted<string>[];
   readonly messagesForCompletedGoal: readonly Weighted<string>[];
+  readonly messagesForImpendingDoom: readonly Weighted<string>[] | null;
+  readonly sendDeathLink: boolean;
+  readonly deathDelaySeconds: number;
 
   // other values that get persisted on the server:
   readonly foodFactor: number;
@@ -80,5 +83,6 @@ export interface DefiningGameState {
   readonly outgoingAnimatableActions: List<AnimatableAction>;
   readonly outgoingMessages: List<string>;
   readonly outgoingAuraDrivenLocations: List<number>;
+  readonly outgoingDeathCause: string | null;
   readonly impendingDoom: boolean;
 }

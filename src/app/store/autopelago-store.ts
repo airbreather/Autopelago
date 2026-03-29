@@ -41,123 +41,6 @@ export const GameStore = signalStore(
       },
     }),
   }), { errorHandling: 'native' }), // errors are unexpected in cases where ANYTHING can work.
-  withMethods(store => ({
-    init(game: AutopelagoClientAndData) {
-      const { connectScreenState, client, pkg, slotData, storedData, locationIsProgression, locationIsTrap } = game;
-
-      const victoryLocationYamlKey = VICTORY_LOCATION_NAME_LOOKUP[slotData.victory_location_name];
-
-      const locationNameLookup = BAKED_DEFINITIONS_BY_VICTORY_LANDMARK[victoryLocationYamlKey].locationNameLookup;
-      const checkedLocations = client.room.checkedLocations.map(l => locationNameLookup.get(pkg.reverseLocationTable[l]) ?? -1);
-      const defs = BAKED_DEFINITIONS_BY_VICTORY_LANDMARK[victoryLocationYamlKey];
-      if (defs.moonCommaThe !== null && checkedLocations.length >= (defs.allLocations.length - 1)) {
-        checkedLocations.push(defs.moonCommaThe.location);
-      }
-      const uniqueItemsByNetworkId = new Map<number, AutopelagoUniqueItemKey>();
-      for (const [name, networkId] of strictObjectEntries(pkg.itemTable)) {
-        const uniqueItemKey = defs.uniqueItemNameLookup.get(name);
-        if (typeof uniqueItemKey === 'string') {
-          uniqueItemsByNetworkId.set(networkId, uniqueItemKey);
-        }
-      }
-      let aurasGrantedByItemNetworkId: Map<number, readonly AutopelagoAura[]>;
-      let ratCountByItemNetworkId: Map<number, number>;
-      if (isLegacySlotData(slotData)) {
-        // prior to 1.0.0, the client and APWorld needed to agree on all items that existed and what
-        // they did, and the client would just ignore certain auras according to the config. we need
-        // to be able to work with such worlds as well (this is just the tradeoff we have to make to
-        // support only the live version at any moment). to that end, this is the one place where we
-        // construct a live-alike version of everything using what we would previously have to infer
-        const enabledAuras = new Set<AutopelagoAura>([...slotData.enabled_buffs, ...slotData.enabled_traps]);
-        aurasGrantedByItemNetworkId = new Map<number, readonly AutopelagoAura[]>();
-        ratCountByItemNetworkId = new Map<number, number>();
-        for (const [name, networkId] of strictObjectEntries(pkg.itemTable)) {
-          const uniqueItemKey = defs.uniqueItemNameLookup.get(name);
-          if (typeof uniqueItemKey === 'string') {
-            uniqueItemsByNetworkId.set(networkId, uniqueItemKey);
-          }
-          const aurasGranted = defs.bakedAurasGrantedByItemForCompatOnly.get(name);
-          if (aurasGranted) {
-            aurasGrantedByItemNetworkId.set(networkId, aurasGranted.filter(a => enabledAuras.has(a)));
-          }
-          const ratCount = defs.bakedRatCountByItemForCompatOnly.get(name);
-          if (typeof ratCount === 'number') {
-            ratCountByItemNetworkId.set(networkId, ratCount);
-          }
-        }
-      }
-      else {
-        aurasGrantedByItemNetworkId = new Map(strictObjectEntries(slotData.auras_by_item_id)
-          .map(([networkId, aurasGranted]) => [Number(networkId), aurasGranted]));
-        ratCountByItemNetworkId = new Map(strictObjectEntries(slotData.rat_counts_by_item_id)
-          .map(([networkId, ratCount]) => [Number(networkId), ratCount]));
-      }
-      patchState(store, {
-        ...storedData,
-        game,
-        lactoseIntolerant: slotData.lactose_intolerant,
-        victoryLocationYamlKey,
-        uniqueItemsByNetworkId,
-        aurasGrantedByItemNetworkId,
-        ratCountByItemNetworkId,
-        locationIsProgression,
-        locationIsTrap,
-        messagesForChangedTarget: toWeighted(slotData.msg_changed_target),
-        messagesForEnterGoMode: toWeighted(slotData.msg_enter_go_mode),
-        messagesForEnterBK: toWeighted(slotData.msg_enter_bk),
-        messagesForRemindBK: toWeighted(slotData.msg_remind_bk),
-        messagesForExitBK: toWeighted(slotData.msg_exit_bk),
-        messagesForCompletedGoal: toWeighted(slotData.msg_completed_goal),
-        hyperFocusLocation: 'hyperFocusLocation' in storedData ? storedData.hyperFocusLocation : null,
-        auraDrivenLocations: List(storedData.auraDrivenLocations),
-        userRequestedLocations: List(storedData.userRequestedLocations),
-        receivedItemNetworkIds: List<number>(),
-        checkedLocations: ImmutableSet(checkedLocations),
-        previousTargetLocationEvidence: targetLocationEvidenceFromJSONSerializable(storedData.previousTargetLocationEvidence),
-        outgoingAnimatableActions: List(),
-      });
-      store.receiveItems(client.items.received.map(i => ({ id: i.id, name: i.name })), { initial: true });
-      client.items.on('itemsReceived', (items) => {
-        store.receiveItems(items.map(i => ({ id: i.id, name: i.name })));
-      });
-
-      client.room.on('locationsChecked', (locations) => {
-        patchState(store, ({ checkedLocations, outgoingAnimatableActions }) => {
-          checkedLocations = checkedLocations.withMutations((c) => {
-            outgoingAnimatableActions = outgoingAnimatableActions.withMutations((a) => {
-              const newlyCheckedLocations: number[] = [];
-              for (const serverLocationId of locations) {
-                const location = locationNameLookup.get(pkg.reverseLocationTable[serverLocationId]) ?? -1;
-                const sizeBefore = c.size;
-                c.add(location);
-                if (c.size > sizeBefore) {
-                  newlyCheckedLocations.push(location);
-                }
-              }
-              if (newlyCheckedLocations.length > 0) {
-                a.push({ type: 'check-locations', locations: newlyCheckedLocations });
-              }
-            });
-          });
-          return {
-            checkedLocations,
-            outgoingAnimatableActions,
-          };
-        });
-      });
-
-      store.registerCallback(store.advance);
-      store._initTimer({
-        minDurationMilliseconds: connectScreenState.minTimeSeconds * 1000,
-        maxDurationMilliseconds: connectScreenState.maxTimeSeconds * 1000,
-      });
-
-      if (storedData.forceImmediateDeath) {
-        // reconnected after receiving 'Rat Poison' but before killPlayer() sealed the deal.
-        store.killPlayer();
-      }
-    },
-  })),
   withComputed((store) => {
     const bestEffortRandomPlayers = computed(() => {
       const game = store.game();
@@ -218,10 +101,146 @@ export const GameStore = signalStore(
           forRemindBK: _wrapMessageTemplate(sampleMessage.forRemindBK),
           forExitBK: _wrapMessageTemplate(sampleMessage.forExitBK),
           forCompletedGoal: _wrapMessageTemplate(sampleMessage.forCompletedGoal),
+          forImpendingDoom: _wrapMessageTemplate(sampleMessage.forImpendingDoom),
         } satisfies typeof sampleMessage;
       }),
     };
   }),
+  withMethods(store => ({
+    init(game: AutopelagoClientAndData) {
+      const { connectScreenState, client, pkg, slotData, storedData, locationIsProgression, locationIsTrap } = game;
+      const victoryLocationYamlKey = VICTORY_LOCATION_NAME_LOOKUP[slotData.victory_location_name];
+
+      const locationNameLookup = BAKED_DEFINITIONS_BY_VICTORY_LANDMARK[victoryLocationYamlKey].locationNameLookup;
+      const checkedLocations = client.room.checkedLocations.map(l => locationNameLookup.get(pkg.reverseLocationTable[l]) ?? -1);
+      const defs = BAKED_DEFINITIONS_BY_VICTORY_LANDMARK[victoryLocationYamlKey];
+      if (defs.moonCommaThe !== null && checkedLocations.length >= (defs.allLocations.length - 1)) {
+        checkedLocations.push(defs.moonCommaThe.location);
+      }
+      const uniqueItemsByNetworkId = new Map<number, AutopelagoUniqueItemKey>();
+      for (const [name, networkId] of strictObjectEntries(pkg.itemTable)) {
+        const uniqueItemKey = defs.uniqueItemNameLookup.get(name);
+        if (typeof uniqueItemKey === 'string') {
+          uniqueItemsByNetworkId.set(networkId, uniqueItemKey);
+        }
+      }
+      let aurasGrantedByItemNetworkId: Map<number, readonly AutopelagoAura[]>;
+      let ratCountByItemNetworkId: Map<number, number>;
+      let messagesForImpendingDoom: ReturnType<typeof toWeighted<string>> | null = null;
+      let deathDelaySeconds = NaN;
+      if (isLegacySlotData(slotData)) {
+        // death link wasn't supported until 1.1.0
+        client.deathLink.disableDeathLink();
+
+        // prior to 1.0.0, the client and APWorld needed to agree on all items that existed and what
+        // they did, and the client would just ignore certain auras according to the config. we need
+        // to be able to work with such worlds as well (this is just the tradeoff we have to make to
+        // support only the live version at any moment). to that end, this is the one place where we
+        // construct a live-alike version of everything using what we would previously have to infer
+        const enabledAuras = new Set<AutopelagoAura>([...slotData.enabled_buffs, ...slotData.enabled_traps]);
+        aurasGrantedByItemNetworkId = new Map<number, readonly AutopelagoAura[]>();
+        ratCountByItemNetworkId = new Map<number, number>();
+        for (const [name, networkId] of strictObjectEntries(pkg.itemTable)) {
+          const uniqueItemKey = defs.uniqueItemNameLookup.get(name);
+          if (typeof uniqueItemKey === 'string') {
+            uniqueItemsByNetworkId.set(networkId, uniqueItemKey);
+          }
+          const aurasGranted = defs.bakedAurasGrantedByItemForCompatOnly.get(name);
+          if (aurasGranted) {
+            aurasGrantedByItemNetworkId.set(networkId, aurasGranted.filter(a => enabledAuras.has(a)));
+          }
+          const ratCount = defs.bakedRatCountByItemForCompatOnly.get(name);
+          if (typeof ratCount === 'number') {
+            ratCountByItemNetworkId.set(networkId, ratCount);
+          }
+        }
+      }
+      else {
+        aurasGrantedByItemNetworkId = new Map(strictObjectEntries(slotData.auras_by_item_id)
+          .map(([networkId, aurasGranted]) => [Number(networkId), aurasGranted]));
+        ratCountByItemNetworkId = new Map(strictObjectEntries(slotData.rat_counts_by_item_id)
+          .map(([networkId, ratCount]) => [Number(networkId), ratCount]));
+
+        if (slotData.added_in_1_1_0) {
+          if (!slotData.added_in_1_1_0.death_link) {
+            client.deathLink.disableDeathLink();
+          }
+          // regardless of if death link is enabled or not, the death delay timer still happens.
+          deathDelaySeconds = slotData.added_in_1_1_0.death_delay_seconds;
+          messagesForImpendingDoom = toWeighted(slotData.added_in_1_1_0.msg_impending_doom);
+        }
+        else {
+          client.deathLink.disableDeathLink();
+        }
+      }
+      patchState(store, {
+        ...storedData,
+        game,
+        lactoseIntolerant: slotData.lactose_intolerant,
+        victoryLocationYamlKey,
+        uniqueItemsByNetworkId,
+        aurasGrantedByItemNetworkId,
+        ratCountByItemNetworkId,
+        locationIsProgression,
+        locationIsTrap,
+        messagesForChangedTarget: toWeighted(slotData.msg_changed_target),
+        messagesForEnterGoMode: toWeighted(slotData.msg_enter_go_mode),
+        messagesForEnterBK: toWeighted(slotData.msg_enter_bk),
+        messagesForRemindBK: toWeighted(slotData.msg_remind_bk),
+        messagesForExitBK: toWeighted(slotData.msg_exit_bk),
+        messagesForCompletedGoal: toWeighted(slotData.msg_completed_goal),
+        messagesForImpendingDoom,
+        deathDelaySeconds,
+        hyperFocusLocation: 'hyperFocusLocation' in storedData ? storedData.hyperFocusLocation : null,
+        auraDrivenLocations: List(storedData.auraDrivenLocations),
+        userRequestedLocations: List(storedData.userRequestedLocations),
+        receivedItemNetworkIds: List<number>(),
+        checkedLocations: ImmutableSet(checkedLocations),
+        previousTargetLocationEvidence: targetLocationEvidenceFromJSONSerializable(storedData.previousTargetLocationEvidence),
+        outgoingAnimatableActions: List(),
+        impendingDoom: false,
+        outgoingDeathCause: storedData.impendingDoom
+          ? `${client.players.self.alias} tried to cheat death.`
+          : null,
+      });
+
+      store.receiveItems(client.items.received.map(i => i.id));
+      client.items.on('itemsReceived', (items) => {
+        store.receiveItems(items.map(i => i.id));
+      });
+
+      client.room.on('locationsChecked', (locations) => {
+        patchState(store, ({ checkedLocations, outgoingAnimatableActions }) => {
+          checkedLocations = checkedLocations.withMutations((c) => {
+            outgoingAnimatableActions = outgoingAnimatableActions.withMutations((a) => {
+              const newlyCheckedLocations: number[] = [];
+              for (const serverLocationId of locations) {
+                const location = locationNameLookup.get(pkg.reverseLocationTable[serverLocationId]) ?? -1;
+                const sizeBefore = c.size;
+                c.add(location);
+                if (c.size > sizeBefore) {
+                  newlyCheckedLocations.push(location);
+                }
+              }
+              if (newlyCheckedLocations.length > 0) {
+                a.push({ type: 'check-locations', locations: newlyCheckedLocations });
+              }
+            });
+          });
+          return {
+            checkedLocations,
+            outgoingAnimatableActions,
+          };
+        });
+      });
+
+      store.registerCallback(store.advance);
+      store._initTimer({
+        minDurationMilliseconds: connectScreenState.minTimeSeconds * 1000,
+        maxDurationMilliseconds: connectScreenState.maxTimeSeconds * 1000,
+      });
+    },
+  })),
   withHooks({
     onInit(store) {
       effect(() => {
@@ -301,6 +320,25 @@ export const GameStore = signalStore(
           outgoingMessages: outgoingMessages.clear(),
         });
       });
+
+      effect(() => {
+        const outgoingDeathCause = store.outgoingDeathCause();
+        if (outgoingDeathCause === null) {
+          return;
+        }
+
+        if (store.sendDeathLink()) {
+          const game = store.game();
+          if (!game) {
+            return;
+          }
+
+          const client = game.client;
+          client.deathLink.sendDeathLink(client.players.self.alias, outgoingDeathCause.replaceAll(/\{PLAYER_ALIAS}/g, client.players.self.alias));
+        }
+        patchState(store, { outgoingDeathCause: null });
+      });
+
       effect(() => {
         const game = store.game();
         if (game === null) {
@@ -338,6 +376,30 @@ export const GameStore = signalStore(
             }),
           };
         });
+      });
+      effect(() => {
+        const game = store.game();
+        if (game === null) {
+          return;
+        }
+
+        const { sendChatMessages, whenDeathIsImminent } = game.connectScreenState;
+        if (!(sendChatMessages && whenDeathIsImminent)) {
+          return;
+        }
+
+        const sampleMessage = store.sampleMessageFull().forImpendingDoom;
+        if (sampleMessage === null) {
+          return;
+        }
+
+        if (!store.impendingDoom()) {
+          return;
+        }
+
+        patchState(store, ({ outgoingMessages }) => ({
+          outgoingMessages: outgoingMessages.push(sampleMessage(Math.random())),
+        }));
       });
       const reportGoMode = effect(() => {
         if (store.hasCompletedGoal()) {

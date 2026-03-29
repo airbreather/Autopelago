@@ -101,6 +101,11 @@ import { Personalize, type PersonalizeData, type PlayerImages } from './personal
         <label for="sendChatMessages">Send chat messages...</label>
       </div>
       <div class="inputs indent-chat-message-details">
+        <input id="whenDeathIsImminent"
+               type="checkbox"
+               [formField]="form.whenDeathIsImminent"/>
+        <label for="whenDeathIsImminent">when death is imminent</label>
+
         <input id="whenTargetChanges"
                type="checkbox"
                [formField]="form.whenTargetChanges"/>
@@ -257,6 +262,7 @@ export class ConnectScreen {
     max(schemaPath.minTimeSeconds, ({ valueOf }) => Math.max(0.01, valueOf(schemaPath.maxTimeSeconds)));
     min(schemaPath.maxTimeSeconds, ({ valueOf }) => Math.max(0.01, valueOf(schemaPath.minTimeSeconds)));
 
+    disabled(schemaPath.whenDeathIsImminent, ({ valueOf }) => !valueOf(schemaPath.sendChatMessages));
     disabled(schemaPath.whenTargetChanges, ({ valueOf }) => !valueOf(schemaPath.sendChatMessages));
     disabled(schemaPath.whenBecomingBlocked, ({ valueOf }) => !valueOf(schemaPath.sendChatMessages));
     disabled(schemaPath.whenStillBlocked, ({ valueOf }) => !valueOf(schemaPath.sendChatMessages) || !valueOf(schemaPath.whenBecomingBlocked));

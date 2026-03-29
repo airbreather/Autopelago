@@ -110,6 +110,9 @@ const initialState: DefiningGameState = {
   messagesForRemindBK: [],
   messagesForExitBK: [],
   messagesForCompletedGoal: [],
+  messagesForImpendingDoom: [],
+  sendDeathLink: false,
+  deathDelaySeconds: NaN,
   foodFactor: NaN,
   luckFactor: NaN,
   energyFactor: NaN,
@@ -138,6 +141,7 @@ const initialState: DefiningGameState = {
   outgoingMessages: List<string>(),
   outgoingAuraDrivenLocations: List<number>(),
   impendingDoom: false,
+  outgoingDeathCause: null,
 };
 
 export function withGameState() {
@@ -334,7 +338,7 @@ export function withGameState() {
           userSlot: l.userSlot,
         })),
         previousTargetLocationEvidence: targetLocationEvidenceToJSONSerializable(store.previousTargetLocationEvidence()),
-        forceImmediateDeath: store.impendingDoom(),
+        impendingDoom: store.impendingDoom(),
       }));
       const sampleMessage = computed(() => ({
         forChangedTarget: createWeightedSampler(store.messagesForChangedTarget()),
@@ -343,6 +347,7 @@ export function withGameState() {
         forRemindBK: createWeightedSampler(store.messagesForRemindBK()),
         forExitBK: createWeightedSampler(store.messagesForExitBK()),
         forCompletedGoal: createWeightedSampler(store.messagesForCompletedGoal()),
+        forImpendingDoom: createWeightedSampler(store.messagesForImpendingDoom()),
       }));
 
       return {
@@ -499,8 +504,8 @@ export function withGameState() {
           : `${result.otherUserSlots.length.toString()} other players`;
         return `Hey, ${probablyPlayerAlias}, I can't de-prioritize ${exactLocName} for you, because it wasn't requested by you, only by ${playersToReport}.`;
       }
-      function killPlayer() {
-        patchState(store, {
+      function killPlayerStatePatch() {
+        return {
           currentLocation: store.defs().startLocation,
           foodFactor: 0,
           luckFactor: 0,
@@ -511,24 +516,24 @@ export function withGameState() {
           hasConfidence: false,
           mercyFactor: 0,
           sluggishCarryover: false,
-          impendingDoom: false,
-        });
+        } as const;
       }
       return {
         addUserRequestedLocation,
-        killPlayer,
+        killPlayerEnd(cause: string) {
+          patchState(store, {
+            impendingDoom: false,
+            outgoingDeathCause: cause,
+          });
+        },
         setOrClearHyperFocus(location: number) {
           patchState(store, ({ hyperFocusLocation }) => ({ hyperFocusLocation: hyperFocusLocation === location ? null : location }));
         },
-        receiveItems(items: Iterable<{ id: number; name: string }>, { initial } = { initial: false }) {
+        receiveItems(items: Iterable<number>) {
           const { allLocations } = store.defs();
           if (!store.canEventuallyAdvance()) {
             patchState(store, ({ receivedItemNetworkIds }) => {
-              const ids: number[] = [];
-              for (const { id } of items) {
-                ids.push(id);
-              }
-              receivedItemNetworkIds = receivedItemNetworkIds.push(...ids);
+              receivedItemNetworkIds = receivedItemNetworkIds.push(...items);
               return {
                 receivedItemNetworkIds,
                 processedReceivedItemCount: receivedItemNetworkIds.size,
@@ -537,7 +542,6 @@ export function withGameState() {
             return;
           }
 
-          let shouldKillPlayer = false as boolean;
           patchState(store, (prev) => {
             const result = {
               foodFactor: prev.foodFactor,
@@ -554,6 +558,7 @@ export function withGameState() {
               userRequestedLocations: prev.userRequestedLocations,
               outgoingAuraDrivenLocations: prev.outgoingAuraDrivenLocations,
               impendingDoom: prev.impendingDoom,
+              outgoingAnimatableActions: prev.outgoingAnimatableActions,
             } satisfies Partial<DefiningGameState>;
             result.outgoingAuraDrivenLocations = result.outgoingAuraDrivenLocations.withMutations((oa) => {
               result.auraDrivenLocations = result.auraDrivenLocations.withMutations((a) => {
@@ -595,14 +600,10 @@ export function withGameState() {
                     }
                   }
 
-                  for (const { id, name } of items) {
+                  for (const id of items) {
                     r.push(id);
-                    if (r.size < result.processedReceivedItemCount) {
+                    if (r.size <= result.processedReceivedItemCount) {
                       continue;
-                    }
-
-                    if (name === 'Rat Poison') {
-                      shouldKillPlayer = true;
                     }
 
                     const aurasGranted = auraLookup.get(id);
@@ -613,6 +614,7 @@ export function withGameState() {
                     let subtractConfidence = false;
                     let addConfidence = false;
                     for (const aura of aurasGranted) {
+                      let stopProcessingAurasForThisItem = false;
                       switch (aura) {
                         case 'well_fed':
                           result.foodFactor += 5;
@@ -696,6 +698,28 @@ export function withGameState() {
                         case 'confident':
                           addConfidence = true;
                           break;
+
+                        case 'poison':
+                          if (result.hasConfidence) {
+                            subtractConfidence = true;
+                          }
+                          else {
+                            Object.assign(result, killPlayerStatePatch());
+                            if (!result.impendingDoom) {
+                              result.impendingDoom = true;
+                              result.outgoingAnimatableActions = result.outgoingAnimatableActions.push({ type: 'death' });
+                            }
+                            // items with a 'poison' aura also generally have other negative auras that would apply if
+                            // poison weren't special (either because it's been disabled or because the client is on an
+                            // older version before this was added). so once we see 'poison', we stop processing more
+                            // auras on the same item so that the player doesn't respawn with a bunch of debuffs that
+                            // they received immediately before dying should have cleared them all.
+                            stopProcessingAurasForThisItem = true;
+                          }
+                          break;
+                      }
+                      if (stopProcessingAurasForThisItem) {
+                        break;
                       }
                     }
 
@@ -717,17 +741,6 @@ export function withGameState() {
             });
 
             result.processedReceivedItemCount = result.receivedItemNetworkIds.size;
-            if (shouldKillPlayer) {
-              if (initial) {
-                killPlayer();
-              }
-              else if (!store.impendingDoom()) {
-                patchState(store, ({ outgoingAnimatableActions }) => ({
-                  impendingDoom: true,
-                  outgoingAnimatableActions: outgoingAnimatableActions.push({ type: 'death' }),
-                }));
-              }
-            }
             return result;
           });
         },

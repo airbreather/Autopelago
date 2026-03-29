@@ -262,10 +262,11 @@ export function watchAnimations(
               if (destroyRef.destroyed) {
                 return;
               }
+              performanceInsensitiveAnimatableState.apparentCurrentLocation.set(startLocation);
               fadeToBlack.style.opacity = '0';
               currentAnimation = fadeToBlack.animate({
                 opacity: [1],
-              }, { fill: 'forwards', duration: enableRatAnimations ? 5000 : 0 });
+              }, { fill: 'forwards', duration: gameStore.deathDelaySeconds() * 1000 });
               if (!gameStore.running()) {
                 currentAnimation.pause();
               }
@@ -273,11 +274,7 @@ export function watchAnimations(
                 await currentAnimation.finished;
                 currentAnimation.commitStyles();
                 currentAnimation.cancel();
-                gameStore.killPlayer();
-                performanceInsensitiveAnimatableState.apparentCurrentLocation.set(startLocation);
-                performanceInsensitiveAnimatableState.applySnapshot(
-                  performanceInsensitiveAnimatableState.getSnapshot({ gameStore, consumeOutgoingAnimatableActions: false }),
-                );
+                gameStore.killPlayerEnd('{PLAYER_ALIAS} drank poison.');
                 playerTokenContainer.style.setProperty('--ap-neutral-angle', '0');
                 playerTokenContainer.style.setProperty('--ap-scale-x', '1');
                 playerTokenContainer.style.setProperty('--ap-left-base', `${x.toString()}px`);
