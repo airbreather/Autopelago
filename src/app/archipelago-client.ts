@@ -50,6 +50,7 @@ const defaultStoredData = {
   previousTargetLocationEvidence: null,
   auraDrivenLocations: Array<number>(0),
   userRequestedLocations: Array<UserRequestedLocation>(0),
+  forceImmediateDeath: false,
 } as const;
 
 export async function initializeClient(initializeClientOptions: InitializeClientOptions): Promise<AutopelagoClientAndData> {

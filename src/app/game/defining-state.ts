@@ -19,6 +19,10 @@ export interface CheckLocationsAction {
   locations: readonly number[];
 }
 
+export interface DeathAction {
+  type: 'death';
+}
+
 export interface UWinAction {
   type: 'u-win';
 }
@@ -26,6 +30,7 @@ export interface UWinAction {
 export type AnimatableAction =
   | MovementAction
   | CheckLocationsAction
+  | DeathAction
   | UWinAction
   ;
 
@@ -75,4 +80,5 @@ export interface DefiningGameState {
   readonly outgoingAnimatableActions: List<AnimatableAction>;
   readonly outgoingMessages: List<string>;
   readonly outgoingAuraDrivenLocations: List<number>;
+  readonly impendingDoom: boolean;
 }

@@ -137,6 +137,7 @@ const initialState: DefiningGameState = {
   outgoingAnimatableActions: List<AnimatableAction>(),
   outgoingMessages: List<string>(),
   outgoingAuraDrivenLocations: List<number>(),
+  impendingDoom: false,
 };
 
 export function withGameState() {
@@ -333,6 +334,7 @@ export function withGameState() {
           userSlot: l.userSlot,
         })),
         previousTargetLocationEvidence: targetLocationEvidenceToJSONSerializable(store.previousTargetLocationEvidence()),
+        forceImmediateDeath: store.impendingDoom(),
       }));
       const sampleMessage = computed(() => ({
         forChangedTarget: createWeightedSampler(store.messagesForChangedTarget()),
@@ -497,16 +499,36 @@ export function withGameState() {
           : `${result.otherUserSlots.length.toString()} other players`;
         return `Hey, ${probablyPlayerAlias}, I can't de-prioritize ${exactLocName} for you, because it wasn't requested by you, only by ${playersToReport}.`;
       }
+      function killPlayer() {
+        patchState(store, {
+          currentLocation: store.defs().startLocation,
+          foodFactor: 0,
+          luckFactor: 0,
+          energyFactor: 0,
+          styleFactor: 0,
+          distractionCounter: 0,
+          startledCounter: 0,
+          hasConfidence: false,
+          mercyFactor: 0,
+          sluggishCarryover: false,
+          impendingDoom: false,
+        });
+      }
       return {
         addUserRequestedLocation,
+        killPlayer,
         setOrClearHyperFocus(location: number) {
           patchState(store, ({ hyperFocusLocation }) => ({ hyperFocusLocation: hyperFocusLocation === location ? null : location }));
         },
-        receiveItems(items: Iterable<number>) {
+        receiveItems(items: Iterable<{ id: number; name: string }>, initial: boolean) {
           const { allLocations } = store.defs();
           if (!store.canEventuallyAdvance()) {
             patchState(store, ({ receivedItemNetworkIds }) => {
-              receivedItemNetworkIds = receivedItemNetworkIds.push(...items);
+              const ids: number[] = [];
+              for (const { id } of items) {
+                ids.push(id);
+              }
+              receivedItemNetworkIds = receivedItemNetworkIds.push(...ids);
               return {
                 receivedItemNetworkIds,
                 processedReceivedItemCount: receivedItemNetworkIds.size,
@@ -515,6 +537,7 @@ export function withGameState() {
             return;
           }
 
+          let shouldKillPlayer = false as boolean;
           patchState(store, (prev) => {
             const result = {
               foodFactor: prev.foodFactor,
@@ -530,6 +553,7 @@ export function withGameState() {
               auraDrivenLocations: prev.auraDrivenLocations,
               userRequestedLocations: prev.userRequestedLocations,
               outgoingAuraDrivenLocations: prev.outgoingAuraDrivenLocations,
+              impendingDoom: prev.impendingDoom,
             } satisfies Partial<DefiningGameState>;
             result.outgoingAuraDrivenLocations = result.outgoingAuraDrivenLocations.withMutations((oa) => {
               result.auraDrivenLocations = result.auraDrivenLocations.withMutations((a) => {
@@ -571,10 +595,18 @@ export function withGameState() {
                     }
                   }
 
-                  for (const item of items) {
-                    const aurasGranted = auraLookup.get(item);
-                    r.push(item);
-                    if (!(aurasGranted && r.size > result.processedReceivedItemCount)) {
+                  for (const { id, name } of items) {
+                    r.push(id);
+                    if (r.size < result.processedReceivedItemCount) {
+                      continue;
+                    }
+
+                    if (name === 'Rat Poison') {
+                      shouldKillPlayer = true;
+                    }
+
+                    const aurasGranted = auraLookup.get(id);
+                    if (!aurasGranted) {
                       continue;
                     }
 
@@ -685,6 +717,17 @@ export function withGameState() {
             });
 
             result.processedReceivedItemCount = result.receivedItemNetworkIds.size;
+            if (shouldKillPlayer) {
+              if (initial) {
+                killPlayer();
+              }
+              else if (!store.impendingDoom()) {
+                patchState(store, ({ outgoingAnimatableActions }) => ({
+                  impendingDoom: true,
+                  outgoingAnimatableActions: outgoingAnimatableActions.push({ type: 'death' }),
+                }));
+              }
+            }
             return result;
           });
         },
@@ -807,6 +850,10 @@ export function withGameState() {
           }
         },
         advance() {
+          if (store.impendingDoom()) {
+            // don't queue up more new animatable actions.
+            return;
+          }
           if (!store.canEventuallyAdvance()) {
             patchState(store, {
               foodFactor: 0,

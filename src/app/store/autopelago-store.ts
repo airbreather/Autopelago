@@ -116,9 +116,9 @@ export const GameStore = signalStore(
         previousTargetLocationEvidence: targetLocationEvidenceFromJSONSerializable(storedData.previousTargetLocationEvidence),
         outgoingAnimatableActions: List(),
       });
-      store.receiveItems(client.items.received.map(i => i.id));
+      store.receiveItems(client.items.received.map(i => ({ id: i.id, name: i.name })), true);
       client.items.on('itemsReceived', (items) => {
-        store.receiveItems(items.map(i => i.id));
+        store.receiveItems(items.map(i => ({ id: i.id, name: i.name })), false);
       });
 
       client.room.on('locationsChecked', (locations) => {
@@ -151,6 +151,11 @@ export const GameStore = signalStore(
         minDurationMilliseconds: connectScreenState.minTimeSeconds * 1000,
         maxDurationMilliseconds: connectScreenState.maxTimeSeconds * 1000,
       });
+
+      if (storedData.forceImmediateDeath) {
+        // reconnected after receiving 'Rat Poison' but before killPlayer() sealed the deal.
+        store.killPlayer();
+      }
     },
   })),
   withComputed((store) => {

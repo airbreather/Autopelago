@@ -10,6 +10,7 @@ import { UWin } from './u-win';
 interface WatchAnimationsParams {
   dashedPath: SVGPathElement;
   overlay: CdkConnectedOverlay;
+  fadeToBlack: HTMLDivElement;
   playerTokenContainer: HTMLDivElement;
   landmarkContainers: readonly HTMLDivElement[];
   questContainers: readonly HTMLDivElement[];
@@ -19,7 +20,7 @@ interface WatchAnimationsParams {
 }
 
 export function watchAnimations(
-  { dashedPath, overlay, playerTokenContainer, landmarkContainers, questContainers, fillerSquares, enableTileAnimations, enableRatAnimations }: WatchAnimationsParams,
+  { dashedPath, overlay, fadeToBlack, playerTokenContainer, landmarkContainers, questContainers, fillerSquares, enableTileAnimations, enableRatAnimations }: WatchAnimationsParams,
 ) {
   const gameStore = inject(GameStore);
   const gameScreenStore = inject(GameScreenStore);
@@ -61,7 +62,7 @@ export function watchAnimations(
     }
   }
 
-  let currentMovementAnimation: Animation | null = null;
+  let currentAnimation: Animation | null = null;
   let prevAnimation = Promise.resolve();
 
   const landmarkContainersLookup = new Map<number, HTMLDivElement>();
@@ -113,12 +114,12 @@ export function watchAnimations(
       if (gameStore.running()) {
         playerWiggle?.play();
         landmarkShake?.play();
-        currentMovementAnimation?.play();
+        currentAnimation?.play();
       }
       else {
         playerWiggle?.pause();
         landmarkShake?.pause();
-        currentMovementAnimation?.pause();
+        currentAnimation?.pause();
       }
     }, { injector });
     let wasShowingPath = false;
@@ -189,14 +190,17 @@ export function watchAnimations(
               performanceInsensitiveAnimatableState.apparentCurrentLocation.set(anim.toLocation);
               playerTokenContainer.style.setProperty('--ap-neutral-angle', neutralAngle.toString() + 'rad');
               playerTokenContainer.style.setProperty('--ap-scale-x', scaleX.toString());
-              currentMovementAnimation = playerTokenContainer.animate({
+              currentAnimation = playerTokenContainer.animate({
                 ['--ap-left-base']: [tx.toString() + 'px'],
                 ['--ap-top-base']: [ty.toString() + 'px'],
               }, { fill: 'forwards', duration: enableRatAnimations ? 100 : 0 });
+              if (!gameStore.running()) {
+                currentAnimation.pause();
+              }
               try {
-                await currentMovementAnimation.finished;
-                currentMovementAnimation.commitStyles();
-                currentMovementAnimation.cancel();
+                await currentAnimation.finished;
+                currentAnimation.commitStyles();
+                currentAnimation.cancel();
               }
               catch {
                 // doesn't matter.
@@ -208,7 +212,7 @@ export function watchAnimations(
               only CAN it be nullish, but it IS nullish. quite often, in fact.
               */
               overlay.overlayRef?.updatePosition();
-              currentMovementAnimation = null;
+              currentAnimation = null;
             })();
             break;
           }
@@ -247,6 +251,51 @@ export function watchAnimations(
                 });
             })();
             break;
+          }
+
+          case 'death': {
+            const prevPrevAnimation = prevAnimation;
+            const startLocation = gameStore.defs().startLocation;
+            const [x, y] = gameStore.defs().allLocations[startLocation].coords;
+            prevAnimation = (async () => {
+              await prevPrevAnimation;
+              if (destroyRef.destroyed) {
+                return;
+              }
+              fadeToBlack.style.opacity = '0';
+              currentAnimation = fadeToBlack.animate({
+                opacity: [1],
+              }, { fill: 'forwards', duration: enableRatAnimations ? 5000 : 0 });
+              if (!gameStore.running()) {
+                currentAnimation.pause();
+              }
+              try {
+                await currentAnimation.finished;
+                currentAnimation.commitStyles();
+                currentAnimation.cancel();
+                gameStore.killPlayer();
+                performanceInsensitiveAnimatableState.apparentCurrentLocation.set(startLocation);
+                performanceInsensitiveAnimatableState.applySnapshot(
+                  performanceInsensitiveAnimatableState.getSnapshot({ gameStore, consumeOutgoingAnimatableActions: false }),
+                );
+                playerTokenContainer.style.setProperty('--ap-neutral-angle', '0');
+                playerTokenContainer.style.setProperty('--ap-scale-x', '1');
+                playerTokenContainer.style.setProperty('--ap-left-base', `${x.toString()}px`);
+                playerTokenContainer.style.setProperty('--ap-top-base', `${y.toString()}px`);
+                fadeToBlack.style.opacity = '0';
+              }
+              catch {
+                // doesn't matter.
+              }
+              /*
+              eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
+              --
+              I would LOVE to remove the condition, but this property was declared incorrectly. not
+              only CAN it be nullish, but it IS nullish. quite often, in fact.
+              */
+              overlay.overlayRef?.updatePosition();
+              currentAnimation = null;
+            })();
           }
         }
       }

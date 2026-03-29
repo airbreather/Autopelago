@@ -112,12 +112,15 @@ import { watchAnimations } from './watch-animations';
         <img #playerToken width="64" height="64" alt="player" [src]="playerImageSource.value()">
       </div>
       <div #pauseButtonContainer class="pause-button-container"
-           [style.margin-top]="'-' + pauseButtonContainer.clientHeight + 'px'">
+           [style.margin-top]="'-' + pauseButtonContainer.clientHeight + 'px'"
+           [style.z-index]="1000">
         <button class="rat-toggle-button"
                 [class.toggled-on]="!running()"
                 (click)="togglePause()">
           ⏸
         </button>
+      </div>
+      <div #fadeToBlack class="fade-to-black">
       </div>
     </div>
     <ng-template
@@ -149,6 +152,16 @@ import { watchAnimations } from './watch-animations';
       position: relative;
       pointer-events: none;
       user-select: none;
+    }
+
+    .fade-to-black {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background-color: black;
+      opacity: 0;
     }
 
     .map-img {
@@ -365,6 +378,7 @@ export class GameTabMap {
   protected readonly landmarkContainers = viewChildren<ElementRef<HTMLDivElement>>('landmarkContainer');
   protected readonly questContainers = viewChildren<ElementRef<HTMLDivElement>>('questContainer');
   protected readonly playerTokenContainer = viewChild.required<ElementRef<HTMLDivElement>>('playerTokenContainer');
+  protected readonly fadeToBlack = viewChild.required<ElementRef<HTMLDivElement>>('fadeToBlack');
   #overlayIsAttached = false;
 
   readonly playerImageSource = resource({
@@ -408,6 +422,7 @@ export class GameTabMap {
       const game = this.#store.game();
       const dashedPath = this.dashedPath().nativeElement;
       const overlay = this.overlay();
+      const fadeToBlack = this.fadeToBlack().nativeElement;
       const playerTokenContainer = this.playerTokenContainer().nativeElement;
       const landmarkContainers = this.landmarkContainers().map(l => l.nativeElement);
       const questContainers = this.questContainers().map(l => l.nativeElement);
@@ -422,6 +437,7 @@ export class GameTabMap {
         watchAnimations({
           dashedPath,
           overlay,
+          fadeToBlack,
           playerTokenContainer,
           landmarkContainers,
           questContainers,

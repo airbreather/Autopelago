@@ -97,4 +97,6 @@ export interface AutopelagoStoredData extends JSONRecord {
   userRequestedLocations: UserRequestedLocation[];
   // things below this line are added after 0.11.5
   hyperFocusLocation?: number | null;
+  // things below this line are added on or after 1.0.0
+  forceImmediateDeath: boolean;
 }
