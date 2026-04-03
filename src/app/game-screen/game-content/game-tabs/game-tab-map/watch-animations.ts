@@ -272,6 +272,15 @@ export function watchAnimations(
               if (destroyRef.destroyed) {
                 return;
               }
+              /*
+              wiggle stops
+              speech bubble "oh no"
+              slowly animate to angle 180 scaleX 0, location center of screen
+              slowly animate rat poison coming to rat
+              wait for the slow animations to be done; poison hits the rat
+              decently quickly animate a few spins around
+              decently quickly move the rat to the beginning
+              */
               performanceInsensitiveAnimatableState.apparentCurrentLocation.set(startLocation);
               fadeToBlack.style.opacity = '0';
               currentAnimation = fadeToBlack.animate({

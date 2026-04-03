@@ -236,6 +236,7 @@ import { watchAnimations } from './watch-animations';
       scale: calc(var(--ap-scale, 4) / 4);
       left: calc((var(--ap-left-base, 8px) - 8px) * var(--ap-scale, 4));
       top: calc((var(--ap-top-base, 8px) - 8px) * var(--ap-scale, 4));
+      //noinspection CssInvalidPropertyValue
       will-change: left, top;
       img {
         transform-origin: center;
