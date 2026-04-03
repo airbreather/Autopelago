@@ -180,6 +180,15 @@ export function queryParamsFromConnectScreenState(s: Readonly<ConnectScreenState
   };
 }
 
+export function connectStateFromStorageModifiedByQueryParams(qp: ParamMap): ConnectScreenState {
+  const slot = qp.get(QUERY_PARAM_NAME_MAP.slot);
+  const host = qp.get(QUERY_PARAM_NAME_MAP.host);
+  const port = Number(qp.get(QUERY_PARAM_NAME_MAP.port));
+  return slot && host && port
+    ? { ...loadFromStorage(), ...connectStateFromQueryParamsCore(slot, host, port, qp) }
+    : { ...loadFromStorage() };
+}
+
 export function connectScreenStateFromQueryParams(qp: ParamMap): ConnectScreenState {
   const slot = qp.get(QUERY_PARAM_NAME_MAP.slot);
   const host = qp.get(QUERY_PARAM_NAME_MAP.host);
@@ -188,6 +197,10 @@ export function connectScreenStateFromQueryParams(qp: ParamMap): ConnectScreenSt
     throw new Error(`Missing required query params. host (${QUERY_PARAM_NAME_MAP.host}), port (${QUERY_PARAM_NAME_MAP.port}), and slot (${QUERY_PARAM_NAME_MAP.slot}) must be provided!`);
   }
 
+  return connectStateFromQueryParamsCore(slot, host, port, qp);
+}
+
+function connectStateFromQueryParamsCore(slot: string, host: string, port: number, qp: ParamMap): ConnectScreenState {
   let password = qp.get(QUERY_PARAM_NAME_MAP.password);
   if (password === null) {
     const encryptedPassword = qp.get(QUERY_PARAM_NAME_MAP.encryptedPassword);
