@@ -192,6 +192,7 @@ import { watchAnimations } from './watch-animations';
       scale: calc(var(--ap-scale, 4) / 4 * 0.75);
       left: calc((var(--ap-left-base, 8px) - 6px) * var(--ap-scale, 4));
       top: calc((var(--ap-top-base, 8px) - 6px) * var(--ap-scale, 4));
+
       img {
         object-fit: none;
         object-position: calc(-65px * (var(--ap-frame-offset, 0) + var(--ap-checked-offset, 0))) calc(-65px * var(--ap-sprite-index, 0));
@@ -201,8 +202,16 @@ import { watchAnimations } from './watch-animations';
 
     .landmark-quest {
       scale: calc(var(--ap-scale, 4) / 4 * 0.75);
-      left: calc((var(--ap-left-base, 8px) - 6px) * var(--ap-scale, 4) + 32px);
-      top: calc((var(--ap-top-base, 8px) - 18px) * var(--ap-scale, 4) - 4px);
+      // the <img> is 16x48 compared to the landmark's 64x64. to put the center of the quest image over the center of
+      // the landmark (which is what the --ap-*-base values relate to), we need to deduct 8x24 from that. but then,
+      // since the quest marker actually goes above the landmark, we need to then shift it up by a further 32, plus a
+      // little more (I chose a good 8) to give it room to breathe. then we need to divide all of those numbers by 4,
+      // because the source images actually have each source "pixel" as a 4x4 square of pixels.
+      // 8 / 4 = 2
+      // (24 + 32 + 8) / 4 = 16
+      left: calc((var(--ap-left-base, 8px) - 2px) * var(--ap-scale, 4));
+      top: calc((var(--ap-top-base, 8px) - 16px) * var(--ap-scale, 4));
+
       img {
         object-fit: none;
         object-position: calc(-65px * (var(--ap-frame-offset, 0) + var(--ap-blocked-offset, 0)) - 24px) -4px;
@@ -223,7 +232,9 @@ import { watchAnimations } from './watch-animations';
       scale: calc(var(--ap-scale, 4) / 4);
       left: calc((var(--ap-left-base, 8px) - 8px) * var(--ap-scale, 4));
       top: calc((var(--ap-top-base, 8px) - 8px) * var(--ap-scale, 4));
+      //noinspection CssInvalidPropertyValue
       will-change: left, top;
+
       img {
         transform-origin: center;
         filter: drop-shadow(calc(var(--ap-scale, 4) * 0.8px) calc(var(--ap-scale, 4) * .8px) calc(var(--ap-scale, 4) * 0.5px) black);
@@ -304,9 +315,9 @@ export class GameTabMap {
           const finalTranslate = [0, 0];
           if (rotationDegrees !== null) {
             // effectively move the transform origin without affecting anything else
-            finalTranslate[0] -= 4;
+            finalTranslate[0] -= 2;
             finalTranslate[1] -= 16;
-            transformParts.push(`translate(calc(4px * var(--ap-scale, 4)), calc(16px * var(--ap-scale, 4))) rotate(${rotationDegrees.toString()}deg)`);
+            transformParts.push(`translate(calc(2px * var(--ap-scale, 4)), calc(16px * var(--ap-scale, 4))) rotate(${rotationDegrees.toString()}deg)`);
           }
           if (offset !== null) {
             finalTranslate[0] += offset[0];
