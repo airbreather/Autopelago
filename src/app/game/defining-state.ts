@@ -21,7 +21,7 @@ export interface CheckLocationsAction {
 
 export interface DeathAction {
   type: 'death';
-  instant: boolean;
+  cause: 'just-poisoned' | 'death-link';
 }
 
 export interface UWinAction {
@@ -51,7 +51,7 @@ export interface DefiningGameState {
   readonly messagesForExitBK: readonly Weighted<string>[];
   readonly messagesForCompletedGoal: readonly Weighted<string>[];
   readonly messagesForImpendingDoom: readonly Weighted<string>[] | null;
-  readonly sendDeathLink: boolean;
+  readonly sendDeathLink: boolean | null;
   readonly deathDelaySeconds: number;
 
   // other values that get persisted on the server:

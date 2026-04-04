@@ -109,7 +109,10 @@ import { watchAnimations } from './watch-animations';
       <div #playerTokenContainer class="hover-box player" tabindex="998" [style.z-index]="999"
            appTooltip [tooltipContext]="tooltipContext" (tooltipOriginChange)="setTooltipOrigin(null, $event, true)"
            (click)="toggleShowingPath()" (keyup.enter)="toggleShowingPath()" (keyup.space)="toggleShowingPath()">
-        <img #playerToken width="64" height="64" alt="player" [src]="playerImageSource.value()">
+        <img width="64" height="64" alt="player" [src]="playerImageSource.value()">
+      </div>
+      <div #ratPoisonContainer class="positioned rat-poison" [style.z-index]="999" [style.display]="'none'">
+        <img width="64" height="64" alt="rat poison" src="assets/images/rat_poison.webp">
       </div>
       <div #pauseButtonContainer class="pause-button-container"
            [style.margin-top]="'-' + pauseButtonContainer.clientHeight + 'px'"
@@ -232,7 +235,7 @@ import { watchAnimations } from './watch-animations';
       top: calc((var(--ap-top-base, 8px) - 0.8px) * var(--ap-scale, 4));
     }
 
-    .player {
+    .player,.rat-poison {
       scale: calc(var(--ap-scale, 4) / 4);
       left: calc((var(--ap-left-base, 8px) - 8px) * var(--ap-scale, 4));
       top: calc((var(--ap-top-base, 8px) - 8px) * var(--ap-scale, 4));
@@ -245,10 +248,13 @@ import { watchAnimations } from './watch-animations';
       }
     }
 
-    .hover-box {
+    .positioned,.hover-box {
       position: absolute;
-      pointer-events: initial;
       transform-origin: left top;
+    }
+
+    .hover-box {
+      pointer-events: initial;
 
       &.hyper-focus {
         outline: 6px dashed red;
@@ -379,6 +385,7 @@ export class GameTabMap {
   protected readonly landmarkContainers = viewChildren<ElementRef<HTMLDivElement>>('landmarkContainer');
   protected readonly questContainers = viewChildren<ElementRef<HTMLDivElement>>('questContainer');
   protected readonly playerTokenContainer = viewChild.required<ElementRef<HTMLDivElement>>('playerTokenContainer');
+  protected readonly ratPoisonContainer = viewChild.required<ElementRef<HTMLDivElement>>('ratPoisonContainer');
   protected readonly fadeToBlack = viewChild.required<ElementRef<HTMLDivElement>>('fadeToBlack');
   #overlayIsAttached = false;
 
@@ -425,6 +432,7 @@ export class GameTabMap {
       const overlay = this.overlay();
       const fadeToBlack = this.fadeToBlack().nativeElement;
       const playerTokenContainer = this.playerTokenContainer().nativeElement;
+      const ratPoisonContainer = this.ratPoisonContainer().nativeElement;
       const landmarkContainers = this.landmarkContainers().map(l => l.nativeElement);
       const questContainers = this.questContainers().map(l => l.nativeElement);
       const fillerSquares = this.fillerSquares().map(l => l.nativeElement);
@@ -440,6 +448,7 @@ export class GameTabMap {
           overlay,
           fadeToBlack,
           playerTokenContainer,
+          ratPoisonContainer,
           landmarkContainers,
           questContainers,
           fillerSquares,

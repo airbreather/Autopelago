@@ -167,7 +167,7 @@ export const GameStore = signalStore(
             sendDeathLink = true;
             client.deathLink.on('deathReceived', () => {
               patchState(store, ({ outgoingAnimatableActions }) => ({
-                outgoingAnimatableActions: outgoingAnimatableActions.push({ type: 'death', instant: true }),
+                outgoingAnimatableActions: outgoingAnimatableActions.push({ type: 'death', cause: 'death-link' }),
               }));
             });
           }
@@ -210,7 +210,7 @@ export const GameStore = signalStore(
         outgoingAnimatableActions: List(),
         impendingDoom: false,
         outgoingDeathCause: storedData.impendingDoom
-          ? `${client.players.self.alias} tried to cheat death.`
+          ? '{PLAYER_ALIAS} tried to cheat death.'
           : null,
       });
 
@@ -332,17 +332,22 @@ export const GameStore = signalStore(
       });
 
       effect(() => {
+        const game = store.game();
+        if (!game) {
+          return;
+        }
+
+        if (store.sendDeathLink() === null) {
+          // still loading
+          return;
+        }
+
         const outgoingDeathCause = store.outgoingDeathCause();
         if (outgoingDeathCause === null) {
           return;
         }
 
         if (store.sendDeathLink()) {
-          const game = store.game();
-          if (!game) {
-            return;
-          }
-
           const client = game.client;
           client.deathLink.sendDeathLink(client.players.self.alias, outgoingDeathCause.replaceAll(/\{PLAYER_ALIAS}/g, client.players.self.alias));
         }

@@ -111,7 +111,7 @@ const initialState: DefiningGameState = {
   messagesForExitBK: [],
   messagesForCompletedGoal: [],
   messagesForImpendingDoom: [],
-  sendDeathLink: false,
+  sendDeathLink: null,
   deathDelaySeconds: NaN,
   foodFactor: NaN,
   luckFactor: NaN,
@@ -523,7 +523,7 @@ export function withGameState() {
         killPlayerBegin() {
           patchState(store, killPlayerStatePatch());
         },
-        killPlayerEnd(cause: string) {
+        killPlayerEnd(cause: string | null) {
           patchState(store, {
             impendingDoom: false,
             outgoingDeathCause: cause,
@@ -712,7 +712,7 @@ export function withGameState() {
                               result.impendingDoom = true;
                               result.outgoingAnimatableActions = result.outgoingAnimatableActions.push({
                                 type: 'death',
-                                instant: false,
+                                cause: 'just-poisoned',
                               });
                             }
                             // items with a 'poison' aura also generally have other negative auras that would apply if
