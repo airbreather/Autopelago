@@ -21,8 +21,7 @@ import versionInfo from '../../version-info.json';
 import { applyPixelColors, getPixelTones } from '../utils/color-helpers';
 import { elementSizeSignal } from '../utils/element-size';
 import {
-  connectScreenStateFromQueryParams,
-  loadFromStorage,
+  connectStateFromStorageModifiedByQueryParams,
   type PlayerIcon,
   queryParamsFromConnectScreenState,
   saveToStorage,
@@ -249,10 +248,7 @@ export class ConnectScreen {
 
   protected readonly loadedInitialImages = computed(() => this.#playerImagesResource.value());
   protected readonly personalizeButtonCanvas = viewChild.required<ElementRef<HTMLCanvasElement>>('personalizeButtonCanvas');
-  readonly #formModel = signal({
-    ...loadFromStorage(),
-    ...connectScreenStateFromQueryParams(this.#route.snapshot.queryParamMap),
-  });
+  readonly #formModel = signal(connectStateFromStorageModifiedByQueryParams(this.#route.snapshot.queryParamMap));
 
   protected readonly form = form(this.#formModel, (schemaPath) => {
     /* eslint-disable @typescript-eslint/unbound-method */
