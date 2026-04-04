@@ -51,7 +51,7 @@ export interface DefiningGameState {
   readonly messagesForExitBK: readonly Weighted<string>[];
   readonly messagesForCompletedGoal: readonly Weighted<string>[];
   readonly messagesForImpendingDoom: readonly Weighted<string>[] | null;
-  readonly sendDeathLink: boolean | null;
+  readonly sendDeathLink: boolean;
   readonly deathDelaySeconds: number;
 
   // other values that get persisted on the server:

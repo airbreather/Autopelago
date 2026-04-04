@@ -132,6 +132,7 @@ export async function initializeClient(initializeClientOptions: InitializeClient
       && n.location >= 0 && n.location < defs.allLocations.length
       && n.userSlot >= 0 && n.userSlot < client.players.teams[client.players.self.team].length,
     );
+    trySetBooleanProp(retrievedStoredData, 'impendingDoom', validatedStoredDataParts);
   }
 
   const storedData: AutopelagoStoredData = {

@@ -111,7 +111,7 @@ const initialState: DefiningGameState = {
   messagesForExitBK: [],
   messagesForCompletedGoal: [],
   messagesForImpendingDoom: [],
-  sendDeathLink: null,
+  sendDeathLink: false,
   deathDelaySeconds: NaN,
   foodFactor: NaN,
   luckFactor: NaN,

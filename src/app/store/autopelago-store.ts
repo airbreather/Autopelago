@@ -332,22 +332,17 @@ export const GameStore = signalStore(
       });
 
       effect(() => {
-        const game = store.game();
-        if (!game) {
-          return;
-        }
-
-        if (store.sendDeathLink() === null) {
-          // still loading
-          return;
-        }
-
         const outgoingDeathCause = store.outgoingDeathCause();
         if (outgoingDeathCause === null) {
           return;
         }
 
         if (store.sendDeathLink()) {
+          const game = store.game();
+          if (!game) {
+            return;
+          }
+
           const client = game.client;
           client.deathLink.sendDeathLink(client.players.self.alias, outgoingDeathCause.replaceAll(/\{PLAYER_ALIAS}/g, client.players.self.alias));
         }
