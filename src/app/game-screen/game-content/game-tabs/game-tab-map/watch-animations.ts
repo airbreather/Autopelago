@@ -302,7 +302,10 @@ export function watchAnimations(
               const animateFadeToBlack = fadeToBlack.animate({
                 opacity: [1],
               }, { fill: 'forwards', duration: gameStore.deathDelaySeconds() * 1000 });
+              playerTokenContainer.scrollIntoView({ behavior: 'instant', block: 'center' });
+              const currLeft = Number(playerTokenContainer.style.getPropertyValue('--ap-left-base').replace('px', ''));
               const animateRat = playerTokenContainer.animate({
+                ['--ap-left-base']: `${((currLeft + 150) / 2).toString()}px`,
                 ['--ap-neutral-angle']: `${(neutralAngleSign * 180).toString()}deg`,
               }, { fill: 'forwards', duration: gameStore.deathDelaySeconds() * 1000 });
               currentTransientAnimations = [animateFadeToBlack, animateRat];
