@@ -2,6 +2,7 @@ import { Dialog } from '@angular/cdk/dialog';
 import type { CdkConnectedOverlay } from '@angular/cdk/overlay';
 import { DestroyRef, effect, inject, Injector, untracked } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
+import type { AutopelagoLocation } from '../../../../data/resolved-definitions';
 import { GameStore } from '../../../../store/autopelago-store';
 import { GameScreenStore } from '../../../../store/game-screen-store';
 import { PerformanceInsensitiveAnimatableState } from '../../status-display/performance-insensitive-animatable-state';
@@ -66,7 +67,7 @@ export function watchAnimations(
     }
   }
 
-  let currentAnimation: Animation | null = null;
+  let currentTransientAnimations: Animation[] = [];
   let prevAnimation = Promise.resolve();
 
   const landmarkContainersLookup = new Map<number, HTMLDivElement>();
@@ -83,6 +84,20 @@ export function watchAnimations(
   for (const fillerSquare of fillerSquares) {
     fillerSquaresLookup.set(Number(fillerSquare.dataset['locationId']), fillerSquare);
   }
+
+  const movementProps = (allLocations: readonly Readonly<AutopelagoLocation>[], fromLocation: number, toLocation: number) => {
+    const [fx, fy] = allLocations[fromLocation].coords;
+    const [tx, ty] = allLocations[toLocation].coords;
+    let neutralAngle = Math.atan2(ty - fy, tx - fx);
+    let scaleX = 1;
+    if (Math.abs(neutralAngle) >= Math.PI / 2) {
+      neutralAngle -= Math.PI;
+      scaleX = -1;
+    }
+    return {
+      fx, fy, tx, ty, neutralAngle, scaleX,
+    };
+  };
 
   const checkLocations = (locations: Iterable<number>) => {
     for (const loc of locations) {
@@ -119,12 +134,16 @@ export function watchAnimations(
       if (gameStore.running()) {
         playerWiggle?.play();
         landmarkShake?.play();
-        currentAnimation?.play();
+        currentTransientAnimations.forEach((a) => {
+          a.play();
+        });
       }
       else {
         playerWiggle?.pause();
         landmarkShake?.pause();
-        currentAnimation?.pause();
+        currentTransientAnimations.forEach((a) => {
+          a.pause();
+        });
       }
     }, { injector });
     let wasShowingPath = false;
@@ -178,30 +197,24 @@ export function watchAnimations(
               continue;
             }
 
-            const [fx, fy] = allLocations[anim.fromLocation].coords;
-            const [tx, ty] = allLocations[anim.toLocation].coords;
-            let neutralAngle = Math.atan2(ty - fy, tx - fx);
-            let scaleX = 1;
-            if (Math.abs(neutralAngle) >= Math.PI / 2) {
-              neutralAngle -= Math.PI;
-              scaleX = -1;
-            }
             const prevPrevAnimation = prevAnimation;
             prevAnimation = (async () => {
               await prevPrevAnimation;
               if (destroyRef.destroyed) {
                 return;
               }
+              const { tx, ty, neutralAngle, scaleX } = movementProps(allLocations, anim.fromLocation, anim.toLocation);
               performanceInsensitiveAnimatableState.apparentCurrentLocation.set(anim.toLocation);
               playerTokenContainer.style.setProperty('--ap-neutral-angle', neutralAngle.toString() + 'rad');
               playerTokenContainer.style.setProperty('--ap-scale-x', scaleX.toString());
-              currentAnimation = playerTokenContainer.animate({
+              const currentAnimation = playerTokenContainer.animate({
                 ['--ap-left-base']: [tx.toString() + 'px'],
                 ['--ap-top-base']: [ty.toString() + 'px'],
               }, { fill: 'forwards', duration: enableRatAnimations ? 100 : 0 });
               if (!gameStore.running()) {
                 currentAnimation.pause();
               }
+              currentTransientAnimations = [currentAnimation];
               try {
                 await currentAnimation.finished;
                 currentAnimation.commitStyles();
@@ -217,7 +230,7 @@ export function watchAnimations(
               only CAN it be nullish, but it IS nullish. quite often, in fact.
               */
               overlay.overlayRef?.updatePosition();
-              currentAnimation = null;
+              currentTransientAnimations = [];
             })();
             break;
           }
@@ -281,17 +294,26 @@ export function watchAnimations(
               decently quickly animate a few spins around
               decently quickly move the rat to the beginning
               */
+              playerWiggle?.pause();
+              const neutralAngleProp = playerTokenContainer.style.getPropertyValue('--ap-neutral-angle');
+              const neutralAngleSign = neutralAngleProp.startsWith('-') ? -1 : 1;
               performanceInsensitiveAnimatableState.apparentCurrentLocation.set(startLocation);
               fadeToBlack.style.opacity = '0';
-              currentAnimation = fadeToBlack.animate({
+              const animateFadeToBlack = fadeToBlack.animate({
                 opacity: [1],
               }, { fill: 'forwards', duration: gameStore.deathDelaySeconds() * 1000 });
+              const animateRat = playerTokenContainer.animate({
+                ['--ap-neutral-angle']: `${(neutralAngleSign * 180).toString()}deg`,
+              }, { fill: 'forwards', duration: gameStore.deathDelaySeconds() * 1000 });
+              currentTransientAnimations = [animateFadeToBlack, animateRat];
               if (!gameStore.running()) {
-                currentAnimation.pause();
+                currentTransientAnimations.forEach((a) => {
+                  a.pause();
+                });
               }
               try {
                 const animPromise = Promise.any([
-                  currentAnimation.finished,
+                  Promise.all(currentTransientAnimations.map(a => a.finished)),
                   new Promise<void>(resolve => immediateDeathCallback = resolve),
                 ]);
                 if (anim.instant) {
@@ -299,14 +321,19 @@ export function watchAnimations(
                 }
                 await animPromise;
                 immediateDeathCallback = noop;
-                currentAnimation.commitStyles();
-                currentAnimation.cancel();
+                currentTransientAnimations.forEach((a) => {
+                  a.commitStyles();
+                  a.cancel();
+                });
                 gameStore.killPlayerEnd('{PLAYER_ALIAS} drank poison.');
                 playerTokenContainer.style.setProperty('--ap-neutral-angle', '0');
                 playerTokenContainer.style.setProperty('--ap-scale-x', '1');
                 playerTokenContainer.style.setProperty('--ap-left-base', `${x.toString()}px`);
                 playerTokenContainer.style.setProperty('--ap-top-base', `${y.toString()}px`);
                 fadeToBlack.style.opacity = '0';
+                if (gameStore.running()) {
+                  playerWiggle?.play();
+                }
               }
               catch {
                 // doesn't matter.
@@ -318,7 +345,7 @@ export function watchAnimations(
               only CAN it be nullish, but it IS nullish. quite often, in fact.
               */
               overlay.overlayRef?.updatePosition();
-              currentAnimation = null;
+              currentTransientAnimations = [];
             })();
           }
         }
