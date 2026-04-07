@@ -70,13 +70,8 @@ export class GameScreen {
   readonly #destroyRef = inject(DestroyRef);
   readonly #toast = inject(ToastrService);
   #activeToast: ActiveToast<unknown> | null = null;
-  #wasEverConnected = signal(false);
   readonly connectScreenState = input.required<ConnectScreenState>();
-  protected readonly notConnectedMessage = computed(() =>
-    this.#wasEverConnected()
-      ? 'Disconnected from server.'
-      : 'Connecting...',
-  );
+  protected readonly notConnectedMessage = signal('Connecting...');
 
   protected readonly queryParamsFromConnectScreenState = computed(() =>
     queryParamsFromConnectScreenState(this.connectScreenState()));
@@ -150,7 +145,7 @@ export class GameScreen {
       }
     });
     effect(() => {
-      if (this.#wasEverConnected() || this.game.isLoading()) {
+      if (this.game.isLoading()) {
         return;
       }
 
@@ -160,7 +155,6 @@ export class GameScreen {
           prevTimeout = NaN;
           nextTimeoutDuration = 500;
         }
-        this.#wasEverConnected.set(true);
         return;
       }
 
@@ -173,9 +167,11 @@ export class GameScreen {
         return;
       }
 
+      this.notConnectedMessage.set('Disconnected! Trying to reconnect...');
       const { client } = game;
       client.socket.on('disconnected', () => {
         this.game.value.set(undefined);
+        this.game.reload();
       });
     });
   }
