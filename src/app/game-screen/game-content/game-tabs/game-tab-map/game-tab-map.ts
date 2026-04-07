@@ -48,12 +48,11 @@ import { watchAnimations } from './watch-animations';
       <div class="organize fillers">
         @for (f of allFillers(); track f.loc) {
           <div
-            #fillerSquare class="map-positioned filler"
-            [style.--ap-left-base.px]="f.coords[0]" [style.--ap-top-base.px]="f.coords[1]"
-            [attr.data-location-id]="f.loc">
+            class="map-positioned filler"
+            [style.--ap-left-base.px]="f.coords[0]" [style.--ap-top-base.px]="f.coords[1]">
             <div
-              [tabindex]="$index + 1999"
-              [class.hyper-focus]="hyperFocusLocation() === f.loc"
+              #fillerSquare [tabindex]="$index + 1999"
+              [class.hyper-focus]="hyperFocusLocation() === f.loc" [attr.data-location-id]="f.loc"
               appTooltip [tooltipContext]="tooltipContext" (tooltipOriginChange)="setTooltipOrigin(f.loc, $event, true)"
               (click)="setOrClearHyperFocus(f.loc)" (keyup.enter)="setOrClearHyperFocus(f.loc)" (keyup.space)="setOrClearHyperFocus(f.loc)">
             </div>
