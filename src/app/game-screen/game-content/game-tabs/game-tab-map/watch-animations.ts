@@ -2,6 +2,7 @@ import { Dialog } from '@angular/cdk/dialog';
 import type { CdkConnectedOverlay } from '@angular/cdk/overlay';
 import { DestroyRef, effect, inject, Injector, untracked } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
+import scrollIntoView from 'scroll-into-view-if-needed';
 import type { AutopelagoLocation } from '../../../../data/resolved-definitions';
 import { GameStore } from '../../../../store/autopelago-store';
 import { GameScreenStore } from '../../../../store/game-screen-store';
@@ -305,7 +306,10 @@ export function watchAnimations(
               const animateFadeToBlack = fadeToBlack.animate({
                 opacity: [1],
               }, { fill: 'forwards', duration: deathDelay });
-              playerTokenContainer.scrollIntoView({ behavior: 'instant', block: 'center' });
+              const playerToken = playerTokenContainer.firstElementChild;
+              if (playerToken) {
+                scrollIntoView(playerToken, { behavior: 'instant', block: 'center', scrollMode: 'if-needed' });
+              }
               const animateRat = playerTokenContainer.animate({
                 ['--ap-left-base']: `${ratLeftTarget.toString()}px`,
                 ['--ap-neutral-angle']: `${(neutralAngleSign * 180).toString()}deg`,
