@@ -51,7 +51,7 @@ import { watchAnimations } from './watch-animations';
             class="map-positioned filler"
             [style.--ap-left-base.px]="f.coords[0]" [style.--ap-top-base.px]="f.coords[1]">
             <div
-              #fillerSquare [tabindex]="$index + 1999"
+              #fillerSquare [tabindex]="$index + 1999" class="pointer-interactive"
               [class.hyper-focus]="hyperFocusLocation() === f.loc" [attr.data-location-id]="f.loc"
               appTooltip [tooltipContext]="tooltipContext" (tooltipOriginChange)="setTooltipOrigin(f.loc, $event, true)"
               (click)="setOrClearHyperFocus(f.loc)" (keyup.enter)="setOrClearHyperFocus(f.loc)" (keyup.space)="setOrClearHyperFocus(f.loc)">
@@ -78,7 +78,7 @@ import { watchAnimations } from './watch-animations';
             <!--suppress CheckImageSize, AngularNgOptimizedImage -->
             <img width="64" height="64" [alt]="lm.yamlKey" src="assets/images/locations.webp"
                  [style.--ap-sprite-index]="lm.spriteIndex"
-                 [tabindex]="$index + 999"
+                 [tabindex]="$index + 999" class="pointer-interactive"
                  [class.hyper-focus]="hyperFocusLocation() === lm.loc"
                  appTooltip [tooltipContext]="tooltipContext" (tooltipOriginChange)="setTooltipOrigin(lm.loc, $event, true)"
                  (click)="setOrClearHyperFocus(lm.loc)" (keyup.enter)="setOrClearHyperFocus(lm.loc)" (keyup.space)="setOrClearHyperFocus(lm.loc)">
@@ -102,7 +102,7 @@ import { watchAnimations } from './watch-animations';
               -->
               <!--suppress CheckImageSize, AngularNgOptimizedImage -->
               <img width="16" height="48" [alt]="lm.yamlKey" src="assets/images/locations.webp"
-                   [style.--ap-sprite-index]="0"
+                   [style.--ap-sprite-index]="0" class="pointer-interactive"
                    appTooltip [tooltipContext]="tooltipContext" (tooltipOriginChange)="setTooltipOrigin(lm.loc, $event, true)"
                    (click)="setOrClearHyperFocus(lm.loc)">
               <!-- eslint-enable
@@ -113,13 +113,13 @@ import { watchAnimations } from './watch-animations';
           }
         }
       </div>
-      <div #playerTokenContainer class="map-positioned player" tabindex="998" [style.z-index]="999"
-           appTooltip [tooltipContext]="tooltipContext" (tooltipOriginChange)="setTooltipOrigin(null, $event, true)"
-           (click)="toggleShowingPath()" (keyup.enter)="toggleShowingPath()" (keyup.space)="toggleShowingPath()">
+      <div #playerTokenContainer class="map-positioned player" [style.z-index]="999">
         <!--suppress AngularNgOptimizedImage -->
-        <img width="64" height="64" alt="player" [src]="playerImageSource.value()">
+        <img width="64" height="64" alt="player" [src]="playerImageSource.value()" tabindex="998" class="pointer-interactive"
+             appTooltip [tooltipContext]="tooltipContext" (tooltipOriginChange)="setTooltipOrigin(null, $event, true)"
+             (click)="toggleShowingPath()" (keyup.enter)="toggleShowingPath()" (keyup.space)="toggleShowingPath()">
       </div>
-      <div #ratPoisonContainer class="positioned rat-poison" [style.z-index]="999" [style.display]="'none'">
+      <div #ratPoisonContainer class="map-positioned rat-poison" [style.z-index]="999" [style.display]="'none'">
         <!--suppress AngularNgOptimizedImage -->
         <img width="64" height="64" alt="rat poison" src="assets/images/rat_poison.webp">
       </div>
@@ -264,18 +264,18 @@ import { watchAnimations } from './watch-animations';
       }
     }
 
-    .positioned,.map-positioned {
+    .map-positioned {
       position: absolute;
       transform-origin: left top;
     }
 
-    .map-positioned {
+    .pointer-interactive {
       pointer-events: initial;
+    }
 
-      .hyper-focus {
-        outline: 6px dashed red;
-        outline-offset: 6px;
-      }
+    .hyper-focus {
+      outline: 6px dashed red;
+      outline-offset: 6px;
     }
   `,
 })
