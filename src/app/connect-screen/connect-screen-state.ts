@@ -65,6 +65,7 @@ export const QUERY_PARAM_NAME_MAP = {
   enableTileAnimations: 'A',
   enableRatAnimations: 'a',
   sendChatMessages: 'c',
+  whenDeathIsImminent: 'd',
   whenTargetChanges: 'z',
   whenBecomingBlocked: 'b',
   whenStillBlocked: 'B',
@@ -83,6 +84,7 @@ export const QUERY_PARAM_NAME_MAP = {
   A: 'enableTileAnimations',
   a: 'enableRatAnimations',
   c: 'sendChatMessages',
+  d: 'whenDeathIsImminent',
   z: 'whenTargetChanges',
   b: 'whenBecomingBlocked',
   B: 'whenStillBlocked',
@@ -122,6 +124,7 @@ export interface ConnectScreenState {
   enableTileAnimations: boolean;
   enableRatAnimations: boolean;
   sendChatMessages: boolean;
+  whenDeathIsImminent: boolean;
   whenTargetChanges: boolean;
   whenBecomingBlocked: boolean;
   whenStillBlocked: boolean;
@@ -148,6 +151,7 @@ export const CONNECT_SCREEN_STATE_DEFAULTS = {
   enableTileAnimations: !prefersReducedMotion,
   enableRatAnimations: !prefersReducedMotion,
   sendChatMessages: true,
+  whenDeathIsImminent: true,
   whenTargetChanges: true,
   whenBecomingBlocked: true,
   whenStillBlocked: false,
@@ -169,6 +173,7 @@ export function queryParamsFromConnectScreenState(s: Readonly<ConnectScreenState
     [QUERY_PARAM_NAME_MAP.enableTileAnimations]: s.enableTileAnimations ? 1 : 0,
     [QUERY_PARAM_NAME_MAP.enableRatAnimations]: s.enableRatAnimations ? 1 : 0,
     [QUERY_PARAM_NAME_MAP.sendChatMessages]: s.sendChatMessages ? 1 : 0,
+    [QUERY_PARAM_NAME_MAP.whenDeathIsImminent]: s.whenDeathIsImminent ? 1 : 0,
     [QUERY_PARAM_NAME_MAP.whenTargetChanges]: s.whenTargetChanges ? 1 : 0,
     [QUERY_PARAM_NAME_MAP.whenBecomingBlocked]: s.whenBecomingBlocked ? 1 : 0,
     [QUERY_PARAM_NAME_MAP.whenStillBlocked]: s.whenStillBlocked ? 1 : 0,
@@ -225,6 +230,7 @@ function connectStateFromQueryParamsCore(slot: string, host: string, port: numbe
     enableTileAnimations: readBoolean(qp, 'enableTileAnimations'),
     enableRatAnimations: readBoolean(qp, 'enableRatAnimations'),
     sendChatMessages: readBoolean(qp, 'sendChatMessages'),
+    whenDeathIsImminent: readBoolean(qp, 'whenDeathIsImminent'),
     whenTargetChanges: readBoolean(qp, 'whenTargetChanges'),
     whenBecomingBlocked: readBoolean(qp, 'whenBecomingBlocked'),
     whenStillBlocked: readBoolean(qp, 'whenStillBlocked'),

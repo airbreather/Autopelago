@@ -9,7 +9,11 @@ export function toWeighted<T>(msg: (readonly [T, number])[]): readonly Weighted<
   return msg.map(([item, weight]) => ({ item, weight }));
 }
 
-export function createWeightedSampler<T>(weightedItems: Iterable<Weighted<T>>): ((this: void, roll: number) => T) | null {
+export function createWeightedSampler<T>(weightedItems: Iterable<Weighted<T>> | null): ((this: void, roll: number) => T) | null {
+  if (weightedItems === null) {
+    return null;
+  }
+
   const items: T[] = [];
   const weights: number[] = [];
   let sum = 0;

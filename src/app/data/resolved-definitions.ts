@@ -35,6 +35,8 @@ export type AutopelagoTrap =
   | 'distracted'
   | 'startled'
   | 'conspiratorial'
+  // added on or after 1.1.0:
+  | 'poison'
   ;
 
 export type AutopelagoAura =

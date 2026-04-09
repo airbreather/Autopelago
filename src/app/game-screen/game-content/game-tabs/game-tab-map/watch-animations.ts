@@ -1,7 +1,9 @@
 import { Dialog } from '@angular/cdk/dialog';
 import type { CdkConnectedOverlay } from '@angular/cdk/overlay';
-import { DestroyRef, effect, inject, Injector, untracked } from '@angular/core';
+import { DestroyRef, effect, inject, Injector, type Signal, signal, untracked } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
+import scrollIntoView from 'scroll-into-view-if-needed';
+import type { AutopelagoLocation } from '../../../../data/resolved-definitions';
 import { GameStore } from '../../../../store/autopelago-store';
 import { GameScreenStore } from '../../../../store/game-screen-store';
 import { PerformanceInsensitiveAnimatableState } from '../../status-display/performance-insensitive-animatable-state';
@@ -10,7 +12,9 @@ import { UWin } from './u-win';
 interface WatchAnimationsParams {
   dashedPath: SVGPathElement;
   overlay: CdkConnectedOverlay;
+  fadeToBlack: HTMLDivElement;
   playerTokenContainer: HTMLDivElement;
+  ratPoisonContainer: HTMLDivElement;
   landmarkContainers: readonly HTMLDivElement[];
   questContainers: readonly HTMLDivElement[];
   fillerSquares: readonly HTMLDivElement[];
@@ -19,7 +23,7 @@ interface WatchAnimationsParams {
 }
 
 export function watchAnimations(
-  { dashedPath, overlay, playerTokenContainer, landmarkContainers, questContainers, fillerSquares, enableTileAnimations, enableRatAnimations }: WatchAnimationsParams,
+  { dashedPath, overlay, fadeToBlack, playerTokenContainer, ratPoisonContainer, landmarkContainers, questContainers, fillerSquares, enableTileAnimations, enableRatAnimations }: WatchAnimationsParams,
 ) {
   const gameStore = inject(GameStore);
   const gameScreenStore = inject(GameScreenStore);
@@ -61,7 +65,6 @@ export function watchAnimations(
     }
   }
 
-  let currentMovementAnimation: Animation | null = null;
   let prevAnimation = Promise.resolve();
 
   const landmarkContainersLookup = new Map<number, HTMLDivElement>();
@@ -78,6 +81,20 @@ export function watchAnimations(
   for (const fillerSquare of fillerSquares) {
     fillerSquaresLookup.set(Number(fillerSquare.dataset['locationId']), fillerSquare);
   }
+
+  const movementProps = (allLocations: readonly Readonly<AutopelagoLocation>[], fromLocation: number, toLocation: number) => {
+    const [fx, fy] = allLocations[fromLocation].coords;
+    const [tx, ty] = allLocations[toLocation].coords;
+    let neutralAngle = Math.atan2(ty - fy, tx - fx);
+    let scaleX = 1;
+    if (Math.abs(neutralAngle) >= Math.PI / 2) {
+      neutralAngle -= Math.PI;
+      scaleX = -1;
+    }
+    return {
+      fx, fy, tx, ty, neutralAngle, scaleX,
+    };
+  };
 
   const checkLocations = (locations: Iterable<number>) => {
     for (const loc of locations) {
@@ -102,6 +119,38 @@ export function watchAnimations(
   };
 
   window.setTimeout(() => {
+    let immediateDeathCallback: (() => void) | null = null;
+    let finalizeCurrentTransientAnimations: () => void;
+    const playerMayWiggleWhenUnpaused = signal(true);
+    let currentTransientAnimations: Signal<readonly Animation[]>;
+    let setCurrentTransientAnimations: (animations: Animation[]) => void;
+    {
+      const writableCurrentTransientAnimations = signal<Animation[]>([]);
+      currentTransientAnimations = writableCurrentTransientAnimations.asReadonly();
+      setCurrentTransientAnimations = (animations: Animation[]) => {
+        writableCurrentTransientAnimations.set(animations);
+        // get ahead of the microtask and pause this right away if needed
+        if (!gameStore.running()) {
+          for (const anim of animations) {
+            anim.pause();
+          }
+        }
+      };
+      finalizeCurrentTransientAnimations = () => {
+        writableCurrentTransientAnimations.update((curr) => {
+          for (const anim of curr) {
+            try {
+              anim.commitStyles();
+              anim.cancel();
+            }
+            catch {
+              // no big deal - it probably means that we're switching views anyway.
+            }
+          }
+          return [];
+        });
+      };
+    }
     effect(() => {
       const { allLocations } = gameStore.defs();
       const coords = allLocations[untracked(() => gameStore.currentLocation())].coords;
@@ -111,14 +160,23 @@ export function watchAnimations(
     }, { injector });
     effect(() => {
       if (gameStore.running()) {
-        playerWiggle?.play();
+        if (playerMayWiggleWhenUnpaused()) {
+          playerWiggle?.play();
+        }
+        else {
+          playerWiggle?.pause();
+        }
         landmarkShake?.play();
-        currentMovementAnimation?.play();
+        for (const anim of currentTransientAnimations()) {
+          anim.play();
+        }
       }
       else {
         playerWiggle?.pause();
         landmarkShake?.pause();
-        currentMovementAnimation?.pause();
+        for (const anim of currentTransientAnimations()) {
+          anim.pause();
+        }
       }
     }, { injector });
     let wasShowingPath = false;
@@ -172,14 +230,7 @@ export function watchAnimations(
               continue;
             }
 
-            const [fx, fy] = allLocations[anim.fromLocation].coords;
-            const [tx, ty] = allLocations[anim.toLocation].coords;
-            let neutralAngle = Math.atan2(ty - fy, tx - fx);
-            let scaleX = 1;
-            if (Math.abs(neutralAngle) >= Math.PI / 2) {
-              neutralAngle -= Math.PI;
-              scaleX = -1;
-            }
+            const { tx, ty, neutralAngle, scaleX } = movementProps(allLocations, anim.fromLocation, anim.toLocation);
             const prevPrevAnimation = prevAnimation;
             prevAnimation = (async () => {
               await prevPrevAnimation;
@@ -189,17 +240,19 @@ export function watchAnimations(
               performanceInsensitiveAnimatableState.apparentCurrentLocation.set(anim.toLocation);
               playerTokenContainer.style.setProperty('--ap-neutral-angle', neutralAngle.toString() + 'rad');
               playerTokenContainer.style.setProperty('--ap-scale-x', scaleX.toString());
-              currentMovementAnimation = playerTokenContainer.animate({
+              const currentAnimation = playerTokenContainer.animate({
                 ['--ap-left-base']: [tx.toString() + 'px'],
                 ['--ap-top-base']: [ty.toString() + 'px'],
               }, { fill: 'forwards', duration: enableRatAnimations ? 100 : 0 });
+              setCurrentTransientAnimations([currentAnimation]);
               try {
-                await currentMovementAnimation.finished;
-                currentMovementAnimation.commitStyles();
-                currentMovementAnimation.cancel();
+                await currentAnimation.finished;
               }
               catch {
                 // doesn't matter.
+              }
+              finally {
+                finalizeCurrentTransientAnimations();
               }
               /*
               eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
@@ -208,7 +261,6 @@ export function watchAnimations(
               only CAN it be nullish, but it IS nullish. quite often, in fact.
               */
               overlay.overlayRef?.updatePosition();
-              currentMovementAnimation = null;
             })();
             break;
           }
@@ -247,6 +299,116 @@ export function watchAnimations(
                 });
             })();
             break;
+          }
+
+          case 'death': {
+            let deathDelay = gameStore.deathDelaySeconds() * 1000;
+            if (anim.cause !== 'just-poisoned') {
+              if (immediateDeathCallback !== null) {
+                // there's already a death animation playing. finish it and let the rest play out.
+                immediateDeathCallback();
+                break;
+              }
+              gameStore.killPlayerBegin();
+              deathDelay = 0;
+            }
+
+            const prevPrevAnimation = prevAnimation;
+            const startLocation = gameStore.defs().startLocation;
+            const [x, y] = gameStore.defs().allLocations[startLocation].coords;
+            prevAnimation = (async () => {
+              await prevPrevAnimation;
+              if (destroyRef.destroyed) {
+                return;
+              }
+              const playerToken = playerTokenContainer.firstElementChild;
+              if (playerToken) {
+                scrollIntoView(playerToken, { behavior: 'instant', block: 'center', scrollMode: 'if-needed' });
+              }
+              playerMayWiggleWhenUnpaused.set(false);
+              try {
+                const ratLeft = Number(playerTokenContainer.style.getPropertyValue('--ap-left-base').replace('px', ''));
+                const ratTop = Number(playerTokenContainer.style.getPropertyValue('--ap-top-base').replace('px', ''));
+                const ratLeftTarget = (ratLeft + 150) / 2;
+                const poisonLeft = ratLeft > 150 ? 0 : 300;
+                const poisonLeftTarget = ((ratLeft + 150) / 2) + (ratLeft > 150 ? -16 : 16);
+                const neutralAngleProp = playerTokenContainer.style.getPropertyValue('--ap-neutral-angle');
+                const neutralAngleSign = neutralAngleProp.startsWith('-') ? -1 : 1;
+                ratPoisonContainer.style.setProperty('display', 'block');
+                ratPoisonContainer.style.setProperty('--ap-left-base', `${poisonLeft.toString()}px`);
+                ratPoisonContainer.style.setProperty('--ap-top-base', `${ratTop.toString()}px`);
+                ratPoisonContainer.style.setProperty('--ap-neutral-angle', '0rad');
+                performanceInsensitiveAnimatableState.apparentCurrentLocation.set(startLocation);
+                const localTransientAnimations = [
+                  fadeToBlack.animate({
+                    opacity: [1],
+                  }, { fill: 'forwards', duration: deathDelay }),
+                  playerTokenContainer.animate({
+                    ['--ap-left-base']: `${ratLeftTarget.toString()}px`,
+                    ['--ap-neutral-angle']: `${(neutralAngleSign * 180).toString()}deg`,
+                  }, { fill: 'forwards', duration: deathDelay }),
+                  ratPoisonContainer.animate({
+                    ['--ap-left-base']: `${poisonLeftTarget.toString()}px`,
+                    ['--ap-neutral-angle']: ['3600deg'],
+                  }, { fill: 'forwards', duration: deathDelay }),
+                ];
+                setCurrentTransientAnimations(localTransientAnimations);
+                try {
+                  if (deathDelay > 0) {
+                    // allow this await to get interrupted prematurely if a Death Link comes in while
+                    // we're in the middle of a death animation. incoming animatable actions can't cut
+                    // in line (by design!) because it's all structured as a timeline of sorts (not an
+                    // AnimationTimeline), and time only flows forward or pauses. instead, we create a
+                    // wormhole through spacetime that a future death animation can jump through where
+                    // the only thing it's capable of doing in the past is to tell us to stop early.
+                    await Promise.any([
+                      Promise.all(localTransientAnimations.map(a => a.finished)),
+                      new Promise<void>(resolve => immediateDeathCallback = resolve),
+                    ]);
+                    immediateDeathCallback = null;
+                  }
+                  finalizeCurrentTransientAnimations();
+                  switch (anim.cause) {
+                    case 'just-poisoned':
+                      gameStore.killPlayerEnd('{PLAYER_ALIAS} drank poison.');
+                      break;
+
+                    case 'death-link':
+                      gameStore.killPlayerEnd(null);
+                      break;
+                  }
+                  ratPoisonContainer.style.setProperty('display', 'none');
+                  const animateRatBack = playerTokenContainer.animate({
+                    ['--ap-left-base']: `${x.toString()}px`,
+                    ['--ap-top-base']: `${y.toString()}px`,
+                    ['--ap-neutral-angle']: '3600deg',
+                  }, { fill: 'forwards', duration: 2000 });
+                  setCurrentTransientAnimations([animateRatBack]);
+                  try {
+                    await animateRatBack.finished;
+                  }
+                  finally {
+                    finalizeCurrentTransientAnimations();
+                  }
+                  playerTokenContainer.style.setProperty('--ap-neutral-angle', '0rad');
+                  playerTokenContainer.style.setProperty('--ap-scale-x', '1');
+                  fadeToBlack.style.setProperty('opacity', '0');
+                }
+                catch {
+                  // doesn't matter.
+                }
+                /*
+                eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
+                --
+                I would LOVE to remove the condition, but this property was declared incorrectly. not
+                only CAN it be nullish, but it IS nullish. quite often, in fact.
+                */
+                overlay.overlayRef?.updatePosition();
+              }
+              finally {
+                playerMayWiggleWhenUnpaused.set(true);
+              }
+            })();
           }
         }
       }

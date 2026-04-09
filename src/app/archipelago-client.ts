@@ -50,6 +50,7 @@ const defaultStoredData = {
   previousTargetLocationEvidence: null,
   auraDrivenLocations: Array<number>(0),
   userRequestedLocations: Array<UserRequestedLocation>(0),
+  impendingDoom: false,
 } as const;
 
 export async function initializeClient(initializeClientOptions: InitializeClientOptions): Promise<AutopelagoClientAndData> {
@@ -69,6 +70,7 @@ export async function initializeClient(initializeClientOptions: InitializeClient
 
   let options: ConnectionOptions = {
     slotData: true,
+    tags: ['DeathLink'], // if it's disabled in this slot, we'll turn it off later, but let's ask for it by default.
     version: {
       major: 0,
       minor: 6,
@@ -130,6 +132,7 @@ export async function initializeClient(initializeClientOptions: InitializeClient
       && n.location >= 0 && n.location < defs.allLocations.length
       && n.userSlot >= 0 && n.userSlot < client.players.teams[client.players.self.team].length,
     );
+    trySetBooleanProp(retrievedStoredData, 'impendingDoom', validatedStoredDataParts);
   }
 
   const storedData: AutopelagoStoredData = {

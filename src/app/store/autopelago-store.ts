@@ -44,7 +44,6 @@ export const GameStore = signalStore(
   withMethods(store => ({
     init(game: AutopelagoClientAndData) {
       const { connectScreenState, client, pkg, slotData, storedData, locationIsProgression, locationIsTrap } = game;
-
       const victoryLocationYamlKey = VICTORY_LOCATION_NAME_LOOKUP[slotData.victory_location_name];
 
       const locationNameLookup = BAKED_DEFINITIONS_BY_VICTORY_LANDMARK[victoryLocationYamlKey].locationNameLookup;
@@ -62,7 +61,13 @@ export const GameStore = signalStore(
       }
       let aurasGrantedByItemNetworkId: Map<number, readonly AutopelagoAura[]>;
       let ratCountByItemNetworkId: Map<number, number>;
+      let messagesForImpendingDoom: ReturnType<typeof toWeighted<string>> | null = null;
+      let deathDelaySeconds = NaN;
+      let sendDeathLink = false;
       if (isLegacySlotData(slotData)) {
+        // death link wasn't supported until 1.1.0
+        client.deathLink.disableDeathLink();
+
         // prior to 1.0.0, the client and APWorld needed to agree on all items that existed and what
         // they did, and the client would just ignore certain auras according to the config. we need
         // to be able to work with such worlds as well (this is just the tradeoff we have to make to
@@ -91,6 +96,26 @@ export const GameStore = signalStore(
           .map(([networkId, aurasGranted]) => [Number(networkId), aurasGranted]));
         ratCountByItemNetworkId = new Map(strictObjectEntries(slotData.rat_counts_by_item_id)
           .map(([networkId, ratCount]) => [Number(networkId), ratCount]));
+
+        if (slotData.added_in_1_1_0) {
+          if (slotData.added_in_1_1_0.death_link) {
+            sendDeathLink = true;
+            client.deathLink.on('deathReceived', () => {
+              patchState(store, ({ outgoingAnimatableActions }) => ({
+                outgoingAnimatableActions: outgoingAnimatableActions.push({ type: 'death', cause: 'death-link' }),
+              }));
+            });
+          }
+          else {
+            client.deathLink.disableDeathLink();
+          }
+          // regardless of if death link is enabled or not, the death delay timer still happens.
+          deathDelaySeconds = slotData.added_in_1_1_0.death_delay_seconds;
+          messagesForImpendingDoom = toWeighted(slotData.added_in_1_1_0.msg_impending_doom);
+        }
+        else {
+          client.deathLink.disableDeathLink();
+        }
       }
       patchState(store, {
         ...storedData,
@@ -108,6 +133,9 @@ export const GameStore = signalStore(
         messagesForRemindBK: toWeighted(slotData.msg_remind_bk),
         messagesForExitBK: toWeighted(slotData.msg_exit_bk),
         messagesForCompletedGoal: toWeighted(slotData.msg_completed_goal),
+        messagesForImpendingDoom,
+        deathDelaySeconds,
+        sendDeathLink,
         hyperFocusLocation: 'hyperFocusLocation' in storedData ? storedData.hyperFocusLocation : null,
         auraDrivenLocations: List(storedData.auraDrivenLocations),
         userRequestedLocations: List(storedData.userRequestedLocations),
@@ -115,7 +143,12 @@ export const GameStore = signalStore(
         checkedLocations: ImmutableSet(checkedLocations),
         previousTargetLocationEvidence: targetLocationEvidenceFromJSONSerializable(storedData.previousTargetLocationEvidence),
         outgoingAnimatableActions: List(),
+        impendingDoom: false,
+        outgoingDeathCause: storedData.impendingDoom
+          ? '{PLAYER_ALIAS} tried to cheat death.'
+          : null,
       });
+
       store.receiveItems(client.items.received.map(i => i.id));
       client.items.on('itemsReceived', (items) => {
         store.receiveItems(items.map(i => i.id));
@@ -213,6 +246,7 @@ export const GameStore = signalStore(
           forRemindBK: _wrapMessageTemplate(sampleMessage.forRemindBK),
           forExitBK: _wrapMessageTemplate(sampleMessage.forExitBK),
           forCompletedGoal: _wrapMessageTemplate(sampleMessage.forCompletedGoal),
+          forImpendingDoom: _wrapMessageTemplate(sampleMessage.forImpendingDoom),
         } satisfies typeof sampleMessage;
       }),
     };
@@ -296,6 +330,25 @@ export const GameStore = signalStore(
           outgoingMessages: outgoingMessages.clear(),
         });
       });
+
+      effect(() => {
+        const outgoingDeathCause = store.outgoingDeathCause();
+        if (outgoingDeathCause === null) {
+          return;
+        }
+
+        if (store.sendDeathLink()) {
+          const game = store.game();
+          if (!game) {
+            return;
+          }
+
+          const client = game.client;
+          client.deathLink.sendDeathLink(client.players.self.alias, outgoingDeathCause.replaceAll(/\{PLAYER_ALIAS}/g, client.players.self.alias));
+        }
+        patchState(store, { outgoingDeathCause: null });
+      });
+
       effect(() => {
         const game = store.game();
         if (game === null) {
@@ -333,6 +386,30 @@ export const GameStore = signalStore(
             }),
           };
         });
+      });
+      effect(() => {
+        const game = store.game();
+        if (game === null) {
+          return;
+        }
+
+        const { sendChatMessages, whenDeathIsImminent } = game.connectScreenState;
+        if (!(sendChatMessages && whenDeathIsImminent)) {
+          return;
+        }
+
+        const sampleMessage = store.sampleMessageFull().forImpendingDoom;
+        if (sampleMessage === null) {
+          return;
+        }
+
+        if (!store.impendingDoom()) {
+          return;
+        }
+
+        patchState(store, ({ outgoingMessages }) => ({
+          outgoingMessages: outgoingMessages.push(sampleMessage(Math.random())),
+        }));
       });
       const reportGoMode = effect(() => {
         if (store.hasCompletedGoal()) {

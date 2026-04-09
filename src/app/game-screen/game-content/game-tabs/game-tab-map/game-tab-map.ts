@@ -51,7 +51,7 @@ import { watchAnimations } from './watch-animations';
             class="map-positioned filler"
             [style.--ap-left-base.px]="f.coords[0]" [style.--ap-top-base.px]="f.coords[1]">
             <div
-              #fillerSquare [tabindex]="$index + 1999"
+              #fillerSquare [tabindex]="$index + 1999" class="pointer-interactive"
               [class.hyper-focus]="hyperFocusLocation() === f.loc" [attr.data-location-id]="f.loc"
               appTooltip [tooltipContext]="tooltipContext" (tooltipOriginChange)="setTooltipOrigin(f.loc, $event, true)"
               (click)="setOrClearHyperFocus(f.loc)" (keyup.enter)="setOrClearHyperFocus(f.loc)" (keyup.space)="setOrClearHyperFocus(f.loc)">
@@ -78,7 +78,7 @@ import { watchAnimations } from './watch-animations';
             <!--suppress CheckImageSize, AngularNgOptimizedImage -->
             <img width="64" height="64" [alt]="lm.yamlKey" src="assets/images/locations.webp"
                  [style.--ap-sprite-index]="lm.spriteIndex"
-                 [tabindex]="$index + 999"
+                 [tabindex]="$index + 999" class="pointer-interactive"
                  [class.hyper-focus]="hyperFocusLocation() === lm.loc"
                  appTooltip [tooltipContext]="tooltipContext" (tooltipOriginChange)="setTooltipOrigin(lm.loc, $event, true)"
                  (click)="setOrClearHyperFocus(lm.loc)" (keyup.enter)="setOrClearHyperFocus(lm.loc)" (keyup.space)="setOrClearHyperFocus(lm.loc)">
@@ -102,7 +102,7 @@ import { watchAnimations } from './watch-animations';
               -->
               <!--suppress CheckImageSize, AngularNgOptimizedImage -->
               <img width="16" height="48" [alt]="lm.yamlKey" src="assets/images/locations.webp"
-                   [style.--ap-sprite-index]="0"
+                   [style.--ap-sprite-index]="0" class="pointer-interactive"
                    appTooltip [tooltipContext]="tooltipContext" (tooltipOriginChange)="setTooltipOrigin(lm.loc, $event, true)"
                    (click)="setOrClearHyperFocus(lm.loc)">
               <!-- eslint-enable
@@ -113,19 +113,26 @@ import { watchAnimations } from './watch-animations';
           }
         }
       </div>
-      <div #playerTokenContainer class="map-positioned player" tabindex="998" [style.z-index]="999"
-           appTooltip [tooltipContext]="tooltipContext" (tooltipOriginChange)="setTooltipOrigin(null, $event, true)"
-           (click)="toggleShowingPath()" (keyup.enter)="toggleShowingPath()" (keyup.space)="toggleShowingPath()">
+      <div #playerTokenContainer class="map-positioned player" [style.z-index]="999">
         <!--suppress AngularNgOptimizedImage -->
-        <img #playerToken width="64" height="64" alt="player" [src]="playerImageSource.value()">
+        <img width="64" height="64" alt="player" [src]="playerImageSource.value()" tabindex="998" class="pointer-interactive"
+             appTooltip [tooltipContext]="tooltipContext" (tooltipOriginChange)="setTooltipOrigin(null, $event, true)"
+             (click)="toggleShowingPath()" (keyup.enter)="toggleShowingPath()" (keyup.space)="toggleShowingPath()">
+      </div>
+      <div #ratPoisonContainer class="map-positioned rat-poison" [style.z-index]="999" [style.display]="'none'">
+        <!--suppress AngularNgOptimizedImage -->
+        <img width="64" height="64" alt="rat poison" src="assets/images/rat_poison.webp">
       </div>
       <div #pauseButtonContainer class="pause-button-container"
-           [style.margin-top]="'-' + pauseButtonContainer.clientHeight + 'px'">
+           [style.margin-top]="'-' + pauseButtonContainer.clientHeight + 'px'"
+           [style.z-index]="1000">
         <button class="rat-toggle-button"
                 [class.toggled-on]="!running()"
                 (click)="togglePause()">
           ⏸
         </button>
+      </div>
+      <div #fadeToBlack class="fade-to-black">
       </div>
     </div>
     <ng-template
@@ -157,6 +164,16 @@ import { watchAnimations } from './watch-animations';
       position: relative;
       pointer-events: none;
       user-select: none;
+    }
+
+    .fade-to-black {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background-color: black;
+      opacity: 0;
     }
 
     .map-img {
@@ -234,7 +251,7 @@ import { watchAnimations } from './watch-animations';
       }
     }
 
-    .player {
+    .player,.rat-poison {
       scale: calc(var(--ap-scale, 4) / 4);
       left: calc(var(--ap-left-base, 8px) * var(--ap-scale, 4));
       top: calc(var(--ap-top-base, 8px) * var(--ap-scale, 4));
@@ -249,13 +266,16 @@ import { watchAnimations } from './watch-animations';
 
     .map-positioned {
       position: absolute;
-      pointer-events: initial;
       transform-origin: left top;
+    }
 
-      .hyper-focus {
-        outline: 6px dashed red;
-        outline-offset: 6px;
-      }
+    .pointer-interactive {
+      pointer-events: initial;
+    }
+
+    .hyper-focus {
+      outline: 6px dashed red;
+      outline-offset: 6px;
     }
   `,
 })
@@ -350,6 +370,8 @@ export class GameTabMap {
   protected readonly landmarkContainers = viewChildren<ElementRef<HTMLDivElement>>('landmarkContainer');
   protected readonly questContainers = viewChildren<ElementRef<HTMLDivElement>>('questContainer');
   protected readonly playerTokenContainer = viewChild.required<ElementRef<HTMLDivElement>>('playerTokenContainer');
+  protected readonly ratPoisonContainer = viewChild.required<ElementRef<HTMLDivElement>>('ratPoisonContainer');
+  protected readonly fadeToBlack = viewChild.required<ElementRef<HTMLDivElement>>('fadeToBlack');
   #overlayIsAttached = false;
 
   readonly playerImageSource = resource({
@@ -393,7 +415,9 @@ export class GameTabMap {
       const game = this.#store.game();
       const dashedPath = this.dashedPath().nativeElement;
       const overlay = this.overlay();
+      const fadeToBlack = this.fadeToBlack().nativeElement;
       const playerTokenContainer = this.playerTokenContainer().nativeElement;
+      const ratPoisonContainer = this.ratPoisonContainer().nativeElement;
       const landmarkContainers = this.landmarkContainers().map(l => l.nativeElement);
       const questContainers = this.questContainers().map(l => l.nativeElement);
       const fillerSquares = this.fillerSquares().map(l => l.nativeElement);
@@ -407,7 +431,9 @@ export class GameTabMap {
         watchAnimations({
           dashedPath,
           overlay,
+          fadeToBlack,
           playerTokenContainer,
+          ratPoisonContainer,
           landmarkContainers,
           questContainers,
           fillerSquares,

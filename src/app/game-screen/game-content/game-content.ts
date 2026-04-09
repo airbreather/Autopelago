@@ -10,7 +10,7 @@ import {
 } from '@angular/core';
 
 import { SplitAreaComponent, SplitComponent } from 'angular-split';
-import type { AutopelagoClientAndData } from '../../data/slot-data';
+import type { AutopelagoClientAndData, AutopelagoStoredData } from '../../data/slot-data';
 import { GameStore } from '../../store/autopelago-store';
 import { GameScreenStore } from '../../store/game-screen-store';
 import { elementSizeSignal } from '../../utils/element-size';
@@ -138,7 +138,7 @@ export class GameContent {
       }
 
       await client.storage
-        .prepare(storedDataKey, newStoredData)
+        .prepare<AutopelagoStoredData | null>(storedDataKey, null)
         .replace(newStoredData)
         .commit(true);
     });

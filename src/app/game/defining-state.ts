@@ -19,6 +19,11 @@ export interface CheckLocationsAction {
   locations: readonly number[];
 }
 
+export interface DeathAction {
+  type: 'death';
+  cause: 'just-poisoned' | 'death-link';
+}
+
 export interface UWinAction {
   type: 'u-win';
 }
@@ -26,6 +31,7 @@ export interface UWinAction {
 export type AnimatableAction =
   | MovementAction
   | CheckLocationsAction
+  | DeathAction
   | UWinAction
   ;
 
@@ -44,6 +50,9 @@ export interface DefiningGameState {
   readonly messagesForRemindBK: readonly Weighted<string>[];
   readonly messagesForExitBK: readonly Weighted<string>[];
   readonly messagesForCompletedGoal: readonly Weighted<string>[];
+  readonly messagesForImpendingDoom: readonly Weighted<string>[] | null;
+  readonly sendDeathLink: boolean;
+  readonly deathDelaySeconds: number;
 
   // other values that get persisted on the server:
   readonly foodFactor: number;
@@ -75,4 +84,6 @@ export interface DefiningGameState {
   readonly outgoingAnimatableActions: List<AnimatableAction>;
   readonly outgoingMessages: List<string>;
   readonly outgoingAuraDrivenLocations: List<number>;
+  readonly outgoingDeathCause: string | null;
+  readonly impendingDoom: boolean;
 }

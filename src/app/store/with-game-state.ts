@@ -110,6 +110,9 @@ const initialState: DefiningGameState = {
   messagesForRemindBK: [],
   messagesForExitBK: [],
   messagesForCompletedGoal: [],
+  messagesForImpendingDoom: [],
+  sendDeathLink: false,
+  deathDelaySeconds: NaN,
   foodFactor: NaN,
   luckFactor: NaN,
   energyFactor: NaN,
@@ -137,6 +140,8 @@ const initialState: DefiningGameState = {
   outgoingAnimatableActions: List<AnimatableAction>(),
   outgoingMessages: List<string>(),
   outgoingAuraDrivenLocations: List<number>(),
+  impendingDoom: false,
+  outgoingDeathCause: null,
 };
 
 export function withGameState() {
@@ -333,6 +338,7 @@ export function withGameState() {
           userSlot: l.userSlot,
         })),
         previousTargetLocationEvidence: targetLocationEvidenceToJSONSerializable(store.previousTargetLocationEvidence()),
+        impendingDoom: store.impendingDoom(),
       }));
       const sampleMessage = computed(() => ({
         forChangedTarget: createWeightedSampler(store.messagesForChangedTarget()),
@@ -341,6 +347,7 @@ export function withGameState() {
         forRemindBK: createWeightedSampler(store.messagesForRemindBK()),
         forExitBK: createWeightedSampler(store.messagesForExitBK()),
         forCompletedGoal: createWeightedSampler(store.messagesForCompletedGoal()),
+        forImpendingDoom: createWeightedSampler(store.messagesForImpendingDoom()),
       }));
 
       return {
@@ -497,8 +504,31 @@ export function withGameState() {
           : `${result.otherUserSlots.length.toString()} other players`;
         return `Hey, ${probablyPlayerAlias}, I can't de-prioritize ${exactLocName} for you, because it wasn't requested by you, only by ${playersToReport}.`;
       }
+      function killPlayerStatePatch() {
+        return {
+          currentLocation: store.defs().startLocation,
+          foodFactor: 0,
+          luckFactor: 0,
+          energyFactor: 0,
+          styleFactor: 0,
+          distractionCounter: 0,
+          startledCounter: 0,
+          hasConfidence: false,
+          mercyFactor: 0,
+          sluggishCarryover: false,
+        } as const;
+      }
       return {
         addUserRequestedLocation,
+        killPlayerBegin() {
+          patchState(store, killPlayerStatePatch());
+        },
+        killPlayerEnd(cause: string | null) {
+          patchState(store, {
+            impendingDoom: false,
+            outgoingDeathCause: cause,
+          });
+        },
         setOrClearHyperFocus(location: number) {
           patchState(store, ({ hyperFocusLocation }) => ({ hyperFocusLocation: hyperFocusLocation === location ? null : location }));
         },
@@ -530,6 +560,8 @@ export function withGameState() {
               auraDrivenLocations: prev.auraDrivenLocations,
               userRequestedLocations: prev.userRequestedLocations,
               outgoingAuraDrivenLocations: prev.outgoingAuraDrivenLocations,
+              impendingDoom: prev.impendingDoom,
+              outgoingAnimatableActions: prev.outgoingAnimatableActions,
             } satisfies Partial<DefiningGameState>;
             result.outgoingAuraDrivenLocations = result.outgoingAuraDrivenLocations.withMutations((oa) => {
               result.auraDrivenLocations = result.auraDrivenLocations.withMutations((a) => {
@@ -571,16 +603,21 @@ export function withGameState() {
                     }
                   }
 
-                  for (const item of items) {
-                    const aurasGranted = auraLookup.get(item);
-                    r.push(item);
-                    if (!(aurasGranted && r.size > result.processedReceivedItemCount)) {
+                  for (const id of items) {
+                    r.push(id);
+                    if (r.size <= result.processedReceivedItemCount) {
+                      continue;
+                    }
+
+                    const aurasGranted = auraLookup.get(id);
+                    if (!aurasGranted) {
                       continue;
                     }
 
                     let subtractConfidence = false;
                     let addConfidence = false;
                     for (const aura of aurasGranted) {
+                      let stopProcessingAurasForThisItem = false;
                       switch (aura) {
                         case 'well_fed':
                           result.foodFactor += 5;
@@ -664,6 +701,31 @@ export function withGameState() {
                         case 'confident':
                           addConfidence = true;
                           break;
+
+                        case 'poison':
+                          if (result.hasConfidence) {
+                            subtractConfidence = true;
+                          }
+                          else {
+                            Object.assign(result, killPlayerStatePatch());
+                            if (!result.impendingDoom) {
+                              result.impendingDoom = true;
+                              result.outgoingAnimatableActions = result.outgoingAnimatableActions.push({
+                                type: 'death',
+                                cause: 'just-poisoned',
+                              });
+                            }
+                            // items with a 'poison' aura also generally have other negative auras that would apply if
+                            // poison weren't special (either because it's been disabled or because the client is on an
+                            // older version before this was added). so once we see 'poison', we stop processing more
+                            // auras on the same item so that the player doesn't respawn with a bunch of debuffs that
+                            // they received immediately before dying should have cleared them all.
+                            stopProcessingAurasForThisItem = true;
+                          }
+                          break;
+                      }
+                      if (stopProcessingAurasForThisItem) {
+                        break;
                       }
                     }
 
@@ -807,6 +869,10 @@ export function withGameState() {
           }
         },
         advance() {
+          if (store.impendingDoom()) {
+            // don't queue up more new animatable actions.
+            return;
+          }
           if (!store.canEventuallyAdvance()) {
             patchState(store, {
               foodFactor: 0,

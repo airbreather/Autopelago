@@ -26,7 +26,7 @@ import { withGameState } from './with-game-state';
 
 const pureUniformInt = purify(uniformInt);
 
-const ALL_AURAS = ['well_fed', 'upset_tummy', 'lucky', 'unlucky', 'energized', 'sluggish', 'distracted', 'stylish', 'startled', 'smart', 'conspiratorial', 'confident'] as const;
+const ALL_AURAS = ['well_fed', 'upset_tummy', 'lucky', 'unlucky', 'energized', 'sluggish', 'distracted', 'stylish', 'startled', 'smart', 'conspiratorial', 'confident', 'poison'] as const;
 const networkIdLookup = stricterObjectFromEntries([
   ...BAKED_DEFINITIONS_FULL.uniqueItemsByYamlKey.keys(),
   ...ALL_AURAS,

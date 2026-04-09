@@ -37,6 +37,9 @@ export interface AutopelagoSlotDataV0 extends JSONRecord {
   msg_exit_bk: AutopelagoUserCustomizableMessage[];
   msg_completed_goal: AutopelagoUserCustomizableMessage[];
   lactose_intolerant: boolean;
+
+  // above 1.0.0, new features are to be added in a much more recognizable and additive way.
+  added_in_1_1_0?: never;
 }
 
 export interface AutopelagoSlotDataV1 extends JSONRecord {
@@ -64,6 +67,15 @@ export interface AutopelagoSlotDataV1 extends JSONRecord {
   // the other direction - but the type system is more helpful if it stops us from using them.
   enabled_buffs?: never;
   enabled_traps?: never;
+
+  // above 1.0.0, new features are to be added in a much more recognizable and additive way.
+  added_in_1_1_0?: AutopelagoSlotDataAdditions_1_1_0;
+}
+
+export interface AutopelagoSlotDataAdditions_1_1_0 extends JSONRecord {
+  death_link: boolean;
+  death_delay_seconds: number;
+  msg_impending_doom: AutopelagoUserCustomizableMessage[];
 }
 
 export type AutopelagoSlotData =
@@ -97,4 +109,6 @@ export interface AutopelagoStoredData extends JSONRecord {
   userRequestedLocations: UserRequestedLocation[];
   // things below this line are added after 0.11.5
   hyperFocusLocation?: number | null;
+  // added in 1.1.0:
+  impendingDoom: boolean;
 }
