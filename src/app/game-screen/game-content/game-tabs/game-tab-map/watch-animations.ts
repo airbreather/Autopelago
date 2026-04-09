@@ -126,6 +126,7 @@ export function watchAnimations(
     let setCurrentTransientAnimations: (animations: Animation[]) => void;
     {
       const writableCurrentTransientAnimations = signal<Animation[]>([]);
+      currentTransientAnimations = writableCurrentTransientAnimations.asReadonly();
       setCurrentTransientAnimations = (animations: Animation[]) => {
         writableCurrentTransientAnimations.set(animations);
         // get ahead of the microtask and pause this right away if needed
@@ -134,13 +135,17 @@ export function watchAnimations(
             a.pause();
           });
         }
-        currentTransientAnimations = writableCurrentTransientAnimations.asReadonly();
       };
       finalizeCurrentTransientAnimations = () => {
         writableCurrentTransientAnimations.update((curr) => {
           curr.forEach((a) => {
-            a.commitStyles();
-            a.cancel();
+            try {
+              a.commitStyles();
+              a.cancel();
+            }
+            catch {
+              // no big deal - it probably means that we're switching views anyway.
+            }
           });
           return [];
         });
