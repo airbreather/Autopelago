@@ -41,71 +41,6 @@ export const GameStore = signalStore(
       },
     }),
   }), { errorHandling: 'native' }), // errors are unexpected in cases where ANYTHING can work.
-  withComputed((store) => {
-    const bestEffortRandomPlayers = computed(() => {
-      const game = store.game();
-      if (game === null) {
-        return List<Player>();
-      }
-
-      const otherRealPlayers = game.playersWithStatus().filter(p => !p.isSelf && p.player.slot !== 0);
-      if (otherRealPlayers.isEmpty()) {
-        // solo game.
-        return List([game.client.players.self]);
-      }
-
-      // "definitely online" as opposed to those who have goaled so we can't tell the difference.
-      const definitelyOnlinePlayers = otherRealPlayers.filter(p => p.status !== null && ONLINE_AND_NOT_GOALED_STATUSES.has(p.status));
-      return definitelyOnlinePlayers.isEmpty()
-        ? otherRealPlayers.map(p => p.player)
-        : definitelyOnlinePlayers.map(p => p.player);
-    });
-    function _messageTemplate(message: string) {
-      if (!message.includes('{RANDOM_PLAYER}')) {
-        return message;
-      }
-
-      const randomPlayers = bestEffortRandomPlayers();
-      if (randomPlayers.isEmpty()) {
-        // don't spend too long thinking about a good answer here. it's only possible EXTREMELY
-        // early during initialization, and there shouldn't be any reason to call us during those
-        // points anyway, so it really doesn't matter.
-        return message;
-      }
-
-      // list each player at least once before repeating any.
-      let currentRandomPlayerBag: Player[] = [];
-      return message.replaceAll('{RANDOM_PLAYER}', () => {
-        if (currentRandomPlayerBag.length === 0) {
-          currentRandomPlayerBag = shuffle([...randomPlayers]);
-        }
-        const player = currentRandomPlayerBag.pop();
-        if (player === undefined) {
-          throw new Error('pop should have returned something here. this is a programming error');
-        }
-        return player.alias;
-      });
-    }
-    function _wrapMessageTemplate<T extends unknown[]>(f: ((...args: T) => string) | null) {
-      return f === null
-        ? null
-        : (...args: T) => _messageTemplate(f(...args));
-    }
-    return {
-      sampleMessageFull: computed(() => {
-        const sampleMessage = store.sampleMessage();
-        return {
-          forChangedTarget: _wrapMessageTemplate(sampleMessage.forChangedTarget),
-          forEnterGoMode: _wrapMessageTemplate(sampleMessage.forEnterGoMode),
-          forEnterBK: _wrapMessageTemplate(sampleMessage.forEnterBK),
-          forRemindBK: _wrapMessageTemplate(sampleMessage.forRemindBK),
-          forExitBK: _wrapMessageTemplate(sampleMessage.forExitBK),
-          forCompletedGoal: _wrapMessageTemplate(sampleMessage.forCompletedGoal),
-          forImpendingDoom: _wrapMessageTemplate(sampleMessage.forImpendingDoom),
-        } satisfies typeof sampleMessage;
-      }),
-    };
-  }),
   withMethods(store => ({
     init(game: AutopelagoClientAndData) {
       const { connectScreenState, client, pkg, slotData, storedData, locationIsProgression, locationIsTrap } = game;
@@ -251,6 +186,71 @@ export const GameStore = signalStore(
       });
     },
   })),
+  withComputed((store) => {
+    const bestEffortRandomPlayers = computed(() => {
+      const game = store.game();
+      if (game === null) {
+        return List<Player>();
+      }
+
+      const otherRealPlayers = game.playersWithStatus().filter(p => !p.isSelf && p.player.slot !== 0);
+      if (otherRealPlayers.isEmpty()) {
+        // solo game.
+        return List([game.client.players.self]);
+      }
+
+      // "definitely online" as opposed to those who have goaled so we can't tell the difference.
+      const definitelyOnlinePlayers = otherRealPlayers.filter(p => p.status !== null && ONLINE_AND_NOT_GOALED_STATUSES.has(p.status));
+      return definitelyOnlinePlayers.isEmpty()
+        ? otherRealPlayers.map(p => p.player)
+        : definitelyOnlinePlayers.map(p => p.player);
+    });
+    function _messageTemplate(message: string) {
+      if (!message.includes('{RANDOM_PLAYER}')) {
+        return message;
+      }
+
+      const randomPlayers = bestEffortRandomPlayers();
+      if (randomPlayers.isEmpty()) {
+        // don't spend too long thinking about a good answer here. it's only possible EXTREMELY
+        // early during initialization, and there shouldn't be any reason to call us during those
+        // points anyway, so it really doesn't matter.
+        return message;
+      }
+
+      // list each player at least once before repeating any.
+      let currentRandomPlayerBag: Player[] = [];
+      return message.replaceAll('{RANDOM_PLAYER}', () => {
+        if (currentRandomPlayerBag.length === 0) {
+          currentRandomPlayerBag = shuffle([...randomPlayers]);
+        }
+        const player = currentRandomPlayerBag.pop();
+        if (player === undefined) {
+          throw new Error('pop should have returned something here. this is a programming error');
+        }
+        return player.alias;
+      });
+    }
+    function _wrapMessageTemplate<T extends unknown[]>(f: ((...args: T) => string) | null) {
+      return f === null
+        ? null
+        : (...args: T) => _messageTemplate(f(...args));
+    }
+    return {
+      sampleMessageFull: computed(() => {
+        const sampleMessage = store.sampleMessage();
+        return {
+          forChangedTarget: _wrapMessageTemplate(sampleMessage.forChangedTarget),
+          forEnterGoMode: _wrapMessageTemplate(sampleMessage.forEnterGoMode),
+          forEnterBK: _wrapMessageTemplate(sampleMessage.forEnterBK),
+          forRemindBK: _wrapMessageTemplate(sampleMessage.forRemindBK),
+          forExitBK: _wrapMessageTemplate(sampleMessage.forExitBK),
+          forCompletedGoal: _wrapMessageTemplate(sampleMessage.forCompletedGoal),
+          forImpendingDoom: _wrapMessageTemplate(sampleMessage.forImpendingDoom),
+        } satisfies typeof sampleMessage;
+      }),
+    };
+  }),
   withHooks({
     onInit(store) {
       effect(() => {
