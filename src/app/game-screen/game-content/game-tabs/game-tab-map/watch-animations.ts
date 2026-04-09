@@ -131,22 +131,22 @@ export function watchAnimations(
         writableCurrentTransientAnimations.set(animations);
         // get ahead of the microtask and pause this right away if needed
         if (!gameStore.running()) {
-          animations.forEach((a) => {
-            a.pause();
-          });
+          for (const anim of animations) {
+            anim.pause();
+          }
         }
       };
       finalizeCurrentTransientAnimations = () => {
         writableCurrentTransientAnimations.update((curr) => {
-          curr.forEach((a) => {
+          for (const anim of curr) {
             try {
-              a.commitStyles();
-              a.cancel();
+              anim.commitStyles();
+              anim.cancel();
             }
             catch {
               // no big deal - it probably means that we're switching views anyway.
             }
-          });
+          }
           return [];
         });
       };
@@ -167,16 +167,16 @@ export function watchAnimations(
           playerWiggle?.pause();
         }
         landmarkShake?.play();
-        currentTransientAnimations().forEach((a) => {
-          a.play();
-        });
+        for (const anim of currentTransientAnimations()) {
+          anim.play();
+        }
       }
       else {
         playerWiggle?.pause();
         landmarkShake?.pause();
-        currentTransientAnimations().forEach((a) => {
-          a.pause();
-        });
+        for (const anim of currentTransientAnimations()) {
+          anim.pause();
+        }
       }
     }, { injector });
     let wasShowingPath = false;
