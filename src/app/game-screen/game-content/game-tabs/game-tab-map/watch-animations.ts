@@ -195,13 +195,13 @@ export function watchAnimations(
               continue;
             }
 
+            const { tx, ty, neutralAngle, scaleX } = movementProps(allLocations, anim.fromLocation, anim.toLocation);
             const prevPrevAnimation = prevAnimation;
             prevAnimation = (async () => {
               await prevPrevAnimation;
               if (destroyRef.destroyed) {
                 return;
               }
-              const { tx, ty, neutralAngle, scaleX } = movementProps(allLocations, anim.fromLocation, anim.toLocation);
               performanceInsensitiveAnimatableState.apparentCurrentLocation.set(anim.toLocation);
               playerTokenContainer.style.setProperty('--ap-neutral-angle', neutralAngle.toString() + 'rad');
               playerTokenContainer.style.setProperty('--ap-scale-x', scaleX.toString());
@@ -302,7 +302,6 @@ export function watchAnimations(
               ratPoisonContainer.style.setProperty('--ap-top-base', `${ratTop.toString()}px`);
               ratPoisonContainer.style.setProperty('--ap-neutral-angle', '0rad');
               performanceInsensitiveAnimatableState.apparentCurrentLocation.set(startLocation);
-              fadeToBlack.style.opacity = '0';
               const animateFadeToBlack = fadeToBlack.animate({
                 opacity: [1],
               }, { fill: 'forwards', duration: deathDelay });
