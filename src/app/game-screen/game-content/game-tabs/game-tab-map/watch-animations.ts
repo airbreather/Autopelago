@@ -325,11 +325,10 @@ export function watchAnimations(
                 });
               }
               try {
-                const animPromise = Promise.any([
+                await Promise.any([
                   Promise.all(currentTransientAnimations.map(a => a.finished)),
                   new Promise<void>(resolve => immediateDeathCallback = resolve),
                 ]);
-                await animPromise;
                 fadeToBlack.style.opacity = '1';
                 immediateDeathCallback = noop;
                 currentTransientAnimations.forEach((a) => {
