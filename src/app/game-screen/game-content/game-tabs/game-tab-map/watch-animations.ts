@@ -289,6 +289,10 @@ export function watchAnimations(
               if (destroyRef.destroyed) {
                 return;
               }
+              const playerToken = playerTokenContainer.firstElementChild;
+              if (playerToken) {
+                scrollIntoView(playerToken, { behavior: 'instant', block: 'center', scrollMode: 'if-needed' });
+              }
               playerWiggle?.pause();
               const ratLeft = Number(playerTokenContainer.style.getPropertyValue('--ap-left-base').replace('px', ''));
               const ratTop = Number(playerTokenContainer.style.getPropertyValue('--ap-top-base').replace('px', ''));
@@ -302,22 +306,19 @@ export function watchAnimations(
               ratPoisonContainer.style.setProperty('--ap-top-base', `${ratTop.toString()}px`);
               ratPoisonContainer.style.setProperty('--ap-neutral-angle', '0rad');
               performanceInsensitiveAnimatableState.apparentCurrentLocation.set(startLocation);
-              const animateFadeToBlack = fadeToBlack.animate({
-                opacity: [1],
-              }, { fill: 'forwards', duration: deathDelay });
-              const playerToken = playerTokenContainer.firstElementChild;
-              if (playerToken) {
-                scrollIntoView(playerToken, { behavior: 'instant', block: 'center', scrollMode: 'if-needed' });
-              }
-              const animateRat = playerTokenContainer.animate({
-                ['--ap-left-base']: `${ratLeftTarget.toString()}px`,
-                ['--ap-neutral-angle']: `${(neutralAngleSign * 180).toString()}deg`,
-              }, { fill: 'forwards', duration: deathDelay });
-              const animatePoison = ratPoisonContainer.animate({
-                ['--ap-left-base']: `${poisonLeftTarget.toString()}px`,
-                ['--ap-neutral-angle']: ['3600deg'],
-              }, { fill: 'forwards', duration: deathDelay });
-              currentTransientAnimations = [animateFadeToBlack, animateRat, animatePoison];
+              currentTransientAnimations = [
+                fadeToBlack.animate({
+                  opacity: [1],
+                }, { fill: 'forwards', duration: deathDelay }),
+                playerTokenContainer.animate({
+                  ['--ap-left-base']: `${ratLeftTarget.toString()}px`,
+                  ['--ap-neutral-angle']: `${(neutralAngleSign * 180).toString()}deg`,
+                }, { fill: 'forwards', duration: deathDelay }),
+                ratPoisonContainer.animate({
+                  ['--ap-left-base']: `${poisonLeftTarget.toString()}px`,
+                  ['--ap-neutral-angle']: ['3600deg'],
+                }, { fill: 'forwards', duration: deathDelay }),
+              ];
               if (!gameStore.running()) {
                 currentTransientAnimations.forEach((a) => {
                   a.pause();
