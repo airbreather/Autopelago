@@ -9,10 +9,6 @@ import { GameScreenStore } from '../../../../store/game-screen-store';
 import { PerformanceInsensitiveAnimatableState } from '../../status-display/performance-insensitive-animatable-state';
 import { UWin } from './u-win';
 
-function noop() {
-  // empty
-}
-
 interface WatchAnimationsParams {
   dashedPath: SVGPathElement;
   overlay: CdkConnectedOverlay;
@@ -124,7 +120,7 @@ export function watchAnimations(
   };
 
   window.setTimeout(() => {
-    let immediateDeathCallback = noop;
+    let immediateDeathCallback: (() => void) | null = null;
     effect(() => {
       const { allLocations } = gameStore.defs();
       const coords = allLocations[untracked(() => gameStore.currentLocation())].coords;
@@ -276,7 +272,11 @@ export function watchAnimations(
           case 'death': {
             let deathDelay = gameStore.deathDelaySeconds() * 1000;
             if (anim.cause !== 'just-poisoned') {
-              immediateDeathCallback();
+              if (immediateDeathCallback !== null) {
+                // there's already a death animation playing. finish it and let the rest play out.
+                immediateDeathCallback();
+                break;
+              }
               gameStore.killPlayerBegin();
               deathDelay = 0;
             }
@@ -325,12 +325,20 @@ export function watchAnimations(
                 });
               }
               try {
-                await Promise.any([
-                  Promise.all(currentTransientAnimations.map(a => a.finished)),
-                  new Promise<void>(resolve => immediateDeathCallback = resolve),
-                ]);
+                if (deathDelay > 0) {
+                  // allow this await to get interrupted prematurely if a Death Link comes in while
+                  // we're in the middle of a death animation. incoming animatable actions can't cut
+                  // in line (by design!) because it's all structured as a timeline of sorts (not an
+                  // AnimationTimeline), and time only flows forward or pauses. instead, we create a
+                  // wormhole through spacetime that a future death animation can jump through where
+                  // the only thing it's capable of doing in the past is to tell us to stop early.
+                  await Promise.any([
+                    Promise.all(currentTransientAnimations.map(a => a.finished)),
+                    new Promise<void>(resolve => immediateDeathCallback = resolve),
+                  ]);
+                  immediateDeathCallback = null;
+                }
                 fadeToBlack.style.opacity = '1';
-                immediateDeathCallback = noop;
                 currentTransientAnimations.forEach((a) => {
                   a.commitStyles();
                   a.cancel();
