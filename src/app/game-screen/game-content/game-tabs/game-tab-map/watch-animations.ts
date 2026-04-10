@@ -329,7 +329,7 @@ export function watchAnimations(
               try {
                 const ratLeft = Number(playerTokenContainer.style.getPropertyValue('--ap-left-base').replace('px', ''));
                 const ratTop = Number(playerTokenContainer.style.getPropertyValue('--ap-top-base').replace('px', ''));
-                const ratLeftTarget = (ratLeft + 150) / 2;
+                const ratLeftTarget = anim.cause === 'just-poisoned' ? (ratLeft + 150) / 2 : ratLeft;
                 const poisonLeft = ratLeft > 150 ? 0 : 300;
                 const poisonLeftTarget = ((ratLeft + 150) / 2) + (ratLeft > 150 ? -16 : 16);
                 const neutralAngleProp = playerTokenContainer.style.getPropertyValue('--ap-neutral-angle');
@@ -368,6 +368,7 @@ export function watchAnimations(
                     immediateDeathCallback = null;
                   }
                   finalizeCurrentTransientAnimations();
+                  fadeToBlack.style.setProperty('opacity', '1');
                   switch (anim.cause) {
                     case 'just-poisoned':
                       gameStore.killPlayerEnd('{PLAYER_ALIAS} drank poison.');
