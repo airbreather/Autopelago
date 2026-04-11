@@ -55,11 +55,11 @@ export function getPixelTones(img: PlayerIcon): PixelTones {
   return { ld, other };
 }
 
-export function applyPixelColors(lightColor: TinyColor, tones: PixelTones) {
+export function applyPixelColors(lightColor: TinyColor, tones: PixelTones, data: Uint8ClampedArray) {
   const { r: lr, g: lg, b: lb } = lightColor.toRgb();
   const { r: dr, g: dg, b: db } = toRatDark(lightColor).toRgb();
   const ld = [[lr, lg, lb, 255], [dr, dg, db, 255]];
-  const data = new Uint8ClampedArray(tones.other);
+  data.set(tones.other);
   for (const [x, y, i] of tones.ld) {
     for (let iy = 0; iy < 4; iy++) {
       const yy = (y * 4 + iy) * 256;
@@ -68,7 +68,6 @@ export function applyPixelColors(lightColor: TinyColor, tones: PixelTones) {
       }
     }
   }
-  return data;
 }
 
 function toRatDark(lightColor: TinyColor) {

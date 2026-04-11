@@ -194,15 +194,15 @@ export class Personalize {
 
       const color = new TinyColor(this.selectedColor());
       const player1Data = player1.createImageData(64, 64);
-      player1Data.data.set(applyPixelColors(color, ratPixelTones.player1));
+      applyPixelColors(color, ratPixelTones.player1, player1Data.data);
       player1.putImageData(player1Data, 0, 0);
 
       const player2Data = player2.createImageData(64, 64);
-      player2Data.data.set(applyPixelColors(color, ratPixelTones.player2));
+      applyPixelColors(color, ratPixelTones.player2, player2Data.data);
       player2.putImageData(player2Data, 0, 0);
 
       const player4Data = player4.createImageData(64, 64);
-      player4Data.data.set(applyPixelColors(color, ratPixelTones.player4));
+      applyPixelColors(color, ratPixelTones.player4, player4Data.data);
       player4.putImageData(player4Data, 0, 0);
 
       let selectedData: ImageData;

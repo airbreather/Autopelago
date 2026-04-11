@@ -279,7 +279,7 @@ export class ConnectScreen {
 
       const tones = getPixelTones(this.form.playerIcon().value());
       const data = canvas.createImageData(64, 64);
-      data.data.set(applyPixelColors(new TinyColor(this.form.playerColor().value()), tones));
+      applyPixelColors(new TinyColor(this.form.playerColor().value()), tones, data.data);
       canvas.putImageData(data, 0, 0);
       initialImageDraw.destroy();
     });
