@@ -375,7 +375,7 @@ export class GameTabMap {
   #overlayIsAttached = false;
 
   readonly playerImageSource = resource({
-    params: () => this.#store.playerTokenValue(),
+    params: () => this.#store.playerToken(),
     loader: async ({ params: playerToken }) => {
       if (playerToken === null) {
         return null;

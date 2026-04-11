@@ -115,7 +115,7 @@ export class PlayerTooltip {
   protected readonly playerToken = viewChild.required<ElementRef<HTMLCanvasElement>>('playerToken');
   constructor() {
     effect(() => {
-      const playerToken = this.#store.playerTokenValue();
+      const playerToken = this.#store.playerToken();
       if (playerToken === null) {
         return;
       }

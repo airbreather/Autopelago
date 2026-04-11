@@ -6,34 +6,19 @@ import {
   effect,
   type ElementRef,
   inject,
-  type Signal,
-  signal,
   viewChild,
   type WritableSignal,
 } from '@angular/core';
 import { type ColorInput, TinyColor } from '@ctrl/tinycolor';
 import { ColorPicker } from '../color-picker/color-picker';
-import { applyPixelColors, getPixelTones, type PixelTones } from '../utils/color-helpers';
+import { applyPixelColors, getPixelTones } from '../utils/color-helpers';
 import { resizeText } from '../utils/resize-text';
 import { CONNECT_SCREEN_STATE_DEFAULTS, type PlayerIcon } from './connect-screen-state';
 
 export interface PersonalizeData {
-  readonly playerImages: Signal<PlayerImages | null>;
   readonly playerIcon: WritableSignal<PlayerIcon>;
   readonly playerColor: WritableSignal<ColorInput>;
   readonly canvas: CanvasRenderingContext2D;
-}
-
-export interface PlayerImages {
-  player1Image: HTMLImageElement;
-  player2Image: HTMLImageElement;
-  player4Image: HTMLImageElement;
-}
-
-interface PlayerPixelTones {
-  player1: PixelTones;
-  player2: PixelTones;
-  player4: PixelTones;
 }
 
 @Component({
@@ -178,9 +163,9 @@ export class Personalize {
   protected readonly player1Canvas = viewChild.required<ElementRef<HTMLCanvasElement>>('player1Canvas');
   protected readonly player2Canvas = viewChild.required<ElementRef<HTMLCanvasElement>>('player2Canvas');
   protected readonly player4Canvas = viewChild.required<ElementRef<HTMLCanvasElement>>('player4Canvas');
-  readonly #player1CanvasContext = computed(() => this.player1Canvas().nativeElement.getContext('2d', { willReadFrequently: true }));
-  readonly #player2CanvasContext = computed(() => this.player2Canvas().nativeElement.getContext('2d', { willReadFrequently: true }));
-  readonly #player4CanvasContext = computed(() => this.player4Canvas().nativeElement.getContext('2d', { willReadFrequently: true }));
+  readonly #player1CanvasContext = computed(() => this.player1Canvas().nativeElement.getContext('2d'));
+  readonly #player2CanvasContext = computed(() => this.player2Canvas().nativeElement.getContext('2d'));
+  readonly #player4CanvasContext = computed(() => this.player4Canvas().nativeElement.getContext('2d'));
 
   protected readonly selectedPlayer1 = computed(() => this.#data.playerIcon() === 1);
   protected readonly selectedPlayer2 = computed(() => this.#data.playerIcon() === 2);
@@ -194,28 +179,12 @@ export class Personalize {
       text: computed(() => 'Personalize Your Rat!'),
     });
 
-    const ratPixelTones = signal<PlayerPixelTones | null>(null);
+    const ratPixelTones = {
+      player1: getPixelTones(1),
+      player2: getPixelTones(2),
+      player4: getPixelTones(4),
+    };
     effect(() => {
-      const playerImages = this.#data.playerImages();
-      const player1Ctx = this.#player1CanvasContext();
-      const player2Ctx = this.#player2CanvasContext();
-      const player4Ctx = this.#player4CanvasContext();
-      if (playerImages === null || player1Ctx === null || player2Ctx === null || player4Ctx === null) {
-        return;
-      }
-
-      ratPixelTones.set({
-        player1: getPixelTones(playerImages.player1Image, player1Ctx),
-        player2: getPixelTones(playerImages.player2Image, player2Ctx),
-        player4: getPixelTones(playerImages.player4Image, player4Ctx),
-      });
-    });
-    effect(() => {
-      const pixelTones = ratPixelTones();
-      if (pixelTones === null) {
-        return;
-      }
-
       const player1 = this.#player1CanvasContext();
       const player2 = this.#player2CanvasContext();
       const player4 = this.#player4CanvasContext();
@@ -224,17 +193,31 @@ export class Personalize {
       }
 
       const color = new TinyColor(this.selectedColor());
-      applyPixelColors(color, pixelTones.player1);
-      player1.putImageData(pixelTones.player1.data, 0, 0);
+      const player1Data = player1.createImageData(64, 64);
+      player1Data.data.set(applyPixelColors(color, ratPixelTones.player1));
+      player1.putImageData(player1Data, 0, 0);
 
-      applyPixelColors(color, pixelTones.player2);
-      player2.putImageData(pixelTones.player2.data, 0, 0);
+      const player2Data = player2.createImageData(64, 64);
+      player2Data.data.set(applyPixelColors(color, ratPixelTones.player2));
+      player2.putImageData(player2Data, 0, 0);
 
-      applyPixelColors(color, pixelTones.player4);
-      player4.putImageData(pixelTones.player4.data, 0, 0);
+      const player4Data = player4.createImageData(64, 64);
+      player4Data.data.set(applyPixelColors(color, ratPixelTones.player4));
+      player4.putImageData(player4Data, 0, 0);
 
-      const playerIconString = this.#data.playerIcon().toString() as `${PlayerIcon}`;
-      this.#data.canvas.putImageData(pixelTones[`player${playerIconString}`].data, 0, 0);
+      let selectedData: ImageData;
+      switch (this.#data.playerIcon()) {
+        case 1:
+          selectedData = player1Data;
+          break;
+        case 2:
+          selectedData = player2Data;
+          break;
+        case 4:
+          selectedData = player4Data;
+          break;
+      }
+      this.#data.canvas.putImageData(selectedData, 0, 0);
     });
   }
 

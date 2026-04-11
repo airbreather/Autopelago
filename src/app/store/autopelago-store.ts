@@ -1,6 +1,5 @@
 import { type ClientStatus, clientStatuses, type Player, type SayPacket } from '@airbreather/archipelago.js';
-import { withResource } from '@angular-architects/ngrx-toolkit';
-import { computed, effect, resource } from '@angular/core';
+import { computed, effect } from '@angular/core';
 
 import { patchState, signalStore, withComputed, withHooks, withMethods, withState } from '@ngrx/signals';
 import { List, Set as ImmutableSet } from 'immutable';
@@ -27,20 +26,6 @@ export const GameStore = signalStore(
     game: null as AutopelagoClientAndData | null,
     processedMessageCount: 0,
   }),
-  withResource(({ game }) => ({
-    playerToken: resource({
-      defaultValue: null,
-      params: () => ({ game: game() }),
-      loader: async ({ params: { game } }) => {
-        if (game === null) {
-          return null;
-        }
-
-        const { playerIcon, playerColor } = game.connectScreenState;
-        return await makePlayerToken(playerIcon, playerColor);
-      },
-    }),
-  }), { errorHandling: 'native' }), // errors are unexpected in cases where ANYTHING can work.
   withMethods(store => ({
     init(game: AutopelagoClientAndData) {
       const { connectScreenState, client, pkg, slotData, storedData, locationIsProgression, locationIsTrap } = game;
@@ -237,6 +222,15 @@ export const GameStore = signalStore(
         : (...args: T) => _messageTemplate(f(...args));
     }
     return {
+      playerToken: computed(() => {
+        const game = store.game();
+        if (game === null) {
+          return null;
+        }
+
+        const { playerIcon, playerColor } = game.connectScreenState;
+        return makePlayerToken(playerIcon, playerColor);
+      }),
       sampleMessageFull: computed(() => {
         const sampleMessage = store.sampleMessage();
         return {

@@ -8,7 +8,6 @@ import {
   type ElementRef,
   inject,
   Injector,
-  resource,
   signal,
   viewChild,
 } from '@angular/core';
@@ -22,11 +21,10 @@ import { applyPixelColors, getPixelTones } from '../utils/color-helpers';
 import { elementSizeSignal } from '../utils/element-size';
 import {
   connectStateFromStorageModifiedByQueryParams,
-  type PlayerIcon,
   queryParamsFromConnectScreenState,
   saveToStorage,
 } from './connect-screen-state';
-import { Personalize, type PersonalizeData, type PlayerImages } from './personalize';
+import { Personalize, type PersonalizeData } from './personalize';
 
 @Component({
   selector: 'app-connect-screen',
@@ -35,9 +33,6 @@ import { Personalize, type PersonalizeData, type PlayerImages } from './personal
     FormField,
   ],
   template: `
-    <img #player1Image alt="player1Image" src="assets/images/players/pack_rat.webp" hidden>
-    <img #player2Image alt="player2Image" src="assets/images/players/player2.webp" hidden>
-    <img #player4Image alt="player4Image" src="assets/images/players/player4.webp" hidden>
     <form #allInputs class="root" (submit)="onConnect($event)">
       <div class="inputs">
         <label for="slot">Slot:</label>
@@ -45,17 +40,13 @@ import { Personalize, type PersonalizeData, type PlayerImages } from './personal
           <input id="slot"
                  type="text"
                  [formField]="form.slot"/>
-          <div class="spinner-and-button">
-            <div class="spinner" [hidden]="loadedInitialImages()"></div>
-            <button id="personalize"
-                    type="button"
-                    (click)="$event.preventDefault(); openPersonalizeDialog()"
-                    [disabled]="!loadedInitialImages()">
-              <canvas #personalizeButtonCanvas width="64" height="64"
-                      [style.height.px]="textBoxHeight()">
-              </canvas>
-            </button>
-          </div>
+          <button id="personalize"
+                  type="button"
+                  (click)="$event.preventDefault(); openPersonalizeDialog()">
+            <canvas #personalizeButtonCanvas width="64" height="64"
+                    [style.height.px]="textBoxHeight()">
+            </canvas>
+          </button>
         </div>
         <label for="host">Host:</label>
         <input #hostTextBox
@@ -172,37 +163,10 @@ import { Personalize, type PersonalizeData, type PlayerImages } from './personal
       display: grid;
       gap: calc(5rem / 16);
       grid-template-columns: 1fr max-content;
-      .spinner-and-button {
-        display: grid;
+      #personalize {
         width: 100%;
         height: 100%;
-
-        .spinner {
-          grid-column: 1;
-          grid-row: 1;
-          width: 100%;
-          height: 100%;
-          border: 2px solid #f3f3f3;
-          border-top: 2px solid #3498db;
-          border-radius: 50%;
-          animation: spin 2s linear infinite;
-          @keyframes spin {
-            0% {
-              transform: rotate(0deg);
-            }
-            100% {
-              transform: rotate(360deg);
-            }
-          }
-        }
-
-        #personalize {
-          grid-column: 1;
-          grid-row: 1;
-          width: 100%;
-          height: 100%;
-          padding: 0;
-        }
+        padding: 0;
       }
     }
 
@@ -230,23 +194,7 @@ export class ConnectScreen {
   protected readonly hostTextBox = viewChild.required<ElementRef<HTMLInputElement>>('hostTextBox');
   readonly #hostTextBoxSize = elementSizeSignal(this.hostTextBox);
   protected readonly textBoxHeight = computed(() => this.#hostTextBoxSize().clientHeight);
-  protected readonly player1Image = viewChild.required<ElementRef<HTMLImageElement>>('player1Image');
-  protected readonly player2Image = viewChild.required<ElementRef<HTMLImageElement>>('player2Image');
-  protected readonly player4Image = viewChild.required<ElementRef<HTMLImageElement>>('player4Image');
-  readonly #playerImagesResource = resource({
-    defaultValue: null,
-    params: () => ({
-      player1Image: this.player1Image().nativeElement,
-      player2Image: this.player2Image().nativeElement,
-      player4Image: this.player4Image().nativeElement,
-    }),
-    loader: async ({ params: { player1Image, player2Image, player4Image } }) => {
-      await Promise.all([player1Image, player2Image, player4Image].map(i => i.decode()));
-      return { player1Image, player2Image, player4Image } as PlayerImages | null;
-    },
-  }).asReadonly();
 
-  protected readonly loadedInitialImages = computed(() => this.#playerImagesResource.value());
   protected readonly personalizeButtonCanvas = viewChild.required<ElementRef<HTMLCanvasElement>>('personalizeButtonCanvas');
   readonly #formModel = signal(connectStateFromStorageModifiedByQueryParams(this.#route.snapshot.queryParamMap));
 
@@ -324,16 +272,15 @@ export class ConnectScreen {
     });
 
     const initialImageDraw = effect(() => {
-      const playerImages = this.#playerImagesResource.value();
-      const canvas = this.personalizeButtonCanvas().nativeElement.getContext('2d', { willReadFrequently: true });
-      if (playerImages === null || canvas === null) {
+      const canvas = this.personalizeButtonCanvas().nativeElement.getContext('2d');
+      if (canvas === null) {
         return;
       }
 
-      const playerIcon = this.form.playerIcon().value().toString() as `${PlayerIcon}`;
-      const tones = getPixelTones(playerImages[`player${playerIcon}Image`], canvas);
-      applyPixelColors(new TinyColor(this.form.playerColor().value()), tones);
-      canvas.putImageData(tones.data, 0, 0);
+      const tones = getPixelTones(this.form.playerIcon().value());
+      const data = canvas.createImageData(64, 64);
+      data.data.set(applyPixelColors(new TinyColor(this.form.playerColor().value()), tones));
+      canvas.putImageData(data, 0, 0);
       initialImageDraw.destroy();
     });
   }
@@ -354,13 +301,8 @@ export class ConnectScreen {
 
   readonly #injector = inject(Injector);
   protected openPersonalizeDialog() {
-    if (!this.#playerImagesResource.hasValue()) {
-      return;
-    }
-
     this.#dialog.open(Personalize, {
       data: {
-        playerImages: this.#playerImagesResource.value,
         playerIcon: this.form.playerIcon().value,
         playerColor: this.form.playerColor().value,
         canvas: this.personalizeButtonCanvas().nativeElement.getContext('2d'),
