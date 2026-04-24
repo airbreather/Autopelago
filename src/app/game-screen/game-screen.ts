@@ -1,3 +1,4 @@
+import { LoginError } from '@airbreather/archipelago.js';
 import {
   ChangeDetectionStrategy,
   Component,
@@ -70,6 +71,7 @@ export class GameScreen {
   readonly #destroyRef = inject(DestroyRef);
   readonly #toast = inject(ToastrService);
   #activeToast: ActiveToast<unknown> | null = null;
+  readonly #shouldAbortReconnection = signal(false);
   readonly connectScreenState = input.required<ConnectScreenState>();
   protected readonly notConnectedMessage = signal('Connecting...');
 
@@ -98,6 +100,13 @@ export class GameScreen {
 
         console.error('Error connecting when trying to connect:', err);
         this.#activeToast = toastError(this.#toast, err, { easeTime: 0 });
+        if (err instanceof LoginError) {
+          this.#shouldAbortReconnection.set(true);
+          this.notConnectedMessage.set('Connection failed.');
+        }
+        else {
+          this.#shouldAbortReconnection.set(false);
+        }
         return undefined;
       }
     },
@@ -129,6 +138,8 @@ export class GameScreen {
       });
     }
 
+    const MAX_RETRY_ATTEMPTS = 20;
+    let remainingRetryAttempts = MAX_RETRY_ATTEMPTS;
     let nextTimeoutDuration = 500;
     let prevTimeout = NaN;
     this.#destroyRef.onDestroy(() => {
@@ -140,6 +151,8 @@ export class GameScreen {
       this.game.destroy();
       if (!Number.isNaN(prevTimeout)) {
         clearTimeout(prevTimeout);
+        remainingRetryAttempts = MAX_RETRY_ATTEMPTS;
+        this.#shouldAbortReconnection.set(false);
         prevTimeout = NaN;
         nextTimeoutDuration = 500;
       }
@@ -152,18 +165,28 @@ export class GameScreen {
       if (this.game.value()) {
         if (!Number.isNaN(prevTimeout)) {
           clearTimeout(prevTimeout);
+          remainingRetryAttempts = MAX_RETRY_ATTEMPTS;
+          this.#shouldAbortReconnection.set(false);
           prevTimeout = NaN;
           nextTimeoutDuration = 500;
         }
         return;
       }
 
+      if (this.#shouldAbortReconnection() || remainingRetryAttempts-- <= 0) {
+        return;
+      }
       prevTimeout = window.setTimeout(() => this.game.reload(), nextTimeoutDuration);
-      nextTimeoutDuration = Math.min(nextTimeoutDuration * 1.2, 30000);
+      nextTimeoutDuration = Math.min(nextTimeoutDuration * 2, 300000);
     });
     effect(() => {
       const game = this.game.value();
       if (!game) {
+        return;
+      }
+
+      if (this.#shouldAbortReconnection()) {
+        this.notConnectedMessage.set('Connection failed.');
         return;
       }
 
