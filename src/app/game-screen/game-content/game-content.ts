@@ -27,8 +27,6 @@ import { StatusDisplay } from './status-display/status-display';
     StatusDisplay,
   ],
   providers: [
-    GameScreenStore,
-    GameStore,
     PerformanceInsensitiveAnimatableState,
   ],
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -53,8 +51,8 @@ import { StatusDisplay } from './status-display/status-display';
   `,
 })
 export class GameContent {
-  readonly #store = inject(GameScreenStore, { self: true });
-  readonly #gameStore = inject(GameStore, { self: true });
+  readonly #store = inject(GameScreenStore);
+  readonly #gameStore = inject(GameStore);
   readonly game = input.required<AutopelagoClientAndData>();
   protected readonly outerRef = viewChild.required<ElementRef<HTMLDivElement>>('outer');
 

@@ -170,6 +170,9 @@ export const GameStore = signalStore(
         maxDurationMilliseconds: connectScreenState.maxTimeSeconds * 1000,
       });
     },
+    deinit() {
+      store._deinitTimer();
+    },
   })),
   withComputed((store) => {
     const bestEffortRandomPlayers = computed(() => {

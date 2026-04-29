@@ -5,6 +5,7 @@ interface PausableTimerBase {
   running: boolean;
   registerCallback(this: void, callback: (this: void) => void): void;
   unregisterCallback(this: void, callback: (this: void) => void): void;
+  unregisterAllCallbacks(this: void): void;
 }
 
 interface PausableTimerPaused extends PausableTimerBase {
@@ -78,6 +79,9 @@ function createPausableTimer(options: CreatePausableTimerOptions): PausableTimer
         callbacks.splice(idx, 1);
       }
     },
+    unregisterAllCallbacks() {
+      callbacks.splice(0, callbacks.length);
+    },
   };
 }
 
@@ -88,29 +92,22 @@ export function withCleverTimer() {
       _timer: null as PausableTimer | null,
     }),
     withProps(() => ({
-      _callbacksBeforeTimerRegistered: [] as (() => void)[],
+      _callbacks: [] as (() => void)[],
     })),
     withMethods(store => ({
       registerCallback: (callback: () => void) => {
         const timer = store._timer();
-        if (timer === null) {
-          store._callbacksBeforeTimerRegistered.push(callback);
-        }
-        else {
-          timer.registerCallback(callback);
-        }
+        store._callbacks.push(callback);
+        timer?.registerCallback(callback);
       },
       unregisterCallback: (callback: () => void) => {
         const timer = store._timer();
-        if (timer === null) {
-          const idx = store._callbacksBeforeTimerRegistered.indexOf(callback);
-          if (idx > -1) {
-            store._callbacksBeforeTimerRegistered.splice(idx, 1);
-          }
+        const idx = store._callbacks.indexOf(callback);
+        if (idx > -1) {
+          store._callbacks.splice(idx, 1);
         }
-        else {
-          timer.unregisterCallback(callback);
-        }
+
+        timer?.unregisterCallback(callback);
       },
       pause: () => {
         const timer = store._timer();
@@ -156,18 +153,25 @@ export function withCleverTimer() {
         const timer = createPausableTimer({
           getNextDuration: () => minDurationMilliseconds + Math.floor(Math.random() * range),
         });
-        for (const callback of store._callbacksBeforeTimerRegistered) {
+        for (const callback of store._callbacks) {
           timer.registerCallback(callback);
         }
-        if (store.running()) {
-          if (timer.running) {
-            timer.pause();
-          }
-          else {
-            timer.resume();
-          }
-        }
         patchState(store, { _timer: timer });
+        if (timer.running !== store.running()) {
+          store.togglePause();
+        }
+      },
+      _deinitTimer: () => {
+        const timer = store._timer();
+        if (!timer) {
+          return;
+        }
+
+        timer.unregisterAllCallbacks();
+        if (timer.running) {
+          timer.pause();
+        }
+        patchState(store, { _timer: null });
       },
     })),
   );

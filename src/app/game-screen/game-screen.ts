@@ -68,6 +68,7 @@ import { GameContent } from './game-content/game-content';
   `,
 })
 export class GameScreen {
+  readonly #gameStore = inject(GameStore);
   readonly #destroyRef = inject(DestroyRef);
   readonly #toast = inject(ToastrService);
   #activeToast: ActiveToast<unknown> | null = null;
@@ -174,6 +175,7 @@ export class GameScreen {
       }
 
       if (this.#shouldAbortReconnection() || remainingRetryAttempts-- <= 0) {
+        this.notConnectedMessage.set('Connection failed.');
         return;
       }
       prevTimeout = window.setTimeout(() => this.game.reload(), nextTimeoutDuration);
@@ -193,6 +195,7 @@ export class GameScreen {
       this.notConnectedMessage.set('Disconnected! Trying to reconnect...');
       const { client } = game;
       client.socket.on('disconnected', () => {
+        this.#gameStore.deinit();
         this.game.value.set(undefined);
         this.game.reload();
       });
