@@ -168,10 +168,16 @@ export interface DetermineTargetLocationOptions {
   currentLocation: number;
   defs: Readonly<AutopelagoDefinitions>;
   desirability: readonly number[];
+  locationIsUnclearedClearableLandmark: Readonly<BitArray>;
 }
 
 export function determineTargetLocation(options: Readonly<DetermineTargetLocationOptions>): TargetLocationResult {
-  const { currentLocation, defs: { allLocations, regionForLandmarkLocation }, desirability } = options;
+  const {
+    currentLocation,
+    defs: { allLocations },
+    desirability,
+    locationIsUnclearedClearableLandmark,
+  } = options;
   let bestLocation = currentLocation;
   let resultDesirability = -1;
   const prev = allLocations.map(() => ({ l: NaN, d: Infinity }));
@@ -200,7 +206,7 @@ export function determineTargetLocation(options: Readonly<DetermineTargetLocatio
     // anything "weird" considers locations past soft-locked landmarks. for now, route calculation
     // assumes that you can walk through the entire path without checking landmarks in between, so
     // for now we need to actually target the closest unchecked landmark along the path, if any.
-    if (bestLocation !== loc && !Number.isNaN(regionForLandmarkLocation[loc]) && desirability[loc] === Desirability.UNCHECKED) {
+    if (bestLocation !== loc && locationIsUnclearedClearableLandmark[loc]) {
       bestLocation = loc;
     }
     path.push(loc);

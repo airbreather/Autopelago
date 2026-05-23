@@ -249,6 +249,18 @@ export function withGameState() {
         }
         return result;
       }, { equal: arraysEqual });
+      const _locationIsUnclearedClearableLandmark = computed<Readonly<BitArray>>(() => {
+        const { allLocations, allRegions } = defs();
+        const { regionIsLandmarkWithRequirementSatisfied } = regionLocks();
+        const _locationIsChecked = locationIsChecked();
+        const result = new BitArray(allLocations.length);
+        for (const region of allRegions) {
+          if ('loc' in region && regionIsLandmarkWithRequirementSatisfied[region.key] && !_locationIsChecked[region.loc]) {
+            result[region.loc] = 1;
+          }
+        }
+        return result;
+      }, { equal: bitArraysEqual });
       const _desirability = computed<readonly number[]>(() =>
         determineDesirability({
           defs: defs(),
@@ -290,6 +302,7 @@ export function withGameState() {
         return determineTargetLocation({
           defs: defs(),
           desirability: _desirability(),
+          locationIsUnclearedClearableLandmark: _locationIsUnclearedClearableLandmark(),
           currentLocation: store.currentLocation(),
         });
       }, { equal: targetLocationResultsEqual });

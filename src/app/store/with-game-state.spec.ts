@@ -946,6 +946,31 @@ describe('withGameState', () => {
     expect.soft(store.checkedLocations().size).toStrictEqual(0);
     expect.soft(store.targetLocation()).toStrictEqual(userRequestedLocation);
   });
+
+  test('targeting unchecked landmarks should not allow the rat to pass without checking them (regression test for #152)', () => {
+    const { locationNameLookup } = BAKED_DEFINITIONS_BY_VICTORY_LANDMARK.captured_goldfish;
+    const { rat_pack, priceless_antique, pie_rat } = networkIdLookup;
+    const basketball = locationNameLookup.get('Basketball') ?? NaN;
+    const prawnStars = locationNameLookup.get('Prawn Stars') ?? NaN;
+    const pirateShip = locationNameLookup.get('Pirate Bake Sale') ?? NaN;
+    const afterPirateShip14 = locationNameLookup.get('After Pirate Bake Sale #14') ?? NaN;
+
+    const store = getStoreWith({
+      ...initialGameStateFor('captured_goldfish'),
+      prng: prngs.unlucky.prng,
+      receivedItemNetworkIds: List([
+        rat_pack,
+        priceless_antique,
+        pie_rat,
+      ]),
+    });
+
+    store.addUserRequestedLocation(0, afterPirateShip14);
+    store.addUserRequestedLocation(0, basketball);
+    store.addUserRequestedLocation(0, pirateShip);
+    store.addUserRequestedLocation(0, prawnStars);
+    expect(store.targetLocation()).toStrictEqual(basketball);
+  });
 });
 
 function getStoreWith(initialData: Partial<DefiningGameState>): InstanceType<typeof TestingStore> {
