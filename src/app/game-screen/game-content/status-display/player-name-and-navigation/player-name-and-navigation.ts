@@ -65,7 +65,7 @@ export class PlayerNameAndNavigation {
   readonly #player = signal({ name: '', alias: '' });
   protected readonly playerName = computed(() => {
     const { name, alias } = this.#player();
-    return new RegExp(`(?<justAlias>.*)\\(${name}\\)`).exec(alias)?.groups?.['justAlias'] ?? alias;
+    return new RegExp(`(?<justAlias>.*) \\(${RegExp.escape(name)}\\)`).exec(alias)?.groups?.['justAlias'] ?? alias;
   });
 
   readonly outerElement = viewChild.required<ElementRef<HTMLElement>>('outer');

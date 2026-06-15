@@ -59,6 +59,9 @@
               "base": "dist",
               "browser": ""
             },
+            "polyfills": [
+              "src/polyfills.ts"
+            ],
             "externalDependencies": [
               "assets/PublicPixel-rv0pA.woff2"
             ],
