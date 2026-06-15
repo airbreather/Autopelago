@@ -4,11 +4,8 @@
   "builders": "./builders.json",
   "web-types": "./web-types.json",
   "browserslist": [
-    "baseline widely available on 2025-10-20"
+    "baseline widely available on 2026-05-07"
   ],
-  "overrides": {
-    "browserslist": "^4.28.1"
-  },
   "scripts": {
     "ng": "ng",
     "bake-color-masks": "bun run src/generate-color-masks.ts > src/app/utils/color-masks.json",
