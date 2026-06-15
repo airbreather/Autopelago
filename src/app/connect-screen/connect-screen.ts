@@ -212,14 +212,14 @@ export class ConnectScreen {
     max(schemaPath.minTimeSeconds, ({ valueOf }) => Math.max(0.01, valueOf(schemaPath.maxTimeSeconds)));
     min(schemaPath.maxTimeSeconds, ({ valueOf }) => Math.max(0.01, valueOf(schemaPath.minTimeSeconds)));
 
-    disabled(schemaPath.whenDeathIsImminent, ({ valueOf }) => !valueOf(schemaPath.sendChatMessages));
-    disabled(schemaPath.whenTargetChanges, ({ valueOf }) => !valueOf(schemaPath.sendChatMessages));
-    disabled(schemaPath.whenBecomingBlocked, ({ valueOf }) => !valueOf(schemaPath.sendChatMessages));
-    disabled(schemaPath.whenStillBlocked, ({ valueOf }) => !valueOf(schemaPath.sendChatMessages) || !valueOf(schemaPath.whenBecomingBlocked));
-    disabled(schemaPath.whenStillBlockedIntervalMinutes, ({ valueOf }) => !valueOf(schemaPath.sendChatMessages) || !valueOf(schemaPath.whenBecomingBlocked) || !valueOf(schemaPath.whenStillBlocked));
+    disabled(schemaPath.whenDeathIsImminent, { when: ({ valueOf }) => !valueOf(schemaPath.sendChatMessages) });
+    disabled(schemaPath.whenTargetChanges, { when: ({ valueOf }) => !valueOf(schemaPath.sendChatMessages) });
+    disabled(schemaPath.whenBecomingBlocked, { when: ({ valueOf }) => !valueOf(schemaPath.sendChatMessages) });
+    disabled(schemaPath.whenStillBlocked, { when: ({ valueOf }) => !valueOf(schemaPath.sendChatMessages) || !valueOf(schemaPath.whenBecomingBlocked) });
+    disabled(schemaPath.whenStillBlockedIntervalMinutes, { when: ({ valueOf }) => !valueOf(schemaPath.sendChatMessages) || !valueOf(schemaPath.whenBecomingBlocked) || !valueOf(schemaPath.whenStillBlocked) });
     min(schemaPath.whenStillBlockedIntervalMinutes, 15);
-    disabled(schemaPath.whenBecomingUnblocked, ({ valueOf }) => !valueOf(schemaPath.sendChatMessages));
-    disabled(schemaPath.forOneTimeEvents, ({ valueOf }) => !valueOf(schemaPath.sendChatMessages));
+    disabled(schemaPath.whenBecomingUnblocked, { when: ({ valueOf }) => !valueOf(schemaPath.sendChatMessages) });
+    disabled(schemaPath.forOneTimeEvents, { when: ({ valueOf }) => !valueOf(schemaPath.sendChatMessages) });
     /* eslint-enable @typescript-eslint/unbound-method */
   });
 
