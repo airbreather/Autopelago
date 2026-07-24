@@ -184,14 +184,18 @@ export class ProgressionItemStatus {
   // all tooltips here should use the same context, so that the user can quickly switch between them
   // without having to sit through the whole delay.
   protected readonly tooltipContext = createEmptyTooltipContext();
-  readonly #hintedItems = computed<ReadonlyMap<AutopelagoUniqueItemKey, Hint>>(() => {
-    const result = new Map<AutopelagoUniqueItemKey, Hint>();
+  readonly #hintsForMe = computed<List<Hint>>(() => {
     const game = this.#gameStore.game();
     if (!game) {
-      return result;
+      return List();
     }
+    return game.hints().filter(h => this.isSelf(h.item.receiver));
+  });
+
+  readonly #hintedItems = computed<ReadonlyMap<AutopelagoUniqueItemKey, Hint>>(() => {
+    const result = new Map<AutopelagoUniqueItemKey, Hint>();
     const lookup = this.#gameStore.uniqueItemsByNetworkId();
-    for (const hint of game.hints()) {
+    for (const hint of this.#hintsForMe()) {
       const item = lookup.get(hint.item.id);
       if (item) {
         result.set(item, hint);
@@ -201,12 +205,8 @@ export class ProgressionItemStatus {
   });
 
   protected readonly ratHints = computed<List<Hint>>(() => {
-    const game = this.#gameStore.game();
-    if (!game) {
-      return List<Hint>();
-    }
     const ratCountLookup = this.#gameStore.ratCountByItemNetworkId();
-    return game.hints().filter(hint => ratCountLookup.has(hint.item.id));
+    return this.#hintsForMe().filter(hint => ratCountLookup.has(hint.item.id));
   });
 
   protected readonly hintForTooltipItem = computed(() => {
@@ -294,8 +294,8 @@ export class ProgressionItemStatus {
       return false;
     }
 
-    const { team, slot } = game.client.players.self;
-    return player.team === team && player.slot === slot;
+    const { slot, team } = game.client.players.self;
+    return player.slot === slot && player.team === team;
   }
 
   protected statusText(hint: Hint) {
