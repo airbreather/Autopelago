@@ -6,7 +6,7 @@ Intended to integrate with [Archipelago](https://archipelago.gg) to help people 
 
 ## Get Started
 
-Generate your seed using the .apworld file from [whichever release](https://github.com/airbreather/Autopelago/releases). A sample YAML is provided as well. If you need further help, check Archipelago's own documentation (perhaps one of the [tutorials](https://archipelago.gg/tutorial)).
+Generate your seed using the .apworld file from [whichever release](https://github.com/airbreather/Archipelago/releases). A sample YAML is provided as well. If you need further help, check Archipelago's own documentation (perhaps one of the [tutorials](https://archipelago.gg/tutorial)).
 
 Once it's running, head over to https://autopelago.app and enter the usual Archipelago parameters. For host/port, you can either fill the separate text boxes or paste the complete `host:port` format into the "Host" box.
 
