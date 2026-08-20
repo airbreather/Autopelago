@@ -58,6 +58,11 @@ input[type='submit'],input[type='image'],button {
     color: theme.$button-foreground-disabled;
   }
 
+  &:focus-visible {
+    outline-color: theme.$text-control-border-focused;
+    outline-width: theme.$text-control-border-theme-thickness-focused;
+  }
+
   &:not(:disabled) {
     &:hover {
       background-color: theme.$button-background-pointer-over;
