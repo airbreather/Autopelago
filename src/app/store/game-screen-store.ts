@@ -1,4 +1,4 @@
-﻿import { withImmutableState, withStorageSync } from '@angular-architects/ngrx-toolkit';
+﻿import { withImmutableState, withStorageSync } from '@ngrx-toolkit/core';
 import { patchState, signalStore, withMethods } from '@ngrx/signals';
 
 export type GameTab = 'map' | 'chat' | 'app-build-info' | 'arcade';

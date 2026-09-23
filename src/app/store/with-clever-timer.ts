@@ -1,4 +1,4 @@
-import { withImmutableState } from '@angular-architects/ngrx-toolkit';
+import { withImmutableState } from '@ngrx-toolkit/core';
 import { patchState, signalStoreFeature, withMethods, withProps } from '@ngrx/signals';
 
 interface PausableTimerBase {
