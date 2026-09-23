@@ -11,7 +11,7 @@ import {
 import { provideRouter, withComponentInputBinding, withHashLocation } from '@angular/router';
 import { provideServiceWorker } from '@angular/service-worker';
 
-import { provideToastr, ToastNoAnimation } from 'ngx-toastr';
+import { provideToastr, ToastNoAnimation } from '@openng/ngx-toastr';
 import { AppErrorHandler } from './app-error-handler';
 
 import { routes } from './app.routes';

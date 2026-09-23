@@ -11,7 +11,7 @@ import {
   signal,
 } from '@angular/core';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
-import { type ActiveToast, ToastrService } from 'ngx-toastr';
+import { type ActiveToast, ToastrService } from '@openng/ngx-toastr';
 
 import { toastError } from '../app-error-handler';
 import { initializeClient } from '../archipelago-client';
