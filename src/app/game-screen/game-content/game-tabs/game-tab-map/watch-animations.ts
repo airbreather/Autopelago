@@ -325,8 +325,20 @@ export function watchAnimations(
               if (playerToken) {
                 scrollIntoView(playerToken, { behavior: 'instant', block: 'center', scrollMode: 'if-needed' });
               }
+              const reverts: (() => void)[] = [];
+              const revertReliably = (revert: () => void) => {
+                const revertOnce = () => {
+                  revert();
+                  reverts.splice(reverts.indexOf(revertOnce), 1);
+                };
+                reverts.push(revertOnce);
+                return revertOnce;
+              };
               playerMayWiggleWhenUnpaused.set(false);
               try {
+                revertReliably(() => {
+                  playerMayWiggleWhenUnpaused.set(true);
+                });
                 const ratLeft = Number(playerTokenContainer.style.getPropertyValue('--ap-left-base').replace('px', ''));
                 const ratTop = Number(playerTokenContainer.style.getPropertyValue('--ap-top-base').replace('px', ''));
                 const ratLeftTarget = anim.cause === 'just-poisoned' ? (ratLeft + 150) / 2 : ratLeft;
@@ -338,6 +350,9 @@ export function watchAnimations(
                 ratPoisonContainer.style.setProperty('--ap-left-base', `${poisonLeft.toString()}px`);
                 ratPoisonContainer.style.setProperty('--ap-top-base', `${ratTop.toString()}px`);
                 ratPoisonContainer.style.setProperty('--ap-neutral-angle', '0rad');
+                const hideRatPoisonContainerAgain = revertReliably(() => {
+                  ratPoisonContainer.style.setProperty('display', 'none');
+                });
                 performanceInsensitiveAnimatableState.apparentCurrentLocation.set(startLocation);
                 const localTransientAnimations = [
                   fadeToBlack.animate({
@@ -369,6 +384,9 @@ export function watchAnimations(
                   }
                   finalizeCurrentTransientAnimations();
                   fadeToBlack.style.setProperty('opacity', '1');
+                  revertReliably(() => {
+                    fadeToBlack.style.setProperty('opacity', '0');
+                  });
                   switch (anim.cause) {
                     case 'just-poisoned':
                       gameStore.killPlayerEnd('{PLAYER_ALIAS} drank poison.');
@@ -378,7 +396,7 @@ export function watchAnimations(
                       gameStore.killPlayerEnd(null);
                       break;
                   }
-                  ratPoisonContainer.style.setProperty('display', 'none');
+                  hideRatPoisonContainerAgain();
                   const animateRatBack = playerTokenContainer.animate({
                     ['--ap-left-base']: `${x.toString()}px`,
                     ['--ap-top-base']: `${y.toString()}px`,
@@ -393,7 +411,6 @@ export function watchAnimations(
                   }
                   playerTokenContainer.style.setProperty('--ap-neutral-angle', '0rad');
                   playerTokenContainer.style.setProperty('--ap-scale-x', '1');
-                  fadeToBlack.style.setProperty('opacity', '0');
                 }
                 catch {
                   // doesn't matter.
@@ -407,7 +424,9 @@ export function watchAnimations(
                 overlay.overlayRef?.updatePosition();
               }
               finally {
-                playerMayWiggleWhenUnpaused.set(true);
+                for (let i = reverts.length - 1; i >= 0; --i) {
+                  reverts[i]();
+                }
               }
             })();
           }
