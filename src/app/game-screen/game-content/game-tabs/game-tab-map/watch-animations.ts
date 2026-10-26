@@ -2,6 +2,7 @@ import { Dialog } from '@angular/cdk/dialog';
 import type { CdkConnectedOverlay } from '@angular/cdk/overlay';
 import { DestroyRef, effect, inject, Injector, type Signal, signal, untracked } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
+import type BitArray from '@bitarray/typedarray';
 import scrollIntoView from 'scroll-into-view-if-needed';
 import type { AutopelagoLocation } from '../../../../data/resolved-definitions';
 import { GameStore } from '../../../../store/autopelago-store';
@@ -73,6 +74,7 @@ export function watchAnimations(
   }
 
   const questContainersLookup = new Map<number, HTMLDivElement>();
+  const collectedOutOfLogicQuestContainersLookup = new Map<number, HTMLDivElement>();
   for (const questContainer of questContainers) {
     questContainersLookup.set(Number(questContainer.dataset['locationId']), questContainer);
   }
@@ -96,7 +98,7 @@ export function watchAnimations(
     };
   };
 
-  const checkLocations = (locations: Iterable<number>) => {
+  const checkLocations = (locations: Iterable<number>, regionIsLandmarkWithRequirementSatisfied: Readonly<BitArray>) => {
     for (const loc of locations) {
       const landmarkContainer = landmarkContainersLookup.get(loc);
       if (landmarkContainer !== undefined) {
@@ -106,7 +108,12 @@ export function watchAnimations(
 
       const questContainer = questContainersLookup.get(loc);
       if (questContainer !== undefined) {
-        questContainer.style.display = 'none';
+        if (regionIsLandmarkWithRequirementSatisfied[loc]) {
+          questContainer.style.display = 'none';
+        }
+        else {
+          collectedOutOfLogicQuestContainersLookup.set(loc, questContainer);
+        }
         questContainersLookup.delete(loc);
       }
 
@@ -152,11 +159,19 @@ export function watchAnimations(
       };
     }
     effect(() => {
+      // set the initial snapshot once the definitions are set (and/or change, which only happens when reconnecting).
+      // all other signal reads are untracked: otherwise, this would update every time the data updates, which is
+      // exactly what we're trying to avoid in this file in the first place!
       const { allLocations } = gameStore.defs();
-      const coords = allLocations[untracked(() => gameStore.currentLocation())].coords;
+      const { currentLocation, checkedLocations, regionLocks } = untracked(() => ({
+        currentLocation: gameStore.currentLocation(),
+        checkedLocations: gameStore.checkedLocations(),
+        regionLocks: gameStore.regionLocks(),
+      }));
+      const coords = allLocations[currentLocation].coords;
       playerTokenContainer.style.setProperty('--ap-left-base', `${coords[0].toString()}px`);
       playerTokenContainer.style.setProperty('--ap-top-base', `${coords[1].toString()}px`);
-      checkLocations(untracked(() => gameStore.checkedLocations()));
+      checkLocations(checkedLocations, regionLocks.regionIsLandmarkWithRequirementSatisfied);
     }, { injector });
     effect(() => {
       if (gameStore.running()) {
@@ -272,7 +287,7 @@ export function watchAnimations(
               if (destroyRef.destroyed) {
                 return;
               }
-              checkLocations(anim.locations);
+              checkLocations(anim.locations, snapshot.regionIsLandmarkWithRequirementSatisfied);
             })();
             break;
           }
@@ -450,6 +465,13 @@ export function watchAnimations(
             const region = regionForLandmarkLocation[loc];
             if (snapshot.regionIsLandmarkWithRequirementSatisfied[region]) {
               questContainer.style.setProperty('--ap-blocked-offset', '0');
+            }
+          }
+          for (const [loc, questContainer] of collectedOutOfLogicQuestContainersLookup.entries()) {
+            const region = regionForLandmarkLocation[loc];
+            if (snapshot.regionIsLandmarkWithRequirementSatisfied[region]) {
+              questContainer.style.display = 'none';
+              collectedOutOfLogicQuestContainersLookup.delete(loc);
             }
           }
         })();
